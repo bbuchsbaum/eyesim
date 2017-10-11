@@ -1,8 +1,36 @@
 
+#' @export
+#' @importFrom dplyr do group_by select filter
+#' @importFrom assertthat assert_that
+create_eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data) {
+
+  data <- if (is.null(vars)) {
+    data %>% select_(.dots=c(x,y,duration, onset, groupvar))
+  } else {
+
+    data %>% select_(.dots=c(x,y,duration, onset, vars, groupvar))
+  }
+
+
+  res <- data %>%
+    group_by_(.dots=groupvar) %>%
+    do(
+      {
+
+        cbind(.[1,], tibble(fixgroup=list(fixation_group(.[[x]], .[[y]], .[[duration]], .[[onset]]))))
+      }) %>% select_(.dots=c("fixgroup", vars))
+
+  class(res) <- c("eye_table", class(res))
+  res
+
+}
+
 
 
 #' @importFrom ggplot2 ggplot
-plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha"), bandwidth=100, xlim=range(x$x), ylim=range(x$y), size_points=TRUE) {
+plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha"), bandwidth=100,
+                                xlim=range(x$x),
+                                ylim=range(x$y), size_points=TRUE) {
   type <- match.arg(type)
 
   if (size_points) {
@@ -31,9 +59,6 @@ plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha")
   p
 }
 
-
-
-
 #' @export
 coords.fixation_group <- function(x) {
   res <- cbind(x$x, x$y)
@@ -41,26 +66,44 @@ coords.fixation_group <- function(x) {
   res
 }
 
-density_by <- function(x, groups, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)), outdim=c(100,100), ...) {
+
+#' @export
+density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100), ...) {
   ret <- x %>% group_by_(.dots=groups) %>% do( {
     g <- do.call(rbind, .$fixgroup)
     cbind(.[1,groups],tibble(fixgroup=list(g)))
   }) %>% rowwise() %>% do( {
-
     d <- eye_density(.$fixgroup, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim, ...)
     cbind(as_tibble(.[groups]), tibble( fixgroup=list(.$fixgroup), density=list(d)))
   })
 
   ret
 
-  #cbind(., tibble(density=list(eye_density(.$fixgroup, sigma, ...))))
+}
+
+#' @param ref_tab
+#' @param source_tab
+#' @param match_on
+#' @param method
+#' @export
+target_similarity <- function(ref_tab, source_tab, match_on, method="pearson") {
+  matchind <- match(delay_dens[[match_on]], study_dens[[match_on]])
+  source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
+  ret <- source_tab %>% rowwise() %>% do( {
+    d1 <- ref_tab$density[[.$matchind]]
+    d2 <- .$density
+    sim <- similarity(d1,d2, method=method)
+    data.frame(eye_sim=sim)
+  })
+
+  source_tab %>% mutate(eye_sim=ret$eye_sim)
 
 }
 
 
-
 eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
-                                       outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]), duration_weighted=FALSE, normalize=TRUE) {
+                                       outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
+                                       duration_weighted=FALSE, normalize=TRUE) {
   wts <- if (duration_weighted) {
     x$duration
   } else {
@@ -114,6 +157,8 @@ fixation_group <- function(x, y, duration, onset) {
   ret
 }
 
+
+#' @export
 rep_fixations.fixation_group <- function(x, resolution=100) {
   nreps <- as.integer(x$duration/resolution)
   nreps[nreps < 1] <- 1
@@ -122,23 +167,3 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 }
 
 
-#' @export
-#' @importFrom dplyr do group_by select filter
-create_eye_table <- function(x="CURRENT_FIX_X", y="CURRENT_FIX_Y", duration="CURRENT_FIX_DURATION", onset="CURRENT_FIX_START", groupvar, vars, data) {
-
-  if (missing(vars)) {
-    other <- names(data)
-    vars <- other[!(other %in% c(x,y,duration, onset, groupvar))]
-  }
-
-  data %>% select_(c(x,y,duration, onset, vars, groupvar))
-
-  res <- data %>%
-    group_by_(.dots=groupvar) %>%
-    do(cbind(.[1,], tibble(fixgroup=list(fixation_group(.[[x]], .[[y]], .[[duration]], .[[onset]]))))) %>%
-    select_(.dots=c("fixgroup", vars))
-
-  class(res) <- c("eye_table", class(res))
-  res
-
-}

@@ -2,7 +2,15 @@
 
 
 
-
+#' blurpoints
+#'
+#' @param coords
+#' @param sigma
+#' @param xbounds
+#' @param ybounds
+#' @param resolution
+#' @param weights
+#' @param normalize
 #' @importFrom Matrix sparseMatrix
 #' @importFrom rflann RadiusSearch
 blurpoints <- function(coords, sigma=50, xbounds, ybounds, resolution=1, weights=rep(1, nrow(coords)), normalize=TRUE) {
@@ -39,14 +47,11 @@ blurpoints <- function(coords, sigma=50, xbounds, ybounds, resolution=1, weights
     out <- out/sum(out)
   }
 
-
-
   list(im=out, x=xc, y=yc)
 }
 
 
 
-
-
-pcstudy <- read.table("~/Dropbox/saliency_results/pc_study.txt", header=TRUE)
-pcdelay <- read.table("~/Dropbox/saliency_results/pc_delay.txt", header=TRUE)
+pcstudy <- read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/fix_report_study_input.csv")
+pcdelay <- read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/fix_report_delay_input.csv")
+pcdelay_test <- read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/fix_report_delaytest_input.csv")
