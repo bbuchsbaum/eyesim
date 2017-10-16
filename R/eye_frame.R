@@ -121,6 +121,8 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
     out$z <- out$z/sum(out$z)
   }
 
+  out$fixgroup <- x
+
   class(out) <- c("eye_density", "list")
   out
 
