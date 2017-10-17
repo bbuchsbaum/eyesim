@@ -1,6 +1,8 @@
 
 #' eye_density
 #'
+#' compute a density map for a set of eye fixations
+#'
 #' @param x
 #' @param sigma
 #' @param xbounds
@@ -9,7 +11,7 @@
 #' @param weights
 #' @param normalize
 #' @export
-eye_density <- function(x, sigma, xbounds, ybounds, outdim, weights, normalize) {
+eye_density <- function(x, sigma, xbounds, ybounds, outdim, weights, normalize,...) {
   UseMethod("eye_density", x)
 }
 

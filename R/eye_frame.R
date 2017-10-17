@@ -16,7 +16,6 @@ create_eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data) {
     group_by_(.dots=groupvar) %>%
     do(
       {
-
         cbind(.[1,], tibble(fixgroup=list(fixation_group(.[[x]], .[[y]], .[[duration]], .[[onset]]))))
       }) %>% select_(.dots=c("fixgroup", vars))
 
@@ -68,12 +67,14 @@ coords.fixation_group <- function(x) {
 
 
 #' @export
-density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100), ...) {
+density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
+                       duration_weighted=TRUE, ...) {
   ret <- x %>% group_by_(.dots=groups) %>% do( {
     g <- do.call(rbind, .$fixgroup)
     cbind(.[1,groups],tibble(fixgroup=list(g)))
   }) %>% rowwise() %>% do( {
-    d <- eye_density(.$fixgroup, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim, ...)
+    d <- eye_density(.$fixgroup, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
+                     duration_weighted=duration_weighted,...)
     cbind(as_tibble(.[groups]), tibble( fixgroup=list(.$fixgroup), density=list(d)))
   })
 
@@ -81,13 +82,17 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 
 }
 
+
+#' template_similarity
+#'
 #' @param ref_tab
 #' @param source_tab
 #' @param match_on
 #' @param method
 #' @export
-target_similarity <- function(ref_tab, source_tab, match_on, method="pearson") {
-  matchind <- match(delay_dens[[match_on]], study_dens[[match_on]])
+template_similarity <- function(ref_tab, source_tab, match_on, method="pearson") {
+  browser()
+  matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
   ret <- source_tab %>% rowwise() %>% do( {
     d1 <- ref_tab$density[[.$matchind]]
@@ -97,13 +102,12 @@ target_similarity <- function(ref_tab, source_tab, match_on, method="pearson") {
   })
 
   source_tab %>% mutate(eye_sim=ret$eye_sim)
-
 }
 
 
 eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
                                        outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
-                                       duration_weighted=FALSE, normalize=TRUE) {
+                                       normalize=TRUE, duration_weighted=FALSE) {
   wts <- if (duration_weighted) {
     x$duration
   } else {
