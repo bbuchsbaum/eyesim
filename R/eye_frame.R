@@ -142,13 +142,13 @@ cosine_sim <- function(x,y){
   as.numeric(theta)
 }
 
-#' @importFrom proxy
+#' @importFrom proxy simil
 similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine")) {
   method=match.arg(method)
   if (method=="pearson" || method == "spearman") {
     cor(as.vector(x$z), as.vector(y$z), method=method)
   } else if (method == "cosine") {
-    cosine_sim(as.vector(x$z), as.vector(y$z))
+    proxy::simil(as.vector(x$z), as.vector(x$z), method="cosine", by_rows=FALSE)
   } else {
     stop()
   }
