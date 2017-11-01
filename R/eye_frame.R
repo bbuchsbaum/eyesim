@@ -91,7 +91,7 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 #' @param method
 #' @export
 template_similarity <- function(ref_tab, source_tab, match_on, method="pearson") {
-  browser()
+
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
   ret <- source_tab %>% rowwise() %>% do( {
