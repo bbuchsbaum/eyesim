@@ -8,9 +8,9 @@ pcdelay_test$onset <- rep(0, nrow(pcdelay_test))
 pcdelay_nofirst <- pcdelay_test %>% group_by(Subject, ImageNumber, ImageSet)
 
 ## create eye fixation table
-delay_nof_tab <- create_eye_table(x="FixX", y="FixY", duration="FixDuration", onset="onset",
+delay_nof_tab <- eye_table(x="FixX", y="FixY", duration="FixDuration", onset="onset",
                                   vars=c("Saliency", "Duration", "Accuracy"),
-                                  groupvar=c("Subject", "ImageNumber", "ImageSet"), data=pcdelay_nofirst)
+                                  groupvar=c("Subject", "ImageNumber", "ImageSet"), data=pcdelay_test)
 
 ## create density map for each "group" using a sigma of 100
 delay_nof_density <- density_by(delay_nof_tab, groups=c("Subject", "ImageNumber", "ImageSet"), sigma=100)
