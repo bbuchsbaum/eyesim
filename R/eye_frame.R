@@ -46,12 +46,16 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
 # }
 
 
-
-#' @importFrom ggplot2 ggplot
+#' @import ggplot2
+#' @importFrom ggplot2 ggplot aes annotation_raster geom_point
+#' @importFrom imager load.image
+#' @importFrom RColorBrewer brewer.pal
+#' @export
 plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha"), bandwidth=100,
                                 xlim=range(x$x),
                                 ylim=range(x$y),
                                 size_points=TRUE,
+                                show_points=TRUE,
                                 bg_image=NULL, alpha=1) {
   type <- match.arg(type)
 
@@ -73,18 +77,30 @@ plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha")
                                ymax=ylim[2])
   }
 
-  if (size_points) {
-    p <- p + geom_point(aes(size=psize))
-  } else {
-    p <- p + geom_point()
+  if (show_points) {
+    if (size_points) {
+      p <- p + geom_point(aes(size=psize))
+    } else {
+      p <- p + geom_point()
+    }
   }
+
 
   p <- if (type== "contour") {
     p + stat_density_2d(aes(colour = ..level..), h=bandwidth)
   } else if (type == "density") {
-    p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", size=4, bins=8) #+ scale_alpha_continuous(range=c(0.4,0.8))
+    p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", size=2, bins=6, h=bandwidth)   +
+      #scale_fill_gradient(
+      #  trans = scales::probability_trans(distribution = 'norm')
+      #colours = rev( brewer.pal( 7, "Spectral" ) ))
+      scale_alpha_continuous(range=c(.2,1))
   } else {
-    p + stat_density2d(aes(fill = ..level.., alpha = ..density..), geom = "raster", contour = FALSE, h=bandwidth)
+    p +
+      stat_density2d(aes(fill=..level.., alpha=..density..), geom = "raster", contour = FALSE) +
+      scale_fill_gradient(
+        trans = "log") +
+      scale_alpha_continuous(range=c(.2,1))
+    #p + stat_density2d(aes(fill = ..level..), geom = "raster", contour = FALSE, h=bandwidth)
   }
 
 

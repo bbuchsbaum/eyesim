@@ -8,6 +8,8 @@ library(MASS)
 pcstudy <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/study_fixations.csv")) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
 
+
+
 ## load test data to get accuracy values (only taking first fixation row of each trial -- see: 'slice(1)')
 pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/delay_fixations.csv")) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>%
@@ -22,6 +24,11 @@ study_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTi
                        clip_bounds=c(112, (112+800), 684, 84),
                        vars=c("ImageVersion",
                               "ImageSet", "Block", "Image", "ImageNumber"))
+
+study_tab_all <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTime",
+                       groupvar=c("ImageVersion"), data=pcstudy,
+                       clip_bounds=c(112, (112+800), 684, 84),
+                       vars=c("ImageSet", "Block", "Image", "ImageNumber"))
 
 
 ## compute average fixation map for each subject (to be used as baseline) when computing encoding similarity

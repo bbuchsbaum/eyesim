@@ -4,7 +4,8 @@
 \alias{template_similarity}
 \title{template_similarity}
 \usage{
-template_similarity(ref_tab, source_tab, match_on, method = "pearson")
+template_similarity(ref_tab, source_tab, match_on, method = c("spearman",
+  "pearson", "cosine"), permutations = 10)
 }
 \description{
 template_similarity
