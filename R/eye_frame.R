@@ -41,21 +41,25 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
 }
 
 
-# clip.eye_table <- function(x, clip_bounds) {
-#
-# }
+rank_trans <- scales::trans_new(name="rank",
+                                transform=function(x) { browser(); rank(x) },
+                                inverse=function(x) (length(x)+1) - rank(x))
 
+cuberoot_trans <- scales::trans_new(name="rank",
+                                transform=function(x) { x^(1/3) },
+                                inverse=function(x) x^3)
 
 #' @import ggplot2
 #' @importFrom ggplot2 ggplot aes annotation_raster geom_point
 #' @importFrom imager load.image
 #' @importFrom RColorBrewer brewer.pal
 #' @export
-plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha"), bandwidth=100,
+plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandwidth=100,
                                 xlim=range(x$x),
                                 ylim=range(x$y),
                                 size_points=TRUE,
                                 show_points=TRUE,
+                                bins=max(as.integer(length(x$x)/10),4),
                                 bg_image=NULL, alpha=1) {
   type <- match.arg(type)
 
@@ -87,20 +91,22 @@ plot.fixation_group <- function(x, type=c("contour", "density", "density_alpha")
 
 
   p <- if (type== "contour") {
-    p + stat_density_2d(aes(colour = ..level..), h=bandwidth)
+    p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
+      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
   } else if (type == "density") {
-    p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", size=2, bins=6, h=bandwidth)   +
-      #scale_fill_gradient(
-      #  trans = scales::probability_trans(distribution = 'norm')
-      #colours = rev( brewer.pal( 7, "Spectral" ) ))
-      scale_alpha_continuous(range=c(.2,1))
+    p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
+      #scale_fill_gradientn(colours=colorspace::heat_hcl(12))+
+      scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide=FALSE)+
+      scale_alpha_continuous(range=c(.5,.9), guide=FALSE) +
+      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
   } else {
-    p +
-      stat_density2d(aes(fill=..level.., alpha=..density..), geom = "raster", contour = FALSE) +
-      scale_fill_gradient(
-        trans = "log") +
-      scale_alpha_continuous(range=c(.2,1))
-    #p + stat_density2d(aes(fill = ..level..), geom = "raster", contour = FALSE, h=bandwidth)
+
+      p + stat_density_2d(aes(fill = ..density.., alpha=..density..), geom="raster", bins=bins, h=bandwidth, contour = FALSE) +
+      #scale_fill_gradientn(colours=colorspace::heat_hcl(12), trans=p6_trans)+
+      scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = FALSE)+
+      scale_alpha_continuous(range=c(.6,1), guide = FALSE) +
+        theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
+
   }
 
 
