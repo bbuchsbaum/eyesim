@@ -19,8 +19,8 @@ study_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTi
 
 
 ## load test data
-pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/delay_fixations.csv")) %>%
-  mutate(fix_onset=FixStartTime - DelayOnset) %>%
+pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/testdelay_fixations.csv")) %>%
+  mutate(fix_onset=FixStartTime - testdelayOnset) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
 
 
@@ -29,7 +29,7 @@ test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="fix_onset",
                       groupvar=c("Image", "Subject"), data=pctest,
                       clip_bounds=c(112, (112+800), 684, 84),
                       vars=c("ImageVersion", "Saliency", "Accuracy",
-                             "ImageSet", "Trial", "Duration", "ImageNumber", "DelayOnset"))
+                             "ImageSet", "Trial", "Duration", "ImageNumber", "testdelayOnset"))
 
 m <- test_tab %>% group_by(Subject) %>% rowwise() %>% do( {
   sversion <- as.character(filter(pcstudy, Subject == .$Subject & ImageNumber == .$ImageNumber)$ImageSet[1])
@@ -39,9 +39,14 @@ m <- test_tab %>% group_by(Subject) %>% rowwise() %>% do( {
 
 test_tab$Match <- m$Match
 
+## construct heatmaps for the study phase, averaged within subjects
+study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
+                         duration_weighted=TRUE, sigma=80)
 
-## construct heatmaps for the study phase, averaged over subjects
-study_dens <- density_by(study_tab, groups="Image", xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
+
+#study_dens_subj_avg <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
+#                                  duration_weighted=TRUE, sigma=80)
+
 
 study_dens_avg <- Reduce("+", lapply(study_dens$density, function(x) x$z))/length(study_dens)
 study_dens_avg <- study_dens_avg/sum(study_dens_avg)
@@ -62,7 +67,7 @@ saliency <- study_dens %>% rowwise() %>% do({
   zrank <- zrank/sum(zrank)
 
   gg <- expand.grid(x=1:80, y=1:60)
-  tibble(Image=.$Image, zcuberoot = list(zcubed), zrank=list(matrix(zrank, 80,60)), zsqw=list(zsqw))
+  tibble(Subject=.$Subject, Image=.$Image, zcuberoot = list(zcubed), zrank=list(matrix(zrank, 80,60)), zsqw=list(zsqw))
 })
 
 #write.table(saliency, "~/Dropbox/Jordana_experiments/Jordana_saliency_study/saliency_grid.txt", row.names=FALSE)
@@ -92,13 +97,9 @@ sal_out <- test_tab %>% rowwise() %>% do({
     im <- paste0(strsplit(as.character(.$Image), "_")[[1]][1:3], collapse="_")
   }
 
-  other_version <- if (as.character(.$ImageSet[1]) == "A") "B" else "A"
-
   im <- paste0(im, ".jpeg")
-  im_other <- gsub(as.character(.$ImageSet[1]), other_version, im)
+  sal <- saliency$zsqw[[which(saliency$Image == .$ImageNumber & saliency$Subject == .$Subject)]]
 
-  sal <- saliency$zsqw[[which(as.character(saliency$Image) == im)]]
-  sal_other <- saliency$zsqw[[which(as.character(saliency$Image) == im_other)]]
 
   fix <- .$fixgroup
   fm <- round(cbind(fix$x, fix$y)/10)
@@ -120,44 +121,50 @@ sal_out <- test_tab %>% rowwise() %>% do({
 
   ## the total salience
   tot <- sal[fm]
-
-  ## the salience of the other version
-  vis_other <- ifelse(mvals, sal_other[fm], NA)
-
-  ## the salience of the invisible items in the other version
-  novis_other <- ifelse(mvals==0, sal_other[fm], NA)
-
-  #the total salience of the other version
-  tot_other <- sal_other[fm]
-
-
   bvis <- study_dens_sqw[fm]
 
   pvis <- ifelse(mvals, 1, 0)
   pnovis <- ifelse(mvals == 0, 1, 0)
 
-  ret <- data.frame(vis=vis-bvis, novis=novis-bvis, totvis=tot-bvis, vis_other=vis_other-bvis,
-                    novis_other=novis_other-bvis, tot_other=tot_other-bvis, pvis=pvis, pnovis=pnovis)
+  ret <- data.frame(vis=vis-bvis, novis=novis-bvis, totvis=tot-bvis, pvis=pvis, pnovis=pnovis)
   as_tibble(cbind(ret, .))
 }) %>% ungroup()
 
-sal_out <- gather(sal_out, key=measure, value=sim, vis, novis, totvis, vis_other, novis_other, tot_other)
+sal_out <- gather(sal_out, key=measure, value=sim, vis, novis, totvis, pvis, pnovis)
 
 #sal_out %>% group_by(Saliency, Duration) %>% summarize(vis=mean(vis), novis=mean(novis), totvis=mean(totvis))
 library(mgcv)
 library(ggplot2)
 gam.1 <- gam(totvis ~ s(fixgroup.onset), data=sal_out)
 
-ggplot(aes(fixgroup.onset, sim, colour=factor(Accuracy)), data=subset(sal_out, measure %in% c("totvis") )) +
-  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=7, fx=TRUE)) + facet_wrap(~ Match)
+ggplot(aes(fixgroup.onset, sim, linetype=measure), data=subset(sal_out, measure %in% c("vis", "novis")))  +
+  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=10, fx=TRUE)) + facet_wrap(~ Match)
 
-ggplot(aes(fixgroup.onset, sim, colour=measure, linetype=Match), data=subset(sal_out, measure %in% c("totvis", "tot_other"))) +
+ggplot(aes(fixgroup.onset, sim, colour=factor(Accuracy)), data=subset(sal_out, measure %in% c("totvis") )) + facet_wrap(Saliency ~ Match, ncol=5) +
+  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=8, fx=TRUE))
+
+ggplot(aes(fixgroup.onset, sim, colour=factor(Accuracy)), data=subset(sal_out, measure %in% c("totvis") )) + facet_wrap(~ Match) +
+  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=8, fx=TRUE))
+
+ggplot(aes(fixgroup.onset, sim, colour=factor(Duration)), data=subset(sal_out, measure %in% c("totvis") )) + facet_wrap(~ Match) +
+  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=8, fx=TRUE))
+
+ggplot(aes(fixgroup.onset, sim, colour=factor(Saliency)), data=subset(sal_out, measure %in% c("totvis") )) + facet_wrap(~ Match) +
+  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=8, fx=TRUE))
+
+ggplot(aes(fixgroup.onset, sim, colour=factor(Accuracy)), data=subset(sal_out, measure %in% c("totvis") & Saliency < 40 & Duration < 700)) + facet_wrap(~ Match) +
+  geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=6, fx=TRUE))
+
+
+
+
+ggplot(aes(fixgroup.onset, sim, colour=measure, linetype=Match), data=subset(sal_out, measure %in% c("totvis"))) +
   geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=10, fx=TRUE))
 
-ggplot(aes(fixgroup.onset, sim, colour=measure, linetype=factor(Accuracy)), data=subset(sal_out, measure %in% c("totvis", "tot_other"))) + facet_wrap( ~ Match) +
+ggplot(aes(fixgroup.onset, sim, colour=measure, linetype=factor(Accuracy)), data=subset(sal_out, measure %in% c("totvis"))) + facet_wrap( ~ Match) +
   geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=10, fx=TRUE))
 
-ggplot(aes(fixgroup.onset, sim, colour=measure, linetype=Match), data=subset(sal_out, measure %in% c("vis", "vis_other"))) +
+ggplot(aes(fixgroup.onset, sim, colour=factor(Saliency)), data=subset(sal_out, measure %in% c("totvis"))) +  facet_wrap(~ Match) +
   geom_smooth(se=FALSE, method=gam, formula = y ~ s(x, k=10, fx=TRUE))
 
 
