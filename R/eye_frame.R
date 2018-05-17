@@ -139,7 +139,7 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 
 }
 
-
+#' @export
 #' @importFrom quantreg rq
 template_regression <- function(ref_tab, source_tab, match_on, baseline_tab, baseline_key, method=c("lm", "rlm", "rank")) {
   method <- match.arg(method)
@@ -186,7 +186,6 @@ template_regression <- function(ref_tab, source_tab, match_on, baseline_tab, bas
 #' @param match_on
 #' @param method
 #' @export
-
 template_similarity <- function(ref_tab, source_tab, match_on, method=c("spearman", "pearson", "cosine"), permutations=10) {
   method <- match.arg(method)
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
@@ -213,6 +212,7 @@ template_similarity <- function(ref_tab, source_tab, match_on, method=c("spearma
   }
 }
 
+#' @export
 #' @importFrom MASS kde2d
 eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
                                        outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
@@ -251,7 +251,9 @@ cosine_sim <- function(x,y){
   as.numeric(theta)
 }
 
+
 #' @importFrom proxy simil
+#' @export
 similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine")) {
   method=match.arg(method)
 
@@ -272,6 +274,7 @@ similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine
 
 
 #' @importFrom tibble tibble
+#' @export
 fixation_group <- function(x, y, duration, onset) {
   ret <- tibble(x=x,y=y, duration=duration, onset=onset)
   class(ret) <- c("fixation_group", class(ret))
