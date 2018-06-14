@@ -187,18 +187,32 @@ template_regression <- function(ref_tab, source_tab, match_on, baseline_tab, bas
 #' @param method
 #' @export
 template_similarity <- function(ref_tab, source_tab, match_on, method=c("spearman", "pearson", "cosine"), permutations=10) {
+
+
   method <- match.arg(method)
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
+
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
 
+  if (any(is.na(matchind))) {
+    warning("did not find matching template map for all source maps. Removing non-matching elements.")
+    source_tab <- source_tab %>% filter(!is.na(matchind))
+    matchind <- matchind[!is.na(matchind)]
+  }
+
   ret <- source_tab %>% rowwise() %>% do( {
+
     d1 <- ref_tab$density[[.$matchind]]
     d2 <- .$density
 
     sim <- similarity(d1,d2, method=method)
+
     if (permutations > 0) {
       mind <- sample(matchind, permutations)
-      psim <- mean(sapply(mind, function(i) similarity(ref_tab$density[[i]], d2, method=method)))
+      psim <- mean(sapply(mind, function(i) {
+        similarity(ref_tab$density[[i]], d2, method=method)
+      }))
+
       data.frame(eye_sim=sim, perm_sim=psim, eye_sim_diff=sim-psim)
     } else {
       data.frame(eye_sim=sim)
