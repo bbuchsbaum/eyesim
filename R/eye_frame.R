@@ -146,6 +146,12 @@ template_regression <- function(ref_tab, source_tab, match_on, baseline_tab, bas
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
 
+  if (any(is.na(matchind))) {
+    warning("did not find matching template map for all source maps. Removing non-matching elements.")
+    source_tab <- source_tab %>% filter(!is.na(matchind))
+    matchind <- matchind[!is.na(matchind)]
+  }
+
 
   ret <- source_tab %>% rowwise() %>% do( {
     id <- which(study_dens_subj_avg[[baseline_key]] == .[[baseline_key]][1])
