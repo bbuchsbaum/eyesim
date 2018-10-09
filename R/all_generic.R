@@ -44,3 +44,8 @@ similarity <- function(x, y, method) {
   UseMethod("similarity", x)
 }
 
+density_matrix <- function(x, groups,...) {
+  UseMethod("density_matrix", x)
+}
+
+

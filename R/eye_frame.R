@@ -41,6 +41,8 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
 }
 
 
+
+
 rank_trans <- scales::trans_new(name="rank",
                                 transform=function(x) { browser(); rank(x) },
                                 inverse=function(x) (length(x)+1) - rank(x))
@@ -124,7 +126,9 @@ coords.fixation_group <- function(x) {
 
 
 #' @export
-density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
+density_by <- function(x, groups, sigma=50,
+                       xbounds=c(0, 1000), ybounds=c(0, 1000),
+                       outdim=c(100,100),
                        duration_weighted=TRUE, ...) {
   ret <- x %>% group_by_(.dots=groups) %>% do( {
     g <- do.call(rbind, .$fixgroup)
@@ -134,6 +138,8 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
                      duration_weighted=duration_weighted,...)
     cbind(as_tibble(.[groups]), tibble( fixgroup=list(.$fixgroup), density=list(d)))
   })
+
+  class(ret) <- c("density_table", class(ret))
 
   ret
 
