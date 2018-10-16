@@ -141,7 +141,9 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 
 #' @export
 #' @importFrom quantreg rq
-template_regression <- function(ref_tab, source_tab, match_on, baseline_tab, baseline_key, method=c("lm", "rlm", "rank")) {
+template_regression <- function(ref_tab, source_tab, match_on,
+                                baseline_tab, baseline_key,
+                                method=c("lm", "rlm", "rank")) {
   method <- match.arg(method)
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
@@ -192,7 +194,9 @@ template_regression <- function(ref_tab, source_tab, match_on, baseline_tab, bas
 #' @param match_on
 #' @param method
 #' @export
-template_similarity <- function(ref_tab, source_tab, match_on, method=c("spearman", "pearson", "cosine"), permutations=10) {
+template_similarity <- function(ref_tab, source_tab, match_on,
+                                method=c("spearman", "pearson", "cosine", "l1", "jaccard"),
+                                permutations=10) {
 
 
   method <- match.arg(method)
@@ -263,18 +267,18 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
 }
 
 
-cosine_sim <- function(x,y){
-  dot.prod <- x%*%y
-  norm.x <- norm(x,type="2")
-  norm.y <- norm(y,type="2")
-  theta <- acos(dot.prod / (norm.x * norm.y))
-  as.numeric(theta)
-}
+# cosine_sim <- function(x,y){
+#   dot.prod <- x%*%y
+#   norm.x <- norm(x,type="2")
+#   norm.y <- norm(y,type="2")
+#   theta <- acos(dot.prod / (norm.x * norm.y))
+#   as.numeric(theta)
+# }
 
 
 #' @importFrom proxy simil
 #' @export
-similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine")) {
+similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine", "l1", "jaccard")) {
   method=match.arg(method)
 
 
@@ -286,8 +290,12 @@ similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine
     cor(as.vector(x$z), as.vector(y), method=method)
   } else if (method == "cosine") {
     proxy::simil(as.vector(x$z), as.vector(y), method="cosine", by_rows=FALSE)[,]
-  } else {
-    stop()
+  } else if (method == "l1") {
+    x1 <- x$z/sum(x$z)
+    x2 <- y/sum(y)
+    1-(proxy::dist(x1, x2, method="Manhattan", by_rows=FALSE))
+  } else if (method == "jaccard") {
+    proxy::simil(as.vector(x$z), as.vector(y), method="eJaccard", by_rows=FALSE)[,]
   }
 
 }
