@@ -200,6 +200,8 @@ template_similarity <- function(ref_tab, source_tab, match_on,
 
 
   method <- match.arg(method)
+  message("template_similarity: similarity metric is ", method)
+
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
 
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
@@ -291,7 +293,9 @@ similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine
   } else if (method == "cosine") {
     proxy::simil(as.vector(x$z), as.vector(y), method="cosine", by_rows=FALSE)[,]
   } else if (method == "l1") {
-    x1 <- x$z/sum(x$z)
+    z <- as.vector(x$z)
+    y <- as.vector(y)
+    x1 <- z/sum(z)
     x2 <- y/sum(y)
     1-(proxy::dist(x1, x2, method="Manhattan", by_rows=FALSE))
   } else if (method == "jaccard") {
