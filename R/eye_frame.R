@@ -297,7 +297,7 @@ similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine
     y <- as.vector(y)
     x1 <- z/sum(z)
     x2 <- y/sum(y)
-    1-(proxy::dist(x1, x2, method="Manhattan", by_rows=FALSE))
+    1-(proxy::dist(x1, x2, method="Manhattan", by_rows=FALSE)[,])
   } else if (method == "jaccard") {
     proxy::simil(as.vector(x$z), as.vector(y), method="eJaccard", by_rows=FALSE)[,]
   }
