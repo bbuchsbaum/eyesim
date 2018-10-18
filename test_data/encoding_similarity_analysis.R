@@ -5,13 +5,13 @@ library(ppcor)  ### install.packages("ppcor")
 library(MASS)
 
 ## load study data
-pcstudy <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/study_fixations.csv")) %>%
+pcstudy <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/study_fixations.csv")) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
 
 
 
 ## load test data to get accuracy values (only taking first fixation row of each trial -- see: 'slice(1)')
-pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/delay_fixations.csv")) %>%
+pctest <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/delay_fixations.csv")) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>%
   group_by(Subject, Trial) %>% slice(1) %>% droplevels() %>% ungroup()
 

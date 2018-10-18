@@ -1,11 +1,10 @@
 library(dplyr)
 library(tibble)
 library(tidyr)
+library(energy)
 
-## load study data
-start_time <- 2000
 
-pcstudy <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/study_fixations.csv")) %>%
+pcstudy <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/study_fixations.csv")) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
 
 pcstudy$ImageNumber <- as.integer(as.character(pcstudy$ImageNumber))
@@ -19,22 +18,20 @@ study_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTi
                               "ImageSet", "Block", "Image", "ImageNumber"))
 
 
-subject_dens <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
-
+subject_dens <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=60, angular=TRUE)
 
 
 ## load test data
-pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/delay_fixations.csv")) %>%
-  mutate(fix_onset=FixStartTime - DelayOnset) %>%
-  filter(Image != "." & fix_onset < start_time & !(Subject %in% c(28,32, 109))) %>% droplevels()
+pctest <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/testdelay_fixations.csv")) %>%
+  filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
 
 
 ## create table for each test trial
-test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="fix_onset",
+test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
                        groupvar=c("Image", "Subject"), data=pctest,
                        clip_bounds=c(112, (112+800), 684, 84),
                        vars=c("ImageVersion", "Saliency", "Accuracy",
-                              "ImageSet", "Trial", "Duration", "ImageNumber", "DelayOnset"))
+                              "ImageSet", "Trial", "Duration", "ImageNumber"))
 
 m <- test_tab %>% group_by(Subject) %>% rowwise() %>% do( {
   sversion <- as.character(filter(pcstudy, Subject == .$Subject & ImageNumber == .$ImageNumber)$ImageSet[1])
@@ -42,18 +39,23 @@ m <- test_tab %>% group_by(Subject) %>% rowwise() %>% do( {
   data.frame(Match=Match)
 })
 
+test_tab$Image_Subj <- paste0(test_tab$Subject, "_", test_tab$ImageNumber)
+test_tab$Image_Subj_Version <- paste0(test_tab$Subject, "_", test_tab$ImageVersion)
 test_tab$Match <- m$Match
 
+
+outdim <- c(16,12)
 ## construct heatmaps for the study phase, averaged within subjects
-study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
-                         duration_weighted=TRUE, sigma=80)
+study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
+                         duration_weighted=TRUE, sigma=60)
+
+study_dens_ang <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
+                         duration_weighted=TRUE, sigma=60, angular=TRUE, angle_bins=12)
 
 
-study_dens_subj_avg <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
-                                  duration_weighted=TRUE, sigma=80)
 
 ## construct heatmaps for the study phase, averaged over subjects
-study_dens_all <- density_by(study_tab, groups=c("ImageVersion"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
+study_dens_all <- density_by(study_tab, groups=c("ImageVersion"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
 
 ## compute grand mean density
 study_dens_avg <- Reduce("+", lapply(study_dens$density, function(x) x$z))/length(study_dens)
@@ -64,23 +66,129 @@ dens_avg_subj <- study_dens %>% group_by(Subject) %>% do({
   tibble(Subject=.$Subject[1], dens=list(dens))
 })
 
-test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
-test_dens_all <- density_by(test_tab, groups=c("ImageVersion", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
+test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
+test_dens_ang <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60,
+                            angular=TRUE, angle_bins=12)
+
+
+test_dens_all <- density_by(test_tab, groups=c("ImageVersion", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
 
 test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
 study_dens$Image_Subj <- paste0(study_dens$Subject, "_", study_dens$ImageNumber)
-test_tab$Image_Subj <- paste0(test_tab$Subject, "_", test_tab$ImageNumber)
+
+test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
+study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
 
 
-test_reg <- template_regression(study_dens, test_dens, "Image_Subj", study_dens_subj_avg, baseline_key="Subject", method="rank")
+
+binned_similarity <- function(min_onset, max_onset, method="cosine") {
+  print(min_onset)
+  ## create table for each test trial
+  pctest_binned <- pctest %>% filter(FixOffset >= min_onset & FixOffset < max_onset)
+
+
+  test_tab_binned <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
+                        groupvar=c("Image", "Subject"), data=pctest_binned,
+                        clip_bounds=c(112, (112+800), 684, 84),
+                        vars=c("ImageVersion", "Saliency", "Accuracy",
+                               "ImageSet", "Trial", "Duration", "ImageRepetition", "ImageNumber", "testdelayOnset"))
+
+  test_tab_binned$Image_Subj <- paste0(test_tab_binned$Subject, "_", test_tab_binned$ImageNumber)
+
+
+  test_tab_binned$Match <- test_tab_binned$ImageRepetition
+
+  test_dens <- density_by(test_tab_binned, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600),
+                          outdim=outdim, duration_weighted=TRUE, sigma=50)
+  test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
+
+  ## compute similarity between each trial and study image derived from group average
+  test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method=method) %>% mutate(min_onset=min_onset, max_onset=max_onset)
+
+  test_sim <- inner_join(test_sim, test_tab_binned, by="Image_Subj") %>% mutate(method=method)
+
+}
+
+library(purrr)
+library(ggplot2)
+bin_onsets <- seq(0, 3500, by=400)
+sal_binned_cos <- bin_onsets %>% map(~ binned_similarity(., . + 250, method="dcov")) %>% map_df(bind_rows) #%>% select(-fixgroup.x, -fixgroup.y, -density)
+
+
+
+sal_sum1 <- sal_binned_cos %>% filter(Subject.x < 300) %>% group_by(Accuracy,  ImageRepetition, min_onset) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim))
+qplot(min_onset, eye_sim_diff, colour=factor(Accuracy), data=sal_sum1, facets = ~ ImageRepetition) + geom_line()
+
+
+test_reg <- template_regression(study_dens, test_dens, "Image_Subj", subject_dens, baseline_key="Subject", method="rank")
 test_reg$Image_Subj <- paste0(test_reg$Subject, "_", test_reg$ImageNumber)
 
-## compute similarity between each trial and study image derived from group average
-test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="spearman")
-test_sim_all <- template_similarity(study_dens_all, test_dens_all, "ImageVersion", permutations=10, method="spearman")
 
-test_sim_all$Image_Subj_Version <- paste0(test_sim_all$Subject, "_", test_sim_all$ImageVersion)
-test_tab$Image_Subj_Version <- paste0(test_tab$Subject, "_", test_tab$ImageVersion)
+
+
+
+
+
+cor_with_accuracy <- function(simtab, type) {
+  #test_sim <- inner_join(simtab, test_tab, by="Image_Subj")
+  #test_sim <- subset(test_sim, Subject.x < 300)
+
+  res <- test_sim %>% group_by(Subject.x) %>% do({
+    hits <- sum(.$Accuracy[.$Match == "match"])
+    cr <- sum(.$Accuracy[.$Match == "mismatch"])
+
+    misses <- sum(.$Match == "match") - hits
+    fa <- sum(.$Match == "mismatch") - cr
+    res <- dprime(hits, fa, misses, cr)
+
+    sim_match <- mean(.$sim[.$Match == "match"])
+    sim_mismatch <- mean(.$sim[.$Match == "mismatch"])
+
+    acc_match <- mean(.$Accuracy[.$Match == "match"])
+    acc_mismatch <- mean(.$Accuracy[.$Match == "mismatch"])
+    data.frame(Subject=.$Subject.x[1], dprime=res$dprime, aprime=res$aprime, beta=res$beta, bppd=res$bppd, c=res$c,
+               sim_match=sim_match, sim_mismatch=sim_mismatch, acc_match=acc_match, acc_mismatch=acc_mismatch)
+  })
+
+  data.frame(cormatch=cor(res$aprime, res$sim_match), cormismatch=cor(res$aprime, res$sim_mismatch), corhits=cor(res$sim_match, res$acc_match),
+             corcr=cor(res$sim_mismatch, res$acc_mismatch), type=type)
+
+}
+
+
+## compute similarity between each trial and study image derived from group average
+test_sim_spear <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="spearman")
+test_sim_spear %>% mutate(sim = eye_sim_diff) %>% cor_with_accuracy(., type="spearman")
+test_sim_spear %>% mutate(sim = eye_sim) %>% cor_with_accuracy(., type="spearman")
+
+test_sim_cos <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="cosine")
+test_sim_cos %>% mutate(sim = eye_sim_diff) %>% cor_with_accuracy(., type="cosine")
+test_sim_cos %>% mutate(sim = eye_sim) %>% cor_with_accuracy(., type="cosine")
+
+test_sim_jacc <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="jaccard")
+test_sim_jacc %>% mutate(sim = eye_sim_diff) %>% cor_with_accuracy(., type="jaccard")
+test_sim_jacc %>% mutate(sim = eye_sim) %>% cor_with_accuracy(., type="jaccard")
+
+test_sim_l1 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="l1")
+test_sim_l1 %>% mutate(sim = eye_sim_diff) %>% cor_with_accuracy(., type="l1")
+test_sim_l1 %>% mutate(sim = eye_sim) %>% cor_with_accuracy(., type="l1")
+
+test_sim_dcov <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="dcov")
+test_sim_dcov %>% mutate(sim = eye_sim_diff) %>% cor_with_accuracy(., type="dcov")
+test_sim_dcov %>% mutate(sim = eye_sim) %>% cor_with_accuracy(., type="dcov")
+
+test_sim_cos_ang <- template_similarity(study_dens_ang, test_dens_ang, "Image_Subj", permutations=10, method="cosine")
+test_sim_cos_ang %>% mutate(sim = eye_sim_diff) %>% cor_with_accuracy(., type="cosine")
+test_sim_cos_ang %>% mutate(sim = eye_sim) %>% cor_with_accuracy(., type="cosine")
+
+
+
+test_sim_angle <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="angular")
+
+library(lme4)
+test_sim <- inner_join(test_sim_cos_ang, test_tab, by="Image_Subj")
+lme.1 <- glmer(Accuracy ~ eye_sim_diff*Match + (1 | Subject.x), family="binomial", data=subset(test_sim, Subject.x > 300))
+summary(lme.1)
 
 ## join eye_sim with test_tab
 test_sim <- inner_join(test_sim, test_tab, by="Image_Subj")

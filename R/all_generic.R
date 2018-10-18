@@ -1,4 +1,3 @@
-
 #' eye_density
 #'
 #' compute a density map for a set of eye fixations
@@ -34,6 +33,15 @@ rep_fixations <- function(x, resolution) {
   UseMethod("rep_fixations", x)
 }
 
+#' sample_fixations
+#'
+#' @param x the fixation group
+#' @param time the continuous time points to sample
+#' @export
+sample_fixations <- function(x, time) {
+  UseMethod("sample_fixations", x)
+}
+
 #' similarity
 #'
 #' @param x
@@ -44,3 +52,6 @@ similarity <- function(x, y, method) {
   UseMethod("similarity", x)
 }
 
+density_matrix <- function(x, groups,...) {
+  UseMethod("density_matrix", x)
+}

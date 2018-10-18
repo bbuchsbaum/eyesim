@@ -19,7 +19,7 @@ study_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTi
 
 
 ## load test data
-pctest <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/test_fixations.csv")) %>%
+pctest <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/testdelay_fixations.csv")) %>%
   mutate(fix_onset=FixOffset) %>%
   filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
 
@@ -50,6 +50,8 @@ study_dens_sqw <- study_dens_sqw/sum(study_dens_sqw)
 #sigma <- .1
 #weights <- exp(-study_dens_avg^2/(2 * sigma^2))
 
+test_tab <- test_tab %>% filter(Subject < 300)
+
 saliency <- study_dens %>% rowwise() %>% do({
 
   zdens <- .$density$z/sum(.$density$z)
@@ -79,53 +81,71 @@ maskset <- lapply(levels(pctest$Image), function(im) {
 
 names(maskset) <- levels(pctest$Image)
 
-sal_out <- test_tab %>% rowwise() %>% do({
+binned_visibility <- function(min_onset, max_onset) {
+  print(min_onset)
+  pctest_binned <- pctest %>% filter(FixOffset >= min_onset & FixOffset < max_onset)
+  test_tab_binned <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
+                               groupvar=c("Image", "Subject"), data=pctest_binned,
+                               clip_bounds=c(112, (112+800), 684, 84),
+                               vars=c("ImageVersion", "Saliency", "Accuracy",
+                                      "ImageSet", "Trial", "Duration", "ImageNumber", "ImageRepetition"))
 
-  if (nrow(.$fixgroup) > 4) {
-    browser()
-  }
+  #binned_visibility <- function(min, max) {
+  sal_out <- test_tab_binned %>% rowwise() %>% do({
 
-  print(as.character(.$Image))
+    #print(as.character(.$Image))
 
-  if (.$Saliency == 100) {
-    im <- paste0(strsplit(as.character(.$Image), "_")[[1]][1:2], collapse="_")
-    im <- paste0(im, "_1")
-  } else {
-    im <- paste0(strsplit(as.character(.$Image), "_")[[1]][1:3], collapse="_")
-  }
+    if (.$Saliency == 100) {
+      im <- paste0(strsplit(as.character(.$Image), "_")[[1]][1:2], collapse="_")
+      im <- paste0(im, "_1")
+    } else {
+      im <- paste0(strsplit(as.character(.$Image), "_")[[1]][1:3], collapse="_")
+    }
 
-  im <- paste0(im, ".jpeg")
-  sal <- saliency$zdens[[which(saliency$Image == .$ImageNumber & saliency$Subject == .$Subject)]]
+    im <- paste0(im, ".jpeg")
+    sal <- saliency$zdens[[which(saliency$Image == .$ImageNumber & saliency$Subject == .$Subject)]]
+
+    #browser()
+    fix <- .$fixgroup
+    fm <- round(cbind(fix$x, fix$y)/10)
+    fm[,1] <- ifelse(fm[,1] < 1, 1, fm[,1])
+    fm[,2] <- ifelse(fm[,2] < 1, 1, fm[,2])
+
+    if (.$Saliency == 100) {
+      mvals <- rep(1, nrow(fm))
+    } else {
+      mask <- maskset[[as.character(.$Image)]]
+      mask <- t(apply(mask, 1, rev))
+      mvals <- mask[fm]
+    }
+
+    #browser()
+
+    ## the salience of the visible items
+    vis <- ifelse(mvals, sal[fm], NA)
+
+    ## the salience of the invisible items
+    novis <- ifelse(mvals == 0, sal[fm], NA)
+
+    pvis <- ifelse(mvals, 1, 0)
+    pnovis <- ifelse(mvals == 0, 1, 0)
+
+    ret <- data.frame(pvis=sum(pvis), pnovis=sum(pnovis), pcount=length(mvals), min_onset=min_onset, sactual=sum(mask)/length(mask))
+    as_tibble(cbind(ret, .))
+  }) %>% ungroup()
+
+}
 
 
-  fix <- .$fixgroup
-  fm <- round(cbind(fix$x, fix$y)/10)
-  fm[,1] <- ifelse(fm[,1] < 1, 1, fm[,1])
-  fm[,2] <- ifelse(fm[,2] < 1, 1, fm[,2])
+library(purrr)
+library(ggplot2)
 
-  if (.$Saliency == 100) {
-    mvals <- rep(1, nrow(fm))
-  } else {
-    mask <- maskset[[as.character(.$Image)]]
-    mvals <- mask[fm]
-  }
+bin_onsets <- seq(0, 3500, by=250)
+sal_binned <- bin_onsets %>% map(~ binned_visibility(., . + 250)) %>% map_df(bind_rows) #%>% select(-fixgroup.x, -fixgroup.y, -density)
 
-  ## the salience of the visible items
-  vis <- ifelse(mvals, sal[fm], NA)
-
-  ## the salience of the invisible items
-  novis <- ifelse(mvals == 0, sal[fm], NA)
-
-  ## the total salience
-  tot <- sal[fm]
-  bvis <- study_dens_sqw[fm]
-
-  pvis <- ifelse(mvals, 1, 0)
-  pnovis <- ifelse(mvals == 0, 1, 0)
-
-  ret <- data.frame(vis=vis-bvis, novis=novis-bvis, totvis=tot-bvis, pvis=pvis, pnovis=pnovis)
-  as_tibble(cbind(ret, .))
-}) %>% ungroup()
+sal_sum1 <- sal_binned %>% group_by(Saliency, ImageRepetition, min_onset) %>% dplyr::summarize(pvis= (sum(pvis)/sum(pcount)),
+                                                                                               pnovis=sum(pnovis)/sum(pcount), count=sum(pcount), sactual=median(sactual))
+sal_sum1$oddsrat <- (sal_sum1$pvis/(1-sal_sum1$pvis)) /(sal_sum1$sactual/(1-sal_sum1$sactual))
 
 sal_out <- gather(sal_out, key=measure, value=sim, vis, novis, totvis, pvis, pnovis)
 
