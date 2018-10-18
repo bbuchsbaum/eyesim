@@ -111,9 +111,9 @@ binned_similarity <- function(min_onset, max_onset, method="cosine") {
 
 library(purrr)
 library(ggplot2)
-bin_onsets <- seq(0, 3500, by=400)
-sal_binned_cos <- bin_onsets %>% map(~ binned_similarity(., . + 250, method="dcov")) %>% map_df(bind_rows) #%>% select(-fixgroup.x, -fixgroup.y, -density)
-
+bin_onsets <- seq(0, 3500, by=250)
+sal_binned_cos <- bin_onsets %>% map(~ binned_similarity(., . + 250, method="jaccard")) %>% map_df(bind_rows) #%>% select(-fixgroup.x, -fixgroup.y, -density)
+sal_binned_cos$sim <- sal_binned_cos$eye_sim_diff
 
 
 sal_sum1 <- sal_binned_cos %>% filter(Subject.x < 300) %>% group_by(Accuracy,  ImageRepetition, min_onset) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim))
@@ -131,27 +131,30 @@ test_reg$Image_Subj <- paste0(test_reg$Subject, "_", test_reg$ImageNumber)
 
 cor_with_accuracy <- function(simtab, type) {
   #test_sim <- inner_join(simtab, test_tab, by="Image_Subj")
-  #test_sim <- subset(test_sim, Subject.x < 300)
+  test_sim <- subset(simtab, Subject.x < 300)
 
   res <- test_sim %>% group_by(Subject.x) %>% do({
-    hits <- sum(.$Accuracy[.$Match == "match"])
-    cr <- sum(.$Accuracy[.$Match == "mismatch"])
 
-    misses <- sum(.$Match == "match") - hits
-    fa <- sum(.$Match == "mismatch") - cr
+    hits <- sum(.$Accuracy[.$Match == "old"])
+    cr <- sum(.$Accuracy[.$Match == "new"])
+
+    misses <- sum(.$Match == "old") - hits
+    fa <- sum(.$Match == "new") - cr
     res <- dprime(hits, fa, misses, cr)
 
-    sim_match <- mean(.$sim[.$Match == "match"])
-    sim_mismatch <- mean(.$sim[.$Match == "mismatch"])
+    sim_match <- mean(.$sim[.$Match == "old"])
+    sim_mismatch <- mean(.$sim[.$Match == "new"])
 
-    acc_match <- mean(.$Accuracy[.$Match == "match"])
-    acc_mismatch <- mean(.$Accuracy[.$Match == "mismatch"])
+    acc_match <- mean(.$Accuracy[.$Match == "old"])
+    acc_mismatch <- mean(.$Accuracy[.$Match == "new"])
     data.frame(Subject=.$Subject.x[1], dprime=res$dprime, aprime=res$aprime, beta=res$beta, bppd=res$bppd, c=res$c,
                sim_match=sim_match, sim_mismatch=sim_mismatch, acc_match=acc_match, acc_mismatch=acc_mismatch)
   })
 
-  data.frame(cormatch=cor(res$aprime, res$sim_match), cormismatch=cor(res$aprime, res$sim_mismatch), corhits=cor(res$sim_match, res$acc_match),
-             corcr=cor(res$sim_mismatch, res$acc_mismatch), type=type)
+  data.frame(cormatch=cor(res$aprime, res$sim_match, use="complete.obs"),
+             cormismatch=cor(res$aprime, res$sim_mismatch, use="complete.obs"),
+             corhits=cor(res$sim_match, res$acc_match,use="complete.obs"),
+             corcr=cor(res$sim_mismatch, res$acc_mismatch,use="complete.obs"), type=type)
 
 }
 

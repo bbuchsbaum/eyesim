@@ -32,7 +32,13 @@ study_tab_all <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixSta
 
 
 ## compute average fixation map for each subject (to be used as baseline) when computing encoding similarity
-subject_dens <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
+subject_dens <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
+                           duration_weighted=TRUE, sigma=80)
+
+# dfx <- study_tab %>% filter(Subject %in% c(115,116,117,118,119,120))
+# dfxdens <- density_by(study_tab, groups=c("Subject", "ImageVersion"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
+#                       duration_weighted=TRUE, sigma=80)
+# imat <- do.call(rbind, purrr::map(dfxdens$density, ~ as.vector(.$z)))
 
 
 ## compute encoding sim for all subjects/images.
@@ -51,23 +57,30 @@ encoding_sim <- study_tab %>% group_by(Subject, ImageNumber) %>% do({
   ## loop over all (6) pairwise combinations
   savg <- apply(cmb, 2, function(ind) {
 
-
     ## density map of pair 1
     x1 <- dens[[ind[1]]]
 
     ## density map of pair 2
     x2 <- dens[[ind[2]]]
 
-    df1 <- data.frame(x1=as.vector(x1$z), x2=as.vector(x2$z), avg=as.vector(sd$density[[1]]$z))
+
+    csim <- as.vector(x1$z) %*% as.vector(x2$z)
+    avg <- as.vector(sd$density[[1]]$z)
+    csim2 <-  ((as.vector(x1$z) %*% avg) + (as.vector(x2$z) %*% avg))/2
+
+    #df1 <- data.frame(x1=as.vector(x1$z), x2=as.vector(x2$z), avg=as.vector(sd$density[[1]]$z))
 
     ## multiple regression where the average density map ('avg') is a covariate
     #res <- lm(x1 ~ avg + x2, data=df1)
     #coef(res)[2:3]
     #browser()
     #res <- pcor(df1, "spearman")
-    res <- pcor(df1)
-    res$estimate[3:2,1]
+    #res <- pcor(df1)
+    #res$estimate[3:2,1]
+    c(csim=csim, csim_avg=csim2, csim_diff = csim-csim2)
   })
+
+
 
   fix <- sapply(.$fixgroup, nrow)
   ## total number of fixations over the four repetitions
@@ -82,7 +95,8 @@ encoding_sim <- study_tab %>% group_by(Subject, ImageNumber) %>% do({
   slope_cor <- cor(fix, seq(1,length(fix)), method="spearman", use="complete.obs")
 
   rmns <- rowMeans(savg)
-  data.frame(Subject=.$Subject[1], ImageNumber=.$ImageNumber[1], sim_wavg=rmns[1], sim_within=rmns[2], total_fix=total_fix,
+  data.frame(Subject=.$Subject[1], ImageNumber=.$ImageNumber[1], sim_wavg=rmns[2],
+             sim_within=rmns[1], sim_wdiff=rmns[3], total_fix=total_fix,
              slope=slope, slope_cor=slope_cor, sd_fix=sd_fix)
 })
 
@@ -107,13 +121,15 @@ lme.1 <- lmer(Accuracy ~ sim_wavg  + Saliency + Duration + (1 | sid), data=subse
 lme.2 <- lmer(Accuracy ~ sim_within + sim_wavg + Saliency + Duration + (1 | sid), data=subset(pctest2, Match=="mismatch"))
 lme.3 <- lmer(Accuracy ~ sim_within + sim_wavg + Saliency + Duration + (1 | sid) + (1 | ImageNumber), data=subset(pctest2, Match=="mismatch"))
 
+lme.4 <- lmer(Accuracy ~ sim_wdiff + Saliency + Duration + (1 | sid) + (1 | ImageNumber), data=subset(pctest2, Match=="mismatch"))
 
 
 ## for between subject analysis, average accuracy over subject
 pctestacc <- pctest %>% group_by(Subject) %>% summarize(acc=mean(Accuracy))
 
 ## compute subject averages for encoding_sim
-pcstudysim <- encoding_sim %>% group_by(Subject) %>% summarize(sim_wavg=mean(sim_wavg), sim_within=mean(sim_within),sd_fix=mean(sd_fix),
+pcstudysim <- encoding_sim %>% group_by(Subject) %>% summarize(sim_wavg=mean(sim_wavg), sim_within=mean(sim_within), sim_wdiff=mean(sim_wdiff),
+                                                               sd_fix=mean(sd_fix),
                                                                total_fix=mean(total_fix), slope=mean(slope), slope_cor=mean(slope_cor, na.rm=TRUE))
 ## join accuracy and encoding_sim averages
 dfx <- inner_join(pctestacc, pcstudysim, by="Subject")
@@ -124,6 +140,8 @@ dfx <- inner_join(pctestacc, pcstudysim, by="Subject")
 lm.1 <- lm(acc ~ sim_wavg, data=dfx, subset=Subject < 300 & Subject != 16)
 lm.2 <- lm(acc ~ sim_within, data=dfx, subset=Subject < 300 & Subject != 16)
 lm.3 <- lm(acc ~ sim_wavg + sim_within, data=dfx, subset=Subject < 300 & Subject != 16)
+lm.4 <- lm(acc ~ sim_wdiff, data=dfx, subset=Subject < 300 & Subject != 16)
+
 
 lm.4 <- lm(acc ~ sd_fix, data=dfx, subset=Subject < 300 & Subject != 16)
 lm.5 <- lm(acc ~ total_fix, data=dfx, subset=Subject < 300 & Subject != 16)

@@ -4,6 +4,7 @@ library(tidyr)
 library(ppcor)
 library(MASS)
 library(mgcv)
+library(ggplot2)
 
 ## load test data to get accuracy values (only taking first fixation row of each trial -- see: 'slice(1)')
 pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/delay_fixations.csv")) %>%

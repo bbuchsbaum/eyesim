@@ -100,7 +100,6 @@ to_angle <- function(x, y) {
 similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
   method=match.arg(method)
 
-
   if (inherits(y, "eye_density")) {
     y <- y$z
   }
@@ -118,16 +117,11 @@ similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine
   } else if (method == "jaccard") {
     proxy::simil(as.vector(x$z), as.vector(y), method="eJaccard", by_rows=FALSE)[,]
   } else if (method=="dcov") {
-    #nsam <- .05 * length(x$z)
-    #keep <- sample(1:length(x$z), nsam)
     z <- as.vector(x$z)
     y <- as.vector(y)
     x1 <- z/sum(z)
     x2 <- y/sum(y)
     energy::dcor(x1,x2)
-  } else if (method == "angular") {
-    browser()
-
   }
 
 }

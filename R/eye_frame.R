@@ -36,17 +36,66 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
     }) %>% select_(.dots=c("fixgroup", vars))
 
   class(res) <- c("eye_table", class(res))
+
   if (relative_coords) {
     xr1 <- (xr[1] - clip_bounds[1]) * xdir
     xr2 <- (xr[2] - clip_bounds[1]) * xdir
     yr1 <- (yr[1] - clip_bounds[3]) * ydir
     yr2 <- (yr[2] - clip_bounds[3]) * ydir
-
     attr(res, "origin") <- c((xr1+xr2)/2, (yr1+yr2)/2)
   } else {
     attr(res, "origin") <- c((xr[1]+xr[2])/2, (yr[1]+yr[2])/2)
   }
   res
+
+}
+
+
+
+
+
+#' @import ggplot2
+#' @importFrom ggplot2 ggplot aes annotation_raster geom_point
+#' @importFrom imager load.image
+#' @importFrom RColorBrewer brewer.pal
+#' @export
+plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandwidth=100,
+                                xlim=range(x$x),
+                                ylim=range(x$y),
+                                size_points=TRUE,
+                                show_points=TRUE,
+                                bins=max(as.integer(length(x$x)/10),4),
+                                bg_image=NULL,
+                                colours=rev(RColorBrewer.brewer.pal(n=10, "Spectral")),
+                                alpha_range=c(.5,1)) {
+  type <- match.arg(type)
+
+  if (size_points) {
+    ps <- (x$duration - min(x$duration)) / (max(x$duration) - min(x$duration))
+    x$psize <- ps*2 + 1
+  }
+
+  p <- ggplot(data=x, aes(x=x, y=y)) +
+    xlim(xlim[1], xlim[2]) +
+    ylim(ylim[1], ylim[2])
+
+  if (!is.null(bg_image)) {
+    im <- imager::load.image(bg_image)
+    p <- p + annotation_raster(as.raster(im),
+                               xmin=xlim[1],
+                               xmax=xlim[2],
+                               ymin=ylim[1],
+                               ymax=ylim[2])
+  }
+
+  if (show_points) {
+    if (size_points) {
+      p <- p + geom_point(aes(size=psize))
+    } else {
+      p <- p + geom_point()
+    }
+  }
+
 
 }
 
@@ -57,7 +106,6 @@ coords.fixation_group <- function(x) {
   colnames(res) <- c("x", "y")
   res
 }
-
 
 
 #' @importFrom tibble tibble
