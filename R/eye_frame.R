@@ -128,20 +128,22 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 #' @export
 sample_fixations.fixation_group <- function(x, time) {
 
-  purrr::map(time, function(t) {
+  ret <- purrr::map(time, function(t) {
     if (t < x$onset[1]) {
-      c(x=NA,y=NA, time=t, delta=NA)
+      c(x=NA,y=NA, onset=t, duration=NA)
     } else {
       delta <- t- x$onset
       valid <- which(delta >= 0)
       len <- length(valid)
       if (len == 0) {
-        c(x=NA,y=NA, time=t, delta=NA)
+        c(x=NA,y=NA, onset=t, duration=NA, delta=NA)
       } else {
-        c(x=x$x[len], y=x$y[len], time=t, delta=t-x$onset[len])
+        c(x=x$x[len], y=x$y[len], onset=t, duration=t-x$onset[len])
       }
     }
   }) %>% map_dfr(bind_rows)
+
+  class(ret) <- class(ret) <- c("sampled_fixation_group", "fixation_group", class(ret))
 }
 
 
