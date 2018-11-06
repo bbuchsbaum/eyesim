@@ -62,7 +62,7 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
     rep(1, nrow(x))
   }
 
-  print(angular)
+
   out <- if (angular) {
     xrep <- rep_fixations(x, 50)
     theta <- to_angle(xrep$x - origin[1], xrep$y - origin[2])
@@ -79,6 +79,8 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
   if (normalize) {
     out$z <- out$z/sum(out$z)
   }
+
+  out$z <- zapsmall(out$z)
 
   out$fixgroup <- x
 
