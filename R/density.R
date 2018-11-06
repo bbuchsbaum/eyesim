@@ -21,7 +21,7 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 
 
 rank_trans <- scales::trans_new(name="rank",
-                                transform=function(x) { browser(); rank(x) },
+                                transform=function(x) { rank(x) },
                                 inverse=function(x) (length(x)+1) - rank(x))
 
 cuberoot_trans <- scales::trans_new(name="rank",
