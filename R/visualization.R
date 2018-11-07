@@ -1,3 +1,27 @@
+
+
+#' @import colorplane
+plot.eye_density <- function(x,show_points=TRUE) {
+  stop("not implemented")
+  xlim <- range(x$x)
+  ylim <- range(x$y)
+
+  dfx <- data.frame(x=xlim, y=ylim)
+
+  clrs <- map_colors(IntensityColorPlane(as.numeric(x$z)))
+  z <- matrix(clrs@clrs, nrow(x$z), ncol(x$z))
+
+  p <- ggplot(data=dfx, aes(x=x, y=y))
+  p <- p + annotation_raster(as.raster(t(z)),
+                               xmin=xlim[1],
+                               xmax=xlim[2],
+                               ymin=ylim[1],
+                               ymax=ylim[2])
+
+}
+
+
+
 #' @import ggplot2
 #' @importFrom ggplot2 ggplot aes annotation_raster geom_point
 #' @importFrom imager load.image

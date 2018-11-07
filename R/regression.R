@@ -1,5 +1,20 @@
 
-match_template <- function(ref_tab, source_tab, match_on) {
+template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "rq"), intercept=TRUE) {
+  ret <- source_tab %>% rowwise() %>% do( {
+    y <- as.vector(.[[response]]$z)
+    xs <- lapply(covars, function(x) as.vector(.[[x]]$z))
+    names(xs) <- covars
+    xs[[".response"]] <- y
+    dfx <- as.data.frame(xs)
+
+    form <- as.formula(paste(".response", "~", paste(covars, collapse=" + ")))
+    lm.1 <- lm(form, data=dfx)
+    tibble(multireg=list(tidy(lm.1)))
+  })
+
+  ret %>% mutate(multireg_result=ret)
+  ret <- bind_cols(source_tab, ret)
+
 }
 
 

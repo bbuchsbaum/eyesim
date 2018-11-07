@@ -33,6 +33,17 @@ get_mask <- function(im, transpose=TRUE, rev=TRUE) {
   mask
 }
 
+## load testdelay fixation data
+pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/testdelay_fixations.csv")) %>%
+  #mutate(fix_onset=FixStartTime - testdelayOnset) %>%
+  filter(Image != "." & !(Subject %in% exclude_subs)) %>% droplevels()
+
+
+test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
+                      groupvar=c("Image"), data=pctest,
+                      clip_bounds=c(112, (112+800), 684, 84),
+                      vars=c("ImageVersion", "Saliency", "Accuracy",
+                             "ImageSet", "Trial", "Duration", "ImageRepetition", "ImageNumber", "testdelayOnset"))
 
 
 
@@ -56,7 +67,7 @@ prepare_study <- function() {
 
 
   ## construct heatmaps for the study phase, averaged within subjects
-  study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
+  study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject", "Image"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
                          duration_weighted=TRUE, sigma=80)
 
 
@@ -76,14 +87,21 @@ prepare_study <- function() {
     tibble(Subject=.$Subject[1], dens=list(dens))
   })
 
+
   mask_tab <- tibble(Image=levels(test_tab$Image)) %>% rowwise() %>% mutate(mask=list(get_mask(Image))) %>% rowwise() %>% do({
     idx <- which(.$mask > 0, arr.ind=TRUE)
     tibble(Image=.$Image, fixgroup=list(fixation_group(idx[,1]*10, idx[,2]*10, duration=1, onset=0)))
   })
 
   mask_dens <- density_by(mask_tab, groups=c("Image"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
-                           duration_weighted=TRUE, sigma=80)
+                          duration_weighted=TRUE, sigma=160)
 
+
+  d1 <- mask_dens$density[[1]]
+  cbias <- list(x=d1$x, y=d1$y, z=study_dens_avg)
+  mask_dens <- mask_dens %>% rowwise %>% mutate(centerbias=list(cbias),
+                                                mod_mask_dens = list(list(x=density$x, y=density$y, z= density$z * sqrt(study_dens_avg)))) %>%
+    rename(mask_density=density)
 
 
   list(
@@ -102,29 +120,7 @@ stud <- prepare_study()
 
 
 
-## load testdelay fixation data
-pctest <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/testdelay_fixations.csv")) %>%
-  #mutate(fix_onset=FixStartTime - testdelayOnset) %>%
-  filter(Image != "." & !(Subject %in% exclude_subs)) %>% droplevels()
 
-
-test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
-                      groupvar=c("Image"), data=filter(pctest, FixOffset < 1000),
-                      clip_bounds=c(112, (112+800), 684, 84),
-                      vars=c("ImageVersion", "Saliency", "Accuracy",
-                             "ImageSet", "Trial", "Duration", "ImageRepetition", "ImageNumber", "testdelayOnset"))
-
-test_tab_20 <- test_tab %>% filter(Saliency == 20)
-test_dens_20 <- density_by(test_tab_20, groups=c("Image"),xbounds=c(0,800), ybounds=c(0,600),
-                        outdim=c(80,60), duration_weighted=TRUE, sigma=80)
-
-mask_tab <- tibble(Image=as.character(test_tab_20$Image)) %>% rowwise() %>% mutate(mask=list(get_mask(Image))) %>% rowwise() %>% do({
-  idx <- which(.$mask > 0, arr.ind=TRUE)
-  tibble(Image=.$Image, fixgroup=list(fixation_group(idx[,1]*10, idx[,2]*10, duration=1, onset=0)))
-})
-
-mask_dens <- density_by(mask_tab, groups=c("Image"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
-                        duration_weighted=TRUE, sigma=80)
 
 res <- do.call(rbind, lapply(as.character(test_dens_20$Image), function(im) {
   #mask1 <- get_mask(im)
@@ -143,7 +139,7 @@ res <- do.call(rbind, lapply(as.character(test_dens_20$Image), function(im) {
 
 
 
-binned_similarity <- function(min_onset, max_onset, type=c("mask", "fixations")) {
+binned_similarity <- function(min_onset, max_onset, type=c("mask", "fixations"), method="cosine") {
   type <- match.arg(type)
   ## create table for each test trial
   pctest_binned <- pctest %>% filter(FixOffset >= min_onset & FixOffset < max_onset)
@@ -158,17 +154,21 @@ binned_similarity <- function(min_onset, max_onset, type=c("mask", "fixations"))
   test_tab$Match <- test_tab$ImageRepetition
 
   test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject", "Image"),xbounds=c(0,800), ybounds=c(0,600),
-                          outdim=c(80,60), duration_weighted=TRUE, sigma=80)
+                          outdim=c(80,60), duration_weighted=TRUE, sigma=80) %>% rename(test_density=density)
 
   test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
+
+  test_dens <- inner_join(test_dens, stud$study_dens, by="Image_Subj") %>% rename(Image=Image.x)
+  test_dens <- inner_join(test_dens, stud$mask_dens, by="Image")
+
   #test_dens$Image <- test_tab$Image
 
   ## compute similarity between each trial and study image derived from group average
   if (type == "fixations") {
-    test_sim <- template_similarity(stud$study_dens, test_dens, "Image_Subj", permutations=50, method="cosine") %>%
+    test_sim <- template_similarity(stud$study_dens, test_dens, "Image_Subj", permutations=50, method=method) %>%
       mutate(min_onset=min_onset, max_onset=max_onset)
   } else {
-    test_sim <- template_similarity(stud$mask_dens, test_dens, "Image", permutations=10, method="cosine") %>%
+    test_sim <- template_similarity(stud$mask_dens, test_dens, "Image", permutations=10, method=method) %>%
       mutate(min_onset=min_onset, max_onset=max_onset)
   }
 
@@ -178,9 +178,9 @@ binned_similarity <- function(min_onset, max_onset, type=c("mask", "fixations"))
 }
 
 library(purrr)
-interval=500
+interval=250
 bin_onsets <- seq(0, 3500, by=interval)
-test_sim_binned <- bin_onsets %>% map(~ binned_similarity(., . + interval, type="mask")) %>%
+test_sim_binned <- bin_onsets %>% map(~ binned_similarity(., . + interval, type="mask", method="jaccard")) %>%
   map_df(bind_rows) #%>%
   #select(-fixgroup.x, -fixgroup.y, -density)
 
@@ -190,7 +190,7 @@ write.table(test_sim_binned, "test_sim_binned.txt", row.names=FALSE)
 
 
 library(ggplot2)
-binned_saliency <- test_sim_binned %>% group_by(min_onset, Saliency) %>% summarize(eye_sim=mean(eye_sim),
+binned_saliency <- test_sim_binned %>% group_by(min_onset, ImageRepetition,Duration, Saliency) %>% summarize(eye_sim=mean(eye_sim),
                                                                                                     eye_sim_diff=mean(eye_sim_diff))
 
 qplot(min_onset, eye_sim, colour=factor(Saliency), data=binned_saliency, geom=c("point", "line"))
