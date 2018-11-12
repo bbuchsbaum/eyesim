@@ -143,7 +143,8 @@ sample_fixations.fixation_group <- function(x, time) {
     }
   }) %>% map_dfr(bind_rows)
 
-  class(ret) <- class(ret) <- c("sampled_fixation_group", "fixation_group", class(ret))
+  class(ret) <- c("sampled_fixation_group", "fixation_group", class(ret))
+  ret
 }
 
 

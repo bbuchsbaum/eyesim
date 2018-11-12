@@ -51,6 +51,48 @@ template_similarity <- function(ref_tab, source_tab, match_on,
   }
 }
 
+
+#' @export
+sample_density.density <- function(x, fix, times=NULL) {
+  if (is.null(times)) {
+    cds <- as.matrix(cbind(fix$x, fix$y))
+    ix <- sapply(cds[,1], function(p) which.min(abs(x$x - p)))
+    iy <- sapply(cds[,2], function(p) which.min(abs(x$y - p)))
+    data.frame(z=x$z[cbind(ix,iy)], time=fix$onset)
+  } else {
+    fg <- sample_fixations(fix, times)
+    cds <- as.matrix(cbind(fg$x, fg$y))
+    res <- lapply(1:nrow(cds), function(i) {
+      i1 <- which.min(abs(x$x - cds[i,1]))
+      i2 <- which.min(abs(x$y - cds[i,2]))
+      if (length(i1) > 0) {
+        x$z[i1,i2]
+      } else {
+        NA
+      }
+    })
+
+    data.frame(z=unlist(res), time=times)
+  }
+}
+
+
+#' @export
+gen_density <- function(x,y,z) {
+  if (!all(dim(x) == c(length(x), length(y)))) {
+    stop("length of x and y must equal nrow(z) and ncol(z)")
+  }
+
+  out <- list(
+    x=x,
+    y=y,
+    z=z)
+
+  class(out) <- c("density", "list")
+  out
+}
+
+
 #' @export
 #' @importFrom MASS kde2d
 eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
@@ -84,7 +126,7 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
 
   out$fixgroup <- x
 
-  class(out) <- c("eye_density", "list")
+  class(out) <- c("eye_density", "density", "list")
   out
 
   #ret <- blurpoints(cbind(x$x, x$y), sigma=sigma, xbounds=xbounds, ybounds=ybounds, resolution=resolution, weights=wts, normalize=normalize)
@@ -95,6 +137,8 @@ to_angle <- function(x, y) {
   r <- sqrt(x^2 + y^2)
   asin(x/r)
 }
+
+
 
 
 #' @importFrom proxy simil
