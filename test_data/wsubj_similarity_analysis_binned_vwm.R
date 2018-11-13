@@ -104,7 +104,7 @@ prepare_study <- function() {
 
 
   mask_dens <- mask_dens %>% rowwise() %>% mutate(centerbias=list(cbias),
-                                                mod_mask_dens = list(gen_density(x=density$x,
+                                                  mod_mask_dens = list(gen_density(x=density$x,
                                                                           y=density$y,
                                                                           z= density$z * sqrt(study_dens_avg))))
   mask_dens <- mask_dens %>%
@@ -139,15 +139,18 @@ sample_similarity <- function() {
 
   test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600),
                           outdim=c(80,60), duration_weighted=TRUE, sigma=80,
-                          keep_vars=c("Image", "Saliency", "Duration", "ImageRepetition", "Accuracy")) %>% rename(test_density=density)
+                          keep_vars=c("Image", "Saliency", "Duration", "ImageRepetition", "Accuracy")) %>%
+                          rename(test_density=density)
 
 
   test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
 
-  test_dens <- left_join(test_dens, stud$study_dens, by="Image_Subj") %>% rename(Image=Image.x)
+  test_dens <- left_join(test_dens, stud$study_dens, by="Image_Subj") #%>% rename(Image=Image.x)
   test_dens <- left_join(test_dens, stud$mask_dens, by="Image")
 
+  library(purrr)
   res <- template_sample(test_dens, "mask_density", fixgroup="fixgroup.x", time=seq(0,2500,by=50), outcol="mask_samples")
+  res <- template_sample(res, "mod_mask_dens", fixgroup="fixgroup.x", time=seq(0,2500,by=50), outcol="mod_mask_samples")
   res <- template_sample(res, "centerbias", fixgroup="fixgroup.x", time=seq(0,2500,by=50), outcol="centersamples")
   res <- template_sample(res, "density", fixgroup="fixgroup.x", time=seq(0,2500,by=50), outcol="study_samples")
   res <- res %>% select(Image, Saliency, Duration, ImageRepetition, Accuracy, mask_samples, centersamples, study_samples) %>%
@@ -155,9 +158,12 @@ sample_similarity <- function() {
     tibble(Image=.$Image, Saliency=.$Saliency, Duration=.$Duration, ImageRepetition=.$ImageRepetition,
               Accuracy=.$Accuracy, time=.$mask_samples$time,
               mask_sam=.$mask_samples$z,
+              mod_mask_sam=.$mod_mask_samples$z,
               center_sam=.$centersamples$z,
               study_sam=.$study_samples$z)
   })
+
+}
 
 
 binned_similarity <- function(min_onset, max_onset, type=c("mask", "fixations"), method="cosine") {
