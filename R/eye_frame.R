@@ -1,8 +1,9 @@
 
-#' @export
+
 #' @importFrom dplyr do group_by select filter
 #' @import magrittr
 #' @importFrom assertthat assert_that
+#' @export
 eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bounds=c(0,1280, 0,1280), relative_coords=TRUE) {
 
   data <- data %>% rename_(x=x, y=y, duration=duration, onset=onset)

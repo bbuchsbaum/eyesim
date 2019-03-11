@@ -10,11 +10,14 @@ library(memoise)
 exclude_subs <- c(28, 32, 109)
 
 
+
+## this function retrieves the "input mask" associated with an given image.
+## the mask contains a 1 of the cell is visible, otherwise it contains a 0.
 get_mask <- function(im, transpose=TRUE, rev=TRUE) {
   fname <- paste0("~/Dropbox/Jordana_experiments/Jordana_saliency_study/images/Mat_", gsub("jpeg", "jpeg.rds", im))
 
   mask <- if (file.exists(fname)) {
-    message("getting fname", fname)
+
     m <- readRDS(fname)
 
     if (rev) {
@@ -73,12 +76,12 @@ prepare_study <- function() {
   study_dens_subj_avg <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
                                   duration_weighted=TRUE, sigma=80, result_name="subject_density")
 
-  ## construct heatmaps for the study phase, averaged over subjects
+  ## construct heatmaps for the image version, averaged over subjects
   study_dens_all <- density_by(study_tab, groups=c("ImageVersion"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
                                duration_weighted=TRUE, sigma=80, result_name="image_density")
 
   ## compute grand mean density
-  study_dens_avg <- Reduce("+", lapply(study_dens$density, function(x) x$z))/length(study_dens)
+  study_dens_avg <- Reduce("+", lapply(study_dens$study_density, function(x) x$z))/length(study_dens)
   study_dens_avg <- study_dens_avg/sum(study_dens_avg)
   study_dens$Image_Subj <- paste0(study_dens$Subject, "_", study_dens$ImageNumber)
 
@@ -88,18 +91,21 @@ prepare_study <- function() {
   })
 
 
-  ## load mask and create pseudo-fixations over the visible squares in each mask image
+  ## load mask and create pseudo-fixations over the visible squares in each mask image.
+  ## in other words for every pixel in the mask that is visible add a fixation at that location.
+  ## This can then be used as a control model that assumes that subjects uniformly fixate the visible cells.
   mask_tab <- tibble(Image=levels(test_tab$Image)) %>% rowwise() %>% mutate(mask=list(get_mask(Image))) %>% rowwise() %>% do({
     idx <- which(.$mask > 0, arr.ind=TRUE)
     tibble(Image=.$Image, fixgroup=list(fixation_group(idx[,1]*10, idx[,2]*10, duration=1, onset=0)))
   })
 
   ## construct density maps for each mask
+  ## given the pseudo-fixations create a density map for each mask. This effectively smooths the mask.
   mask_dens <- density_by(mask_tab, groups=c("Image"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60),
                           duration_weighted=TRUE, sigma=80, result_name="mask_density")
 
 
-  d1 <- mask_dens$density[[1]]
+  d1 <- mask_dens$mask_density[[1]]
   cbias <- gen_density(x=d1$x, y=d1$y, z=study_dens_avg)
 
 
@@ -125,166 +131,142 @@ prepare_study <- function() {
 
 stud <- prepare_study()
 
-sample_similarity <- function() {
-  test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
-                        groupvar=c("Image", "Subject"), data=filter(pctest, Subject<300),
-                        clip_bounds=c(112, (112+800), 684, 84),
-                        vars=c("ImageVersion", "Saliency", "Accuracy",
-                               "ImageSet", "Trial", "Duration", "ImageRepetition", "ImageNumber", "testdelayOnset"))
 
-  test_tab$Image_Subj <- paste0(test_tab$Subject, "_", test_tab$ImageNumber)
-  test_tab$Match <- test_tab$ImageRepetition
+## construct test_tab
+test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
+                      groupvar=c("Image", "Subject"), data=filter(pctest, Subject<300),
+                      clip_bounds=c(112, (112+800), 684, 84),
+                      vars=c("ImageVersion", "Saliency", "Accuracy",
+                             "ImageSet", "Trial", "Duration", "ImageRepetition", "ImageNumber", "testdelayOnset"))
 
-  test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600),
-                          outdim=c(80,60), duration_weighted=TRUE, sigma=80, result_name="test_density",
-                          keep_vars=c("Image", "Saliency", "Duration", "ImageRepetition", "Accuracy", "ImageVersion"))
+## create Subject_ImageNumber variable
+test_tab$Image_Subj <- paste0(test_tab$Subject, "_", test_tab$ImageNumber)
+test_tab$Match <- test_tab$ImageRepetition
 
-
-
-  test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
-
-  test_dens <- left_join(test_dens, stud$study_dens, by="Image_Subj", suffix=c(".test", ".stud")) #%>% rename(Image=Image.x)
-  test_dens <- left_join(test_dens, stud$mask_dens, by="Image")
-  test_dens <- left_join(test_dens, stud$study_dens_all, by="ImageVersion")
-
-  mod_density <- test_dens %>% pmap(function(mask_density, image_density, ...) {
-    xx <- mask_density$z * image_density$z
-    xx <- xx/sum(xx)
-    gen_density(x=mask_density$x, y=mask_density$y, z=xx)
-  })
-
-  nomod_density <- test_dens %>% pmap(function(mask_density, study_density, Saliency, ...) {
-    q=quantile(mask_density$z, max((1-Saliency/100) - .04,.0001))
-    d <- mask_density$z
-    d <- ifelse(d > q, 0, 1-d)
-    xx <- d * study_density$z
-    xx <- xx/sum(xx)
-    gen_density(x=mask_density$x, y=mask_density$y, z=xx)
-  })
-
-  test_dens <- test_dens %>% add_column(mod_density=mod_density) %>% add_column(nomod_density=nomod_density)
-
-  library(purrr)
-
-  res <- template_sample(test_dens, "mod_density", fixgroup="fixgroup.test", time=seq(0,2500,by=50), outcol="mod_sam")
-  res <- template_sample(res, "nomod_density", fixgroup="fixgroup.test", time=seq(0,2500,by=50), outcol="nomod_sam")
-  res <- template_sample(res, "centerbias", fixgroup="fixgroup.test", time=seq(0,2500,by=50), outcol="center_sam")
-  res <- template_sample(res, "study_density", fixgroup="fixgroup.test", time=seq(0,2500,by=50), outcol="study_sam")
-  res <- template_sample(res, "image_density", fixgroup="fixgroup.test", time=seq(0,2500,by=50), outcol="image_sam")
-
-  res <- res %>% select(Subject.test, Image, Saliency, Duration, ImageRepetition, Accuracy, mod_sam, nomod_sam, center_sam, study_sam,image_sam) %>%
-    rowwise() %>% do( {
-    tibble(Image=.$Image, Saliency=.$Saliency, Duration=.$Duration, ImageRepetition=.$ImageRepetition,
-              Subject=.$Subject.test,
-              Accuracy=.$Accuracy, time=.$mod_sam$time,
-              mod_sam=.$mod_sam$z,
-              nomod_sam=.$nomod_sam$z,
-              center_sam=.$center_sam$z,
-              study_sam=.$study_sam$z,
-              image_sam=.$image_sam$z)
-  })
-
-  ##lm.1 <- lmer(nomod_sam ~ Accuracy*ImageRepetition + (1 | Subject) + (0 + Accuracy + ImageRepetition | Subject), data=subset(res, time > 800  & Saliency <= 60))
-
-  bsum <- res %>% group_by(Saliency, ImageRepetition, Accuracy, time) %>% summarize(
-    mod_sam=mean(mod_sam, na.rm=TRUE),
-    nomod_sam=mean(nomod_sam, na.rm=TRUE),
-    center_sam=mean(center_sam, na.rm=TRUE),
-    image_sam=mean(image_sam, na.rm=TRUE),
-    study_sam=mean(study_sam, na.rm=TRUE))
-
-  bsumS <- res %>% group_by(Saliency, ImageRepetition, Accuracy, time, Subject) %>% summarize(
-    mod_sam=mean(mod_sam, na.rm=TRUE),
-    nomod_sam=mean(nomod_sam, na.rm=TRUE),
-    center_sam=mean(center_sam, na.rm=TRUE),
-    image_sam=mean(image_sam, na.rm=TRUE),
-    study_sam=mean(study_sam, na.rm=TRUE))
-}
+## density map for grouped by Subject and Image Number
+test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600),
+                        outdim=c(80,60), duration_weighted=TRUE, sigma=80, result_name="test_density",
+                        keep_vars=c("Image", "Saliency", "Duration", "ImageRepetition", "Accuracy", "ImageVersion"))
 
 
-binned_similarity <- function(min_onset, max_onset, type=c("mask", "fixations"), method="cosine") {
-  type <- match.arg(type)
-  ## create table for each test trial
-  pctest_binned <- pctest %>% filter(FixOffset >= min_onset & FixOffset < max_onset & Subject < 300)
 
-  test_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixOffset",
-                        groupvar=c("Image", "Subject"), data=pctest_binned,
-                        clip_bounds=c(112, (112+800), 684, 84),
-                        vars=c("ImageVersion", "Saliency", "Accuracy",
-                               "ImageSet", "Trial", "Duration", "ImageRepetition", "ImageNumber", "testdelayOnset"))
-
-  test_tab$Image_Subj <- paste0(test_tab$Subject, "_", test_tab$ImageNumber)
-  test_tab$Match <- test_tab$ImageRepetition
-
-  test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600),
-                          outdim=c(80,60), duration_weighted=TRUE, sigma=80,
-                          keep_vars=c("Image", "Saliency", "Duration", "ImageRepetition", "Accuracy")) %>% rename(test_density=density)
-
-  test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
-
-  test_dens <- left_join(test_dens, stud$study_dens, by="Image_Subj") %>% rename(Image=Image.x)
-  test_dens <- left_join(test_dens, stud$mask_dens, by="Image")
-  #test_dens <- left_join(test_dens, test_tab %>% dplyr::select(Image_Subj, Saliency, Duration, ImageRepetition, Accuracy), by="Image_Subj")
-  #test_dens$Image <- test_tab$Image
-
-  ## compute similarity between each trial and study image derived from group average
-  if (type == "fixations") {
-    test_sim <- template_similarity(stud$study_dens, test_dens, "Image_Subj", permutations=50, method=method) %>%
-      mutate(min_onset=min_onset, max_onset=max_onset)
-  } else {
-    #test_sim <- template_similarity(stud$mask_dens, test_dens, "Image", permutations=10, method=method) %>%
-    #  mutate(min_onset=min_onset, max_onset=max_onset)
-
-    test_sim <- template_multireg(test_dens,response="test_density",covars=c("centerbias", "mask_density", "density"),
-                                  method="lm", intercept=TRUE) %>%
-      mutate(min_onset=min_onset, max_onset=max_onset)
-  }
+test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
 
 
-  #test_sim <- inner_join(test_sim, test_tab, by="Image_Subj")
-
-}
+test_dens <- left_join(test_dens, stud$study_dens, by="Image_Subj", suffix=c(".test", ".stud")) #%>% rename(Image=Image.x)
+test_dens <- test_dens %>% rename(Subject=Subject.test)
+test_dens <- left_join(test_dens, stud$mask_dens, by="Image")
+test_dens <- left_join(test_dens, stud$study_dens_all, by="ImageVersion")
+test_dens <- left_join(test_dens, stud$study_dens_subj_avg, by="Subject")
 
 library(purrr)
-interval=500
-bin_onsets <- seq(0, 3500, by=interval)
-test_sim_binned <- bin_onsets %>% map(~ binned_similarity(., . + interval, type="mask", method="jaccard")) %>%
-  map_df(bind_rows) #%>%
-  #select(-fixgroup.x, -fixgroup.y, -density)
-
-
-write.table(test_sim_binned, "test_sim_binned.txt", row.names=FALSE)
-
-
-
-library(ggplot2)
-#binned_saliency <- test_sim_binned %>% group_by(min_onset, ImageRepetition,Duration, Saliency) %>%
-#  summarize(eye_sim=mean(eye_sim),eye_sim_diff=mean(eye_sim_diff))
-
-binned_saliency <- test_sim_binned %>% mutate(centerbias=multireg$estimate[2],
-                                              maskdens=multireg$estimate[3],
-                                              studydens=multireg$estimate[4]) %>%
-                    group_by(min_onset, Accuracy, ImageRepetition, Saliency) %>% summarize(centerbias=mean(centerbias),
-                                                                                          maskdens=mean(maskdens),
-                                                                                          studydens=mean(studydens))
+## create a mask desnity map that is weighted by the grouped derived image salience.
+mod_density <- test_dens %>% pmap(function(mask_density, image_density, ...) {
+  xx <- mask_density$z * image_density$z
+  xx <- xx/sum(xx)
+  gen_density(x=mask_density$x, y=mask_density$y, z=xx)
+})
 
 
 
-qplot(min_onset, centerbias, colour=factor(Saliency), data=binned_saliency, geom=c("point", "smooth"), se=FALSE)
-qplot(min_onset, maskdens, colour=factor(Saliency), data=binned_saliency, geom=c("point", "smooth"), se=FALSE)
-qplot(min_onset, studydens, colour=factor(Saliency), data=binned_saliency, geom=c("point", "smooth"), se=FALSE)
-qplot(min_onset, studydens, colour=factor(ImageRepetition), facets=.~Saliency, data=binned_saliency, geom=c("point", "smooth"), se=FALSE)
+## create a mask density map that is weighted by the square root of the centerbias.
+cell_density <- test_dens %>% pmap(function(mask_density, centerbias, ...) {
+  xx <- mask_density$z * centerbias$z^(1/2)
+  xx <- xx/sum(xx)
+  gen_density(x=mask_density$x, y=mask_density$y, z=xx)
+})
+
+## compute density maps for the non-visible area.
+nomod_density <- test_dens %>% pmap(function(mask_density, study_density, Saliency, ...) {
+  q=quantile(mask_density$z, max((1-Saliency/100) - .04,.0001))
+  d <- mask_density$z
+  d <- ifelse(d > q, 0, 1-d)
+  xx <- d * study_density$z
+  xx <- xx/sum(xx)
+  gen_density(x=mask_density$x, y=mask_density$y, z=xx)
+})
+
+test_dens <- test_dens %>% add_column(mod_density=mod_density) %>%
+  add_column(nomod_density=nomod_density) %>%
+  add_column(mod_density2=mod_density2) %>%
+  add_column(cell_density=cell_density)
+
+library(purrr)
+
+## template sample extracts the density for any arbitrary time point in a trial. It simply extract the value of the density map for the fixation at time t.
+## we repeat this for each of 5 density models.
+
+## 1. the mask density modulated by the center bias.
+res <- template_sample(test_dens, "mod_density", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="mod_sam")
+## 2. the density of the non-visible area
+res <- template_sample(res, "nomod_density", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="nomod_sam")
+## 3. a simple center bias model
+res <- template_sample(res, "centerbias", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="center_sam")
+## 4. the study density (standard model)
+res <- template_sample(res, "study_density", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="study_sam")
+## 5. the image density averaged over subjects
+res <- template_sample(res, "image_density", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="image_sam")
+## 6. mask density multiplied by centerbias
+res <- template_sample(res, "cell_density", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="cell_sam")
+## 7. subject center bias
+res <- template_sample(res, "subject_density", fixgroup="fixgroup.test", time=seq(0,3500,by=50), outcol="subject_sam")
+
+res <- res %>% select(Subject, Image, Saliency, Duration, ImageRepetition, Accuracy, mod_sam, nomod_sam, center_sam, subject_sam, study_sam,image_sam, cell_sam) %>%
+  rowwise() %>% do( {
+    tibble(Image=.$Image, Saliency=.$Saliency, Duration=.$Duration, ImageRepetition=.$ImageRepetition,
+           Subject=.$Subject,
+           Accuracy=.$Accuracy, time=.$mod_sam$time,
+           mod_sam=.$mod_sam$z,
+           nomod_sam=.$nomod_sam$z,
+           center_sam=.$center_sam$z,
+           cell_sam=.$cell_sam$z,
+           study_sam=.$study_sam$z,
+           subject_sam=.$subject_sam$z,
+           image_sam=.$image_sam$z)
+  })
+
+##lm.1 <- lmer(nomod_sam ~ Accuracy*ImageRepetition + (1 | Subject) + (0 + Accuracy + ImageRepetition | Subject), data=subset(res, time > 800  & Saliency <= 60))
+
+## compute mean summaries of the density over 4 variables
+bsum <- res %>% group_by(Saliency, ImageRepetition, Accuracy, time) %>% summarize(
+  mod_sam=mean(mod_sam, na.rm=TRUE),
+  nomod_sam=mean(nomod_sam, na.rm=TRUE),
+  cell_sam=mean(cell_sam, na.rm=TRUE),
+  center_sam=mean(center_sam, na.rm=TRUE),
+  subject_sam=mean(subject_sam, na.rm=TRUE),
+  image_sam=mean(image_sam, na.rm=TRUE),
+  study_sam=mean(study_sam, na.rm=TRUE))
+
+library(cowplot)
+
+bsum <- bsum %>% mutate(Acc=ifelse(Accuracy==0, "incorrect", "correct"))
+bsum <- gather(bsum, measure, value, -Saliency, -ImageRepetition, -Acc, -time)
+bsum_avg <- bsum %>% filter(Saliency <= 101) %>%
+               group_by(time, Acc, ImageRepetition,measure) %>%
+               summarize(value=mean(value, na.rm=TRUE))
+
+qplot(time, value, colour=measure, linetype=factor(Accuracy),
+      data=subset(bsum, measure %in% c("study_sam", "mod_sam", "cell_sam") & time > 50),
+      facets = Saliency ~ ImageRepetition, geom=c("smooth"), se=FALSE, method=gam, formula=y ~ s(x, k=15))
+
+qplot(time, value, colour=measure, linetype=factor(Accuracy),
+      data=subset(bsum, measure %in% c("study_sam", "mod_sam", "cell_sam") & time > 50),
+      facets = Saliency ~ ImageRepetition, geom=c("line"))
+
+qplot(time, value, colour=measure, linetype=Acc,
+      data=subset(bsum_avg, measure %in% c("study_sam", "mod_sam", "subject_sam") & time > 50 & time < 3001),
+      facets = .  ~ ImageRepetition, geom=c("line")) + theme_cowplot()
 
 
-binned_saliency_oldnew <- test_sim_binned %>% group_by(min_onset, Match, Accuracy) %>% summarize(eye_sim_diff=mean(eye_sim_diff),
-                                                                                   perm_sim=mean(perm_sim), eye_sim=mean(eye_sim))
+## do the same, but also add "Subject"
+bsumS <- res %>% group_by(Saliency, ImageRepetition, Accuracy, time, Subject) %>% summarize(
+  mod_sam=mean(mod_sam, na.rm=TRUE),
+  nomod_sam=mean(nomod_sam, na.rm=TRUE),
+  center_sam=mean(center_sam, na.rm=TRUE),
+  image_sam=mean(image_sam, na.rm=TRUE),
+  study_sam=mean(study_sam, na.rm=TRUE))
 
-qplot(min_onset, eye_sim_diff, colour=factor(Accuracy), facets= . ~ Match,
-      data=subset(binned_saliency_oldnew), geom=c("point", "line"))
+bsumS <- gather(bsumS, measure, value, -Saliency, -ImageRepetition, -Accuracy, -time)
 
-binned_saliency_acc_oldnew <- test_sim_binned %>% group_by(min_onset, Match, Saliency, Accuracy) %>% summarize(eye_sim_diff=mean(eye_sim_diff),
-                                                                                                 perm_sim=mean(perm_sim), eye_sim=mean(eye_sim))
-
-qplot(min_onset, eye_sim_diff, colour=factor(Accuracy), facets= Saliency ~ Match,
-      data=subset(binned_saliency_acc_oldnew), geom=c("point", "line"))
+library(tidyr)
 

@@ -13,6 +13,7 @@
 #' @param normalize
 #' @importFrom Matrix sparseMatrix
 #' @importFrom rflann RadiusSearch
+#' @export
 blurpoints <- function(coords, sigma=50, xbounds, ybounds, resolution=1, weights=rep(1, nrow(coords)), normalize=TRUE) {
 
   keep <- coords[,1] >= xbounds[1] & coords[,1] <= xbounds[2] & coords[,2] >= ybounds[1] & coords[,2] <=ybounds[2]

@@ -61,6 +61,11 @@ similarity <- function(x, y, method) {
   UseMethod("similarity", x)
 }
 
+
+#' @param x the object
+#' @param groups grouping variable
+#' @param ... extra args
+#' @export
 density_matrix <- function(x, groups,...) {
   UseMethod("density_matrix", x)
 }

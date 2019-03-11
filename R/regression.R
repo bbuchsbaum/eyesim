@@ -1,5 +1,6 @@
 
 #' @importFrom broom tidy
+#' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
   ret <- source_tab %>% rowwise() %>% do( {
     #browser()
@@ -47,9 +48,10 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 
 
 
-#' @export
+
 #' @importFrom quantreg rq
 #' @importFrom ppcor pcor
+#' @export
 template_regression <- function(ref_tab, source_tab, match_on,
                                 baseline_tab, baseline_key,
                                 method=c("lm", "rlm", "rank")) {
@@ -96,6 +98,10 @@ template_regression <- function(ref_tab, source_tab, match_on,
 
 }
 
+#' template_sample
+#'
+#'
+#' @export
 template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL, outcol="sample_out") {
   x1 <- rlang::sym(template)
   x2 <- rlang::sym(fixgroup)

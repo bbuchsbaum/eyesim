@@ -1,6 +1,7 @@
 
 
 #' @import colorplane
+#' @export
 plot.eye_density <- function(x,show_points=TRUE) {
   stop("not implemented")
   xlim <- range(x$x)
