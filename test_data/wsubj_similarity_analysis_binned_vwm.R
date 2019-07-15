@@ -160,7 +160,8 @@ test_dens <- left_join(test_dens, stud$study_dens_all, by="ImageVersion")
 test_dens <- left_join(test_dens, stud$study_dens_subj_avg, by="Subject")
 
 library(purrr)
-## create a mask desnity map that is weighted by the grouped derived image salience.
+
+## create a mask density map that is weighted by the grouped derived image salience.
 mod_density <- test_dens %>% pmap(function(mask_density, image_density, ...) {
   xx <- mask_density$z * image_density$z
   xx <- xx/sum(xx)
@@ -188,7 +189,7 @@ nomod_density <- test_dens %>% pmap(function(mask_density, study_density, Salien
 
 test_dens <- test_dens %>% add_column(mod_density=mod_density) %>%
   add_column(nomod_density=nomod_density) %>%
-  add_column(mod_density2=mod_density2) %>%
+  #add_column(mod_density=mod_density2) %>%
   add_column(cell_density=cell_density)
 
 library(purrr)
