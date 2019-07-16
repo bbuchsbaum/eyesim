@@ -5,7 +5,7 @@
 #' @param match_on
 #' @param method
 #' @export
-template_similarity <- function(ref_tab, source_tab, match_on,
+template_similarity <- function(ref_tab, source_tab, match_on, refvar="density", sourcevar="density",
                                 method=c("spearman", "pearson", "cosine", "l1", "jaccard", "dcov"),
                                 permutations=10) {
 
@@ -27,15 +27,15 @@ template_similarity <- function(ref_tab, source_tab, match_on,
 
   ret <- source_tab %>% rowwise() %>% do( {
 
-    d1 <- ref_tab$density[[.$matchind]]
-    d2 <- .$density
+    d1 <- ref_tab[[refvar]][[.$matchind]]
+    d2 <- .[[sourcevar]]
 
     sim <- similarity(d1,d2, method=method)
 
     if (permutations > 0) {
       mind <- sample(matchind, permutations)
       psim <- mean(sapply(mind, function(i) {
-        similarity(ref_tab$density[[i]], d2, method=method)
+        similarity(ref_tab[[refvar]][[i]], d2, method=method)
       }))
 
       data.frame(eye_sim=sim, perm_sim=psim, eye_sim_diff=sim-psim)
@@ -143,27 +143,33 @@ to_angle <- function(x, y) {
 
 #' @importFrom proxy simil
 #' @export
-similarity.eye_density <- function(x, y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
+similarity.density <- function(x, y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
   method=match.arg(method)
 
-  if (inherits(y, "eye_density")) {
+  if (inherits(y, "density")) {
     y <- y$z
   }
 
+  compute_similarity(x$z, as.vector(y))
+
+}
+
+compute_similarity <- function(x,y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
+  method=match.arg(method)
   if (method=="pearson" || method == "spearman") {
-    cor(as.vector(x$z), as.vector(y), method=method)
+    cor(as.vector(x), as.vector(y), method=method)
   } else if (method == "cosine") {
-    proxy::simil(as.vector(x$z), as.vector(y), method="cosine", by_rows=FALSE)[,]
+    proxy::simil(as.vector(x), as.vector(y), method="cosine", by_rows=FALSE)[,]
   } else if (method == "l1") {
-    z <- as.vector(x$z)
+    z <- as.vector(x)
     y <- as.vector(y)
     x1 <- z/sum(z)
     x2 <- y/sum(y)
     1-(proxy::dist(x1, x2, method="Manhattan", by_rows=FALSE)[,])
   } else if (method == "jaccard") {
-    proxy::simil(as.vector(x$z), as.vector(y), method="eJaccard", by_rows=FALSE)[,]
+    proxy::simil(as.vector(x), as.vector(y), method="eJaccard", by_rows=FALSE)[,]
   } else if (method=="dcov") {
-    z <- as.vector(x$z)
+    z <- as.vector(x)
     y <- as.vector(y)
     x1 <- z/sum(z)
     x2 <- y/sum(y)
