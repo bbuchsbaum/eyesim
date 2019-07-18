@@ -5,7 +5,7 @@ library(imager)
 library(mgcv)
 library(ggplot2)
 library(memoise)
-
+library(missMDA)
 
 devtools::load_all()
 
@@ -25,7 +25,7 @@ pcstudy <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_st
   filter(Image != "." & !(Subject %in% exclude_subs) & Subject < 300) %>% droplevels() %>% mutate(ImageNumber=as.integer(as.character(ImageNumber)))
 
 
-odim <- as.integer(c(80,60)/8)
+odim <- as.integer(c(40,30))
 ## create table for each study trial (Subject/Image)
 study_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTime",
                        groupvar=c("Subject", "ImageVersion"), data=pcstudy,
@@ -48,17 +48,35 @@ delay_dens <- density_by(delay_tab, groups=c("Subject", "ImageVersion"),
 study_grouped <- study_dens %>% group_by(Subject) %>% dplyr::group_split()
 delay_grouped <- delay_dens %>% group_by(Subject) %>% dplyr::group_split()
 
-study_blocks <- study_grouped %>% purrr::map(function(g) {
-  out <- do.call(rbind, g$study_density %>% purrr::map(~ as.vector(.$z)))
-  row.names(out) <- g$ImageVersion
-  out
-})
+all_labels <- sort(unique(as.character(study_dens$ImageVersion)))
 
-delay_blocks <- delay_grouped %>% purrr::map(function(g) {
-  out <- do.call(rbind, g$delay_density %>% purrr::map(~ as.vector(.$z)))
-  row.names(out) <- g$ImageVersion
-  out
-})
+get_blocks <- function(grouped, dname) {
+  blocks <- grouped %>% purrr::map(function(g) {
+
+    xfull <- matrix(NA, length(all_labels), prod(odim))
+    lbs <- as.character(g$ImageVersion)
+    match_ind <- match(lbs, all_labels)
+    xfull[match_ind,] <- do.call(rbind, g[[dname]] %>% purrr::map(~ as.vector(.$z)))
+    #out <- do.call(rbind, g$study_density %>% purrr::map(~ as.vector(.$z)))
+    #row.names(out) <- g$ImageVersion
+    row.names(xfull) <- all_labels
+    xfull
+  })
+  blocks
+}
+
+study_blocks <- get_blocks(study_grouped, "study_density")
+delay_blocks <- get_blocks(delay_grouped, "delay_density")
+
+study_sum <- Reduce("+", lapply(study_blocks, function(x) replace(x, is.na(x), 0)))
+nstudy <- rowSums(do.call(cbind, lapply(study_blocks, function(x) is.na(x[,1]))))
+study_mean <- sweep(study_sum, 2, nstudy, "/")
+
+Xtot <-cbind(study_mean, study_blocks[[1]], delay_blocks[[1]])
+#Xfilled <- filling::fill.SoftImpute(Xtot, lambda=.5)
+fit <- softImpute(Xtot, rank.max=2, maxit=80, trace.it=TRUE)
+Xcomp <- complete(Xtot,fit)
+Xcomp <- imputeMFA(Xtot, group=rep(prod(odim), 3), ncomp=5, coeff.ridge=.5)
 
 #labels <- c(study_dens$ImageVersion, delay_dens$ImageVersion)
 labels <- unlist(lapply(study_blocks, row.names))
