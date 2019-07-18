@@ -73,10 +73,14 @@ nstudy <- rowSums(do.call(cbind, lapply(study_blocks, function(x) is.na(x[,1])))
 study_mean <- sweep(study_sum, 2, nstudy, "/")
 
 Xtot <-cbind(study_mean, study_blocks[[1]], delay_blocks[[1]])
-#Xfilled <- filling::fill.SoftImpute(Xtot, lambda=.5)
-fit <- softImpute(Xtot, rank.max=2, maxit=80, trace.it=TRUE)
+fit <- softImpute(Xtot, rank.max=15, maxit=80, trace.it=TRUE)
 Xcomp <- complete(Xtot,fit)
 Xcomp <- imputeMFA(Xtot, group=rep(prod(odim), 3), ncomp=5, coeff.ridge=.5)
+
+
+Xcat <- do.call(rbind, study_blocks)
+Y <- factor(row.names(Xcat))
+S <- rep(1:length(study_blocks), sapply(study_blocks, nrow))
 
 #labels <- c(study_dens$ImageVersion, delay_dens$ImageVersion)
 labels <- unlist(lapply(study_blocks, row.names))
