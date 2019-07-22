@@ -107,21 +107,29 @@ crossval <- function(blocks, S, Y) {
 }
 
 crossval_dual <- function() {
-  res <- do.call(rbind, lapply(unique(S), function(s) {
+  res <- do.call(rbind, lapply(unique(S_mem), function(s) {
+    print(s)
     bres_perc <- bada(Y_perc[S_perc != s], Xcat_perc[S_perc != s,], S=S_perc[S_perc != s], ncomp=33, preproc=center)
     bres_mem <- bada(Y_mem[S_mem != s],   Xcat_mem[S_mem != s,],  S=S_mem[S_mem != s], ncomp=33, preproc=center)
     Xr_perc <- bres_perc$Xr[pids,]
     Xr_mem <- bres_mem$Xr
+    #Xr_dual_bl <- block_matrix(list(Xr_perc, Xr_mem))
     Xr_dual <- cbind(Xr_perc, Xr_mem)
-    bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=center)
+    bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=standardize())
+    #mres_dual <- mfa(Xr_dual_bl, ncomp=5)
+
+    #pls_dual <- plsr(Xr_mem ~ Xr_perc, ncomp=5)
 
     Xtest <- Xcat_mem[S_mem == s,]
-    Ytest <- Y_mem[S == s]
+    Ytest <- Y_mem[S_mem == s]
 
-    do.call(rbind, lapply(seq(1,25,by=3), function(nc) {
+    ret <- do.call(rbind, lapply(seq(1,25,by=3), function(nc) {
       p <- predict(bres_dual, Xtest, ncomp=nc, colind=ind_mem)
       data.frame(pred=p, actual=Ytest, S=s, ncomp=nc, correct=p == Ytest)
     }))
+
+    print(mean(ret$correct))
+    ret
   }))
 }
 
