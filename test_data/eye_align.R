@@ -6,11 +6,12 @@ library(mgcv)
 library(ggplot2)
 library(memoise)
 library(missMDA)
-
+library(neuroca)
+library(Rfast)
 devtools::load_all()
 
-#exclude_subs <- c(28, 32, 109)
-exclude_subs <- c()
+exclude_subs <- c(28, 32, 109)
+#exclude_subs <- c()
 
 ## load testdelay fixation data
 pcdelay <- as_tibble(read.csv("~/Dropbox/Jordana_experiments/Jordana_saliency_study/delay_fixations.csv")) %>%
@@ -51,19 +52,28 @@ delay_grouped <- delay_dens %>% group_by(Subject) %>% dplyr::group_split()
 
 all_labels <- sort(unique(as.character(study_dens$ImageVersion)))
 
-get_blocks <- function(grouped, dname) {
+get_blocks <- function(grouped, dname, full=FALSE) {
   blocks <- grouped %>% purrr::map(function(g) {
-
-    #xfull <- matrix(NA, length(all_labels), prod(odim))
-    lbs <- as.character(g$ImageVersion)
-    #match_ind <- match(lbs, all_labels)
-    #xfull[match_ind,] <- do.call(rbind, g[[dname]] %>% purrr::map(~ as.vector(.$z)))
-    xfull <- do.call(rbind, g[[dname]] %>% purrr::map(~ as.vector(.$z)))
-    #out <- do.call(rbind, g$study_density %>% purrr::map(~ as.vector(.$z)))
-    #row.names(out) <- g$ImageVersion
-    #row.names(xfull) <- all_labels
-    row.names(xfull) <- lbs
-    xfull
+    if (!full) {
+      #xfull <- matrix(NA, length(all_labels), prod(odim))
+      lbs <- as.character(g$ImageVersion)
+      #match_ind <- match(lbs, all_labels)
+      #xfull[match_ind,] <- do.call(rbind, g[[dname]] %>% purrr::map(~ as.vector(.$z)))
+      xfull <- do.call(rbind, g[[dname]] %>% purrr::map(~ as.vector(.$z)))
+      #out <- do.call(rbind, g$study_density %>% purrr::map(~ as.vector(.$z)))
+      #row.names(out) <- g$ImageVersion
+      #row.names(xfull) <- all_labels
+      row.names(xfull) <- lbs
+      xfull
+    } else {
+      xfull <- matrix(NA, length(all_labels), prod(odim))
+      match_ind <- match(lbs, all_labels)
+      xfull[match_ind,] <- do.call(rbind, g[[dname]] %>% purrr::map(~ as.vector(.$z)))
+      out <- do.call(rbind, g$study_density %>% purrr::map(~ as.vector(.$z)))
+      row.names(out) <- g$ImageVersion
+      row.names(xfull) <- all_labels
+      xfull
+    }
   })
   blocks
 }
@@ -80,28 +90,40 @@ Y_mem <- factor(row.names(Xcat_mem))
 S_perc <- rep(1:length(study_blocks), sapply(study_blocks, nrow))
 S_mem <- rep(1:length(delay_blocks), sapply(delay_blocks, nrow))
 
-bres_perc <- bada(Y_perc, Xcat_perc, S=S_perc, ncomp=33, preproc=center)
-bres_mem <- bada(Y_mem,   Xcat_mem,  S=S_mem, ncomp=33, preproc=center)
+f_perc <- Rfast::anovas(Xcat_perc, as.integer(Y_perc))[,1]
+f_mem <- Rfast::anovas(Xcat_mem, as.integer(Y_mem))[,1]
+
+bres_perc <- bada(Y_perc, Xcat_perc, S=S_perc, ncomp=33, preproc=center() %>% colscale(type="weights", weights=f_perc))
+bres_mem <- bada(Y_mem,   Xcat_mem,  S=S_mem, ncomp=33, preproc=center() %>% colscale(type="weights", weights=f_mem))
 
 pids <- match(levels(Y_mem), levels(Y_perc))
 Xr_perc <- bres_perc$Xr[pids,]
 Xr_mem <- bres_mem$Xr
 Xr_dual <- cbind(Xr_perc, Xr_mem)
-bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=6, preproc=center)
+bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=6, preproc=center())
 ind_perc <- 1:prod(odim)
 ind_mem <- (prod(odim)+1):ncol(Xr_dual)
 
-crossval <- function(blocks, S, Y) {
+crossval <- function(blocks, S, Y, weighted=TRUE) {
   res <- do.call(rbind, lapply(unique(S), function(s) {
     print(s)
     Xtrain <- do.call(rbind, blocks[-s])
     Xtest <- blocks[[s]]
     Ytrain <- Y[S != s]
     Ytest <- Y[S == s]
-    bres <- bada(Ytrain, Xtrain, S=S[S != s], ncomp=35, preproc=center)
+
+    if (!weighted) {
+      bres <- bada(Ytrain, Xtrain, S=S[S != s], ncomp=35, preproc=center())
+    } else {
+      wts <- sqrt(log(Rfast::anovas(Xtrain, as.integer(Ytrain))[,1]))
+      #wts <- 1/sqrt(matrixStats::colSds(Xtrain))
+      #cscore <- sda::catscore(Xtrain, Ytrain)
+      #wts=log(apply(cscore, 1, function(v) max(abs(v))))
+      bres <- bada(Ytrain, Xtrain, S=S[S != s], ncomp=35, preproc=center(), A=Matrix::Diagonal(x=wts))
+    }
     do.call(rbind, lapply(seq(5,35,by=5), function(nc) {
-      p <- predict(bres, Xtest, ncomp=nc)
-      data.frame(pred=p, actual=Ytest, S=s, ncomp=nc, correct=p == Ytest)
+      p <- predict(bres, Xtest, ncomp=nc, type="prob")
+      data.frame(pred=p, actual=Ytest, S=s, ncomp=nc, correct=p == Ytest, weighted=weighted)
     }))
   }))
 }
@@ -109,13 +131,13 @@ crossval <- function(blocks, S, Y) {
 crossval_dual <- function() {
   res <- do.call(rbind, lapply(unique(S_mem), function(s) {
     print(s)
-    bres_perc <- bada(Y_perc[S_perc != s], Xcat_perc[S_perc != s,], S=S_perc[S_perc != s], ncomp=33, preproc=center)
-    bres_mem <- bada(Y_mem[S_mem != s],   Xcat_mem[S_mem != s,],  S=S_mem[S_mem != s], ncomp=33, preproc=center)
+    bres_perc <- bada(Y_perc[S_perc != s], Xcat_perc[S_perc != s,], S=S_perc[S_perc != s], ncomp=33, preproc=center())
+    bres_mem <- bada(Y_mem[S_mem != s],   Xcat_mem[S_mem != s,],  S=S_mem[S_mem != s], ncomp=33, preproc=center())
     Xr_perc <- bres_perc$Xr[pids,]
     Xr_mem <- bres_mem$Xr
     #Xr_dual_bl <- block_matrix(list(Xr_perc, Xr_mem))
     Xr_dual <- cbind(Xr_perc, Xr_mem)
-    bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=standardize())
+    bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=center() %>% colscale())
     #mres_dual <- mfa(Xr_dual_bl, ncomp=5)
 
     #pls_dual <- plsr(Xr_mem ~ Xr_perc, ncomp=5)
@@ -134,24 +156,23 @@ crossval_dual <- function() {
 }
 
 
-cval_perc <- crossval(study_blocks, S_perc, Y_perc)
-cval_mem <- crossval(delay_blocks, S_mem, Y_mem)
+cval_perc_wtd <- crossval(study_blocks, S_perc, Y_perc, wts=TRUE)
+cval_perc <- crossval(study_blocks, S_perc, Y_perc, wts=FALSE)
+cval_mem_wtd <- crossval(delay_blocks, S_mem, Y_mem, weighted=TRUE)
+cval_mem <- crossval(delay_blocks, S_mem, Y_mem, weighted=FALSE)
+cval_mem_dual <- crossval_dual()
 
-rsum_mem = cval_mem %>% group_by(S, ncomp) %>% summarize(correct=mean(correct))
+
+rsum_perc_wtd = cval_perc_wtd %>% group_by(ncomp) %>% summarize(correct=mean(correct))
+rsum_perc = cval_perc %>% group_by(ncomp) %>% summarize(correct=mean(correct))
+rsum_mem_wtd = cval_mem_wtd %>% group_by(ncomp) %>% summarize(correct=mean(correct))
+rsum_mem = cval_mem %>% group_by(ncomp) %>% summarize(correct=mean(correct))
+
+rsum_mem_dual <- cval_mem_dual %>% group_by(ncomp) %>% summarize(correct=mean(correct))
 
 bres <- neuroca::bada(Y, Xcat, S, ncomp=10, preproc=standardize)
 
-feature_sig <- function(sfac, Xcat, Y) {
-  pvals <- lapply(1:ncol(Xcat), function(i) {
-    x <- Xcat[,i]
-    res <- kruskal.test(x ~ Y)
-    res$statistic
-  })
-  matrix(unlist(pvals), odim[1], odim[2])
-}
 
-f_perc <- feature_sig(S_perc, Xcat_perc, Y_perc)
-f_mem <- feature_sig(S_mem, Xcat_mem, Y_mem)
 
 #labels <- c(study_dens$ImageVersion, delay_dens$ImageVersion)
 labels <- unlist(lapply(study_blocks, row.names))
