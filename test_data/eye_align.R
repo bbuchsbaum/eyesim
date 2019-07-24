@@ -135,10 +135,10 @@ crossval_dual <- function() {
     bres_mem <- bada(Y_mem[S_mem != s],   Xcat_mem[S_mem != s,],  S=S_mem[S_mem != s], ncomp=33, preproc=center())
     Xr_perc <- bres_perc$Xr[pids,]
     Xr_mem <- bres_mem$Xr
-    #Xr_dual_bl <- block_matrix(list(Xr_perc, Xr_mem))
+    Xr_dual_bl <- block_matrix(list(Xr_perc, Xr_mem))
     Xr_dual <- cbind(Xr_perc, Xr_mem)
-    bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=center() %>% colscale())
-    #mres_dual <- mfa(Xr_dual_bl, ncomp=5)
+    bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=center())
+    mres_dual <- mfa(Xr_dual_bl, ncomp=5)
 
     #pls_dual <- plsr(Xr_mem ~ Xr_perc, ncomp=5)
 
