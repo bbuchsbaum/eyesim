@@ -138,7 +138,7 @@ crossval_dual <- function() {
     Xr_dual_bl <- block_matrix(list(Xr_perc, Xr_mem))
     Xr_dual <- cbind(Xr_perc, Xr_mem)
     bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=center())
-    mres_dual <- mfa(Xr_dual_bl, ncomp=5)
+    mres_dual <- mfa(Xr_dual_bl, ncomp=25,preproc=center())
 
     #pls_dual <- plsr(Xr_mem ~ Xr_perc, ncomp=5)
 
@@ -146,14 +146,22 @@ crossval_dual <- function() {
     Ytest <- Y_mem[S_mem == s]
 
     ret <- do.call(rbind, lapply(seq(1,25,by=3), function(nc) {
-      p <- predict(bres_dual, Xtest, ncomp=nc, colind=ind_mem)
-      data.frame(pred=p, actual=Ytest, S=s, ncomp=nc, correct=p == Ytest)
+      #p <- predict(bres_dual, Xtest, ncomp=nc, colind=ind_mem)
+      #p2 <- predict(bres_dual, Xtest, ncomp=nc, colind=ind_perc)
+      cfier <- neuroca:::classifier.projector(mres_dual, labels=row.names(scores(mres_dual)), colind=ind_mem)
+      cfier2 <- neuroca:::classifier.projector(mres_dual, labels=row.names(scores(mres_dual)), colind=ind_perc)
+      p <- predict(cfier, Xtest, ncomp=nc, metric="cosine")$class
+      p2 <- predict(cfier2, Xtest, ncomp=nc, metric="cosine")$class
+
+      data.frame(pred=p, actual=Ytest, S=s, ncomp=nc, correct_mem=p == Ytest, correct_perc=p2 == Ytest)
     }))
 
     print(mean(ret$correct))
     ret
   }))
 }
+
+
 
 
 cval_perc_wtd <- crossval(study_blocks, S_perc, Y_perc, wts=TRUE)
