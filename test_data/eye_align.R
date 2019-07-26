@@ -138,7 +138,17 @@ crossval_dual <- function() {
     Xr_dual_bl <- block_matrix(list(Xr_perc, Xr_mem))
     Xr_dual <- cbind(Xr_perc, Xr_mem)
     bres_dual <- bada(factor(levels(Y_mem)), Xr_dual, ncomp=25, preproc=center())
-    mres_dual <- mfa(Xr_dual_bl, ncomp=25,preproc=center())
+    mres_dual <- mfa(Xr_dual_bl, ncomp=25,preproc=center(), normalization="MFA")
+
+
+    ## procrustes
+    ## no transformation
+
+    #pc1 <- pca(Xr_perc, ncomp=20)
+    #pc2 <- pca(Xr_mem, ncomp=20)
+    #procr <- vegan::procrustes(Xr_perc, Xr_mem)
+
+
 
     #pls_dual <- plsr(Xr_mem ~ Xr_perc, ncomp=5)
 
@@ -150,16 +160,76 @@ crossval_dual <- function() {
       #p2 <- predict(bres_dual, Xtest, ncomp=nc, colind=ind_perc)
       cfier <- neuroca:::classifier.projector(mres_dual, labels=row.names(scores(mres_dual)), colind=ind_mem)
       cfier2 <- neuroca:::classifier.projector(mres_dual, labels=row.names(scores(mres_dual)), colind=ind_perc)
-      p <- predict(cfier, Xtest, ncomp=nc, metric="cosine")$class
-      p2 <- predict(cfier2, Xtest, ncomp=nc, metric="cosine")$class
+      p <- predict(cfier, Xtest, ncomp=nc, metric="euclidean")$class
+      p2 <- predict(cfier2, Xtest, ncomp=nc, metric="euclidean")$class
 
-      data.frame(pred=p, actual=Ytest, S=s, ncomp=nc, correct_mem=p == Ytest, correct_perc=p2 == Ytest)
+      data.frame(pred_perc=p, prep_mem=p2, actual=Ytest, S=s, ncomp=nc, correct_mem=p == Ytest, correct_perc=p2 == Ytest)
     }))
 
-    print(mean(ret$correct))
+    message("mem:", mean(ret$correct_mem))
+    message("perc:", mean(ret$correct_perc))
     ret
   }))
 }
+
+crossval_procrustes <- function(nc=30) {
+  res <- do.call(rbind, lapply(unique(S_mem), function(s) {
+    print(s)
+    bres_perc <- bada(Y_perc[S_perc != s], Xcat_perc[S_perc != s,], S=S_perc[S_perc != s], ncomp=33, preproc=center())
+    bres_mem <- bada(Y_mem[S_mem != s],   Xcat_mem[S_mem != s,],  S=S_mem[S_mem != s], ncomp=33, preproc=center())
+    Xr_perc <- bres_perc$Xr[pids,]
+    Xr_mem <- bres_mem$Xr
+
+    #pc1 <- pca(Xr_perc, ncomp=nc)
+    #pc2 <- pca(Xr_mem, ncomp=nc)
+    #procr <- vegan::procrustes(scores(pc1), scores(pc2))
+
+    procr <- vegan::procrustes(Xr_perc, Xr_mem)
+
+    Xtest <- Xcat_mem[S_mem == s,]
+    Ytest <- Y_mem[S_mem == s]
+
+    #Xrot <- procr$scale * project(pc2, Xtest, comp=1:nc) %*% procr$rotation
+    Xrot <- procr$scale * Xtest %*% procr$rotation
+
+    #pcos <- proxy::simil(scores(pc1), Xrot, method="cosine")
+    pcos <- proxy::simil(Xr_perc, Xrot, method="cosine")
+    pcos2 <- proxy::simil(Xr_perc, Xtest, method="cosine")
+    pclass <- apply(pcos, 2, function(v) {
+      row.names(Xr_perc)[which.max(v)]
+    })
+
+    pclass2 <- apply(pcos2, 2, function(v) {
+      row.names(Xr_perc)[which.max(v)]
+    })
+    df1 <- data.frame(pred=pclass, actual=Ytest, S=s, ncomp=nc, correct= pclass == Ytest, correct2=pclass2 == Ytest)
+
+    message("proc:", mean(df1$correct))
+    message("nonproc:", mean(df1$correct2))
+   df1
+  }))
+}
+
+crossval_procrustes <- function(nc=30) {
+  res <- do.call(rbind, lapply(unique(S_mem), function(s) {
+    print(s)
+    Xtest_mem <- Xcat_mem[S_mem == s,]
+    Xtest_perc <- Xcat_perc[S_perc == s,]
+    labs=sort(intersect(row.names(Xtest_perc), row.names(Xtest_mem)))
+    id_perc=match(labs, row.names(Xtest_perc))
+    id_mem=match(labs, row.names(Xtest_mem))
+
+    Xtest_perc = Xtest_perc[id_perc,]
+    Xtest_mem = Xtest_mem[id_mem,]
+
+    pc1 <- pca(Xtest_perc, ncomp=nc)
+    pc2 <- pca(Xtest_mem, ncomp=nc)
+
+    ret <- FactoMineR::coeffRV(scores(pc1), scores(pc2))
+    data.frame(s=s, rvstd=ret$rvstd, nc=nc, pval=ret$p.value)
+  }))
+}
+
 
 
 
@@ -169,14 +239,15 @@ cval_perc <- crossval(study_blocks, S_perc, Y_perc, wts=FALSE)
 cval_mem_wtd <- crossval(delay_blocks, S_mem, Y_mem, weighted=TRUE)
 cval_mem <- crossval(delay_blocks, S_mem, Y_mem, weighted=FALSE)
 cval_mem_dual <- crossval_dual()
-
+cval_procrustes <- crossval_procrustes(nc=15)
 
 rsum_perc_wtd = cval_perc_wtd %>% group_by(ncomp) %>% summarize(correct=mean(correct))
 rsum_perc = cval_perc %>% group_by(ncomp) %>% summarize(correct=mean(correct))
 rsum_mem_wtd = cval_mem_wtd %>% group_by(ncomp) %>% summarize(correct=mean(correct))
 rsum_mem = cval_mem %>% group_by(ncomp) %>% summarize(correct=mean(correct))
 
-rsum_mem_dual <- cval_mem_dual %>% group_by(ncomp) %>% summarize(correct=mean(correct))
+rsum_mem_dual_perc <- cval_mem_dual %>% group_by(ncomp) %>% summarize(correct=mean(correct_perc))
+rsum_mem_dual_mem <- cval_mem_dual %>% group_by(ncomp) %>% summarize(correct=mean(correct_mem))
 
 bres <- neuroca::bada(Y, Xcat, S, ncomp=10, preproc=standardize)
 
