@@ -5,7 +5,7 @@
 #' @param match_on
 #' @param method
 #' @export
-template_similarity <- function(ref_tab, source_tab, match_on, refvar="density", sourcevar="density",
+template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
                                 method=c("spearman", "pearson", "cosine", "l1", "jaccard", "dcov"),
                                 permutations=10) {
 
@@ -25,6 +25,11 @@ template_similarity <- function(ref_tab, source_tab, match_on, refvar="density",
     matchind <- matchind[!is.na(matchind)]
   }
 
+  if (!is.null(permute_on)) {
+    assertthat::assert_that(permute_on %in% names(source_tab) && assertthat::assert_that(permute_on %in% names(ref_tab)))
+    match_split <- split(matchind, source_tab[[permute_on]])
+  }
+
   ret <- source_tab %>% rowwise() %>% do( {
 
     d1 <- ref_tab[[refvar]][[.$matchind]]
@@ -33,7 +38,12 @@ template_similarity <- function(ref_tab, source_tab, match_on, refvar="density",
     sim <- similarity(d1,d2, method=method)
 
     if (permutations > 0) {
-      mind <- sample(matchind, permutations)
+      mind <- if (!is.null(permute_on)) {
+        sample(match_split[[as.character(.[[permute_on]])]])
+      } else {
+        sample(matchind, permutations)
+      }
+
       psim <- mean(sapply(mind, function(i) {
         similarity(ref_tab[[refvar]][[i]], d2, method=method)
       }))

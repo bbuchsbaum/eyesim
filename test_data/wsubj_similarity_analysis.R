@@ -44,7 +44,7 @@ test_tab$Image_Subj_Version <- paste0(test_tab$Subject, "_", test_tab$ImageVersi
 test_tab$Match <- m$Match
 
 
-outdim <- c(16,12)
+outdim <- c(80,60)
 ## construct heatmaps for the study phase, averaged within subjects
 study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
                          duration_weighted=TRUE, sigma=60)
@@ -79,7 +79,8 @@ study_dens$Image_Subj <- paste0(study_dens$Subject, "_", study_dens$ImageNumber)
 test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
 study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
 
-
+test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10)
+test_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, permute_on = "Subject")
 
 binned_similarity <- function(min_onset, max_onset, method="cosine") {
   print(min_onset)
