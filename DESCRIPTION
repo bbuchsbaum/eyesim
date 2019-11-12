@@ -11,13 +11,13 @@ Imports:
   proxy,
   assertthat,
   Matrix,
-  rflann,
   dplyr,
   ggplot2,
   tibble,
-  colorplane
+  colorplane,
+  ppcor
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.0.1.9000
+RoxygenNote: 6.1.1
 Remotes: 
   bbuchsbaum/colorplane
