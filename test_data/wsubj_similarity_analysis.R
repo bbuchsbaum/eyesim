@@ -86,9 +86,12 @@ test_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutatio
 test_sim3 <- template_similarity(study_dens_all, test_dens_all, "ImageVersion", permutations=120,method="pearson")
 #test_sim4 <- template_similarity(study_dens_all, test_dens_all, "ImageVersion", permutations=120, permute_on="Subject",method="pearson")
 test_sim3$Image_Subj_Version <- test_tab$Image_Subj_Version
-res1=left_join(test_sim, test_tab, by="Image_Subj") %>% filter(Subject.x < 300 & !(Subject.x %in% c(10,103,13))) %>% group_by(Match, Subject.x) %>% summarize(eye_sim_diff=mean(eye_sim_diff), accuracy=mean(Accuracy), eye_sim=mean(eye_sim))
-res2=left_join(test_sim2, test_tab, by="Image_Subj") %>% filter(Subject.x < 300 & !(Subject.x %in% c(10,103,13))) %>% group_by(Match, Subject.x) %>% summarize(eye_sim_diff=mean(eye_sim_diff),accuracy=mean(Accuracy), eye_sim=mean(eye_sim))
-res3=left_join(test_sim3, test_tab, by="Image_Subj_Version") %>% filter(Subject.y < 300 & !(Subject.y %in% c(10,103,13))) %>% group_by(Match, Subject.y) %>% summarize(eye_sim_diff=mean(eye_sim_diff),accuracy=mean(Accuracy),eye_sim=mean(eye_sim))
+res1=left_join(test_sim, test_tab, by="Image_Subj") %>% filter(Subject.x < 300 & !(Subject.x %in% c(10,103,13))) %>% group_by(Match, Subject.x) %>%
+  summarize(eye_sim_diff=mean(eye_sim_diff), accuracy=mean(Accuracy), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+res2=left_join(test_sim2, test_tab, by="Image_Subj") %>% filter(Subject.x < 300 & !(Subject.x %in% c(10,103,13))) %>% group_by(Match, Subject.x) %>%
+  summarize(eye_sim_diff=mean(eye_sim_diff),accuracy=mean(Accuracy), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+res3=left_join(test_sim3, test_tab, by="Image_Subj_Version") %>% filter(Subject.y < 300 & !(Subject.y %in% c(10,103,13))) %>% group_by(Match, Subject.y) %>%
+  summarize(eye_sim_diff=mean(eye_sim_diff),accuracy=mean(Accuracy),eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
 
 
 tsum_pear_1 = test_sim %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))

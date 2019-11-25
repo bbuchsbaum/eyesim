@@ -41,13 +41,14 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 
       mind <- if (!is.null(permute_on)) {
         match_split[[as.character(.[[permute_on]])]]
-        matchind
       } else {
         matchind
       }
 
-      if (permutations < length(mind)) {
-        mind <- sample(mind, permutations)
+      mind <- if (permutations < length(mind)) {
+        mind <- sample(matchind, permutations)
+      } else {
+        matchind
       }
 
       mind <- mind[!mind %in% .$matchind]
