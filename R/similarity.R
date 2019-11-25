@@ -102,6 +102,10 @@ gen_density <- function(x,y,z) {
   out
 }
 
+#' @export
+get_density.eye_density <- function(x, ...) {
+  x$z
+}
 
 #' @export
 #' @importFrom MASS kde2d

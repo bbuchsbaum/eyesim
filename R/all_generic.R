@@ -14,6 +14,11 @@ eye_density <- function(x, sigma, xbounds, ybounds, outdim, weights, normalize,.
   UseMethod("eye_density", x)
 }
 
+#' @export
+get_density <- function(x,...) {
+  UseMethod("get_density", x)
+}
+
 
 #' @param x the object to sample
 #' @param fix the fixations

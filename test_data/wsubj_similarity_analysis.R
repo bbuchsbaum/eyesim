@@ -79,8 +79,8 @@ study_dens$Image_Subj <- paste0(study_dens$Subject, "_", study_dens$ImageNumber)
 test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
 study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
 
-test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10)
-test_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, permute_on = "Subject")
+test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=50, method="pearson")
+test_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=50, permute_on = "Subject", method="pearson")
 
 binned_similarity <- function(min_onset, max_onset, method="cosine") {
   print(min_onset)
