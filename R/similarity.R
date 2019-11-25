@@ -38,8 +38,10 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
     sim <- similarity(d1,d2, method=method)
 
     if (permutations > 0) {
+
       mind <- if (!is.null(permute_on)) {
         match_split[[as.character(.[[permute_on]])]]
+        matchind
       } else {
         matchind
       }
