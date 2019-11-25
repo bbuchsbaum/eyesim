@@ -49,8 +49,8 @@ outdim <- c(80,60)
 study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
                          duration_weighted=TRUE, sigma=60)
 
-study_dens_ang <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
-                         duration_weighted=TRUE, sigma=60, angular=TRUE, angle_bins=12)
+#study_dens_ang <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
+#                         duration_weighted=TRUE, sigma=60, angular=TRUE, angle_bins=12)
 
 
 
@@ -67,8 +67,8 @@ dens_avg_subj <- study_dens %>% group_by(Subject) %>% do({
 })
 
 test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
-test_dens_ang <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60,
-                            angular=TRUE, angle_bins=12)
+#test_dens_ang <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60,
+#                            angular=TRUE, angle_bins=12)
 
 
 test_dens_all <- density_by(test_tab, groups=c("ImageVersion", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
@@ -76,8 +76,8 @@ test_dens_all <- density_by(test_tab, groups=c("ImageVersion", "Subject"),xbound
 test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
 study_dens$Image_Subj <- paste0(study_dens$Subject, "_", study_dens$ImageNumber)
 
-test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
-study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
+#test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
+#study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
 
 test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=50, method="pearson")
 test_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=50, permute_on = "Subject", method="pearson")

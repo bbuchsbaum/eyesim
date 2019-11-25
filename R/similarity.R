@@ -39,10 +39,16 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 
     if (permutations > 0) {
       mind <- if (!is.null(permute_on)) {
-        sample(match_split[[as.character(.[[permute_on]])]])
+        match_split[[as.character(.[[permute_on]])]]
       } else {
-        sample(matchind, permutations)
+        matchind
       }
+
+      if (permutations < length(mind)) {
+        mind <- sample(mind, permutations)
+      }
+
+      mind <- mind[!mind %in% .$matchind]
 
       psim <- mean(sapply(mind, function(i) {
         similarity(ref_tab[[refvar]][[i]], d2, method=method)
