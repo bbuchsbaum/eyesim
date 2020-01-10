@@ -6,7 +6,7 @@
 #' @param method
 #' @export
 template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
-                                method=c("spearman", "pearson", "cosine", "l1", "jaccard", "dcov"),
+                                method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
                                 permutations=10) {
 
 
@@ -177,10 +177,12 @@ similarity.density <- function(x, y, method=c("pearson", "spearman", "cosine", "
 
 }
 
-compute_similarity <- function(x,y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
+compute_similarity <- function(x,y, method=c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")) {
   method=match.arg(method)
   if (method=="pearson" || method == "spearman") {
     cor(as.vector(x), as.vector(y), method=method)
+  } else if (method == "fisherz") {
+    atanh(cor(as.vector(x), as.vector(y), method=method))
   } else if (method == "cosine") {
     proxy::simil(as.vector(x), as.vector(y), method="cosine", by_rows=FALSE)[,]
   } else if (method == "l1") {
