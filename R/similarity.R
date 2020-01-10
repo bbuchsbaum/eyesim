@@ -166,7 +166,7 @@ to_angle <- function(x, y) {
 
 #' @importFrom proxy simil
 #' @export
-similarity.density <- function(x, y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
+similarity.density <- function(x, y, method=c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")) {
   method=match.arg(method)
 
   if (inherits(y, "density")) {
