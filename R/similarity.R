@@ -5,8 +5,8 @@
 #' @param match_on
 #' @param method
 #' @export
-template_similarity <- function(ref_tab, source_tab, match_on, refvar="density", sourcevar="density",
-                                method=c("spearman", "pearson", "cosine", "l1", "jaccard", "dcov"),
+template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
+                                method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
                                 permutations=10) {
 
 
@@ -25,6 +25,11 @@ template_similarity <- function(ref_tab, source_tab, match_on, refvar="density",
     matchind <- matchind[!is.na(matchind)]
   }
 
+  if (!is.null(permute_on)) {
+    assertthat::assert_that(permute_on %in% names(source_tab) && assertthat::assert_that(permute_on %in% names(ref_tab)))
+    match_split <- split(matchind, source_tab[[permute_on]])
+  }
+
   ret <- source_tab %>% rowwise() %>% do( {
 
     d1 <- ref_tab[[refvar]][[.$matchind]]
@@ -33,7 +38,21 @@ template_similarity <- function(ref_tab, source_tab, match_on, refvar="density",
     sim <- similarity(d1,d2, method=method)
 
     if (permutations > 0) {
-      mind <- sample(matchind, permutations)
+
+      mind <- if (!is.null(permute_on)) {
+        match_split[[as.character(.[[permute_on]])]]
+      } else {
+        matchind
+      }
+
+      mind <- if (permutations < length(mind)) {
+        mind <- sample(matchind, permutations)
+      } else {
+        matchind
+      }
+
+      mind <- mind[!mind %in% .$matchind]
+
       psim <- mean(sapply(mind, function(i) {
         similarity(ref_tab[[refvar]][[i]], d2, method=method)
       }))
@@ -92,6 +111,10 @@ gen_density <- function(x,y,z) {
   out
 }
 
+#' @export
+get_density.eye_density <- function(x, ...) {
+  x$z
+}
 
 #' @export
 #' @importFrom MASS kde2d
@@ -143,7 +166,7 @@ to_angle <- function(x, y) {
 
 #' @importFrom proxy simil
 #' @export
-similarity.density <- function(x, y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
+similarity.density <- function(x, y, method=c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")) {
   method=match.arg(method)
 
   if (inherits(y, "density")) {
@@ -154,10 +177,12 @@ similarity.density <- function(x, y, method=c("pearson", "spearman", "cosine", "
 
 }
 
-compute_similarity <- function(x,y, method=c("pearson", "spearman", "cosine", "l1", "jaccard", "dcov")) {
+compute_similarity <- function(x,y, method=c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")) {
   method=match.arg(method)
   if (method=="pearson" || method == "spearman") {
     cor(as.vector(x), as.vector(y), method=method)
+  } else if (method == "fisherz") {
+    atanh(cor(as.vector(x), as.vector(y), method=method))
   } else if (method == "cosine") {
     proxy::simil(as.vector(x), as.vector(y), method="cosine", by_rows=FALSE)[,]
   } else if (method == "l1") {

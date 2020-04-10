@@ -3,9 +3,10 @@ library(tibble)
 library(tidyr)
 library(energy)
 
+exclude_subs <- c(28, 32, 109, 10, 103)
 
 pcstudy <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/study_fixations.csv")) %>%
-  filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
+  filter(Image != "." & !(Subject %in% c(28,32, 109, 10, 103))) %>% droplevels()
 
 pcstudy$ImageNumber <- as.integer(as.character(pcstudy$ImageNumber))
 
@@ -18,12 +19,12 @@ study_tab <- eye_table("FixX", "FixY", duration="FixDuration", onset="FixStartTi
                               "ImageSet", "Block", "Image", "ImageNumber"))
 
 
-subject_dens <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=60, angular=TRUE)
+subject_dens <- density_by(study_tab, groups=c("Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=c(80,60), duration_weighted=TRUE, sigma=80)
 
 
 ## load test data
 pctest <- as_tibble(read.csv("~/Dropbox/New_pc_behavioural_data/testdelay_fixations.csv")) %>%
-  filter(Image != "." & !(Subject %in% c(28,32, 109))) %>% droplevels()
+  filter(Image != "." & !(Subject %in% c(28,32, 109, 10, 103))) %>% droplevels()
 
 
 ## create table for each test trial
@@ -44,18 +45,18 @@ test_tab$Image_Subj_Version <- paste0(test_tab$Subject, "_", test_tab$ImageVersi
 test_tab$Match <- m$Match
 
 
-outdim <- c(16,12)
+outdim <- c(80,60)
 ## construct heatmaps for the study phase, averaged within subjects
 study_dens <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
-                         duration_weighted=TRUE, sigma=60)
+                         duration_weighted=TRUE, sigma=80)
 
-study_dens_ang <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
-                         duration_weighted=TRUE, sigma=60, angular=TRUE, angle_bins=12)
+#study_dens_ang <- density_by(study_tab, groups=c("ImageNumber", "Subject"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim,
+#                         duration_weighted=TRUE, sigma=60, angular=TRUE, angle_bins=12)
 
 
 
 ## construct heatmaps for the study phase, averaged over subjects
-study_dens_all <- density_by(study_tab, groups=c("ImageVersion"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
+study_dens_all <- density_by(study_tab, groups=c("ImageVersion"), xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=80)
 
 ## compute grand mean density
 study_dens_avg <- Reduce("+", lapply(study_dens$density, function(x) x$z))/length(study_dens)
@@ -66,20 +67,48 @@ dens_avg_subj <- study_dens %>% group_by(Subject) %>% do({
   tibble(Subject=.$Subject[1], dens=list(dens))
 })
 
-test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
-test_dens_ang <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60,
-                            angular=TRUE, angle_bins=12)
+test_dens <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=80)
+#test_dens_ang <- density_by(test_tab, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60,
+#                            angular=TRUE, angle_bins=12)
 
 
-test_dens_all <- density_by(test_tab, groups=c("ImageVersion", "Subject"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=60)
+test_dens_all <- density_by(test_tab, groups=c("ImageVersion", "Subject", "ImageNumber"),xbounds=c(0,800), ybounds=c(0,600), outdim=outdim, duration_weighted=TRUE, sigma=80)
 
 test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
 study_dens$Image_Subj <- paste0(study_dens$Subject, "_", study_dens$ImageNumber)
+test_dens_all$Image_Subj <- paste0(test_dens_all$Subject, "_", test_dens_all$ImageNumber)
 
-test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
-study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
+#test_dens_ang$Image_Subj <- paste0(test_dens_ang$Subject, "_", test_dens_ang$ImageNumber)
+#study_dens_ang$Image_Subj <- paste0(study_dens$Subject, "_", study_dens_ang$ImageNumber)
+
+test_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=120, method="pearson")
+test_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=120, permute_on = "Subject",method="pearson")
+test_sim3 <- template_similarity(study_dens_all, test_dens_all, "ImageVersion", permutations=120,method="pearson")
+#test_sim4 <- template_similarity(study_dens_all, test_dens_all, "ImageVersion", permutations=120, permute_on="Subject",method="pearson")
+test_sim3$Image_Subj_Version <- test_tab$Image_Subj_Version
+res1=left_join(test_sim, test_tab, by="Image_Subj") %>% filter(Subject.x < 300 & !(Subject.x %in% c(10,103,13))) %>% group_by(Match, Subject.x) %>%
+  summarize(eye_sim_diff=mean(eye_sim_diff), accuracy=mean(Accuracy), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+res2=left_join(test_sim2, test_tab, by="Image_Subj") %>% filter(Subject.x < 300 & !(Subject.x %in% c(10,103,13))) %>% group_by(Match, Subject.x) %>%
+  summarize(eye_sim_diff=mean(eye_sim_diff),accuracy=mean(Accuracy), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+res3=left_join(test_sim3, test_tab, by="Image_Subj_Version") %>% filter(Subject.y < 300 & !(Subject.y %in% c(10,103,13))) %>% group_by(Match, Subject.y) %>%
+  summarize(eye_sim_diff=mean(eye_sim_diff),accuracy=mean(Accuracy),eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
 
 
+tsum_pear_1 = test_sim %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+tsum_pear_2 = test_sim2 %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+tsum_pear_3 = test_sim3 %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+#tsum_pear_4 = test_sim4 %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff), eye_sim=mean(eye_sim), perm_sim=mean(perm_sim))
+
+
+test_cos_sim <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, method="cosine")
+test_cos_sim2 <- template_similarity(study_dens, test_dens, "Image_Subj", permutations=10, permute_on = "Subject", method="cosine")
+test_cos_sim3 <- template_similarity(study_dens_all, test_dens_all, "ImageVersion", permutations=10, method="cosine")
+
+
+
+tsum_cos_1 = test_cos_sim %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff))
+tsum_cos_2 = test_cos_sim2 %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff))
+tsum_cos_3 = test_cos_sim3 %>% filter(Subject < 300 & !(Subject %in% c(10,103,13))) %>% group_by(Subject) %>% summarize(eye_sim_diff=mean(eye_sim_diff))
 
 binned_similarity <- function(min_onset, max_onset, method="cosine") {
   print(min_onset)
@@ -99,7 +128,7 @@ binned_similarity <- function(min_onset, max_onset, method="cosine") {
   test_tab_binned$Match <- test_tab_binned$ImageRepetition
 
   test_dens <- density_by(test_tab_binned, groups=c("ImageNumber", "Subject"),xbounds=c(0,800), ybounds=c(0,600),
-                          outdim=outdim, duration_weighted=TRUE, sigma=50)
+                          outdim=outdim, duration_weighted=TRUE, sigma=80)
   test_dens$Image_Subj <- paste0(test_dens$Subject, "_", test_dens$ImageNumber)
 
   ## compute similarity between each trial and study image derived from group average
