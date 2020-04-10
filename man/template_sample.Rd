@@ -4,8 +4,13 @@
 \alias{template_sample}
 \title{template_sample}
 \usage{
-template_sample(source_tab, template, fixgroup = "fixgroup",
-  time = NULL, outcol = "sample_out")
+template_sample(
+  source_tab,
+  template,
+  fixgroup = "fixgroup",
+  time = NULL,
+  outcol = "sample_out"
+)
 }
 \description{
 template_sample
