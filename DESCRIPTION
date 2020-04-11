@@ -9,6 +9,7 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 Imports:
   proxy,
+  imager,
   assertthat,
   Matrix,
   dplyr,
