@@ -68,17 +68,21 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
 
   p <- if (type== "contour") {
     p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
-      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
+      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none") +
+      scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "density") {
     p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide=FALSE, trans=cuberoot_trans) +
       scale_alpha_continuous(range=alpha_range, trans=cuberoot_trans, guide=FALSE) +
-      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
+      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none") +
+      scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "raster") {
-    p + stat_density_2d(aes(fill = ..density.., alpha=..density..), geom="raster", bins=bins, h=bandwidth, contour = FALSE, interpolate=TRUE) +
-      scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = FALSE)+
+    p + stat_density_2d(aes(fill = ..density.., alpha=..density..), geom="raster", bins=bins,
+                        h=bandwidth, contour = FALSE, interpolate=TRUE) +
+      scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = FALSE) +
       scale_alpha_continuous(range=alpha_range, guide = FALSE, trans=cuberoot_trans) +
-      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
+      theme_bw() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none") +
+      scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else {
     stop(paste("unrecognized 'type' ", type))
 
