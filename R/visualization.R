@@ -35,7 +35,6 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
                                 show_points=TRUE,
                                 bins=max(as.integer(length(x$x)/10),4),
                                 bg_image=NULL,
-                                transform=cube_root,
                                 colours=rev(RColorBrewer.brewer.pal(n=10, "Spectral")),
                                 alpha_range=c(.5,1),
                                 transform=c("identity", "sqroot", "curoot", "rank")) {
