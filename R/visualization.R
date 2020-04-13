@@ -68,13 +68,13 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
     }
   }
 
-  trans <- if (trans == "identity") {
+  trans <- if (transform == "identity") {
     "identity"
-  } else if (trans == "sqroot") {
+  } else if (transform == "sqroot") {
     squareroot_trans
-  } else if (trans == "curoot") {
+  } else if (transform == "curoot") {
     cuberoot_trans
-  } else if (trans == "rank") {
+  } else if (transform == "rank") {
     rank_trans
   } else {
     "identity"
