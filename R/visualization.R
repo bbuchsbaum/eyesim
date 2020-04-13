@@ -108,7 +108,7 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
 
 
 rank_trans <- scales::trans_new(name="rank",
-                                transform=function(x) { browser(); rank(x) },
+                                transform=function(x) { rank(x) },
                                 inverse=function(x) (length(x)+1) - rank(x))
 
 cuberoot_trans <- scales::trans_new(name="curoot",
