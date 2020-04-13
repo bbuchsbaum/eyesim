@@ -35,9 +35,12 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
                                 show_points=TRUE,
                                 bins=max(as.integer(length(x$x)/10),4),
                                 bg_image=NULL,
+                                transform=cube_root,
                                 colours=rev(RColorBrewer.brewer.pal(n=10, "Spectral")),
-                                alpha_range=c(.5,1)) {
+                                alpha_range=c(.5,1),
+                                transform=c("identity", "sqroot", "curoot", "rank")) {
   type <- match.arg(type)
+  transform <- match.arg(transform)
 
   if (size_points) {
     ps <- (x$duration - min(x$duration)) / (max(x$duration) - min(x$duration))
@@ -65,6 +68,18 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
     }
   }
 
+  trans <- if (trans == "identity") {
+    "identity"
+  } else if (trans == "sqroot") {
+    squareroot_trans
+  } else if (trans == "curoot") {
+    cuberoot_trans
+  } else if (trans == "rank") {
+    rank_trans
+  } else {
+    "identity"
+  }
+
 
   p <- if (type== "contour") {
     p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
@@ -74,14 +89,14 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
   } else if (type == "density") {
     p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide=FALSE, trans=cuberoot_trans) +
-      scale_alpha_continuous(range=alpha_range, trans=cuberoot_trans, guide=FALSE) +
+      scale_alpha_continuous(range=alpha_range, trans=trans, guide=FALSE) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none") +
       scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "raster") {
     p + stat_density_2d(aes(fill = ..density.., alpha=..density..), geom="raster", bins=bins,
                         h=bandwidth, contour = FALSE, interpolate=TRUE) +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = FALSE) +
-      scale_alpha_continuous(range=alpha_range, guide = FALSE, trans=cuberoot_trans) +
+      scale_alpha_continuous(range=alpha_range, guide = FALSE, trans=trans) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none") +
       scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else {
@@ -97,9 +112,12 @@ rank_trans <- scales::trans_new(name="rank",
                                 transform=function(x) { browser(); rank(x) },
                                 inverse=function(x) (length(x)+1) - rank(x))
 
-cuberoot_trans <- scales::trans_new(name="rank",
+cuberoot_trans <- scales::trans_new(name="curoot",
                                     transform=function(x) { x^(1/3) },
                                     inverse=function(x) x^3)
 
+squareroot_trans <- scales::trans_new(name="sqroot",
+                                    transform=function(x) { x^(1/2) },
+                                    inverse=function(x) x^2)
 
 
