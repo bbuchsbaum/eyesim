@@ -95,8 +95,7 @@ plot.fixation_group <- function(x, type=c("contour", "filled_contour", "density"
       guides(size = "none")
   } else if (type == "filled_contour") {
     dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
-    ggplot(aes(x, y, z = z), data=dens) +
-      geom_contour_filled(aes(fill = stat(level)), alpha = alpha)
+    ggplot(aes(x, y, z=z), data=dens) + geom_contour_filled(aes(x,y,z=z, fill = stat(level)), alpha=mean(alpha_range))
 
   } else if (type == "density") {
     p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
