@@ -85,15 +85,14 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
 
 
   p <- if (type== "contour") {
-    dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
-    p + geom_contour_filled(aes(x, y, z = density), dens, alpha=alpha) +
-      guides(size = "none") +
-      theme_void()
-
-    #p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
-    #  theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
+    #dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
+    #p + geom_contour_filled(aes(x, y, z = density), dens, alpha=alpha) +
     #  guides(size = "none") +
-    #  scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
+    #  theme_void()
+
+    p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
+      theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
+      guides(size = "none")
   } else if (type == "density") {
     p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide=FALSE, trans=cuberoot_trans) +
