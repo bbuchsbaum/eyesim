@@ -90,7 +90,7 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
     #  guides(size = "none") +
     #  theme_void()
 
-    p + stat_density_2d(aes(fill=stat(level)), h=bandwidth, geom="polygon", alpha=alpha) +
+    p + stat_density_2d(aes(colour=..level..), h=bandwidth) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       guides(size = "none")
   } else if (type == "density") {
