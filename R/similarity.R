@@ -123,7 +123,7 @@ as.data.frame.eye_density <- function(x, ...) {
   kde_df <- x %>%
     .[c("x", "y")] %>%
     purrr::cross_df() %>%
-    dplyr::mutate(density = as.vector(out$z))
+    dplyr::mutate(density = as.vector(x$z))
 }
 
 #' @export
