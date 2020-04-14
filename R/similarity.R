@@ -117,6 +117,24 @@ get_density.eye_density <- function(x, ...) {
 }
 
 #' @export
+#' @importFrom purrr cross_df
+#' @importFrom dplyr mutate
+as.data.frame.eye_density <- function(x, ...) {
+  kde_df <- x %>%
+    .[c("x", "y")] %>%
+    purrr::cross_df() %>%
+    dplyr::mutate(density = as.vector(out$z))
+}
+
+#' @export
+print.eye_density <- function(x) {
+  cat("fixation density map", "\n")
+  cat("xlim: ", range(x$x), "\n")
+  cat("ylim: ", range(x$y), "\n")
+  cat("z range: ", range(x$z), "\n")
+}
+
+#' @export
 #' @importFrom MASS kde2d
 eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
                                        outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),

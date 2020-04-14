@@ -28,6 +28,10 @@ plot.eye_density <- function(x,show_points=TRUE) {
 #' @importFrom imager load.image
 #' @importFrom RColorBrewer brewer.pal
 #' @export
+#'
+#' @examples
+#'
+#' fg <- fixation_group(x=runif(50, 0, 100), y=runif(50, 0, 100), duration=rep(1,50), onset=seq(1,50))
 plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandwidth=100,
                                 xlim=range(x$x),
                                 ylim=range(x$y),
@@ -81,10 +85,15 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
 
 
   p <- if (type== "contour") {
-    p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
-      theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
-      guides(size = "none") +
-      scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
+    dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
+    ggplot() + geom_contour_filled(aes(x, y, z = density), dens, alpha=alpha) +
+      guides(size = "none") + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
+      theme_void()
+
+    #p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
+    #  theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
+    #  guides(size = "none") +
+    #  scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "density") {
     p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide=FALSE, trans=cuberoot_trans) +
