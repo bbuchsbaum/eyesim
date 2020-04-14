@@ -8,9 +8,10 @@ template_similarity(
   ref_tab,
   source_tab,
   match_on,
+  permute_on = NULL,
   refvar = "density",
   sourcevar = "density",
-  method = c("spearman", "pearson", "cosine", "l1", "jaccard", "dcov"),
+  method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
   permutations = 10
 )
 }

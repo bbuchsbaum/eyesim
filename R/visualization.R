@@ -86,7 +86,7 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
 
   p <- if (type== "contour") {
     dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
-    ggplot() + geom_contour_filled(aes(x, y, z = density), dens, alpha=alpha) +
+    p + geom_contour_filled(aes(x, y, z = density), dens, alpha=alpha) +
       guides(size = "none") + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
       theme_void()
 
