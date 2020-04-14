@@ -52,7 +52,7 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
 
   p <- ggplot(data=x, aes(x=x, y=y)) +
     xlim(xlim[1], xlim[2]) +
-    ylim(ylim[1], ylim[2])
+    ylim(ylim[1], ylim[2]) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
 
   if (!is.null(bg_image)) {
     im <- imager::load.image(bg_image)
@@ -87,7 +87,7 @@ plot.fixation_group <- function(x, type=c("contour", "density", "raster"), bandw
   p <- if (type== "contour") {
     dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
     p + geom_contour_filled(aes(x, y, z = density), dens, alpha=alpha) +
-      guides(size = "none") + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
+      guides(size = "none") +
       theme_void()
 
     #p + stat_density_2d(aes(colour = ..level..), h=bandwidth) +
