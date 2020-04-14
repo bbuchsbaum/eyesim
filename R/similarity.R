@@ -120,10 +120,13 @@ get_density.eye_density <- function(x, ...) {
 #' @importFrom purrr cross_df
 #' @importFrom dplyr mutate
 as.data.frame.eye_density <- function(x, ...) {
+  z <- x$z
   kde_df <- x %>%
     .[c("x", "y")] %>%
     purrr::cross_df() %>%
-    dplyr::mutate(density = as.vector(x$z))
+    dplyr::mutate(density = as.vector(z))
+
+  kde_df
 }
 
 #' @export
