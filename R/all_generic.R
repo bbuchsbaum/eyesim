@@ -58,11 +58,11 @@ sample_fixations <- function(x, time) {
 
 #' similarity
 #'
-#' @param x
-#' @param y
-#' @param method
+#' @param x the first object to compare
+#' @param y the second object to compare
+#' @param method the similarity metric
 #' @export
-similarity <- function(x, y, method) {
+similarity <- function(x, y, method, ...) {
   UseMethod("similarity", x)
 }
 

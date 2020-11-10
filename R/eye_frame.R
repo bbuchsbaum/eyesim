@@ -29,7 +29,6 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
   }
 
 
-
   res <- data %>%
     group_by_(.dots=groupvar) %>%
     do({
@@ -68,8 +67,12 @@ coords.fixation_group <- function(x) {
 
 #' @importFrom tibble tibble
 #' @export
-fixation_group <- function(x, y, duration, onset) {
-  ret <- tibble(x=x,y=y, duration=duration, onset=onset)
+fixation_group <- function(x, y, duration, onset, group=0) {
+  assert_that(length(x) == length(y))
+  assert_that(length(x) == length(duration))
+  assert_that(length(x) == length(onset))
+
+  ret <- tibble(index=1:length(x), x=x,y=y, duration=duration, onset=onset, group_index=group)
   class(ret) <- c("fixation_group", class(ret))
   ret
 }

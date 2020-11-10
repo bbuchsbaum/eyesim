@@ -100,6 +100,10 @@ template_regression <- function(ref_tab, source_tab, match_on,
 
 #' template_sample
 #'
+#' template sample extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
+#' for the fixation at time t.
+#'
+#'
 #'
 #' @export
 template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL, outcol="sample_out") {
