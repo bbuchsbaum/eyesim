@@ -117,7 +117,9 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,transform=c("identity", 
 #' @examples
 #'
 #' fg <- fixation_group(x=runif(50, 0, 100), y=runif(50, 0, 100), duration=rep(1,50), onset=seq(1,50))
-plot.fixation_group <- function(x, type=c("contour", "filled_contour", "density", "raster", "points"), bandwidth=100,
+#' ## plot(fg)
+plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour", "density", "raster"),
+                                bandwidth=60,
                                 xlim=range(x$x),
                                 ylim=range(x$y),
                                 size_points=TRUE,
@@ -185,16 +187,18 @@ plot.fixation_group <- function(x, type=c("contour", "filled_contour", "density"
       guides(size = "none")
   } else if (type == "filled_contour") {
     ##dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
-    p + geom_density_2d_filled(alpha=alpha) +
+    p + geom_density_2d_filled(alpha=alpha, h=bandwidth) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       #scale_alpha_continuous(range=alpha_range, trans=trans, guide=FALSE) +
-      theme(legend.position = "none")
+      theme(legend.position = "none") +
+      guides(size = "none")
 
   } else if (type == "density") {
     p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide=FALSE, trans=cuberoot_trans) +
       scale_alpha_continuous(range=alpha_range, trans=trans, guide=FALSE) +
-      theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none")
+      theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
+      guides(size = "none")
       #+
       #scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "raster") {
@@ -202,18 +206,17 @@ plot.fixation_group <- function(x, type=c("contour", "filled_contour", "density"
                         h=bandwidth, contour = FALSE, interpolate=TRUE) +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = FALSE) +
       scale_alpha_continuous(range=alpha_range, guide = FALSE, trans=trans) +
-      theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) + guides(size = "none") #+
+      theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
+      guides(size = "none") #+
       #scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "points") {
     if (show_path) {
-      p <- p + geom_path(aes(x,y, colour=onset), show.legend=FALSE)
+      p <- p +  geom_path(aes(x,y, colour=onset), show.legend=FALSE)
     }
 
     p <- p + theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       guides(size = "none")
-    if (nrow(x) < 50) {
-      p + geom_text(aes(x,y, label=index))
-    }
+
   } else {
     stop(paste("unrecognized 'type' ", type))
 
@@ -223,9 +226,15 @@ plot.fixation_group <- function(x, type=c("contour", "filled_contour", "density"
     if (size_points) {
       p <- p + geom_point(aes(size=psize, colour=onset), alpha=alpha, show.legend=FALSE) +
         scale_colour_gradient(low = "yellow", high = "red", na.value = NA)
+      if (nrow(x) < 50) {
+        p <- p + geom_text(aes(x,y, label=index))
+      }
     } else {
       p <- p + geom_point(aes(colour=onset), alpha=alpha, show.legend=FALSE) +
         scale_colour_gradient(low = "yellow", high = "red", na.value = NA)
+      if (nrow(x) < 50) {
+        p <- p + geom_text(aes(x,y, label=index))
+      }
     }
   }
 

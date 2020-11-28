@@ -5,7 +5,7 @@
 #' @export
 #' @import rlang
 density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
-                       duration_weighted=TRUE, window=NULL, angular=FALSE, angle_bins=8, keep_vars=NULL, result_name="density", ...) {
+                       duration_weighted=TRUE, window=NULL, keep_vars=NULL, result_name="density", ...) {
 
   rname <- rlang::sym(result_name)
   vars <- c(groups, keep_vars)
@@ -16,14 +16,14 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
       cbind(.[1,vars],tibble(fixgroup=list(g)))
     }) %>% rowwise() %>% do( {
       d <- eye_density(.$fixgroup, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
-                       duration_weighted=duration_weighted, window=window, angular=angular, angle_bins=angle_bins, origin=attr(x, "origin"), ...)
+                       duration_weighted=duration_weighted, window=window, origin=attr(x, "origin"), ...)
       cbind(as_tibble(.[vars]), tibble( fixgroup=list(.$fixgroup), !!rname := list(d)))
     })
   } else {
     #browser()
     fx <- do.call(rbind, x$fixgroup)
     d <- eye_density(fx, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
-                     duration_weighted=duration_weighted, window=window, angular=angular, angle_bins=angle_bins, origin=attr(x, "origin"), ...)
+                     duration_weighted=duration_weighted, window=window,origin=attr(x, "origin"), ...)
     ret <- tibble(fixgroup=list(fx), !!rname := list(d))
 
   }

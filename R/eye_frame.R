@@ -6,12 +6,15 @@
 #' @export
 eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bounds=c(0,1280, 0,1280), relative_coords=TRUE) {
 
-  data <- data %>% rename_(x=x, y=y, duration=duration, onset=onset)
+  assertthat::assert_that(inherits(data, "data.frame"))
+
+  data <- data %>% rename(x=x, y=y, duration=duration, onset=onset) %>% as_tibble()
 
   data <- if (is.null(vars)) {
-    data %>% select_("x","y","duration", "onset", .dots=c(groupvar))
+    #data %>% select_at("x","y","duration", "onset", .dots=c(groupvar))
+    data %>% select_at(c("x","y","duration", "onset", groupvar))
   } else {
-    data %>% select_("x","y","duration", "onset", .dots=c(vars, groupvar))
+    data %>% select_at(c("x","y","duration", "onset", vars, groupvar))
   }
 
 
@@ -30,10 +33,10 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
 
 
   res <- data %>%
-    group_by_(.dots=groupvar) %>%
+    group_by_at(groupvar) %>%
     do({
         cbind(.[1,], tibble(fixgroup=list(fixation_group(.[["x"]], .[["y"]], .[["duration"]], .[["onset"]]))))
-    }) %>% select_(.dots=c("fixgroup", vars))
+    }) %>% select_at(c("fixgroup", vars))
 
   class(res) <- c("eye_table", class(res))
 
@@ -49,12 +52,6 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data, clip_bou
   res
 
 }
-
-
-
-
-
-
 
 
 #' @export
@@ -87,22 +84,30 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 }
 
 #' @export
-sample_fixations.fixation_group <- function(x, time) {
+sample_fixations.fixation_group <- function(x, time, fast=TRUE) {
 
-  ret <- purrr::map(time, function(t) {
-    if (t < x$onset[1]) {
-      c(x=NA,y=NA, onset=t, duration=NA)
-    } else {
-      delta <- t- x$onset
-      valid <- which(delta >= 0)
-      len <- length(valid)
-      if (len == 0) {
-        c(x=NA,y=NA, onset=t, duration=NA, delta=NA)
+
+  ret <- if (fast) {
+    x1 <- approx(x$onset, x$x, xout=time, method="constant", f=0)
+    y1 <- approx(x$onset, x$y, xout=time, method="constant", f=0)
+    data.frame(x=x1$y, y=y1$y, onset=time, duration=rep(1,length(time)))
+
+  } else {
+    purrr::map(time, function(t) {
+      if (t < x$onset[1]) {
+        c(x=NA,y=NA, onset=t, duration=NA)
       } else {
-        c(x=x$x[len], y=x$y[len], onset=t, duration=t-x$onset[len])
+        delta <- t - x$onset
+        valid <- which(delta >= 0)
+        len <- length(valid)
+        if (len == 0) {
+          c(x=NA,y=NA, onset=t, duration=NA)
+        } else {
+          c(x=x$x[len], y=x$y[len], onset=t, duration=0)
+        }
       }
-    }
-  }) %>% map_dfr(bind_rows)
+    }) %>% map_dfr(bind_rows)
+  }
 
   class(ret) <- c("sampled_fixation_group", "fixation_group", class(ret))
   ret

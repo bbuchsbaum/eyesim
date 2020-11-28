@@ -13,5 +13,6 @@ template_sample(
 )
 }
 \description{
-template_sample
+template sample extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
+for the fixation at time t.
 }

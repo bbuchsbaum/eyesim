@@ -12,9 +12,29 @@ template_similarity(
   refvar = "density",
   sourcevar = "density",
   method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
-  permutations = 10
+  permutations = 10,
+  ...
 )
 }
+\arguments{
+\item{ref_tab}{the table of reference density maps}
+
+\item{source_tab}{the table of source density maps}
+
+\item{match_on}{the variable to match on}
+
+\item{permute_on}{the variable used to stratify permutations}
+
+\item{refvar}{the name of the variable containing density maps in reference table}
+
+\item{sourcevar}{the name of the variable containing density maps in source table}
+
+\item{method}{the similarity method}
+
+\item{permutations}{the number of permutations for the baseline map}
+
+\item{...}{extra args to pass to `similarity` function}
+}
 \description{
-template_similarity
+compute similarity between each density map in a \code{source_tab} with a matching density map in \code{ref_tab}
 }

@@ -4,7 +4,14 @@
 \alias{similarity}
 \title{similarity}
 \usage{
-similarity(x, y, method)
+similarity(x, y, method, ...)
+}
+\arguments{
+\item{x}{the first object to compare}
+
+\item{y}{the second object to compare}
+
+\item{method}{the similarity metric}
 }
 \description{
 similarity

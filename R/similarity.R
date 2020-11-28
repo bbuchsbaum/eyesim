@@ -1,79 +1,7 @@
 
 
-
-fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, method="sinkhorn", window=NULL, ...) {
-
-  matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
-
-  source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
-
-  if (any(is.na(matchind))) {
-    warning("did not find matching template map for all source maps. Removing non-matching elements.")
-    source_tab <- source_tab %>% filter(!is.na(matchind))
-    matchind <- matchind[!is.na(matchind)]
-  }
-
-  if ( !is.null(window) ) {
-    assertthat::assert_that(window[2] > window[1])
-  }
-
-  ret <- source_tab %>% rowwise() %>% do( {
-
-    d1 <- ref_tab[["fixgroup"]][[.$matchind]]
-    d2 <- .[["fixgroup"]]
-
-
-    sim <- similarity(d1,d2, method=method, window=window)
-
-    if (permutations > 0) {
-      #browser()
-      mind <- if (permutations < length(mind)) {
-        mind <- sample(matchind, permutations)
-      } else {
-        matchind
-      }
-
-      mind <- mind[!mind %in% .$matchind]
-
-      psim <- mean(sapply(mind, function(i) {
-        similarity(ref_tab[[refvar]][[i]], d2, method=method)
-      }))
-
-      data.frame(eye_sim=sim, perm_sim=psim, eye_sim_diff=sim-psim)
-    } else {
-      sim <- similarity(d1,d2, method=method, window=window, ...)
-      data.frame(eye_sim=sim)
-    }
-  })
-
-  out <- source_tab %>% mutate(eye_sim=ret$eye_sim)
-
-
-}
-
-
-#' template_similarity
-#'
-#' compute similarity betwen each density map in a \code{source_tab} with a matching density map in \code{ref_tab}
-#'
-#' @param ref_tab the table of reference density maps
-#' @param source_tab the table of source density maps
-#' @param match_on the variable to match on
-#' @param permute_on the variable used to stratify permutations
-#' @param refvar the name of the variable containing density maps in reference table
-#' @param sourcvar the name of the variable containing density maps in source table
-#' @param method the similarity method
-#' @param permutations the number of permutations for the baseline map
-#' @export
-template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
-                                method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
-                                permutations=10) {
-
-
-  method <- match.arg(method)
-  message("template_similarity: similarity metric is ", method)
-
-
+run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations, permute_on=NULL, method,
+                                    refvar, sourcevar, window=NULL, ...) {
 
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
 
@@ -90,44 +18,163 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
     match_split <- split(matchind, source_tab[[permute_on]])
   }
 
-  ret <- source_tab %>% rowwise() %>% do( {
+  args <- list(...)
 
+  ret <- source_tab %>% furrr::future_pmap(function(...) {
+    . <- list(...)
     d1 <- ref_tab[[refvar]][[.$matchind]]
     d2 <- .[[sourcevar]]
 
-    sim <- similarity(d1,d2, method=method)
+    p <- purrr::partial(similarity, d1, d2, method=method)
+    sim <- do.call(p, args)
 
     if (permutations > 0) {
 
       mind <- if (!is.null(permute_on)) {
+        ## limit matching indices to permute variable
         match_split[[as.character(.[[permute_on]])]]
       } else {
         matchind
       }
 
-      mind <- if (permutations < length(mind)) {
-        mind <- sample(matchind, permutations)
-      } else {
-        matchind
+      if (permutations < length(mind)) {
+        mind <- sample(mind, permutations)
       }
 
-      mind <- mind[!mind %in% .$matchind]
+      elnum <- match(.$matchind, mind)
+      #mind <- mind[!(mind %in% .$matchind)]
+      if (!is.na(elnum)) {
+        mind <- mind[-elnum]
+      }
+
+
 
       psim <- mean(sapply(mind, function(i) {
-        similarity(ref_tab[[refvar]][[i]], d2, method=method)
+        d1p <- ref_tab[[refvar]][[i]]
+        ## instead of this hack, pass in partial function that pre-populates "window"?
+        if (!is.null(window)) {
+          p <- purrr::partial(similarity, d1p, d2, method=method, window=window)
+          do.call(p, args)
+        } else {
+          p <- purrr::partial(similarity, d1p, d2, method=method)
+          do.call(p, args)
+        }
       }))
 
-      data.frame(eye_sim=sim, perm_sim=psim, eye_sim_diff=sim-psim)
+      tibble(eye_sim=sim, perm_sim=psim, eye_sim_diff=sim-psim)
     } else {
-      data.frame(eye_sim=sim)
+      sim <- if (!is.null(window)) {
+        similarity(d1,d2, method=method, window=window, ...)
+      } else {
+        similarity(d1,d2, method=method, ...)
+      }
+
+      tibble(eye_sim=sim)
     }
-  })
+
+
+  }) %>% bind_rows()
+
+
+
+  # ret <- source_tab %>% rowwise() %>% do({
+  #   d1 <- ref_tab[[refvar]][[.$matchind]]
+  #   d2 <- .[[sourcevar]]
+  #
+  #
+  #   sim <- similarity(d1, d2, method = method, ...)
+  #
+  #   if (permutations > 0) {
+  #     mind <- if (!is.null(permute_on)) {
+  #       ## limit matching indices to permute variable
+  #       match_split[[as.character(.[[permute_on]])]]
+  #     } else {
+  #       matchind
+  #     }
+  #
+  #     if (permutations < length(mind)) {
+  #       mind <- sample(mind, permutations)
+  #     }
+  #
+  #     mind <- mind[!(mind %in% .$matchind)]
+  #
+  #     psim <- mean(sapply(mind, function(i) {
+  #       if (!is.null(window)) {
+  #         similarity(ref_tab[[refvar]][[i]], d2, method = method, window, ...)
+  #       } else {
+  #         similarity(ref_tab[[refvar]][[i]], d2, method = method, ...)
+  #       }
+  #     }))
+  #
+  #     data.frame(
+  #       eye_sim = sim,
+  #       perm_sim = psim,
+  #       eye_sim_diff = sim - psim
+  #     )
+  #   } else {
+  #     sim <- if (!is.null(window)) {
+  #       similarity(d1, d2, method = method, window = window, ...)
+  #     } else {
+  #       similarity(d1, d2, method = method, ...)
+  #     }
+  #
+  #     data.frame(eye_sim = sim)
+  #   }
+  # })
 
   if (permutations > 0) {
     source_tab %>% mutate(eye_sim=ret$eye_sim, perm_sim=ret$perm_sim, eye_sim_diff=ret$eye_sim_diff)
   } else {
     source_tab %>% mutate(eye_sim=ret$eye_sim)
   }
+
+}
+
+
+
+#' fixation_similarity
+#'
+#' compute similarity between each fixation group in a \code{source_tab} with a matching fixation group in \code{ref_tab}
+#'
+#' @inheritsParam template_similarity
+#' @param window
+#' @export
+fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
+                                method=c("sinkhorn", "overlap", "mm_vector", "mm_direction", "mm_length", "mm_position", "mm_duration"),
+                                refvar="fixgroup", sourcevar="fixgroup", window=NULL, ...) {
+  if (!is.null(window) ) {
+    assertthat::assert_that(window[2] > window[1])
+  }
+  message("fixation_similarity: similarity metric is ", method)
+
+  method <- match.arg(method)
+  run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on, method, refvar, sourcevar, window, ...)
+
+}
+
+
+#' template_similarity
+#'
+#' compute similarity between each density map in a \code{source_tab} with a matching density map in \code{ref_tab}
+#'
+#' @param ref_tab the table of reference density maps
+#' @param source_tab the table of source density maps
+#' @param match_on the variable to match on
+#' @param permute_on the variable used to stratify permutations
+#' @param refvar the name of the variable containing density maps in reference table
+#' @param sourcevar the name of the variable containing density maps in source table
+#' @param method the similarity method
+#' @param permutations the number of permutations for the baseline map
+#' @param ... extra args to pass to `similarity` function
+#' @export
+template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
+                                method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
+                                permutations=10, ...) {
+
+
+  method <- match.arg(method)
+  message("template_similarity: similarity metric is ", method)
+  run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on, method, refvar, sourcevar,...)
 }
 
 
@@ -203,7 +250,7 @@ print.eye_density <- function(x) {
 #' @importFrom MASS kde2d
 eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
                                        outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
-                                       normalize=TRUE, duration_weighted=FALSE, window=NULL, angular=FALSE, angle_bins=25, origin=c(0,0)) {
+                                       normalize=TRUE, duration_weighted=FALSE, window=NULL,  origin=c(0,0)) {
 
   if (!is.null(window)) {
     assertthat::assert_that(window[2] > window[1])
@@ -221,13 +268,7 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
 
 
 
-  out <- if (angular) {
-    xrep <- rep_fixations(x, 50)
-    theta <- to_angle(xrep$x - origin[1], xrep$y - origin[2])
-    group <- cut(theta, seq(-pi/2, pi/2, length.out=angle_bins))
-    ang <- as.vector(table(group))
-    list(z=ang)
-  } else if (duration_weighted || !is.null(window)) {
+  out <- if (duration_weighted || !is.null(window)) {
     xrep <- rep_fixations(x, 50)
     xrep <- x
     kde2d(xrep$x, xrep$y, h=sigma, n=outdim, lims=c(xbounds, ybounds))
@@ -294,11 +335,19 @@ sigmoid <- function (x, a = 1, b = 0)  {
 }
 
 #' @export
-similarity.fixation_group <- function(x, y, method="sinkhorn",window=NULL,
+similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap", "mm_vector",
+                                                     "mm_direction", "mm_length", "mm_position", "mm_duration"),
+                                      window=NULL,
                                 xdenom=1000, ydenom=1000, tdenom=3000,
-                                tweight=.8,  lambda=200) {
+                                tweight=.8,  lambda=.1, dthresh=40,
+                                time_samples=NULL, screensize=NULL,...) {
+
+  if (!inherits(y, "fixation_group")) {
+    stop("`y` must be of type `fixation_group`")
+  }
 
   if (!is.null(window)) {
+      #print(paste("window", window))
       x <- filter(x, onset >= window[1] & onset < window[2])
       y <- filter(y, onset >= window[1] & onset < window[2])
   }
@@ -313,22 +362,35 @@ similarity.fixation_group <- function(x, y, method="sinkhorn",window=NULL,
     return(NA)
   }
 
-  xy1 <- cbind(x$x/xdenom, x$y/ydenom)
-  xy2 <- cbind(y$x/xdenom, y$y/ydenom)
+  if (method == "sinkhorn") {
+    xy1 <- cbind(x$x/xdenom, x$y/ydenom)
+    xy2 <- cbind(y$x/xdenom, y$y/ydenom)
 
-  #spd <- proxy::dist(xy1,xy2)
-  #td <- proxy::dist(x$onset/tdenom, y$onset/tdenom)
-  #d <- spd + tweight*td
+    #spd <- proxy::dist(xy1,xy2)
+    #td <- proxy::dist(x$onset/tdenom, y$onset/tdenom)
+    #d <- spd + tweight*td
 
-  xyt1 <- cbind(x$x/xdenom, x$y/ydenom, x$onset/tdenom * tweight)
-  xyt2 <- cbind(y$x/xdenom, y$y/ydenom, y$onset/tdenom * tweight)
-  d <- proxy::dist(xyt1, xyt2)
+    xyt1 <- cbind(x$x/xdenom, x$y/ydenom, x$onset/tdenom * tweight)
+    xyt2 <- cbind(y$x/xdenom, y$y/ydenom, y$onset/tdenom * tweight)
+    d <- proxy::dist(xyt1, xyt2)
 
-  #stw1 <- sigmoid(x$onset, a=a, b=b)
-  #stw2 <- sigmoid(y$onset, a=a, b=b)
+    #stw1 <- sigmoid(x$onset, a=a, b=b)
+    #stw2 <- sigmoid(y$onset, a=a, b=b)
 
-  d0 <- T4transport::sinkhornD(d,wx=x$duration, wy=y$duration, lambda=lambda)$distance
-  -log(d0)
+    d0 <- T4transport::sinkhornD(d,wx=x$duration, wy=y$duration, lambda=lambda)$distance
+    -log(d0+1)
+  } else if (method == "overlap") {
+    if (is.null(time_samples)) {
+      stop("method `overlap` requires a vector of `time_samples`")
+    }
+    fixation_overlap(x, y, dthresh=dthresh, time_samples=time_samples)
+  } else if (method %in% c("mm_vector", "mm_direction", "mm_length", "mm_position", "mm_duration")) {
+    if (is.null(screensize)) {
+      stop("method `mm` requires `screensize`")
+    }
+    ret <- multi_match(x,y,screensize,...)
+    ret[[method]]
+  }
 }
 
 
@@ -336,7 +398,8 @@ similarity.fixation_group <- function(x, y, method="sinkhorn",window=NULL,
 
 #' @importFrom proxy simil
 #' @export
-similarity.density <- function(x, y, method=c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")) {
+similarity.density <- function(x, y, method=c("pearson", "spearman", "fisherz", "cosine",
+                                              "l1", "jaccard", "dcov")) {
   method=match.arg(method)
 
   if (inherits(y, "density")) {
