@@ -7,6 +7,8 @@
 density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
                        duration_weighted=TRUE, window=NULL, keep_vars=NULL, result_name="density", ...) {
 
+  ## TODO what happens if window produces fixations < 0?
+
   rname <- rlang::sym(result_name)
   vars <- c(groups, keep_vars)
 

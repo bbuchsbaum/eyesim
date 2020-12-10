@@ -376,9 +376,10 @@ similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap", "mm_
 
     #stw1 <- sigmoid(x$onset, a=a, b=b)
     #stw2 <- sigmoid(y$onset, a=a, b=b)
-
-    d0 <- T4transport::sinkhornD(d,wx=x$duration, wy=y$duration, lambda=lambda)$distance
-    -log(d0+1)
+    xdur <- x$duration/sum(x$duration)
+    ydur <- y$duration/sum(y$duration)
+    d0 <- T4transport::sinkhornD(d,wx=xdur, wy=ydur, lambda=lambda)$distance
+    1/(1+d0)
   } else if (method == "overlap") {
     if (is.null(time_samples)) {
       stop("method `overlap` requires a vector of `time_samples`")

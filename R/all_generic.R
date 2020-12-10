@@ -37,6 +37,15 @@ coords <- function(x) {
   UseMethod("coords", x)
 }
 
+#' rescale spatial coordinats
+#'
+#' @param x the object to rescale
+#' @param sx the x scale factor
+#' @param sy the y scale factor
+rescale <- function(x, sx, sy) {
+  UseMethod("rescale", x)
+}
+
 
 #' rep_fixations
 #'
@@ -73,4 +82,35 @@ similarity <- function(x, y, method, ...) {
 #' @export
 density_matrix <- function(x, groups,...) {
   UseMethod("density_matrix", x)
+}
+
+#' center eye-movements
+#'
+#' @param x the object
+#' @param origin the origin of the new coordinate system
+#' @param ... extra args
+#' @export
+center <- function(x, origin, ...) {
+  UseMethod("center", x)
+}
+
+
+#' normalize eye-movements
+#'
+#' @param x the object
+#' @param xbounds
+#' @param ybounds
+#' @param ... extra args
+#' @export
+normalize <- function(x, xbounds, ybounds, ...) {
+  UseMethod("normalize", x)
+}
+
+#' compute scanpath
+#'
+#' @param x the fixations
+#' @param ... extra args
+#' @export
+scanpath <- function(x, ...) {
+  UseMethod("scanpath", x)
 }
