@@ -95,7 +95,7 @@ center <- function(x, origin, ...) {
 }
 
 
-#' normalize eye-movements
+#' normalize eye-movements to unit range
 #'
 #' @param x the object
 #' @param xbounds
@@ -106,11 +106,20 @@ normalize <- function(x, xbounds, ybounds, ...) {
   UseMethod("normalize", x)
 }
 
-#' compute scanpath
+#' compute scanpath of a fixation_group of related object
 #'
 #' @param x the fixations
 #' @param ... extra args
 #' @export
 scanpath <- function(x, ...) {
   UseMethod("scanpath", x)
+}
+
+#' add scanpath to dataset
+#'
+#' @param x the inpuy dataset
+#' @param ... extra args
+#' @export
+add_scanpath <- function(x, ...) {
+  UseMethod("add_scanpath", x)
 }

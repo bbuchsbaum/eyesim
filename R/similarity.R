@@ -2,6 +2,7 @@
 
 run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations, permute_on=NULL, method,
                                     refvar, sourcevar, window=NULL, ...) {
+  args <- list(...)
 
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
 
@@ -18,15 +19,25 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     match_split <- split(matchind, source_tab[[permute_on]])
   }
 
-  args <- list(...)
+  do_sim <- function(d1,d2,method, window=NULL) {
+    if (!is.null(window)) {
+      p <- purrr::partial(similarity, d1, d2, method=method, window=window)
+      sim <- unlist(do.call(p, args))
+    } else {
+      p <- purrr::partial(similarity, d1, d2, method=method)
+      sim <- unlist(do.call(p, args))
+    }
+  }
 
+  ##browser()
   ret <- source_tab %>% furrr::future_pmap(function(...) {
     . <- list(...)
     d1 <- ref_tab[[refvar]][[.$matchind]]
     d2 <- .[[sourcevar]]
 
-    p <- purrr::partial(similarity, d1, d2, method=method)
-    sim <- do.call(p, args)
+    #p <- purrr::partial(similarity, d1, d2, method=method)
+
+    sim <- do_sim(d1,d2,method, window)
 
     if (permutations > 0) {
 
@@ -42,91 +53,36 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       }
 
       elnum <- match(.$matchind, mind)
-      #mind <- mind[!(mind %in% .$matchind)]
+
       if (!is.na(elnum)) {
         mind <- mind[-elnum]
       }
 
-
-
-      psim <- mean(sapply(mind, function(i) {
+      psim <- do.call(rbind, lapply(mind, function(i) {
         d1p <- ref_tab[[refvar]][[i]]
-        ## instead of this hack, pass in partial function that pre-populates "window"?
-        if (!is.null(window)) {
-          p <- purrr::partial(similarity, d1p, d2, method=method, window=window)
-          do.call(p, args)
-        } else {
-          p <- purrr::partial(similarity, d1p, d2, method=method)
-          do.call(p, args)
-        }
+        do_sim(d1p, d2, method, window)
+
       }))
 
-      tibble(eye_sim=sim, perm_sim=psim, eye_sim_diff=sim-psim)
-    } else {
-      sim <- if (!is.null(window)) {
-        similarity(d1,d2, method=method, window=window, ...)
+      if (ncol(psim) > 1) {
+        psim <- colMeans(psim)
+        cnames <- c(names(sim), paste0("perm_", names(sim)), paste0(names(sim), "_diff"))
+        c(unlist(sim), psim, unlist(sim)-psim) %>% set_names(cnames) %>% bind_rows()
       } else {
-        similarity(d1,d2, method=method, ...)
+        tibble(eye_sim=sim, perm_sim=mean(psim), eye_sim_diff=sim - mean(psim))
       }
-
-      tibble(eye_sim=sim)
+    } else {
+        if (length(sim) == 1) {
+          tibble(eye_sim=sim)
+        } else {
+          sim %>% bind_rows()
+        }
     }
-
 
   }) %>% bind_rows()
 
+  source_tab %>% bind_cols(ret)
 
-
-  # ret <- source_tab %>% rowwise() %>% do({
-  #   d1 <- ref_tab[[refvar]][[.$matchind]]
-  #   d2 <- .[[sourcevar]]
-  #
-  #
-  #   sim <- similarity(d1, d2, method = method, ...)
-  #
-  #   if (permutations > 0) {
-  #     mind <- if (!is.null(permute_on)) {
-  #       ## limit matching indices to permute variable
-  #       match_split[[as.character(.[[permute_on]])]]
-  #     } else {
-  #       matchind
-  #     }
-  #
-  #     if (permutations < length(mind)) {
-  #       mind <- sample(mind, permutations)
-  #     }
-  #
-  #     mind <- mind[!(mind %in% .$matchind)]
-  #
-  #     psim <- mean(sapply(mind, function(i) {
-  #       if (!is.null(window)) {
-  #         similarity(ref_tab[[refvar]][[i]], d2, method = method, window, ...)
-  #       } else {
-  #         similarity(ref_tab[[refvar]][[i]], d2, method = method, ...)
-  #       }
-  #     }))
-  #
-  #     data.frame(
-  #       eye_sim = sim,
-  #       perm_sim = psim,
-  #       eye_sim_diff = sim - psim
-  #     )
-  #   } else {
-  #     sim <- if (!is.null(window)) {
-  #       similarity(d1, d2, method = method, window = window, ...)
-  #     } else {
-  #       similarity(d1, d2, method = method, ...)
-  #     }
-  #
-  #     data.frame(eye_sim = sim)
-  #   }
-  # })
-
-  if (permutations > 0) {
-    source_tab %>% mutate(eye_sim=ret$eye_sim, perm_sim=ret$perm_sim, eye_sim_diff=ret$eye_sim_diff)
-  } else {
-    source_tab %>% mutate(eye_sim=ret$eye_sim)
-  }
 
 }
 
@@ -140,7 +96,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 #' @param window
 #' @export
 fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
-                                method=c("sinkhorn", "overlap", "mm_vector", "mm_direction", "mm_length", "mm_position", "mm_duration"),
+                                method=c("sinkhorn", "overlap"),
                                 refvar="fixgroup", sourcevar="fixgroup", window=NULL, ...) {
   if (!is.null(window) ) {
     assertthat::assert_that(window[2] > window[1])
@@ -151,6 +107,21 @@ fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
   run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on, method, refvar, sourcevar, window, ...)
 
 }
+
+
+scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
+                                method=c("multimatch"),
+                                refvar="scanpath", sourcevar="scanpath", window=NULL, ...) {
+
+  if (!is.null(window) ) {
+    assertthat::assert_that(window[2] > window[1])
+  }
+  message("scan_similarity: similarity metric is ", method)
+  run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on,
+                          method, refvar, sourcevar, window, ...)
+
+}
+
 
 
 #' template_similarity
@@ -266,8 +237,6 @@ eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)
     rep(1, nrow(x))
   }
 
-
-
   out <- if (duration_weighted || !is.null(window)) {
     xrep <- rep_fixations(x, 50)
     xrep <- x
@@ -334,13 +303,48 @@ sigmoid <- function (x, a = 1, b = 0)  {
   1/(1 + exp(-a * (x - b)))
 }
 
+
 #' @export
-similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap", "mm_vector",
-                                                     "mm_direction", "mm_length", "mm_position", "mm_duration"),
+similarity.scanpath <- function(x, y, method=c("multimatch"),
+                                      window=NULL,
+                                      screensize=NULL,...) {
+
+  if (!inherits(y, "scanpath")) {
+    stop("`y` must be of type `scanpath`")
+  }
+
+  if (!is.null(window)) {
+    #print(paste("window", window))
+    x <- filter(x, onset >= window[1] & onset < window[2])
+    y <- filter(y, onset >= window[1] & onset < window[2])
+  }
+
+  if (nrow(x) == 0) {
+    warning("no observations in 'x'")
+    return(NA)
+  }
+
+  if (nrow(y) == 0) {
+    warning("no observations in 'y'")
+    return(NA)
+  }
+
+  if (is.null(screensize)) {
+    stop("method `multi_match` requires a `screensize` argument (e.g. c(1000,1000)")
+  }
+
+  multi_match(x,y,screensize)
+
+}
+
+
+#' @export
+similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap"),
                                       window=NULL,
                                 xdenom=1000, ydenom=1000, tdenom=3000,
                                 tweight=.8,  lambda=.1, dthresh=40,
                                 time_samples=NULL, screensize=NULL,...) {
+  method <- match.arg(method)
 
   if (!inherits(y, "fixation_group")) {
     stop("`y` must be of type `fixation_group`")
@@ -366,18 +370,16 @@ similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap", "mm_
     xy1 <- cbind(x$x/xdenom, x$y/ydenom)
     xy2 <- cbind(y$x/xdenom, y$y/ydenom)
 
-    #spd <- proxy::dist(xy1,xy2)
-    #td <- proxy::dist(x$onset/tdenom, y$onset/tdenom)
-    #d <- spd + tweight*td
-
     xyt1 <- cbind(x$x/xdenom, x$y/ydenom, x$onset/tdenom * tweight)
     xyt2 <- cbind(y$x/xdenom, y$y/ydenom, y$onset/tdenom * tweight)
+
     d <- proxy::dist(xyt1, xyt2)
 
     #stw1 <- sigmoid(x$onset, a=a, b=b)
     #stw2 <- sigmoid(y$onset, a=a, b=b)
     xdur <- x$duration/sum(x$duration)
     ydur <- y$duration/sum(y$duration)
+
     d0 <- T4transport::sinkhornD(d,wx=xdur, wy=ydur, lambda=lambda)$distance
     1/(1+d0)
   } else if (method == "overlap") {
@@ -385,13 +387,8 @@ similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap", "mm_
       stop("method `overlap` requires a vector of `time_samples`")
     }
     fixation_overlap(x, y, dthresh=dthresh, time_samples=time_samples)
-  } else if (method %in% c("mm_vector", "mm_direction", "mm_length", "mm_position", "mm_duration")) {
-    if (is.null(screensize)) {
-      stop("method `mm` requires `screensize`")
-    }
-    ret <- multi_match(x,y,screensize,...)
-    ret[[method]]
   }
+
 }
 
 

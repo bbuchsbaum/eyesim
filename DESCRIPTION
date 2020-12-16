@@ -31,5 +31,7 @@ Depends:
 Suggests: 
     knitr,
     rmarkdown,
-    reticulate
+    reticulate,
+    testthat,
+    covr
 VignetteBuilder: knitr

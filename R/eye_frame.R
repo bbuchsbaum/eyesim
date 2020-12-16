@@ -1,4 +1,7 @@
 
+
+
+
 #' @importFrom dplyr do group_by select filter
 #' @import magrittr
 #' @importFrom assertthat assert_that
@@ -68,7 +71,24 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
 }
 
 
+## a very primitive function to (re-)apply the 'foo' class, NOT for serious use
+as_eye_table <- function(x) {
+  cls <- class(x)
+  if (!"eye_table" %in% cls) {
+    class(x) <- c("eye_table", cls)
+  }
+  x
+}
 
+## do as little as possible, i.e. use NextMethod()
+`[.eye_table` <- function(x, i, j, drop = FALSE) {
+  as_eye_table(NextMethod())
+}
+
+
+#mutate.eye_table <- function(.data, ...) {
+#  as_eye_table(NextMethod())
+#}
 
 
 

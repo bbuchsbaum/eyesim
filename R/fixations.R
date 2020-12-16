@@ -1,4 +1,13 @@
 
+#' @export
+summary.fixation_group <- function(object) {
+  cen_x <- mean(object$x)
+  cen_y <- mean(object$y)
+  nfix <- nrow(object)
+  sd_x <- sd(object$x)
+  sd_y <- sd(object$y)
+  tibble(cen_x=cen_x, cen_y=cen_y, sd_x=sd_x, sd_y=sd_y, nfix=nfix)
+}
 
 #' @importFrom tibble tibble
 #' @export

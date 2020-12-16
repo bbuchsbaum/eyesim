@@ -7,6 +7,8 @@
 
 [![Travis build
 status](https://travis-ci.com/bbuchsbaum/eyesim.svg?branch=master)](https://travis-ci.com/bbuchsbaum/eyesim)
+[![Codecov test
+coverage](https://codecov.io/gh/bbuchsbaum/eyesim/branch/master/graph/badge.svg)](https://codecov.io/gh/bbuchsbaum/eyesim?branch=master)
 <!-- badges: end -->
 
 The goal of eyesim is to …
