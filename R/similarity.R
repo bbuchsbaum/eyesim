@@ -108,7 +108,8 @@ fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 
 }
 
-
+#' @inheritParams template_similarity
+#' @export
 scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
                                 method=c("multimatch"),
                                 refvar="scanpath", sourcevar="scanpath", window=NULL, ...) {
@@ -116,6 +117,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
   if (!is.null(window) ) {
     assertthat::assert_that(window[2] > window[1])
   }
+
   message("scan_similarity: similarity metric is ", method)
   run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on,
                           method, refvar, sourcevar, window, ...)

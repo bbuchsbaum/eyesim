@@ -25,6 +25,8 @@ estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
   ret <- optim(par, f, lower=lower, upper=upper, method="L-BFGS")
 }
 
+
+#' @inheritParams template_similarity
 match_scale <- function(ref_tab, source_tab, match_on,
                         refvar="fixgroup",sourcevar="fixgroup",
                         window,...) {
@@ -53,6 +55,7 @@ match_scale <- function(ref_tab, source_tab, match_on,
 }
 
 
+#' @xport
 rescale.fixation_group <- function(x, sx,sy) {
   x %>% mutate(x=x*sx, y=y*sy)
 }
