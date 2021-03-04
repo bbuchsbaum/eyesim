@@ -178,7 +178,7 @@ sample_density.density <- function(x, fix, times=NULL) {
 
 #' @export
 gen_density <- function(x,y,z) {
-  if (!all(dim(x) == c(length(x), length(y)))) {
+  if (!all(dim(z) == c(length(x), length(y)))) {
     stop("length of x and y must equal nrow(z) and ncol(z)")
   }
 
