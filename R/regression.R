@@ -98,13 +98,17 @@ template_regression <- function(ref_tab, source_tab, match_on,
 
 }
 
-#' template_sample
+#' Sample density maps with coordinates derived from fixation groups.
 #'
-#' template sample extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
-#' for the fixation at time t.
+#' this function extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
+#' for the fixation at time t. The fixations are taken from the `fixgroup` variable and may be associated, for example,
+#' with an independent set of trials.
 #'
-#'
-#'
+#' @param source_tab the name of the table containing the density map and fixations
+#' @param template the name of the template density variable
+#' @param fixgroup the name of the fixation group supplying the spatiotemporal coordinates used to sample the template
+#' @param time the time points used to extract coordinates from the the `fixation_group`
+#' @param outcol the name of the output variable
 #' @export
 #' @importFrom purrr pmap
 #' @importFrom tibble add_column
@@ -112,6 +116,7 @@ template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL
   x1 <- rlang::sym(template)
   x2 <- rlang::sym(fixgroup)
 
+  ## filters out NULLs
   ret <- source_tab %>% select(a=!!x1, b=!!x2) %>% filter(!(is.null(a) | is.null(b))) %>% pmap(function(a,b) {
     sample_density(a,b, time)
   })

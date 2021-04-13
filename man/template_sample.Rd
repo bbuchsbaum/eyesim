@@ -2,7 +2,7 @@
 % Please edit documentation in R/regression.R
 \name{template_sample}
 \alias{template_sample}
-\title{template_sample}
+\title{Sample density maps with coordinates derived from fixation groups.}
 \usage{
 template_sample(
   source_tab,
@@ -12,7 +12,19 @@ template_sample(
   outcol = "sample_out"
 )
 }
+\arguments{
+\item{source_tab}{the name of the table containing the density map and fixations}
+
+\item{template}{the name of the template density variable}
+
+\item{fixgroup}{the name of the fixation group supplying the spatiotemporal coordinates used to sample the template}
+
+\item{time}{the time points used to extract coordinates from the the `fixation_group`}
+
+\item{outcol}{the name of the output variable}
+}
 \description{
-template sample extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
-for the fixation at time t.
+this function extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
+for the fixation at time t. The fixations are taken from the `fixgroup` variable and may be associated, for example,
+with an independent set of trials.
 }
