@@ -32,6 +32,11 @@ can ask whether fixation similarity varies as a function of conditions
 in the experimental design or the behavioral responses (e.g. correct
 recognition or miss).
 
+## Vignettes
+
+See examples of use of `eyesim` in the
+[vignettes](https://bbuchsbaum.github.io/eyesim/articles/index.html).
+
 With some luck you might be able to make a cool image like the one
 below!
 
