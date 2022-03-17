@@ -20,43 +20,20 @@ knitr::opts_chunk$set(
 [![Codecov test coverage](https://codecov.io/gh/bbuchsbaum/eyesim/branch/master/graph/badge.svg)](https://codecov.io/gh/bbuchsbaum/eyesim?branch=master)
 <!-- badges: end -->
 
-The goal of eyesim is to ...
-
 ## Installation
 
-You can install the released version of eyesim from [CRAN](https://CRAN.R-project.org) with:
+You can install development version from [GitHub](https://github.com/) with:
 
-``` r
-install.packages("eyesim")
+```
+#install.packages("remotes")
+remotes::install_github("bbuchsbaum/eyesim")
 ```
 
-And the development version from [GitHub](https://github.com/) with:
+## Overview
 
-``` r
-# install.packages("devtools")
-devtools::install_github("bbuchsbaum/eyesim")
-```
-## Example
+Are two eye-movement fixation patterns similar? The goal of the `eyesim` package is to provide methods for answering this question.
 
-This is a basic example which shows you how to solve a common problem:
+For example, in studies of recognition memory, we might ask whether the eye-movement fixation pattern during the first presentation of an image ("encoding") is similar to the eye-movement fixation pattern during the second presentation of the same image ("recognition"). Furthermore, we can ask whether fixation similarity varies as a function of conditions in the experimental design or the behavioral responses (e.g. correct recognition or miss).
 
-```{r example}
-library(eyesim)
-## basic example code
-```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
 
-```{r cars}
-summary(cars)
-```
-
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!

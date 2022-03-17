@@ -1,7 +1,10 @@
 
-
+#' @import gganimate
+#' @param x a `fixation_group` object
+#' @param bg_image an image file name
 anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
-                          ylim=range(x$y), alpha=1, anim_over=c("index", "onset"),
+                          ylim=range(x$y), alpha=1,
+                          anim_over=c("index", "onset"),
                           type=c("points", "raster"),
                           time_bin=1) {
 
