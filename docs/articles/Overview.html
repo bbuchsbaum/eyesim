@@ -86,7 +86,7 @@
 <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span>
 <span class="va">fg</span> <span class="op">&lt;-</span> <span class="fu">fixation_group</span><span class="op">(</span>x<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">100</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, y<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">100</span>, <span class="fl">0</span><span class="op">)</span>, onset<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">10</span>,<span class="fl">60</span><span class="op">)</span>, duration<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>,<span class="fl">50</span>,<span class="fl">100</span><span class="op">)</span><span class="op">)</span>
 <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span><span class="op">)</span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-2-1.png" width="700"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-2-1.png" width="768"></p>
 <p>Now we create larger group consisting of 25 randomly generated eye-movements.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co">## generate random fixation coordinates</span>
@@ -112,15 +112,15 @@
 <span class="co">#&gt; Warning: Removed 396 rows containing missing values (geom_raster).</span>
 <span class="co">#&gt; Warning: It is deprecated to specify `guide = FALSE` to remove a guide. Please use `guide = "none"` instead.</span>
 <span class="co">#&gt; It is deprecated to specify `guide = FALSE` to remove a guide. Please use `guide = "none"` instead.</span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-4-1.png" width="672"></p>
-<p>We can also vary the bandwidth of the two-diemnsional density estimation procedure to visualize the fixations at different levels of smoothness.</p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-4-1.png" width="768"></p>
+<p>We can also vary the bandwidth of the two-dimensional density estimation procedure to visualize the fixations at different levels of smoothness.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">p1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span>, typ<span class="op">=</span><span class="st">"filled_contour"</span>, xlim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, ylim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, bandwidth<span class="op">=</span><span class="fl">20</span><span class="op">)</span>
 <span class="va">p2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span>, typ<span class="op">=</span><span class="st">"filled_contour"</span>, xlim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, ylim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, bandwidth<span class="op">=</span><span class="fl">60</span><span class="op">)</span>
 <span class="va">p3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span>, typ<span class="op">=</span><span class="st">"filled_contour"</span>, xlim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, ylim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, bandwidth<span class="op">=</span><span class="fl">100</span><span class="op">)</span>
 
 <span class="va">p1</span><span class="op">+</span><span class="va">p2</span><span class="op">+</span><span class="va">p3</span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-5-1.png" width="672"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-5-1.png" width="768"></p>
 </div>
 <div class="section level2">
 <h2 id="computing-similarity-between-fixation-groups">Computing similarity between fixation groups<a class="anchor" aria-label="anchor" href="#computing-similarity-between-fixation-groups"></a>
@@ -155,7 +155,7 @@
 
 <span class="va">s1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/similarity.html">similarity</a></span><span class="op">(</span><span class="va">ed1</span>,<span class="va">ed2</span><span class="op">)</span>
 <span class="va">s1</span>
-<span class="co">#&gt; [1] 0.2733695</span></code></pre></div>
+<span class="co">#&gt; [1] 0.175044</span></code></pre></div>
 <p>We can compute other similarity measures as well. Below we compute similarity using the Pearson correlation, Spearman correlation, the Fisher-transformed Pearson correlation, the cosine similarity, the “l1” similarity based on the 1-norm, the <a href="https://en.wikipedia.org/wiki/Jaccard_index" class="external-link">Jaccard similarity</a> (from <code>proxy</code> package), and the <a href="https://en.wikipedia.org/wiki/Distance_correlation" class="external-link">distance covariance</a> (<code>dcov</code> from the <code>energy</code> package).</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">methods</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pearson"</span>, <span class="st">"spearman"</span>, <span class="st">"fisherz"</span>, <span class="st">"cosine"</span>, <span class="st">"l1"</span>, <span class="st">"jaccard"</span>, <span class="st">"dcov"</span><span class="op">)</span>
@@ -163,13 +163,13 @@
   <span class="va">s1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/similarity.html">similarity</a></span><span class="op">(</span><span class="va">ed1</span>,<span class="va">ed2</span>, method<span class="op">=</span><span class="va">meth</span><span class="op">)</span>
   <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">meth</span>, <span class="st">":"</span>, <span class="va">s1</span><span class="op">)</span><span class="op">)</span>
 <span class="op">}</span>
-<span class="co">#&gt; [1] "pearson : 0.273369517760384"</span>
-<span class="co">#&gt; [1] "spearman : 0.190934966489359"</span>
-<span class="co">#&gt; [1] "fisherz : 0.280501879412974"</span>
-<span class="co">#&gt; [1] "cosine : 0.856805165306826"</span>
-<span class="co">#&gt; [1] "l1 : 0.49899205086911"</span>
-<span class="co">#&gt; [1] "jaccard : 0.748168612547328"</span>
-<span class="co">#&gt; [1] "dcov : 0.26439337196024"</span></code></pre></div>
+<span class="co">#&gt; [1] "pearson : 0.175043993291046"</span>
+<span class="co">#&gt; [1] "spearman : 0.147952622934633"</span>
+<span class="co">#&gt; [1] "fisherz : 0.176865403632274"</span>
+<span class="co">#&gt; [1] "cosine : 0.85257933326744"</span>
+<span class="co">#&gt; [1] "l1 : 0.528282346092821"</span>
+<span class="co">#&gt; [1] "jaccard : 0.742896155676714"</span>
+<span class="co">#&gt; [1] "dcov : 0.195191124660337"</span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="computing-similarity-between-set-of-fixation-groups-in-an-experiment">Computing similarity between set of fixation groups in an experiment<a class="anchor" aria-label="anchor" href="#computing-similarity-between-set-of-fixation-groups-in-an-experiment"></a>
@@ -207,15 +207,15 @@
 <span class="co">#&gt; <span style="color: #949494;"># Groups:   participant, phase, image [300]</span></span>
 <span class="co">#&gt;    participant phase    image fixgroup                 </span>
 <span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>                   </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> s1          encoding im1   <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> s1          encoding im10  <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> s1          encoding im11  <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> s1          encoding im1   <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> s1          encoding im10  <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> s1          encoding im11  <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> </span>
 <span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> s1          encoding im12  <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> s1          encoding im13  <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> s1          encoding im13  <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> </span>
 <span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> s1          encoding im14  <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> s1          encoding im15  <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> s1          encoding im16  <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> s1          encoding im17  <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> s1          encoding im15  <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> s1          encoding im16  <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> s1          encoding im17  <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> </span>
 <span class="co">#&gt; <span style="color: #BCBCBC;">10</span> s1          encoding im18  <span style="color: #949494;">&lt;fixation_group [7 × 6]&gt;</span> </span>
 <span class="co">#&gt; <span style="color: #949494;"># … with 290 more rows</span></span></code></pre>
 <p>Next, we will compute the similarity between encoding-retrieval pairs, such that each pair consists of the same image viewed at encoding and retrieval, respectively. In essence, we need to “match” each retrieval trial with its corresponding encoding trial, such that the viewed images in both conditions are the same.</p>
@@ -238,15 +238,15 @@
 <span class="co">#&gt; <span style="color: #949494;"># Rowwise: </span></span>
 <span class="co">#&gt;    phase    image participant fixgroup                  density       </span>
 <span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>                    <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>        </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> encoding im1   s1          <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> encoding im1   s2          <span style="color: #949494;">&lt;fixation_group [7 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> encoding im1   s3          <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> encoding im10  s1          <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> encoding im10  s2          <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> encoding im10  s3          <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> encoding im11  s1          <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> encoding im11  s2          <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> encoding im11  s3          <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> encoding im1   s1          <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> encoding im1   s2          <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> encoding im1   s3          <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> encoding im10  s1          <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> encoding im10  s2          <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> encoding im10  s3          <span style="color: #949494;">&lt;fixation_group [9 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> encoding im11  s1          <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> encoding im11  s2          <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> encoding im11  s3          <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
 <span class="co">#&gt; <span style="color: #BCBCBC;">10</span> encoding im12  s1          <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
 <span class="co">#&gt; <span style="color: #949494;"># … with 290 more rows</span></span></code></pre></div>
 <p>Now that we have the set of <code>eye_density</code> maps, we can run a similarity analysis. To do this, we use the <code>template_similarity</code> function. We want to compare each “retrieval” density map to its corresponding encoding density map (the “template”). And we want to “match” on the name of the image that was first studied (during “encoding”) and later recognized (during “retrieval”).</p>
@@ -265,13 +265,13 @@
 <span class="co">#&gt;  One Sample t-test</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; data:  simres1$eye_sim_diff</span>
-<span class="co">#&gt; t = 0.38109, df = 149, p-value = 0.7037</span>
+<span class="co">#&gt; t = 1.3733, df = 149, p-value = 0.1717</span>
 <span class="co">#&gt; alternative hypothesis: true mean is not equal to 0</span>
 <span class="co">#&gt; 95 percent confidence interval:</span>
-<span class="co">#&gt;  -0.06769373  0.10004261</span>
+<span class="co">#&gt;  -0.02575244  0.14309781</span>
 <span class="co">#&gt; sample estimates:</span>
 <span class="co">#&gt;  mean of x </span>
-<span class="co">#&gt; 0.01617444</span></code></pre></div>
+<span class="co">#&gt; 0.05867269</span></code></pre></div>
 <p>As expected, the t-test is not significant. We can also plot the histograms of similarity scores.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,<span class="fl">3</span><span class="op">)</span><span class="op">)</span>

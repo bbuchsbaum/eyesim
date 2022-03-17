@@ -26,7 +26,7 @@ A fixation group is a set of eye-movement fixations that comprise a meaningful u
 After creating a `fixation_group` object, we then plot it to visualize the location of the three fixations. The size of each point is scaled by duration and the color of each point is mapped to the onset time, with yellow colors being early-ocurring and red colors being late-occurring in this group.
 
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, fig.width=8}
 library(eyesim)
 library(patchwork)
 library(dplyr)
@@ -58,7 +58,7 @@ That's a pretty busy display, but captures the sequence of eye-movements. We can
 Below we show three different ways of plotting fixation density: a contour plot, a raster plot, and a filled contour plot.
 
 
-```{r, fig.width=7}
+```{r, fig.width=8}
 
 p1 <- plot(fg, typ="contour", xlim=c(-10,110), ylim=c(-10,110), bandwidth=35)
 p2 <- plot(fg, typ="raster", xlim=c(-10,110), ylim=c(-10,110), bandwidth=35)
@@ -68,10 +68,10 @@ p1+p2+p3
 ```
 
 
-We can also vary the bandwidth of the two-diemnsional density estimation procedure to visualize the fixations at different levels of smoothness.
+We can also vary the bandwidth of the two-dimensional density estimation procedure to visualize the fixations at different levels of smoothness.
 
 
-```{r, fig.width=7}
+```{r, fig.width=8}
 
 p1 <- plot(fg, typ="filled_contour", xlim=c(-10,110), ylim=c(-10,110), bandwidth=20)
 p2 <- plot(fg, typ="filled_contour", xlim=c(-10,110), ylim=c(-10,110), bandwidth=60)
