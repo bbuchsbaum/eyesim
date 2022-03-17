@@ -20,7 +20,8 @@ Imports:
   ppcor,
   broom,
   furrr,
-  purrr
+  purrr,
+  crqa
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.2
