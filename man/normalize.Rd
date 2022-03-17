@@ -9,6 +9,10 @@ normalize(x, xbounds, ybounds, ...)
 \arguments{
 \item{x}{the object}
 
+\item{xbounds}{the x bounds}
+
+\item{ybounds}{the y bounds}
+
 \item{...}{extra args}
 }
 \description{

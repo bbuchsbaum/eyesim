@@ -7,7 +7,7 @@
 add_scanpath(x, ...)
 }
 \arguments{
-\item{x}{the inpuy dataset}
+\item{x}{the input dataset}
 
 \item{...}{extra args}
 }

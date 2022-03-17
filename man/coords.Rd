@@ -2,10 +2,13 @@
 % Please edit documentation in R/all_generic.R
 \name{coords}
 \alias{coords}
-\title{coords}
+\title{extract coordinates}
 \usage{
 coords(x)
 }
+\arguments{
+\item{x}{the object}
+}
 \description{
-coords
+extract coordinates
 }

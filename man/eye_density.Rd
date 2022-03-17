@@ -6,6 +6,21 @@
 \usage{
 eye_density(x, sigma, xbounds, ybounds, outdim, weights, normalize, ...)
 }
+\arguments{
+\item{x}{the fixations}
+
+\item{sigma}{the standard deviation of the kernel}
+
+\item{xbounds}{the x bounds}
+
+\item{ybounds}{the y bounds}
+
+\item{outdim}{the output dimensionality of the density map}
+
+\item{weights}{fixation weights}
+
+\item{normalize}{whether to normalize the output map}
+}
 \description{
 compute a density map for a set of eye fixations
 }

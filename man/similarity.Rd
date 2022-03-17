@@ -12,6 +12,8 @@ similarity(x, y, method, ...)
 \item{y}{the second object to compare}
 
 \item{method}{the similarity metric}
+
+\item{...}{extra args}
 }
 \description{
 similarity

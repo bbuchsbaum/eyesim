@@ -3,7 +3,7 @@
 
 #' construct an eye-movement `data.frame`
 #'
-#' @importFrom dplyr do group_by select filter
+#' @importFrom dplyr do group_by select filter as_tibble
 #' @importFrom magrittr %>%
 #' @importFrom assertthat assert_that
 #' @param x the x coordinates

@@ -17,6 +17,27 @@ fixation_similarity(
   ...
 )
 }
+\arguments{
+\item{ref_tab}{the table of reference density maps}
+
+\item{source_tab}{the table of source density maps}
+
+\item{match_on}{the variable to match on}
+
+\item{permutations}{the number of permutations for the baseline map}
+
+\item{permute_on}{the variable used to stratify permutations}
+
+\item{method}{the similarity method}
+
+\item{refvar}{the name of the variable containing density maps in reference table}
+
+\item{sourcevar}{the name of the variable containing density maps in source table}
+
+\item{window}{the temporal window over which to compute similarity}
+
+\item{...}{extra args to pass to `similarity` function}
+}
 \description{
 compute similarity between each fixation group in a \code{source_tab} with a matching fixation group in \code{ref_tab}
 }

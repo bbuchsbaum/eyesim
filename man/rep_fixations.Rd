@@ -2,10 +2,15 @@
 % Please edit documentation in R/all_generic.R
 \name{rep_fixations}
 \alias{rep_fixations}
-\title{rep_fixations}
+\title{replicate a fixation sequence}
 \usage{
 rep_fixations(x, resolution)
 }
+\arguments{
+\item{x}{the object}
+
+\item{resolution}{the temporal resolution of the replicated fixations}
+}
 \description{
-rep_fixations
+replicate a fixation sequence
 }
