@@ -187,11 +187,11 @@ eyetab
 
 ```
 
-Now we are ready for a fixation similarity analysis. We will compute the similarity between encoding-retrieval pairs, such that each pair consists of the same image viewed at encoding and retrieval, respectively. In essence, we need to "match" each retrieval trial with its corresponding encoding trial, such that the viewed images in both conditions are the same.
+Next, we will compute the similarity between encoding-retrieval pairs, such that each pair consists of the same image viewed at encoding and retrieval, respectively. In essence, we need to "match" each retrieval trial with its corresponding encoding trial, such that the viewed images in both conditions are the same.
 
-The first step is to compute "density maps" for each fixation_group, defined by the intersection of the participant, image, and phase variables and encoded in the `eyetab` object.
+The first step is to compute "density maps" for each fixation_group, defined by the intersection of the participant, image, and phase variables stored in the `eyetab` object.
 
-Below we compute the density maps for all combinations of phase, image, and participant and plot the first four density maps of the resulting set.
+Below we compute the density maps for all combinations of participant, image, and phase and plot the first four density maps of the resulting set.
 
 ```{r, warning=FALSE}
 
@@ -213,9 +213,11 @@ eyedens
 
 ```
 
-Now that we have the set of `eye_density` maps, we can compute a similarity analysis. To do this, we use the `template_similarity` function. We want to compare each "retrieval" density map to its corresponding encoding density map (the "template"). And we want to "match" on the name of the image that was first studied (during "encoding") and later recognized (during "retrieval").
+Now that we have the set of `eye_density` maps, we can run a similarity analysis. To do this, we use the `template_similarity` function. We want to compare each "retrieval" density map to its corresponding encoding density map (the "template"). And we want to "match" on the name of the image that was first studied (during "encoding") and later recognized (during "retrieval").
 
-First, we split out the encoding and retrieval trials using the `dplyr::filter` method. Next we call `template_similarity` and indicating that pairs should matched by the `image` variable. We choose the `fisherz` similarity measure and correct for non-specific eye-movement similarity using 50 permutations in which similarity is computed for non-matching image pairs and subtracted from the similarity score. The raw similarity score is returned as `eye_sim` and the permutation-corrected score is returned as `eye_sim_diff`. The similarity score among permuted pairs is also returned as `perm_sim`.
+First, we split out the encoding and retrieval trials using the `dplyr::filter` method. Next we call `template_similarity` and indicating that pairs should be matched by the `image` variable. We choose the `fisherz` similarity measure and correct for non-specific eye-movement similarity using 50 permutations in which similarity is computed for non-matching image pairs and subtracted from the similarity score. 
+
+The raw similarity score is returned as `eye_sim` and the permutation-corrected score is returned as `eye_sim_diff`. The similarity score among permuted pairs is also returned as `perm_sim`.
 
 Because the eye-movement fixations were generated randomly, we do not expect a non-zero similarity score for the `eye_sim_diff` variable, and we can test that with a one-sample t-test.
 
@@ -232,7 +234,7 @@ t.test(simres1$eye_sim_diff)
 
 ```
 
-We can also plot the histograms of similarity scores.
+As expected, the t-test is not significant. We can also plot the histograms of similarity scores.
 
 ```{r, fig.width=8, warning=FALSE}
 par(mfrow=c(1,3))
