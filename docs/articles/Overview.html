@@ -73,7 +73,7 @@
 <div class="section level2">
 <h2 id="eye-movement-similarity-analysis">Eye-movement similarity analysis<a class="anchor" aria-label="anchor" href="#eye-movement-similarity-analysis"></a>
 </h2>
-<p>The main goal of this <code>eyesim</code> is to provide tools for computing measures of similarity between eye-movement fixation data collected over a series of trials embedded in an experimental design. A major focus of the library is to offer easy ways to compare fixation patterns between two experimental states, for example, between perceiving an image and remembering that same image. These kinds of analyses are useful in assessing and quantifying so-called “eye-movement reinstatement” in studies of memory. Below we describe some basic aspects of the library that should allow one to get started with it.</p>
+<p>The main goal of <code>eyesim</code> is to provide tools for computing measures of similarity between eye-movement fixation data collected over a series of trials embedded in an experimental design. A major focus of the library is to offer easy ways to compare fixation patterns between two experimental states, for example, between perceiving an image and remembering that same image. These kinds of analyses are useful in assessing and quantifying so-called “eye-movement reinstatement” in studies of memory. Below we describe some basic aspects of the library that should allow one to get started with it.</p>
 </div>
 <div class="section level2">
 <h2 id="a-basic-unit-the-fixation-group">A Basic unit: the fixation group<a class="anchor" aria-label="anchor" href="#a-basic-unit-the-fixation-group"></a>
@@ -155,7 +155,7 @@
 
 <span class="va">s1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/similarity.html">similarity</a></span><span class="op">(</span><span class="va">ed1</span>,<span class="va">ed2</span><span class="op">)</span>
 <span class="va">s1</span>
-<span class="co">#&gt; [1] 0.7351093</span></code></pre></div>
+<span class="co">#&gt; [1] 0.7299392</span></code></pre></div>
 <p>We can compute other similarity measures as well. Below we compute similarity using the Pearson correlation, Spearman correlation, the Fisher-transformed Pearson correlation, the cosine similarity, the “l1” similarity based on the 1-norm, the <a href="https://en.wikipedia.org/wiki/Jaccard_index" class="external-link">Jaccard similarity</a> (from <code>proxy</code> package), and the <a href="https://en.wikipedia.org/wiki/Distance_correlation" class="external-link">distance covariance</a> (<code>dcov</code> from the <code>energy</code> package).</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">methods</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pearson"</span>, <span class="st">"spearman"</span>, <span class="st">"fisherz"</span>, <span class="st">"cosine"</span>, <span class="st">"l1"</span>, <span class="st">"jaccard"</span>, <span class="st">"dcov"</span><span class="op">)</span>
@@ -163,13 +163,13 @@
   <span class="va">s1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/similarity.html">similarity</a></span><span class="op">(</span><span class="va">ed1</span>,<span class="va">ed2</span>, method<span class="op">=</span><span class="va">meth</span><span class="op">)</span>
   <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">meth</span>, <span class="st">":"</span>, <span class="va">s1</span><span class="op">)</span><span class="op">)</span>
 <span class="op">}</span>
-<span class="co">#&gt; [1] "pearson : 0.735109292609695"</span>
-<span class="co">#&gt; [1] "spearman : 0.750919266298709"</span>
-<span class="co">#&gt; [1] "fisherz : 0.939754183641093"</span>
-<span class="co">#&gt; [1] "cosine : 0.940163229837284"</span>
-<span class="co">#&gt; [1] "l1 : 0.688724077536017"</span>
-<span class="co">#&gt; [1] "jaccard : 0.887073870098234"</span>
-<span class="co">#&gt; [1] "dcov : 0.718273014912839"</span></code></pre></div>
+<span class="co">#&gt; [1] "pearson : 0.729939200424848"</span>
+<span class="co">#&gt; [1] "spearman : 0.692017904790559"</span>
+<span class="co">#&gt; [1] "fisherz : 0.928597212675567"</span>
+<span class="co">#&gt; [1] "cosine : 0.950117136124161"</span>
+<span class="co">#&gt; [1] "l1 : 0.719334458438456"</span>
+<span class="co">#&gt; [1] "jaccard : 0.904974297140639"</span>
+<span class="co">#&gt; [1] "dcov : 0.660181176366013"</span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="computing-similarity-between-set-of-fixation-groups-in-an-experiment">Computing similarity between set of fixation groups in an experiment<a class="anchor" aria-label="anchor" href="#computing-similarity-between-set-of-fixation-groups-in-an-experiment"></a>
@@ -207,20 +207,20 @@
 <span class="co">#&gt; <span style="color: #949494;"># Groups:   participant, phase, image [300]</span></span>
 <span class="co">#&gt;    participant phase    image fixgroup                 </span>
 <span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>                   </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> s1          encoding im1   <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> s1          encoding im10  <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> s1          encoding im11  <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> s1          encoding im12  <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> s1          encoding im13  <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> s1          encoding im14  <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> s1          encoding im15  <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> s1          encoding im16  <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> s1          encoding im17  <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> s1          encoding im1   <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> s1          encoding im10  <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> s1          encoding im11  <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> s1          encoding im12  <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> s1          encoding im13  <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> s1          encoding im14  <span style="color: #949494;">&lt;fixation_group [9 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> s1          encoding im15  <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> s1          encoding im16  <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> s1          encoding im17  <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> </span>
 <span class="co">#&gt; <span style="color: #BCBCBC;">10</span> s1          encoding im18  <span style="color: #949494;">&lt;fixation_group [10 × 6]&gt;</span></span>
 <span class="co">#&gt; <span style="color: #949494;"># … with 290 more rows</span></span></code></pre>
-<p>Now we are ready for a fixation similarity analysis. We will compute the similarity between encoding-retrieval pairs, such that each pair consists of the same image viewed at encoding and retrieval, respectively. In essence, we need to “match” each retrieval trial with its corresponding encoding trial, such that the viewed images in both conditions are the same.</p>
-<p>The first step is to compute “density maps” for each fixation_group, defined by the intersection of the participant, image, and phase variables and encoded in the <code>eyetab</code> object.</p>
-<p>Below we compute the density maps for all combinations of phase, image, and participant and plot the first four density maps of the resulting set.</p>
+<p>Next, we will compute the similarity between encoding-retrieval pairs, such that each pair consists of the same image viewed at encoding and retrieval, respectively. In essence, we need to “match” each retrieval trial with its corresponding encoding trial, such that the viewed images in both conditions are the same.</p>
+<p>The first step is to compute “density maps” for each fixation_group, defined by the intersection of the participant, image, and phase variables stored in the <code>eyetab</code> object.</p>
+<p>Below we compute the density maps for all combinations of participant, image, and phase and plot the first four density maps of the resulting set.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">eyedens</span> <span class="op">&lt;-</span> <span class="fu">density_by</span><span class="op">(</span><span class="va">eyetab</span>, groups<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"phase"</span>, <span class="st">"image"</span>, <span class="st">"participant"</span><span class="op">)</span>, sigma<span class="op">=</span><span class="fl">100</span>, xbounds<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">100</span><span class="op">)</span>, ybounds<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">100</span><span class="op">)</span><span class="op">)</span>
 
@@ -238,19 +238,20 @@
 <span class="co">#&gt; <span style="color: #949494;"># Rowwise: </span></span>
 <span class="co">#&gt;    phase    image participant fixgroup                 density       </span>
 <span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>        </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> encoding im1   s1          <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> encoding im1   s2          <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> encoding im1   s3          <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> encoding im10  s1          <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> encoding im10  s2          <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> encoding im10  s3          <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> encoding im11  s1          <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> encoding im11  s2          <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> encoding im11  s3          <span style="color: #949494;">&lt;fixation_group [1 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">10</span> encoding im12  s1          <span style="color: #949494;">&lt;fixation_group [6 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> encoding im1   s1          <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> encoding im1   s2          <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> encoding im1   s3          <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> encoding im10  s1          <span style="color: #949494;">&lt;fixation_group [8 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> encoding im10  s2          <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> encoding im10  s3          <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> encoding im11  s1          <span style="color: #949494;">&lt;fixation_group [2 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> encoding im11  s2          <span style="color: #949494;">&lt;fixation_group [5 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> encoding im11  s3          <span style="color: #949494;">&lt;fixation_group [3 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">10</span> encoding im12  s1          <span style="color: #949494;">&lt;fixation_group [4 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty [4]&gt;</span></span>
 <span class="co">#&gt; <span style="color: #949494;"># … with 290 more rows</span></span></code></pre></div>
-<p>Now that we have the set of <code>eye_density</code> maps, we can compute a similarity analysis. To do this, we use the <code>template_similarity</code> function. We want to compare each “retrieval” density map to its corresponding encoding density map (the “template”). And we want to “match” on the name of the image that was first studied (during “encoding”) and later recognized (during “retrieval”).</p>
-<p>First, we split out the encoding and retrieval trials using the <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">dplyr::filter</a></code> method. Next we call <code>template_similarity</code> and indicating that pairs should matched by the <code>image</code> variable. We choose the <code>fisherz</code> similarity measure and correct for non-specific eye-movement similarity using 50 permutations in which similarity is computed for non-matching image pairs and subtracted from the similarity score. The raw similarity score is returned as <code>eye_sim</code> and the permutation-corrected score is returned as <code>eye_sim_diff</code>. The similarity score among permuted pairs is also returned as <code>perm_sim</code>.</p>
+<p>Now that we have the set of <code>eye_density</code> maps, we can run a similarity analysis. To do this, we use the <code>template_similarity</code> function. We want to compare each “retrieval” density map to its corresponding encoding density map (the “template”). And we want to “match” on the name of the image that was first studied (during “encoding”) and later recognized (during “retrieval”).</p>
+<p>First, we split out the encoding and retrieval trials using the <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">dplyr::filter</a></code> method. Next we call <code>template_similarity</code> and indicating that pairs should be matched by the <code>image</code> variable. We choose the <code>fisherz</code> similarity measure and correct for non-specific eye-movement similarity using 50 permutations in which similarity is computed for non-matching image pairs and subtracted from the similarity score.</p>
+<p>The raw similarity score is returned as <code>eye_sim</code> and the permutation-corrected score is returned as <code>eye_sim_diff</code>. The similarity score among permuted pairs is also returned as <code>perm_sim</code>.</p>
 <p>Because the eye-movement fixations were generated randomly, we do not expect a non-zero similarity score for the <code>eye_sim_diff</code> variable, and we can test that with a one-sample t-test.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1234</span><span class="op">)</span>
@@ -264,14 +265,14 @@
 <span class="co">#&gt;  One Sample t-test</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; data:  simres1$eye_sim_diff</span>
-<span class="co">#&gt; t = -0.31172, df = 149, p-value = 0.7557</span>
+<span class="co">#&gt; t = 0.25456, df = 149, p-value = 0.7994</span>
 <span class="co">#&gt; alternative hypothesis: true mean is not equal to 0</span>
 <span class="co">#&gt; 95 percent confidence interval:</span>
-<span class="co">#&gt;  -0.09105955  0.06624432</span>
+<span class="co">#&gt;  -0.06645547  0.08611002</span>
 <span class="co">#&gt; sample estimates:</span>
 <span class="co">#&gt;   mean of x </span>
-<span class="co">#&gt; -0.01240762</span></code></pre></div>
-<p>We can also plot the histograms of similarity scores.</p>
+<span class="co">#&gt; 0.009827276</span></code></pre></div>
+<p>As expected, the t-test is not significant. We can also plot the histograms of similarity scores.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,<span class="fl">3</span><span class="op">)</span><span class="op">)</span>
 <span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span><span class="va">simres1</span><span class="op">$</span><span class="va">eye_sim</span>, main<span class="op">=</span><span class="st">"raw eye movement similarity"</span><span class="op">)</span>
