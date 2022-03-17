@@ -67,7 +67,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       if (ncol(psim) > 1) {
         psim <- colMeans(psim)
         cnames <- c(names(sim), paste0("perm_", names(sim)), paste0(names(sim), "_diff"))
-        c(unlist(sim), psim, unlist(sim)-psim) %>% set_names(cnames) %>% bind_rows()
+        c(unlist(sim), psim, unlist(sim)-psim) %>% rlang::set_names(cnames) %>% bind_rows()
       } else {
         tibble(eye_sim=sim, perm_sim=mean(psim), eye_sim_diff=sim - mean(psim))
       }

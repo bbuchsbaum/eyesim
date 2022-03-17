@@ -1,4 +1,5 @@
-
+#' animate a fixation scanpath with `gganimate`
+#'
 #' @import gganimate
 #' @param x a `fixation_group` object
 #' @param bg_image an image file name
@@ -110,7 +111,8 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,transform=c("identity", 
 #
 # }
 
-
+#' plot a fixation_group object
+#'
 #' @import ggplot2
 #' @importFrom ggplot2 ggplot aes annotation_raster geom_point
 #' @importFrom imager load.image

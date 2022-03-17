@@ -19,7 +19,8 @@ get_density <- function(x,...) {
   UseMethod("get_density", x)
 }
 
-
+#' sample a smooth fixation density map with a set of discrete fixations
+#'
 #' @param x the object to sample
 #' @param fix the fixations
 #' @export
@@ -75,7 +76,8 @@ similarity <- function(x, y, method, ...) {
   UseMethod("similarity", x)
 }
 
-
+#' density matrix
+#'
 #' @param x the object
 #' @param groups grouping variable
 #' @param ... extra args
