@@ -236,7 +236,7 @@ t.test(simres1$eye_sim_diff)
 
 As expected, the t-test is not significant. We can also plot the histograms of similarity scores.
 
-```{r, fig.width=8, warning=FALSE}
+```{r, fig.width=7, warning=FALSE}
 par(mfrow=c(1,3))
 hist(simres1$eye_sim, main="raw eye movement similarity")
 hist(simres1$perm_sim, main="image-permuted eye movement similarity")
