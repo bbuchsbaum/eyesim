@@ -21,7 +21,8 @@ Imports:
   broom,
   furrr,
   purrr,
-  crqa
+  crqa,
+  gganimate
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.2
