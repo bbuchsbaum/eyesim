@@ -55,7 +55,7 @@ match_scale <- function(ref_tab, source_tab, match_on,
 }
 
 
-#' @xport
+#' @export
 rescale.fixation_group <- function(x, sx,sy) {
   x %>% mutate(x=x*sx, y=y*sy)
 }

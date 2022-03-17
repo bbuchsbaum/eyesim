@@ -112,6 +112,7 @@ template_regression <- function(ref_tab, source_tab, match_on,
 #' @export
 #' @importFrom purrr pmap
 #' @importFrom tibble add_column
+#' @importFrom rlang sym
 template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL, outcol="sample_out") {
   x1 <- rlang::sym(template)
   x2 <- rlang::sym(fixgroup)

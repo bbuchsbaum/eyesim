@@ -1,19 +1,20 @@
 
 
 
-
+#' construct an eye-movement `data.frame`
+#'
 #' @importFrom dplyr do group_by select filter
-#' @import magrittr
+#' @importFrom magrittr %>%
 #' @importFrom assertthat assert_that
-#' @param x
-#' @param y
-#' @param duration
-#' @param onset
-#' @param groupvar
-#' @param vars
-#' @param data
-#' @param clip_bounds
-#' @param relaive_coords
+#' @param x the x coordinates
+#' @param y the y coordinates
+#' @param duration the duration of the fixations
+#' @param onset the onset of each fixation
+#' @param groupvar a grouping variable for the fixations
+#' @param vars additional variables to retain
+#' @param data the source `data.frame`
+#' @param clip_bounds the clip bounds for the field of view
+#' @param relaive_coords compute relative coordinates
 #' @export
 eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
                       clip_bounds=c(0,1280, 0,1280), relative_coords=TRUE) {

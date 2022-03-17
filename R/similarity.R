@@ -1,5 +1,6 @@
 
-
+#' @inheritParams template_similarity
+#' @importFrom rlang set_names
 run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations, permute_on=NULL, method,
                                     refvar, sourcevar, window=NULL, ...) {
   args <- list(...)
@@ -92,8 +93,8 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 #'
 #' compute similarity between each fixation group in a \code{source_tab} with a matching fixation group in \code{ref_tab}
 #'
-#' @inheritsParam template_similarity
-#' @param window
+#' @inheritParams template_similarity
+#' @param window the temporal window over which to compute similarity
 #' @export
 fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
                                 method=c("sinkhorn", "overlap"),

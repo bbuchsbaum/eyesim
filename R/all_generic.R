@@ -2,13 +2,13 @@
 #'
 #' compute a density map for a set of eye fixations
 #'
-#' @param x
-#' @param sigma
-#' @param xbounds
-#' @param ybounds
-#' @param outdim
-#' @param weights
-#' @param normalize
+#' @param x the fixations
+#' @param sigma the standard deviation of the kernel
+#' @param xbounds the x bounds
+#' @param ybounds the y bounds
+#' @param outdim the output dimensionality of the density map
+#' @param weights fixation weights
+#' @param normalize whether to normalize the output map
 #' @export
 eye_density <- function(x, sigma, xbounds, ybounds, outdim, weights, normalize,...) {
   UseMethod("eye_density", x)
@@ -30,9 +30,9 @@ sample_density <- function(x,fix,...) {
 
 
 
-#' coords
+#' extract coordinates
 #'
-#' @param x
+#' @param x the object
 #' @export
 coords <- function(x) {
   UseMethod("coords", x)
@@ -48,10 +48,10 @@ rescale <- function(x, sx, sy) {
 }
 
 
-#' rep_fixations
+#' replicate a fixation sequence
 #'
-#' @param x
-#' @param resolution
+#' @param x the object
+#' @param resolution the temporal resolution of the replicated fixations
 #' @export
 rep_fixations <- function(x, resolution) {
   UseMethod("rep_fixations", x)
@@ -71,6 +71,7 @@ sample_fixations <- function(x, time) {
 #' @param x the first object to compare
 #' @param y the second object to compare
 #' @param method the similarity metric
+#' @param ... extra args
 #' @export
 similarity <- function(x, y, method, ...) {
   UseMethod("similarity", x)
@@ -100,8 +101,8 @@ center <- function(x, origin, ...) {
 #' normalize eye-movements to unit range
 #'
 #' @param x the object
-#' @param xbounds
-#' @param ybounds
+#' @param xbounds the x bounds
+#' @param ybounds the y bounds
 #' @param ... extra args
 #' @export
 normalize <- function(x, xbounds, ybounds, ...) {
@@ -119,7 +120,7 @@ scanpath <- function(x, ...) {
 
 #' add scanpath to dataset
 #'
-#' @param x the inpuy dataset
+#' @param x the input dataset
 #' @param ... extra args
 #' @export
 add_scanpath <- function(x, ...) {
