@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 ## Eye-movement similarity analysis
 
-The main goal of this `eyesim` is to provide tools for computing measures of similarity between eye-movement fixation data collected over a series of trials embedded in an experimental design. A major focus of the library is to offer easy ways to compare fixation patterns between two experimental states, for example, between perceiving an image and remembering that same image. These kinds of analyses are useful in assessing and quantifying so-called "eye-movement reinstatement" in studies of memory. Below we describe some basic aspects of the library that should allow one to get started with it.
+The main goal of `eyesim` is to provide tools for computing measures of similarity between eye-movement fixation data collected over a series of trials embedded in an experimental design. A major focus of the library is to offer easy ways to compare fixation patterns between two experimental states, for example, between perceiving an image and remembering that same image. These kinds of analyses are useful in assessing and quantifying so-called "eye-movement reinstatement" in studies of memory. Below we describe some basic aspects of the library that should allow one to get started with it.
 
 
 ## A Basic unit: the fixation group
