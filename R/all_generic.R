@@ -109,11 +109,20 @@ normalize <- function(x, xbounds, ybounds, ...) {
   UseMethod("normalize", x)
 }
 
-#' compute scanpath of a fixation_group of related object
+#' construct a scanpath of a fixation_group of related object
+#'
+#' a scanpath contains polor coordinates (rho, theta) along with absolute x and y spatial coordinates.
+#'
+#'
 #'
 #' @param x the fixations
 #' @param ... extra args
 #' @export
+#' @examples
+#'
+#' fg <- fixation_group(x=c(.1,.5,1), y=c(1,.5,1), onset=1:3, duration=rep(1,3))
+#' sp <- scanpath(fg)
+#'
 scanpath <- function(x, ...) {
   UseMethod("scanpath", x)
 }

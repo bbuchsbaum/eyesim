@@ -1,6 +1,7 @@
 
 #' @inheritParams template_similarity
 #' @importFrom rlang set_names
+#' @keywords internal
 run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations, permute_on=NULL, method,
                                     refvar, sourcevar, window=NULL, ...) {
   args <- list(...)

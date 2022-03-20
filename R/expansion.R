@@ -1,5 +1,12 @@
 
-
+#' estimate_scale
+#'
+#' @param x the x coordinates
+#' @param y the y coodinates
+#' @param lower lower bounds
+#' @param upper upper bounds
+#' @param window the temporal window to restrict onsets
+#' @keywrods internal
 estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 
   if (!is.null(window)) {
