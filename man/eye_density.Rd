@@ -7,20 +7,36 @@
 eye_density(x, sigma, xbounds, ybounds, outdim, weights, normalize, ...)
 }
 \arguments{
-\item{x}{the fixations}
+\item{x}{A data frame containing the eye fixations.}
 
-\item{sigma}{the standard deviation of the kernel}
+\item{sigma}{Numeric, the standard deviation of the kernel used for density estimation.}
 
-\item{xbounds}{the x bounds}
+\item{xbounds}{Numeric vector of length 2, defining the minimum and maximum x-axis bounds of the density map.}
 
-\item{ybounds}{the y bounds}
+\item{ybounds}{Numeric vector of length 2, defining the minimum and maximum y-axis bounds of the density map.}
 
-\item{outdim}{the output dimensionality of the density map}
+\item{outdim}{Numeric vector of length 2, specifying the number of rows and columns in the output density map.}
 
-\item{weights}{fixation weights}
+\item{weights}{Optional, a numeric vector of fixation weights to be used in the density estimation.}
 
-\item{normalize}{whether to normalize the output map}
+\item{normalize}{Logical, whether to normalize the output density map such that its values sum to 1.}
+
+\item{...}{Additional arguments passed on to the method.}
+}
+\value{
+An object of class "eye_density", "density", and "list" containing the computed density map and other relevant information.
 }
 \description{
-compute a density map for a set of eye fixations
+Compute a density map for a set of eye fixations.
 }
+\details{
+This function uses kernel density estimation to compute a density map of eye fixations.
+It takes various parameters to control the computation and output of the density map.
+}
+\seealso{
+\code{\link{eye_density.fixation_group}} for an example of a specific method implementation for this generic.
+
+Other eye_density: 
+\code{\link{eye_density.fixation_group}()}
+}
+\concept{eye_density}

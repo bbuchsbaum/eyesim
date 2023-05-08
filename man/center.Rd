@@ -2,17 +2,27 @@
 % Please edit documentation in R/all_generic.R
 \name{center}
 \alias{center}
-\title{center eye-movements}
+\title{Center Eye-Movements in a New Coordinate System}
 \usage{
 center(x, origin, ...)
 }
 \arguments{
-\item{x}{the object}
+\item{x}{The input object containing the eye-movements to be centered.}
 
-\item{origin}{the origin of the new coordinate system}
+\item{origin}{A vector containing the x and y coordinates of the new coordinate system's origin.}
 
-\item{...}{extra args}
+\item{...}{Additional arguments to be passed to the centering method.}
+}
+\value{
+An object containing the centered eye-movements in the new coordinate system.
 }
 \description{
-center eye-movements
+This function centers the eye-movements in a new coordinate system with the specified origin.
+}
+\examples{
+# Example usage of the center function
+input_object <- # input object data containing eye-movements
+new_origin <- c(500, 500) # New coordinate system origin
+centered_object <- center(input_object, origin = new_origin)
+
 }

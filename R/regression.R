@@ -1,5 +1,28 @@
 
+#' Template Multiple Regression
+#'
+#' This function performs a multiple regression on the provided source table with the specified
+#' response and covariates using the chosen regression method.
+#'
+#' @param source_tab A data frame containing the source maps.
+#' @param response A character string specifying the column name of the response variable.
+#' @param covars A character vector specifying the column names of the covariates.
+#' @param method A character vector of available regression methods. Default is c("lm", "rlm", "nnls", "logistic").
+#'   The selected method will be used for the regression analysis.
+#'   - "lm": Linear regression (default).
+#'   - "rlm": Robust linear regression.
+#'   - "nnls": Non-negative least squares.
+#'   - "logistic": Logistic regression.
+#' @param intercept A logical value indicating whether to include an intercept term in the model.
+#'   Default is TRUE.
+#'
+#' @return A data frame with the source table augmented with a new column, multireg, containing
+#'   the results of the multiple regression analysis.
+#' @importFrom dplyr rowwise bind_cols
 #' @importFrom broom tidy
+#' @importFrom MASS rlm
+#' @importFrom nnls nnls
+#' @importFrom stats lm glm
 #' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
   ret <- source_tab %>% rowwise() %>% do( {
@@ -23,7 +46,7 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
    # browser()
 
     fit <- if (method== "lm") {
-      tidy(lm(form, data=dfx))
+      tidy(stats::lm(form, data=dfx))
     } else if (method == "rlm") {
       tidy(MASS::rlm(form, data=dfx))
     } else if (method == "logistic") {
@@ -49,8 +72,30 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 
 
 
+#' Template Regression
+#'
+#' This function performs a template regression on the provided reference and source tables to estimate
+#' the beta weights for the baseline and source maps.
+#'
+#' @param ref_tab A data frame containing the reference maps.
+#' @param source_tab A data frame containing the source maps.
+#' @param match_on A character string specifying the column name to be used for matching between the
+#'   reference and source tables.
+#' @param baseline_tab A data frame containing the baseline maps.
+#' @param baseline_key A character string specifying the column name to be used for matching between the
+#'   baseline table and the source table.
+#' @param method A character vector of available regression methods. Default is c("lm", "rlm", "rank").
+#'   The selected method will be used for the regression analysis.
+#'   - "lm": Linear regression (default).
+#'   - "rlm": Robust linear regression.
+#'   - "rank": Rank-based correlation.
+#'
+#' @return A data frame with the source table augmented with two new columns, beta_baseline and beta_source,
+#'   representing the estimated beta weights for the baseline and source maps, respectively.
+#' @importFrom dplyr ungroup mutate filter rowwise
 #' @importFrom quantreg rq
 #' @importFrom ppcor pcor
+#' @importFrom MASS rlm
 #' @export
 template_regression <- function(ref_tab, source_tab, match_on,
                                 baseline_tab, baseline_key,
@@ -75,10 +120,10 @@ template_regression <- function(ref_tab, source_tab, match_on,
     df1 <- data.frame(y=as.vector(d2$z), baseline=as.vector(bdens$z), x2=as.vector(d1$z))
 
     est <- if (method == "lm") {
-      res <- lm(y ~ baseline + x2, data=df1)
+      res <- stats::lm(y ~ baseline + x2, data=df1)
       coef(res)[2:3]
     } else if (method == "rlm") {
-      res <- rlm(y ~ baseline + x2, data=df1, maxit=100)
+      res <- MASS::rlm(y ~ baseline + x2, data=df1, maxit=100)
       coef(res)[2:3]
     } else if (method == "rank") {
       #browser()

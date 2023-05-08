@@ -2,17 +2,27 @@
 % Please edit documentation in R/all_generic.R
 \name{rescale}
 \alias{rescale}
-\title{rescale spatial coordinats}
+\title{rescale}
 \usage{
 rescale(x, sx, sy)
 }
 \arguments{
-\item{x}{the object to rescale}
+\item{x}{An object containing spatial coordinates to be rescaled.}
 
-\item{sx}{the x scale factor}
+\item{sx}{A numeric value representing the x-axis scale factor.}
 
-\item{sy}{the y scale factor}
+\item{sy}{A numeric value representing the y-axis scale factor.}
+}
+\value{
+An object with rescaled spatial coordinates.
 }
 \description{
-rescale spatial coordinats
+Rescale spatial coordinates.
 }
+\details{
+This function rescales the spatial coordinates of an object by the given scale factors.
+}
+\seealso{
+\code{\link{rescale.fixation_group}} and \code{\link{rescale.eye_density}} for examples of specific method implementations for this generic.
+}
+\concept{rescale}

@@ -17,24 +17,30 @@ template_similarity(
 )
 }
 \arguments{
-\item{ref_tab}{the table of reference density maps}
+\item{ref_tab}{A data frame or tibble containing reference density maps.}
 
-\item{source_tab}{the table of source density maps}
+\item{source_tab}{A data frame or tibble containing source density maps.}
 
-\item{match_on}{the variable to match on}
+\item{match_on}{A character string representing the variable used to match density maps between \code{ref_tab} and \code{source_tab}.}
 
-\item{permute_on}{the variable used to stratify permutations}
+\item{permute_on}{A character string representing the variable used to stratify permutations (default is NULL).}
 
-\item{refvar}{the name of the variable containing density maps in reference table}
+\item{refvar}{A character string representing the name of the variable containing density maps in the reference table (default is "density").}
 
-\item{sourcevar}{the name of the variable containing density maps in source table}
+\item{sourcevar}{A character string representing the name of the variable containing density maps in the source table (default is "density").}
 
-\item{method}{the similarity method}
+\item{method}{A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov" (default is "spearman").}
 
-\item{permutations}{the number of permutations for the baseline map}
+\item{permutations}{A numeric value specifying the number of permutations for the baseline map (default is 10).}
 
-\item{...}{extra args to pass to `similarity` function}
+\item{...}{Extra arguments to pass to the `similarity` function.}
+}
+\value{
+A data frame or tibble containing the source table and additional columns with the similarity scores and permutation results.
 }
 \description{
-compute similarity between each density map in a \code{source_tab} with a matching density map in \code{ref_tab}
+Compute similarity between each density map in a \code{source_tab} with a matching ("template") density map in \code{ref_tab}.
+}
+\details{
+The \code{run_similarity_analysis} function is the core of the similarity calculations in this function. It checks for matching indices between reference and source tables, filters out non-matching elements, and splits matching indices based on the \code{permute_on} variable if specified. The similarity is then calculated between matched density maps using the specified method and, if applicable, permutations for the baseline map. The output includes the source table along with additional columns for the similarity scores and permutation results.
 }

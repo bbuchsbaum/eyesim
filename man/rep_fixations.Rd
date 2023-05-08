@@ -2,15 +2,26 @@
 % Please edit documentation in R/all_generic.R
 \name{rep_fixations}
 \alias{rep_fixations}
-\title{replicate a fixation sequence}
+\title{rep_fixations}
 \usage{
 rep_fixations(x, resolution)
 }
 \arguments{
-\item{x}{the object}
+\item{x}{An object representing a fixation sequence.}
 
-\item{resolution}{the temporal resolution of the replicated fixations}
+\item{resolution}{A numeric value representing the temporal resolution of the replicated fixations.}
+}
+\value{
+An object containing the replicated fixation sequence with the specified temporal resolution.
 }
 \description{
-replicate a fixation sequence
+Replicate a fixation sequence.
+}
+\details{
+This function replicates a fixation sequence with a specified temporal resolution.
+It can be useful when working with fixation data that needs to be resampled or when
+creating fixation sequences with consistent temporal spacing.
+}
+\seealso{
+\code{\link{rep_fixations.fixation_group}} for an example of a specific method implementation for this generic.
 }

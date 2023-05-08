@@ -2,7 +2,7 @@
 % Please edit documentation in R/eye_frame.R
 \name{eye_table}
 \alias{eye_table}
-\title{construct an eye-movement `data.frame`}
+\title{Construct an Eye-Movement Data Frame}
 \usage{
 eye_table(
   x,
@@ -17,24 +17,36 @@ eye_table(
 )
 }
 \arguments{
-\item{x}{the x coordinates}
+\item{x}{A character or symbol representing the column for the x coordinates in the source data.}
 
-\item{y}{the y coordinates}
+\item{y}{A character or symbol representing the column for the y coordinates in the source data.}
 
-\item{duration}{the duration of the fixations}
+\item{duration}{A character or symbol representing the column for fixation durations in the source data.}
 
-\item{onset}{the onset of each fixation}
+\item{onset}{A character or symbol representing the column for fixation onset times in the source data.}
 
-\item{groupvar}{a grouping variable for the fixations}
+\item{groupvar}{A character or symbol representing the column for the grouping variable in the source data.}
 
-\item{vars}{additional variables to retain}
+\item{vars}{A character vector of additional variable names to retain, or NULL (default) if no additional variables are needed.}
 
-\item{data}{the source `data.frame`}
+\item{data}{The source `data.frame` containing the eye-movement data.}
 
-\item{clip_bounds}{the clip bounds for the field of view}
+\item{clip_bounds}{A numeric vector of length 4 representing the clip bounds for the field of view in the form c(xmin, xmax, ymin, ymax). Default is c(0, 1280, 0, 1280).}
 
-\item{relaive_coords}{compute relative coordinates}
+\item{relative_coords}{A logical value indicating whether to compute relative coordinates (TRUE by default). If TRUE, x and y coordinates will be transformed based on the clip_bounds.}
+}
+\value{
+A `data.frame` of class "eye_table" with columns for x and y coordinates, fixation duration, onset time, the grouping variable, and any additional specified variables. The data frame will also have an "origin" attribute containing the center coordinates of the field of view.
 }
 \description{
-construct an eye-movement `data.frame`
+The `eye_table` function creates a `data.frame` to store eye-movement data
+with columns for x and y coordinates, fixation duration, onset time, and
+an optional grouping variable. Additional variables can also be retained.
+The function filters the data based on the clip bounds and can compute
+relative coordinates.
+}
+\details{
+The `eye_table` function first checks that the input `data` is a `data.frame` and then renames the columns specified by x, y, duration, and onset to their standard names. The function then filters the data based on the specified clip_bounds, ensuring that all x and y coordinates fall within the bounds. If relative_coords is TRUE, the x and y coordinates will be transformed to be relative to the clip_bounds.
+
+The function groups the data by the specified grouping variable and constructs a fixation_group object for each group, which is added to the output data frame as a new "fixgroup" column. The output data frame retains the specified additional variables and is assigned a class of "eye_table". The "origin" attribute of the output data frame contains the center coordinates of the field of view, which are computed based on the clip_bounds and whether relative_coords is TRUE or FALSE.
 }

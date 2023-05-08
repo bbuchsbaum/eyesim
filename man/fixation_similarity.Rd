@@ -2,7 +2,7 @@
 % Please edit documentation in R/similarity.R
 \name{fixation_similarity}
 \alias{fixation_similarity}
-\title{fixation_similarity}
+\title{Fixation Similarity}
 \usage{
 fixation_similarity(
   ref_tab,
@@ -18,26 +18,37 @@ fixation_similarity(
 )
 }
 \arguments{
-\item{ref_tab}{the table of reference density maps}
+\item{ref_tab}{The reference table containing the fixation groups to compare.}
 
-\item{source_tab}{the table of source density maps}
+\item{source_tab}{The source table containing the fixation groups to compare.}
 
-\item{match_on}{the variable to match on}
+\item{match_on}{The column name in both tables used to match fixation groups.}
 
-\item{permutations}{the number of permutations for the baseline map}
+\item{permutations}{The number of permutations to perform for permutation tests (default is 0, no permutations).}
 
-\item{permute_on}{the variable used to stratify permutations}
+\item{permute_on}{The column name on which to permute for permutation tests (default is NULL).}
 
-\item{method}{the similarity method}
+\item{method}{The similarity metric to use; options are "sinkhorn" and "overlap" (default is "sinkhorn").}
 
-\item{refvar}{the name of the variable containing density maps in reference table}
+\item{refvar}{The name of the column containing fixation groups in the reference table (default is "fixgroup").}
 
-\item{sourcevar}{the name of the variable containing density maps in source table}
+\item{sourcevar}{The name of the column containing fixation groups in the source table (default is "fixgroup").}
 
-\item{window}{the temporal window over which to compute similarity}
+\item{window}{The temporal window over which to compute similarity (default is NULL).}
 
-\item{...}{extra args to pass to `similarity` function}
+\item{...}{Additional arguments to pass to the similarity metric function.}
+}
+\value{
+A table containing the computed similarities between fixation groups.
 }
 \description{
-compute similarity between each fixation group in a \code{source_tab} with a matching fixation group in \code{ref_tab}
+Compute the similarity between each fixation group in a \code{source_tab} and a matching fixation group in \code{ref_tab}.
+}
+\examples{
+# Example usage of the fixation_similarity function
+ref_table <- # reference table data
+source_table <- # source table data
+match_column <- # column name to match fixation groups
+similarity_results <- fixation_similarity(ref_table, source_table, match_column)
+
 }

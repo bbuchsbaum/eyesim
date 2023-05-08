@@ -2,7 +2,7 @@ library(testthat)
 library(dplyr)
 
 context("density_by")
-
+options(future.rng.onMisue = "ignore")
 test_that("density_by produces perfect similarity for identical patterns", {
   g1 <- tibble(fixgroup=lapply(1:100, function(i) {
     x <- runif(10)

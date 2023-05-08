@@ -1,3 +1,37 @@
 url: ~
 template:
   bootstrap: 5
+
+reference:
+- title: "Density and sampling"
+  desc: "Functions for computing density maps, sampling, and density matrix."
+  contents:
+  - eye_density
+  - get_density
+  - sample_density
+  - density_matrix
+
+- title: "Spatial operations"
+  desc: "Functions for manipulating spatial coordinates and transformations."
+  contents:
+  - coords
+  - rescale
+  - center
+  - normalize
+
+- title: "Fixation operations"
+  desc: "Functions for working with fixation sequences."
+  contents:
+  - rep_fixations
+  - sample_fixations
+
+- title: "Similarity"
+  desc: "Functions for computing similarity between objects."
+  contents:
+  - similarity
+
+- title: "Scanpath"
+  desc: "Functions for creating and adding scanpaths."
+  contents:
+  - scanpath
+  - add_scanpath

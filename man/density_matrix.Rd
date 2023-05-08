@@ -2,17 +2,27 @@
 % Please edit documentation in R/all_generic.R
 \name{density_matrix}
 \alias{density_matrix}
-\title{density matrix}
+\title{Compute Density Matrix for a Given Object}
 \usage{
 density_matrix(x, groups, ...)
 }
 \arguments{
-\item{x}{the object}
+\item{x}{The input object for which the density matrix should be computed.}
 
-\item{groups}{grouping variable}
+\item{groups}{An optional grouping variable to consider when computing the density matrix.}
 
-\item{...}{extra args}
+\item{...}{Additional arguments to be passed to the density matrix computation method.}
+}
+\value{
+A density matrix representing the input object, taking into account the specified grouping variable if provided.
 }
 \description{
-density matrix
+This function computes the density matrix for a given object, optionally taking into account a grouping variable.
+}
+\examples{
+# Example usage of the density_matrix function
+input_object <- # input object data
+grouping_variable <- # optional grouping variable
+result_density_matrix <- density_matrix(input_object, groups = grouping_variable)
+
 }

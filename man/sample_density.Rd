@@ -2,15 +2,27 @@
 % Please edit documentation in R/all_generic.R
 \name{sample_density}
 \alias{sample_density}
-\title{sample a smooth fixation density map with a set of discrete fixations}
+\title{sample_density}
 \usage{
 sample_density(x, fix, ...)
 }
 \arguments{
-\item{x}{the object to sample}
+\item{x}{An object representing the smooth fixation density map to be sampled.}
 
-\item{fix}{the fixations}
+\item{fix}{A data frame containing the discrete fixations used for sampling the density map.}
+
+\item{...}{Additional arguments passed on to the method.}
+}
+\value{
+A data frame with columns 'z' (density estimates at fixation locations) and 'time' (onset time of fixations).
 }
 \description{
-sample a smooth fixation density map with a set of discrete fixations
+Sample a smooth fixation density map with a set of discrete fixations.
+}
+\details{
+This function samples a given smooth fixation density map with a set of discrete fixations
+to estimate the density at the locations of those fixations.
+}
+\seealso{
+\code{\link{sample_density.density}} for an example of a specific method implementation for this generic.
 }

@@ -6,3 +6,7 @@
 ^\.travis\.yml$
 ^README\.Rmd$
 ^codecov\.yml$
+data-raw
+phelps.gif
+res_OA.csv
+test_data

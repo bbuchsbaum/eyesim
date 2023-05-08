@@ -9,26 +9,24 @@ df1 <- read.table("data-raw/study_fix_report_all.xls", header=TRUE) %>% filter(i
   Block=blockstudy,
   Version=sapply(strsplit(as.character(imagestudy), "_"), "[[", 2),
   ImageVersion=paste0(imagenumberstudy, "_", sapply(strsplit(as.character(imagestudy), "_"), "[[", 2))
-)
+) %>% as_tibble()
 
 ## create table for each test trial
 wynn_study <- eye_table("CURRENT_FIX_X", "CURRENT_FIX_Y", duration="CURRENT_FIX_DURATION", onset="CURRENT_FIX_START",
-                      groupvar=c("ImageNumber", "Subject"), data=df1,
+                      groupvar=c("ImageNumber", "Subject", "blockstudy"), data=df1,
                       clip_bounds=c(112, (112+800), 684, 84),
                       vars=c("ImageVersion",
-                             "Version", "Trial", "ImageNumber", "Block"))
+                             "Version", "Trial", "ImageNumber"))
 
 
-wynn_study <- wynn_study %>% mutate(ImageNumberS = paste0(Subject, "_", ImageNumber))
+wynn_study <- sticky(wynn_study) %>% mutate(ImageNumberS = paste0(Subject, "_", ImageNumber)) #%>% as_eye_table()
 
 
 wynn_study_image <- eye_table("CURRENT_FIX_X", "CURRENT_FIX_Y", duration="CURRENT_FIX_DURATION", onset="CURRENT_FIX_START",
                         groupvar=c("ImageVersion"), data=df1,
                         clip_bounds=c(112, (112+800), 684, 84),
                         vars=c("ImageVersion",
-                               "Version", "Trial", "ImageNumber", "Block"))
-
-
+                               "Version", "Trial", "ImageNumber"))
 
 
 

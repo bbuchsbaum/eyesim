@@ -2,19 +2,34 @@
 % Please edit documentation in R/all_generic.R
 \name{similarity}
 \alias{similarity}
-\title{similarity}
+\title{Compute Similarity Between Two Objects}
 \usage{
 similarity(x, y, method, ...)
 }
 \arguments{
-\item{x}{the first object to compare}
+\item{x}{The first object to compare.}
 
-\item{y}{the second object to compare}
+\item{y}{The second object to compare.}
 
-\item{method}{the similarity metric}
+\item{method}{A character string specifying the similarity metric to be used.}
 
-\item{...}{extra args}
+\item{...}{Additional arguments passed to the similarity computation method.}
+}
+\value{
+A numeric value representing the similarity between the two input objects.
 }
 \description{
-similarity
+This function computes the similarity between two objects using a specified similarity metric.
 }
+\examples{
+# Example usage of the similarity function
+object1 <- # first object data
+object2 <- # second object data
+similarity_value <- similarity(object1, object2, method = "some_method")
+
+}
+\seealso{
+Other similarity: 
+\code{\link{similarity.scanpath}()}
+}
+\concept{similarity}

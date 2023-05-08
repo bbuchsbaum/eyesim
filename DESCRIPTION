@@ -8,24 +8,29 @@ Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
 Imports:
-  proxy,
-  imager,
-  quantreg,
-  assertthat,
-  Matrix,
-  dplyr,
-  ggplot2,
-  tibble,
-  colorplane,
-  ppcor,
-  broom,
-  furrr,
-  purrr,
-  crqa,
-  gganimate
+    proxy,
+    imager,
+    quantreg,
+    assertthat,
+    Matrix,
+    dplyr,
+    ggplot2,
+    tibble,
+    colorplane,
+    ppcor,
+    broom,
+    furrr,
+    purrr,
+    crqa,
+    gganimate,
+    MASS,
+    RColorBrewer,
+    magrittr,
+    pracma,
+    rlang (>= 0.4.11)
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 Remotes: 
   bbuchsbaum/colorplane
 Depends: 
@@ -35,5 +40,6 @@ Suggests:
     rmarkdown,
     reticulate,
     testthat,
-    covr
+    covr,
+    roxygen2
 VignetteBuilder: knitr

@@ -2,19 +2,30 @@
 % Please edit documentation in R/all_generic.R
 \name{normalize}
 \alias{normalize}
-\title{normalize eye-movements to unit range}
+\title{Normalize Eye-Movements to Unit Range}
 \usage{
 normalize(x, xbounds, ybounds, ...)
 }
 \arguments{
-\item{x}{the object}
+\item{x}{The input object containing the eye-movements to be normalized.}
 
-\item{xbounds}{the x bounds}
+\item{xbounds}{A vector containing the minimum and maximum x bounds for normalization.}
 
-\item{ybounds}{the y bounds}
+\item{ybounds}{A vector containing the minimum and maximum y bounds for normalization.}
 
-\item{...}{extra args}
+\item{...}{Additional arguments to be passed to the normalization method.}
+}
+\value{
+An object containing the normalized eye-movements in the unit range.
 }
 \description{
-normalize eye-movements to unit range
+This function normalizes the eye-movements to a unit range based on the specified x and y bounds.
+}
+\examples{
+# Example usage of the normalize function
+input_object <- # input object data containing eye-movements
+x_bounds <- c(0, 1000) # X bounds for normalization
+y_bounds <- c(0, 1000) # Y bounds for normalization
+normalized_object <- normalize(input_object, xbounds = x_bounds, ybounds = y_bounds)
+
 }

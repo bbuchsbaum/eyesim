@@ -2,15 +2,25 @@
 % Please edit documentation in R/all_generic.R
 \name{add_scanpath}
 \alias{add_scanpath}
-\title{add scanpath to dataset}
+\title{Add Scanpath to Dataset}
 \usage{
 add_scanpath(x, ...)
 }
 \arguments{
-\item{x}{the input dataset}
+\item{x}{The input dataset to which the scanpath will be added.}
 
-\item{...}{extra args}
+\item{...}{Additional arguments to be passed to the method that adds the scanpath.}
+}
+\value{
+A dataset with the added scanpath.
 }
 \description{
-add scanpath to dataset
+This function adds a scanpath to the input dataset.
+}
+\examples{
+# Example usage of the add_scanpath function
+input_dataset <- # input dataset data
+# Additional arguments required for the specific method that adds the scanpath
+updated_dataset <- add_scanpath(input_dataset, ...)
+
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/visualization.R
 \name{plot.fixation_group}
 \alias{plot.fixation_group}
-\title{plot a fixation_group object}
+\title{Plot a fixation_group object}
 \usage{
 \method{plot}{fixation_group}(
   x,
@@ -19,14 +19,57 @@
   alpha_range = c(0.5, 1),
   alpha = 0.8,
   window = NULL,
-  transform = c("identity", "sqroot", "curoot", "rank")
+  transform = c("identity", "sqroot", "curoot", "rank"),
+  ...
 )
 }
+\arguments{
+\item{x}{A fixation_group object.}
+
+\item{type}{The type of plot to display (default: c("points", "contour", "filled_contour", "density", "raster")).}
+
+\item{bandwidth}{The bandwidth for the kernel density estimator (default: 60).}
+
+\item{xlim}{The x-axis limits (default: range of x values in the fixation_group object).}
+
+\item{ylim}{The y-axis limits (default: range of y values in the fixation_group object).}
+
+\item{size_points}{Whether to size points according to fixation duration (default: TRUE).}
+
+\item{show_points}{Whether to show the fixations as points (default: TRUE).}
+
+\item{show_path}{Whether to show the fixation path (default: TRUE).}
+
+\item{bins}{Number of bins for density calculations (default: max(as.integer(length(x$x)/10), 4)).}
+
+\item{bg_image}{An optional background image file name.}
+
+\item{colours}{Color palette to use for the plot (default: rev(RColorBrewer.brewer.pal(n=10, "Spectral"))).}
+
+\item{alpha_range}{A vector specifying the minimum and maximum alpha values for density plots (default: c(0.5, 1)).}
+
+\item{alpha}{The opacity level for the points (default: 0.8).}
+
+\item{window}{A vector specifying the time window for selecting fixations (default: NULL).}
+
+\item{transform}{The transformation to apply to the density values (default: c("identity", "sqroot", "curoot", "rank")).}
+}
+\value{
+A ggplot object representing the fixation group plot.
+}
 \description{
-plot a fixation_group object
+This function creates a plot of the fixation_group object using ggplot2.
+Different plot types and options can be specified to customize the output.
 }
 \examples{
-
+# Create a fixation_group object
 fg <- fixation_group(x=runif(50, 0, 100), y=runif(50, 0, 100), duration=rep(1,50), onset=seq(1,50))
-## plot(fg)
+# Plot the fixation group
+plot_fixation_group(fg)
 }
+\seealso{
+Other visualization: 
+\code{\link{anim_scanpath}()},
+\code{\link{plot.eye_density}()}
+}
+\concept{visualization}

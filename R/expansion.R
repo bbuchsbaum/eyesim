@@ -1,12 +1,18 @@
 
-#' estimate_scale
+#' Estimate Scaling Parameters for Fixation Data
 #'
-#' @param x the x coordinates
-#' @param y the y coodinates
-#' @param lower lower bounds
-#' @param upper upper bounds
-#' @param window the temporal window to restrict onsets
-#' @keywrods internal
+#' This function estimates the scaling parameters for two sets of fixation data using the Hausdorff distance as an optimization objective.
+#'
+#' @param x A data frame or matrix containing the x coordinates of the first set of fixations.
+#' @param y A data frame or matrix containing the y coordinates of the second set of fixations.
+#' @param lower A numeric vector of length 2 specifying the lower bounds for the scaling parameters (default is c(0.1, 0.1)).
+#' @param upper A numeric vector of length 2 specifying the upper bounds for the scaling parameters (default is c(10, 10)).
+#' @param window A numeric vector of length 2 specifying the time window to restrict the fixations in `y` (default is NULL, which considers all fixations).
+#'
+#' @return A list containing the estimated scaling parameters.
+#'
+#' @keywords internal
+#' @importFrom pracma hausdorff_dist
 estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 
   if (!is.null(window)) {
@@ -33,7 +39,28 @@ estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 }
 
 
-#' @inheritParams template_similarity
+#' Match Scaling Parameters for Fixation Data
+#'
+#' This function matches the scaling parameters of fixation data between a reference table and a source table based on a common matching variable.
+#'
+#' @param ref_tab A data frame containing the reference fixation data.
+#' @param source_tab A data frame containing the source fixation data.
+#' @param match_on A string specifying the variable name in both `ref_tab` and `source_tab` to match on.
+#' @param refvar A string specifying the variable name in `ref_tab` containing the reference fixations (default is "fixgroup").
+#' @param sourcevar A string specifying the variable name in `source_tab` containing the source fixations (default is "fixgroup").
+#' @param window A numeric vector of length 2 specifying the time window to restrict the fixations in the source fixation data (default is NULL, which considers all fixations).
+#' @param ... Additional arguments passed to the `estimate_scale` function.
+#'
+#' @return A data frame containing the original source fixation data with additional columns for the matched scaling parameters.
+#'
+#' @examples
+#' # Example usage of the match_scale function
+#' ref_tab <- # reference fixation data
+#' source_tab <- # source fixation data
+#' matched_data <- match_scale(ref_tab, source_tab, match_on = "subject_id")
+#'
+#' @importFrom dplyr ungroup mutate filter bind_rows
+#' @importFrom purrr pmap
 match_scale <- function(ref_tab, source_tab, match_on,
                         refvar="fixgroup",sourcevar="fixgroup",
                         window,...) {
@@ -63,6 +90,7 @@ match_scale <- function(ref_tab, source_tab, match_on,
 
 
 #' @export
+#' @family rescale
 rescale.fixation_group <- function(x, sx,sy) {
   x %>% mutate(x=x*sx, y=y*sy)
 }
