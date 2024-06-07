@@ -104,7 +104,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
         sim %>% bind_rows()
       }
     }
-  }) %>% bind_rows()  # Combine the results of each row in the source table into a single tibble
+  }, .options=furrr::furrr_options(seed = TRUE)) %>% bind_rows()  # Combine the results of each row in the source table into a single tibble
 
   # Bind the calculated similarity values to the source table and return the result
   source_tab %>% bind_cols(ret)
@@ -182,7 +182,6 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @param permutations A numeric value specifying the number of permutations for the baseline map (default is 10).
 #' @param ... Extra arguments to pass to the `similarity` function.
 #'
-#' @details The \code{run_similarity_analysis} function is the core of the similarity calculations in this function. It checks for matching indices between reference and source tables, filters out non-matching elements, and splits matching indices based on the \code{permute_on} variable if specified. The similarity is then calculated between matched density maps using the specified method and, if applicable, permutations for the baseline map. The output includes the source table along with additional columns for the similarity scores and permutation results.
 #'
 #' @return A data frame or tibble containing the source table and additional columns with the similarity scores and permutation results.
 #' @export

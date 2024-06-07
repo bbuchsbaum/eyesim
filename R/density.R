@@ -67,11 +67,14 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 }
 
 
-
+#' @keywords internal
+#' @noRd
 rank_trans <- scales::trans_new(name="rank",
                                 transform=function(x) { rank(x) },
                                 inverse=function(x) (length(x)+1) - rank(x))
 
+#' @keywords internal
+#' @noRd
 cuberoot_trans <- scales::trans_new(name="rank",
                                     transform=function(x) { x^(1/3) },
                                     inverse=function(x) x^3)

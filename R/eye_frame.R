@@ -9,7 +9,7 @@
 #' The function filters the data based on the clip bounds and can compute
 #' relative coordinates.
 #'
-#' @importFrom dplyr do group_by select filter as_tibble
+#' @importFrom dplyr do group_by select filter as_tibble rename_with
 #' @importFrom magrittr %>%
 #' @importFrom assertthat assert_that
 #'
@@ -39,7 +39,7 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
   names(colmapping) <- c(x,y,duration,onset)
 
 
-  data <- data %>% rename_with(.cols=all_of(c(x,y,duration,onset)),
+  data <- data %>% dplyr::rename_with(.cols=all_of(c(x,y,duration,onset)),
                                .fn = function(x){colmapping[x]}) %>% as_tibble()
 
   data <- if (is.null(vars)) {
