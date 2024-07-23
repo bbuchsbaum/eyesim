@@ -81,6 +81,11 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
         mind <- mind[-elnum]
       }
 
+      if (length(mind) == 0) {
+        warning("no matching indices for permutation test. Skipping.")
+        tibble(eye_sim=NA, perm_sim=NA, eye_sim_diff=NA)
+      }
+
       # Calculate permuted similarities for each remaining index in mind
       psim <- do.call(rbind, lapply(mind, function(i) {
         d1p <- ref_tab[[refvar]][[i]]
