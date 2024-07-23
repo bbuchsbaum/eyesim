@@ -1,4 +1,5 @@
 
+#' @noRd
 merge_fix <- function(fg) {
   v_x = sum(fg$lenx)
   v_y = sum(fg$leny)
@@ -7,6 +8,7 @@ merge_fix <- function(fg) {
          group_index=fg$group_index[1], lenx=v_x, leny=v_y, rho=polar[,1], theta=polar[,2])
 }
 
+#' @noRd
 simplify_dir <- function(x, TDir, TDur) {
   G <- do.call(rbind, purrr::map(1:(nrow(x)-1), function(i) {
     ang <- calcangle(c(x$lenx[i], x$leny[i]), c(x$lenx[i+1], x$leny[i+1]))
@@ -40,7 +42,7 @@ simplify_dir <- function(x, TDir, TDur) {
 }
 
 
-
+#' @noRd
 duration_diff_1d <- function(dur1, dur2, path, cds) {
   dur1 <- dur1[cds[,1]]
   dur2 <- dur2[cds[,2]]
@@ -50,6 +52,8 @@ duration_diff_1d <- function(dur1, dur2, path, cds) {
   adiff/denom
 }
 
+
+#' @noRd
 angle_diff_1d <- function(theta1, theta2, path, cds) {
   theta1 <- theta1[cds[,1]]
   theta2 <- theta2[cds[,2]]
@@ -62,7 +66,9 @@ angle_diff_1d <- function(theta1, theta2, path, cds) {
   adiff
 }
 
+#' @noRd
 vector_diff_1d <- function(x,y,path, v1, metric=c("l1", "l2"), cds) {
+  metric <- match.arg(metric)
   x1 = x[[v1]]
   x2 = y[[v1]]
 
@@ -77,6 +83,7 @@ vector_diff_1d <- function(x,y,path, v1, metric=c("l1", "l2"), cds) {
 
 }
 
+#' @noRd
 vector_diff_2d <- function(x,y,path, v1,v2, cds) {
   x1 = x[[v1]]
   x2 = y[[v1]]
@@ -86,14 +93,12 @@ vector_diff_2d <- function(x,y,path, v1,v2, cds) {
   #cds <- arrayInd(as.integer(path), c(nrow(x),nrow(y)))
   #cds <- cbind(cds[,2], cds[,1])
 
-
-
   sqrt((x1[cds[,1]] - x2[cds[,2]])^2 + (y1[cds[,1]] - y2[cds[,2]])^2)
 
 }
 
 
-
+#' @noRd
 create_graph <- function(x,y) {
   M <- proxy::dist(cbind(x$lenx, x$leny), cbind(y$lenx, y$leny))
   M_assignment <- matrix(seq(nrow(M) * ncol(M)), nrow(M), ncol(M), byrow=TRUE)
@@ -187,6 +192,7 @@ multi_match <- function(x,y, screensize) {
 }
 
 
+#' @noRd
 py_multi_match <- function(fg1, fg2,
                         screensize,
                         grouping=FALSE,

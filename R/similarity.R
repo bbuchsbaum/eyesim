@@ -40,6 +40,8 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     match_split <- split(matchind, source_tab[[permute_on]])
   }
 
+
+
   # Define a helper function to calculate similarity between d1 and d2 using the specified method and window
   do_sim <- function(d1,d2,method, window=NULL) {
     if (!is.null(window)) {
@@ -77,13 +79,13 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 
       # Remove the current element from the list of matching indices
       elnum <- match(.$matchind, mind)
-      if (!is.na(elnum)) {
+      if (!is.na(elnum) && length(elnum) > 0) {
         mind <- mind[-elnum]
       }
 
       if (length(mind) == 0) {
-        warning("no matching indices for permutation test. Skipping.")
-        tibble(eye_sim=NA, perm_sim=NA, eye_sim_diff=NA)
+        warning("no matching candidate indices for permutation test. Skipping.")
+        return(tibble(eye_sim=NA, perm_sim=NA, eye_sim_diff=NA))
       }
 
       # Calculate permuted similarities for each remaining index in mind
@@ -91,6 +93,10 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
         d1p <- ref_tab[[refvar]][[i]]
         do_sim(d1p, d2, method, window)
       }))
+
+      #if (length(psim) == 0) {
+      #  browser()
+      #}
 
       # Calculate the mean permuted similarity and the difference between the observed and permuted similarities
       if (ncol(psim) > 1) {

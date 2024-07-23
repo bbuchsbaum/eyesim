@@ -36,35 +36,64 @@
 #' @import rlang
 #' @importFrom dplyr group_by do rowwise
 #' @importFrom tibble as_tibble
-density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
-                       duration_weighted=TRUE, window=NULL, keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
-
+density_by <- function(x, groups, sigma = 50, xbounds = c(0, 1000), ybounds = c(0, 1000), outdim = c(100, 100),
+                       duration_weighted = TRUE, window = NULL, keep_vars = NULL, fixvar = "fixgroup", result_name = "density", ...) {
   ## TODO what happens if window produces fixations < 0?
 
   rname <- rlang::sym(result_name)
   vars <- c(groups, keep_vars)
 
-  if (!missing(groups) && !is.null(groups) ) {
-    ret <- x %>% group_by(.dots=groups) %>% do( {
-      g <- do.call(rbind, .[[fixvar]])
-      cbind(.[1,vars],tibble(!!fixvar := list(g)))
-    }) %>% rowwise() %>% do( {
-      d <- eye_density(.[[fixvar]], sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
-                       duration_weighted=duration_weighted, window=window, origin=attr(x, "origin"), ...)
-      cbind(as_tibble(.[vars]), tibble(!!fixvar :=list(.[[fixvar]]), !!rname := list(d)))
-    })
+  if (!missing(groups) && !is.null(groups)) {
+    ret <- x %>%
+      group_by(across(all_of(groups))) %>%
+      do({
+        g <- do.call(rbind, .[[fixvar]])
+        cbind(.[1, vars], tibble(!!fixvar := list(g)))
+      }) %>%
+      rowwise() %>%
+      do({
+        d <- eye_density(.[[fixvar]], sigma, xbounds = xbounds, ybounds = ybounds, outdim = outdim,
+                         duration_weighted = duration_weighted, window = window, origin = attr(x, "origin"), ...)
+        cbind(as_tibble(.[vars]), tibble(!!fixvar := list(.[[fixvar]]), !!rname := list(d)))
+      })
   } else {
-    #browser()
     fx <- do.call(rbind, x[[fixvar]])
-    d <- eye_density(fx, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
-                     duration_weighted=duration_weighted, window=window,origin=attr(x, "origin"), ...)
+    d <- eye_density(fx, sigma, xbounds = xbounds, ybounds = ybounds, outdim = outdim,
+                     duration_weighted = duration_weighted, window = window, origin = attr(x, "origin"), ...)
     ret <- tibble(!!fixvar := list(fx), !!rname := list(d))
-
   }
 
   ret
-
 }
+# density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
+#                        duration_weighted=TRUE, window=NULL, keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
+#
+#   ## TODO what happens if window produces fixations < 0?
+#
+#   rname <- rlang::sym(result_name)
+#   vars <- c(groups, keep_vars)
+#
+#   if (!missing(groups) && !is.null(groups) ) {
+#     ret <- x %>% group_by(.dots=groups) %>% do( {
+#       g <- do.call(rbind, .[[fixvar]])
+#       cbind(.[1,vars],tibble(!!fixvar := list(g)))
+#     }) %>% rowwise() %>% do( {
+#       d <- eye_density(.[[fixvar]], sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
+#                        duration_weighted=duration_weighted, window=window, origin=attr(x, "origin"), ...)
+#       cbind(as_tibble(.[vars]), tibble(!!fixvar :=list(.[[fixvar]]), !!rname := list(d)))
+#     })
+#   } else {
+#     #browser()
+#     fx <- do.call(rbind, x[[fixvar]])
+#     d <- eye_density(fx, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
+#                      duration_weighted=duration_weighted, window=window,origin=attr(x, "origin"), ...)
+#     ret <- tibble(!!fixvar := list(fx), !!rname := list(d))
+#
+#   }
+#
+#   ret
+#
+# }
 
 
 #' @keywords internal
