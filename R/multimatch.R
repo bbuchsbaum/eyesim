@@ -139,11 +139,11 @@ install_multimatch <- function() {
 #' @param screensize a two element vector indicating screen size
 multi_match <- function(x,y, screensize) {
 
-  if (any(diff(x$onset) >= 0)) {
+  if (any(diff(x$onset) <= 0)) {
     stop("multi_match: x `onset` vector must be strictly increasing")
   }
 
-  if (any(diff(x$onset) >= 0)) {
+  if (any(diff(x$onset) <= 0)) {
     stop("multi_match: y `onset` vector must be strictly increasing")
   }
 
