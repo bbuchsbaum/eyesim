@@ -1,13 +1,11 @@
 ---
 title: "Multimatch"
-output: 
-  markdown::html_format
+output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Multimatch}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-pkgdown: 
-  as_is: true
+
 ---
 
 ```{r setup, include=FALSE}
