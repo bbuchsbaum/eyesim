@@ -70,12 +70,5 @@ reference:
   - density_by
   - sample_density.density
 
-articles:
-- title: "Overview"
-  contents:
-  - Overview
-- title: "MultiMatch"
-  contents:
-  - Multimatch
 
 
