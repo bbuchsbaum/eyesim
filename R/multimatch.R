@@ -139,9 +139,13 @@ install_multimatch <- function() {
 
 #' multi_match
 #'
+#' @description
+#' \code{multi_match} compares two scanpaths based on vector, direction, length, position, and duration.
+#'
 #' @param x the first \code{scanpath}
 #' @param y the second \code{scanpath}
 #' @param screensize a two element vector indicating screen size
+#' @export
 multi_match <- function(x,y, screensize) {
 
   if (any(diff(x$onset) <= 0)) {

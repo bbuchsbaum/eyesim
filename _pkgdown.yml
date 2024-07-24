@@ -10,6 +10,9 @@ reference:
   - get_density
   - sample_density
   - density_matrix
+  - eye_density.fixation_group
+  - gen_density
+  - as.data.frame.eye_density
 
 - title: "Spatial operations"
   desc: "Functions for manipulating spatial coordinates and transformations."
@@ -18,20 +21,61 @@ reference:
   - rescale
   - center
   - normalize
+  - match_scale
 
 - title: "Fixation operations"
   desc: "Functions for working with fixation sequences."
   contents:
   - rep_fixations
   - sample_fixations
+  - rep_fixations
+  - fixation_similarity
+  - template_sample
 
 - title: "Similarity"
   desc: "Functions for computing similarity between objects."
   contents:
   - similarity
+  - multi_match
+  - similarity.scanpath
+  - template_similarity
 
 - title: "Scanpath"
   desc: "Functions for creating and adding scanpaths."
   contents:
   - scanpath
   - add_scanpath
+  - add_scanpath.data.frame
+  - add_scanpath.eye_table
+  - scanpath.fixation_group
+  - anim_scanpath
+  - calcangle
+  - cart2pol
+  - template_multireg
+  - template_regression
+
+- title: "Eye Table"
+  desc: "Functions for working with eye tables."
+  contents:
+  - as_eye_table
+  - eye_table
+  - simulate_eye_table
+  - '[.eye_table'
+  - plot.eye_density
+  - plot.fixation_group
+
+- title: "Density by Groups"
+  desc: "Functions for density operations by groups."
+  contents:
+  - density_by
+  - sample_density.density
+
+articles:
+- title: "Overview"
+  contents:
+  - Overview
+- title: "MultiMatch"
+  contents:
+  - Multimatch
+
+

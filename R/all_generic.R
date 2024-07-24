@@ -23,7 +23,15 @@ eye_density <- function(x, sigma, xbounds, ybounds, outdim, weights, normalize,.
   UseMethod("eye_density", x)
 }
 
+
+#' get_density
+#'
+#' Get the density matrix from an object.
+#'
 #' @export
+#' @family get_density
+#' @param x the object
+#' @param ... additional arguments
 get_density <- function(x,...) {
   UseMethod("get_density", x)
 }

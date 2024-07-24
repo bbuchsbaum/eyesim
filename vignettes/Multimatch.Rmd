@@ -1,0 +1,216 @@
+---
+title: "Multimatch"
+output: html_document
+date: "2024-07-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(patchwork)
+library(eyesim)
+library(dplyr)
+library(ggplot2)
+library(ggridges)
+```
+
+## Multimatch
+
+MultiMatch is a comprehensive method for analyzing and comparing eye movement scanpaths. It evaluates scanpath similarity across five dimensions: "vector", "direction", "length", "position", and "duration". By breaking down eye movements into these distinct components, MultiMatch provides a detailed and nuanced comparison of visual behavior. This method is particularly useful for studies in psychology, cognitive science, and human-computer interaction where understanding visual attention and patterns is crucial.
+
+Let's simulate a simple eye-movement pattern and compare them with one another.
+
+```{r}
+
+# Simulate fixation data
+simulate_fixations_linear <- function(n) {
+  out <- data.frame(
+    fixation = 1:n,
+    x = cumsum(rnorm(n, mean = 50, sd = 10)),
+    y = cumsum(rnorm(n, mean = 50, sd = 10)),
+    duration = rpois(n, lambda = 200)
+  )
+  
+  fixation_group(out$x, out$y, out$duration, out$fixation)
+}
+
+fixations1 <- simulate_fixations_linear(10)
+fixations2 <- simulate_fixations_linear(12)
+
+p1 <- plot(fixations1)
+p2 <- plot(fixations2)
+p1 + p2
+```
+
+
+Now, we will compare the two fixation groups using the `multimatch` function.
+
+```{r}
+sp1 <- scanpath(fixations1)
+sp2 <- scanpath(fixations2)
+eyesim:::multi_match(sp1, sp2, c(500,500))
+
+```
+
+All of the metrics give pretty high values, consistent with the known similarity of the scanpaths.
+
+```{r}
+
+# Simulate fixation data for each scenario
+simulate_fixations_zigzag <- function() {
+  out <- data.frame(
+    fixation = 1:10,
+    x = cumsum(c(50, 50, 50, 50, 50, 50, 50, 50, 50, 50)),
+    y = cumsum(c(50, -50, 50, -50, 50, -50, 50, -50, 50, -50)),
+    duration = rpois(10, lambda = 200)
+  )
+  fixation_group(out$x, out$y, out$duration, out$fixation)
+}
+
+
+fixations1_linear <- simulate_fixations_linear(10)
+fixations2_zigzag <- simulate_fixations_zigzag()
+sp1 <- scanpath(fixations1_linear)
+sp2 <- scanpath(fixations2_zigzag)
+
+eyesim:::multi_match(sp1, sp2, c(500,500))
+
+
+
+```
+
+
+We will simulate 80,000 pairs of randomy generated scanpaths and show the distribution of the similarity scores for each metric.
+
+```{r, message=FALSE, warning=FALSE}
+
+fgs <- replicate(80000, {
+  fixations1 <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
+  fixations2 <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
+  list(fg1=fixations1, fg2=fixations2)
+  #sp1 <- scanpath(fixations1)
+  #sp2 <- scanpath(fixations2)
+  #eyesim:::multi_match(sp1, sp2, c(500,500))
+}, simplify=FALSE)
+
+ssdf <- lapply(fgs, function(x) eyesim:::multi_match(scanpath(x$fg1), scanpath(x$fg2), c(500,500))) %>% bind_rows()
+# Create ridgeline plots for each MultiMatch metric
+ridgeline_vector <- ggplot(ssdf, aes(x = mm_vector, y = factor(1, labels = "Vector Similarity"))) + 
+  geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'blue', color = 'black', alpha = 0.7) + 
+  labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
+
+ridgeline_direction <- ggplot(ssdf, aes(x = mm_direction, y = factor(1, labels = "Direction Similarity"))) + 
+  geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'green', color = 'black', alpha = 0.7) + 
+  labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
+
+ridgeline_length <- ggplot(ssdf, aes(x = mm_length, y = factor(1, labels = "Length Similarity"))) + 
+  geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'red', color = 'black', alpha = 0.7) + 
+  labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
+
+ridgeline_position <- ggplot(ssdf, aes(x = mm_position, y = factor(1, labels = "Position Similarity"))) + 
+  geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'purple', color = 'black', alpha = 0.7) + 
+  labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
+
+ridgeline_duration <- ggplot(ssdf, aes(x = mm_duration, y = factor(1, labels = "Duration Similarity"))) + 
+  geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'orange', color = 'black', alpha = 0.7) + 
+  labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
+
+# Combine the ridgeline plots using patchwork
+combined_plot <- ridgeline_vector / ridgeline_direction / ridgeline_length / ridgeline_position / ridgeline_duration + 
+  plot_layout(ncol = 1)
+
+# Display the combined plot
+print(combined_plot)
+
+```
+
+Let's plot the fixations for the extreme values of the multimatch metrics. By examining the highest and lowest pairs we can gain insight into what each metric is capturing. Note that the size of points captures duration of each fixation.
+
+```{r}
+
+metrics <- c("vector", "direction", "length", "position", "duration")
+
+extremes <- lapply(metrics, function(metric) {
+  m <- paste0("mm_", metric)
+  list(
+    high = which.max(ssdf[[m]]),
+    low = which.min(ssdf[[m]])
+  )
+})
+
+names(extremes) <- metrics
+
+# Function to create a plot for a fixation group with a title and annotation
+plot_fixation_group <- function(fg, title, metric_value) {
+  plot(fg) + 
+    ggtitle(title) + 
+    annotate("text", x = Inf, y = -Inf, label = paste("score:", round(metric_value, 2)), 
+             hjust = 1.1, vjust = -1.1, size = 2, color = "blue")
+}
+
+# Create plots for each metric
+plots <- lapply(names(extremes), function(metric) {
+  high_index <- extremes[[metric]]$high
+  low_index <- extremes[[metric]]$low
+  
+  metric_high_value <- ssdf[high_index, paste0("mm_", metric)]
+  metric_low_value <- ssdf[low_index, paste0("mm_", metric)]
+
+  high_fg1 <- fgs[[high_index]]$fg1
+  high_fg2 <- fgs[[high_index]]$fg2
+  low_fg1 <- fgs[[low_index]]$fg1
+  low_fg2 <- fgs[[low_index]]$fg2
+
+  high_plot1 <- plot_fixation_group(high_fg1, paste(metric, "High(1)"), metric_high_value)
+  high_plot2 <- plot_fixation_group(high_fg2, paste(metric, "High(2)"), metric_high_value)
+  low_plot1 <- plot_fixation_group(low_fg1, paste(metric, "Low(1)"), metric_low_value)
+  low_plot2 <- plot_fixation_group(low_fg2, paste(metric, "Low(2)"), metric_low_value)
+
+  list(high_plot = high_plot1 + high_plot2, low_plot = low_plot1 + low_plot2)
+})
+
+# Set the size of each plot
+plot_height <- 8 # Adjust height as needed
+plot_width <- 12 # Adjust width as needed
+
+# Combine and arrange plots using patchwork
+high_plots <- wrap_plots(
+  plots[[1]]$high_plot,
+  plots[[2]]$high_plot,
+  plots[[3]]$high_plot,
+  plots[[4]]$high_plot,
+  plots[[5]]$high_plot,
+  nrow = 5
+) + plot_layout(guides = 'collect', heights = rep(plot_height, 5)) + ggtitle("High MultiMatch Scores")
+
+low_plots <- wrap_plots(
+  plots[[1]]$low_plot,
+  plots[[2]]$low_plot,
+  plots[[3]]$low_plot,
+  plots[[4]]$low_plot,
+  plots[[5]]$low_plot,
+  nrow = 5
+) + plot_layout(guides = 'collect', heights = rep(plot_height, 5)) + ggtitle("Low MultiMatch Scores")
+
+# Save the plots to file
+ggsave("high_plots.png", plot = high_plots, height = plot_height * 5, width = plot_width, units = "in")
+ggsave("low_plots.png", plot = low_plots, height = plot_height * 5, width = plot_width, units = "in")
+
+```
+
+These are the highest pairs of scanpaths for each metric.
+
+```{r}
+
+high_plots
+```
+
+And the lowest.
+
+```{r}
+
+low_plots
+```
+
+
+
+
