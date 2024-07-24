@@ -1,7 +1,10 @@
 ---
 title: "Multimatch"
-output: html_document
-date: "2024-07-23"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Multimatch}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
