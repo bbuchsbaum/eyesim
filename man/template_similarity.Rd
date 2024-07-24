@@ -41,6 +41,3 @@ A data frame or tibble containing the source table and additional columns with t
 \description{
 Compute similarity between each density map in a \code{source_tab} with a matching ("template") density map in \code{ref_tab}.
 }
-\details{
-The \code{run_similarity_analysis} function is the core of the similarity calculations in this function. It checks for matching indices between reference and source tables, filters out non-matching elements, and splits matching indices based on the \code{permute_on} variable if specified. The similarity is then calculated between matched density maps using the specified method and, if applicable, permutations for the baseline map. The output includes the source table along with additional columns for the similarity scores and permutation results.
-}

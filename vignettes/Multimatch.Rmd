@@ -79,11 +79,11 @@ eyesim:::multi_match(sp1, sp2, c(500,500))
 ```
 
 
-We will simulate 80,000 pairs of randomy generated scanpaths and show the distribution of the similarity scores for each metric.
+We will simulate 8000 pairs of randomy generated scanpaths and show the distribution of the similarity scores for each metric.
 
 ```{r, message=FALSE, warning=FALSE}
 
-fgs <- replicate(80000, {
+fgs <- replicate(8000, {
   fixations1 <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
   fixations2 <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
   list(fg1=fixations1, fg2=fixations2)
@@ -169,7 +169,7 @@ plots <- lapply(names(extremes), function(metric) {
 })
 
 # Set the size of each plot
-plot_height <- 8 # Adjust height as needed
+plot_height <- 12 # Adjust height as needed
 plot_width <- 12 # Adjust width as needed
 
 # Combine and arrange plots using patchwork
@@ -180,7 +180,7 @@ high_plots <- wrap_plots(
   plots[[4]]$high_plot,
   plots[[5]]$high_plot,
   nrow = 5
-) + plot_layout(guides = 'collect', heights = rep(plot_height, 5)) + ggtitle("High MultiMatch Scores")
+) + plot_layout(guides = 'collect', heights = rep(plot_height, 6)) + ggtitle("High MultiMatch Scores")
 
 low_plots <- wrap_plots(
   plots[[1]]$low_plot,
@@ -192,21 +192,21 @@ low_plots <- wrap_plots(
 ) + plot_layout(guides = 'collect', heights = rep(plot_height, 5)) + ggtitle("Low MultiMatch Scores")
 
 # Save the plots to file
-ggsave("high_plots.png", plot = high_plots, height = plot_height * 5, width = plot_width, units = "in")
-ggsave("low_plots.png", plot = low_plots, height = plot_height * 5, width = plot_width, units = "in")
+#ggsave("high_plots.png", plot = high_plots, height = plot_height * 5, width = plot_width, units = "in")
+#ggsave("low_plots.png", plot = low_plots, height = plot_height * 5, width = plot_width, units = "in")
 
 ```
 
 These are the highest pairs of scanpaths for each metric.
 
-```{r}
+```{r, fig.height=11, fig.width=8}
 
 high_plots
 ```
 
 And the lowest.
 
-```{r}
+```{r,fig.height=11, fig.width=8}
 
 low_plots
 ```
