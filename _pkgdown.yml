@@ -1,6 +1,5 @@
 template:
   bootstrap: 5
-  bootswatch: cerulean
 
 reference:
 - title: "Density and sampling"
