@@ -187,6 +187,11 @@ install_multimatch <- function() {
 #'   \item{mm_position_emd}{Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.}
 #' }
 #'
+#' @references
+#' Dewhurst, R., Nyström, M., Jarodzka, H., Foulsham, T., Johansson, R., & Holmqvist, K. (2012).
+#' It depends on how you look at it: Scanpath comparison in multiple dimensions with MultiMatch, a vector-based approach.
+#' Behavior research methods, 44, 1079-1100.
+#'
 #' @examples
 #' \dontrun{
 #' # Example usage:

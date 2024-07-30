@@ -19,7 +19,7 @@ library(ggridges)
 
 ## Multimatch
 
-MultiMatch is a comprehensive method for analyzing and comparing eye movement scanpaths. It evaluates scanpath similarity across five dimensions: "vector", "direction", "length", "position", and "duration". By breaking down eye movements into these distinct components, MultiMatch provides a detailed and nuanced comparison of visual behavior. This method is particularly useful for studies in psychology, cognitive science, and human-computer interaction where understanding visual attention and patterns is crucial. In our implementation, we add anohter metric based on the earth mover's distance (EMD; 'position_emd') between the positions of the fixations. This should capture similarities in the distributions of the fixations that are not order-specific.
+MultiMatch is a comprehensive method for analyzing and comparing eye movement scanpaths. It evaluates scanpath similarity across five dimensions: "vector", "direction", "length", "position", and "duration". By breaking down eye movements into these distinct components, MultiMatch provides a detailed and nuanced comparison of visual behavior. This method is particularly useful for studies in psychology, cognitive science, and human-computer interaction where understanding visual attention and patterns is crucial. In our implementation, we add another metric based on the earth mover's distance (EMD; 'position_emd') between the positions of the fixations. This should capture similarities in the distributions of the fixations that are not order-specific.
 
 Let's simulate a simple eye-movement pattern and compare them with one another.
 
