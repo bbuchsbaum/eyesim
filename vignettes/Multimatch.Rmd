@@ -19,7 +19,7 @@ library(ggridges)
 
 ## Multimatch
 
-MultiMatch is a comprehensive method for analyzing and comparing eye movement scanpaths. It evaluates scanpath similarity across five dimensions: "vector", "direction", "length", "position", and "duration". By breaking down eye movements into these distinct components, MultiMatch provides a detailed and nuanced comparison of visual behavior. This method is particularly useful for studies in psychology, cognitive science, and human-computer interaction where understanding visual attention and patterns is crucial.
+MultiMatch is a comprehensive method for analyzing and comparing eye movement scanpaths. It evaluates scanpath similarity across five dimensions: "vector", "direction", "length", "position", and "duration". By breaking down eye movements into these distinct components, MultiMatch provides a detailed and nuanced comparison of visual behavior. This method is particularly useful for studies in psychology, cognitive science, and human-computer interaction where understanding visual attention and patterns is crucial. In our implementation, we add anohter metric based on the earth mover's distance (EMD; 'position_emd') between the positions of the fixations. This should capture similarities in the distributions of the fixations that are not order-specific.
 
 Let's simulate a simple eye-movement pattern and compare them with one another.
 
@@ -83,10 +83,9 @@ eyesim:::multi_match(sp1, sp2, c(500,500))
 ```
 
 
-We will simulate 8000 pairs of randomy generated scanpaths and show the distribution of the similarity scores for each metric.
+We will simulate 8000 pairs of randomly generated scanpaths and show the distribution of the similarity scores for each metric.
 
-```{r, message=FALSE, warning=FALSE}
-
+```{r, message=FALSE, warning=FALSE, fig.height=12, fig.width=8}
 fgs <- replicate(8000, {
   fixations1 <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
   fixations2 <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
@@ -118,8 +117,12 @@ ridgeline_duration <- ggplot(ssdf, aes(x = mm_duration, y = factor(1, labels = "
   geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'orange', color = 'black', alpha = 0.7) + 
   labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
 
+ridgeline_emd <- ggplot(ssdf, aes(x = mm_position_emd, y = factor(1, labels = "EMD Similarity"))) + 
+  geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05, fill = 'cyan', color = 'black', alpha = 0.7) + 
+  labs(x = 'Similarity', y = '') + theme_ridges() + theme(axis.title.y = element_blank())
+
 # Combine the ridgeline plots using patchwork
-combined_plot <- ridgeline_vector / ridgeline_direction / ridgeline_length / ridgeline_position / ridgeline_duration + 
+combined_plot <- ridgeline_vector / ridgeline_direction / ridgeline_length / ridgeline_position / ridgeline_duration / ridgeline_emd + 
   plot_layout(ncol = 1)
 
 # Display the combined plot
@@ -131,7 +134,7 @@ Let's plot the fixations for the extreme values of the multimatch metrics. By ex
 
 ```{r}
 
-metrics <- c("vector", "direction", "length", "position", "duration")
+metrics <- c("vector", "direction", "length", "position", "duration", "position_emd")
 
 extremes <- lapply(metrics, function(metric) {
   m <- paste0("mm_", metric)
@@ -183,7 +186,8 @@ high_plots <- wrap_plots(
   plots[[3]]$high_plot,
   plots[[4]]$high_plot,
   plots[[5]]$high_plot,
-  nrow = 5
+  plots[[6]]$high_plot,
+  nrow = 6
 ) + plot_layout(guides = 'collect', heights = rep(plot_height, 6)) + ggtitle("High MultiMatch Scores")
 
 low_plots <- wrap_plots(
@@ -192,8 +196,9 @@ low_plots <- wrap_plots(
   plots[[3]]$low_plot,
   plots[[4]]$low_plot,
   plots[[5]]$low_plot,
-  nrow = 5
-) + plot_layout(guides = 'collect', heights = rep(plot_height, 5)) + ggtitle("Low MultiMatch Scores")
+  plots[[6]]$low_plot,
+  nrow = 6
+) + plot_layout(guides = 'collect', heights = rep(plot_height, 6)) + ggtitle("Low MultiMatch Scores")
 
 # Save the plots to file
 #ggsave("high_plots.png", plot = high_plots, height = plot_height * 5, width = plot_width, units = "in")
@@ -216,5 +221,46 @@ low_plots
 ```
 
 
+## How transofrmations impact Multimatch metrics
 
+Let's generate a random scanpath and apply some transformations to it to see how the multimatch metrics change.
+
+```{r}
+
+fg <- fixation_group(runif(10)*500, runif(10)*500, round(runif(10)*10)+1, 1:10)
+
+plot(fg) + plot(fg)
+eyesim:::multi_match(scanpath(fg), scanpath(fg), c(500,500))
+
+```
+
+Now, we will scale the second scanpath by .5 and recompute the multimatch metrics. You will notice that the "direction" metric remains 1, while position (especially) decreases dramatically. This is because the absolute positions of the fixations are not preserved under scaling.
+
+```{r}
+
+fg2 <- fg
+fg2$y <- fg2$y * .5
+fg2$x <- fg2$x * .5
+
+p1 <- plot(fg) + ylim(0,500)
+p2 <- plot(fg2) + ylim(0,500)
+p1+p2
+eyesim:::multi_match(scanpath(fg), scanpath(fg2), c(500,500))
+
+```
+
+Next we will preserve the positions of the fixations but scramble their order. This will have a large impact on the "direction" metric, but not on the other metrics. Note also the earth mover's distance should remain high.
+
+```{r}
+
+fg2 <- fg
+ord <- sample(1:nrow(fg2))
+fg2$x <- fg2$x[ord]
+fg2$y <- fg2$y[ord]
+fg2$duration <- fg2$duration[ord]
+p1 <- plot(fg) + ylim(0,500)
+p2 <- plot(fg2) + ylim(0,500)
+p1+p2
+eyesim:::multi_match(scanpath(fg), scanpath(fg2), c(500,500))
+```
 

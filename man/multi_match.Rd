@@ -14,5 +14,5 @@ multi_match(x, y, screensize)
 \item{screensize}{a two element vector indicating screen size}
 }
 \description{
-multi_match
+\code{multi_match} compares two scanpaths based on vector, direction, length, position, and duration.
 }

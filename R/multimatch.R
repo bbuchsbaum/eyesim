@@ -1,5 +1,6 @@
 
 #' @noRd
+#' @keywords internal
 merge_fix <- function(fg) {
   v_x = sum(fg$lenx)
   v_y = sum(fg$leny)
@@ -39,6 +40,24 @@ simplify_dir <- function(x, TDir, TDur) {
     out <- merged %>% arrange(onset) %>% mutate(index=1:n())
   }
 
+}
+
+#' @noRd
+emd_position_similarity <- function(fg1, fg2, screensize) {
+  # Extract x and y coordinates
+  points1 <- as.matrix(fg1[, c("x", "y")])
+  points2 <- as.matrix(fg2[, c("x", "y")])
+
+  # Calculate the Earth Mover's Distance
+  emd_value <- emdw(points1, fg1$duration, points2, fg2$duration)
+
+  # Normalize EMD to convert it into a similarity metric
+  max_dist <- sqrt(screensize[1]^2 + screensize[2]^2)
+  normalized_emd <- emd_value / max_dist
+
+  # Convert to similarity
+  similarity <- 1 - normalized_emd
+  return(similarity)
 }
 
 
@@ -137,14 +156,49 @@ install_multimatch <- function() {
 }
 
 
-#' multi_match
+#' Compute MultiMatch Metrics for Scanpath Similarity
 #'
-#' @description
-#' \code{multi_match} compares two scanpaths based on vector, direction, length, position, and duration.
+#' This function computes multiple similarity metrics between two scanpaths, including vector, direction, length, position, duration, and EMD-based position similarity.
 #'
-#' @param x the first \code{scanpath}
-#' @param y the second \code{scanpath}
-#' @param screensize a two element vector indicating screen size
+#' @param x A data frame representing the first scanpath. Must contain at least three columns: \code{x}, \code{y}, and \code{onset}, and at least three rows.
+#' @param y A data frame representing the second scanpath. Must contain at least three columns: \code{x}, \code{y}, and \code{onset}, and at least three rows.
+#' @param screensize A numeric vector of length 2 indicating the width and height of the screen in pixels.
+#'
+#' @details
+#' The function computes six different similarity metrics between the scanpaths \code{x} and \code{y}:
+#' \itemize{
+#'   \item \code{mm_vector}: Similarity based on the 2D vectors between fixations.
+#'   \item \code{mm_direction}: Similarity based on the direction (angle) of saccades between fixations.
+#'   \item \code{mm_length}: Similarity based on the length of saccades between fixations.
+#'   \item \code{mm_position}: Similarity based on the spatial position of fixations.
+#'   \item \code{mm_duration}: Similarity based on the duration of fixations.
+#'   \item \code{mm_position_emd}: Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.
+#' }
+#'
+#' The function ensures that both scanpaths have strictly increasing onset times and contain at least three fixations. It also normalizes the similarity scores to lie between 0 and 1, with higher values indicating greater similarity.
+#'
+#' @return A named numeric vector with the following elements:
+#' \describe{
+#'   \item{mm_vector}{Similarity based on the 2D vectors between fixations.}
+#'   \item{mm_direction}{Similarity based on the direction (angle) of saccades between fixations.}
+#'   \item{mm_length}{Similarity based on the length of saccades between fixations.}
+#'   \item{mm_position}{Similarity based on the spatial position of fixations.}
+#'   \item{mm_duration}{Similarity based on the duration of fixations.}
+#'   \item{mm_position_emd}{Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' scanpath1 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
+#' scanpath2 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
+#' screensize <- c(500, 500)
+#' similarity_scores <- multi_match(scanpath1, scanpath2, screensize)
+#' print(similarity_scores)
+#' }
+#'
+#' @importFrom dplyr arrange
+#' @importFrom stats median
 #' @export
 multi_match <- function(x,y, screensize) {
 
@@ -190,9 +244,12 @@ multi_match <- function(x,y, screensize) {
   position_d <- vector_diff_2d(sacx, sacy, as.integer(gout$vpath), "x", "y", cds)
   position_sim <- 1 - (median(position_d)) / (sqrt(screensize[1]^2 + (screensize[2]^2)))
 
+  emd_position_sim <- emd_position_similarity(sacx, sacy, screensize)
+
   c(mm_vector=vector_sim, mm_direction=direction_sim,
     mm_length=length_sim, mm_position=position_sim,
-    mm_duration=duration_sim)
+    mm_duration=duration_sim,
+    mm_position_emd=emd_position_sim)
 }
 
 
