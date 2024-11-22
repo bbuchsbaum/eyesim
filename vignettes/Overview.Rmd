@@ -116,7 +116,7 @@ To compute the similarity between any two `fixation_group`s we use the `similari
 
 ed1 <- eye_density(fg1, sigma=50, xbounds=c(0,100), ybounds=c(0,100))
 ed2 <- eye_density(fg2, sigma=50, xbounds=c(0,100), ybounds=c(0,100))
-
+ed3 <- eye_density(fg2, sigma=50, xbounds=c(0,100), ybounds=c(0,100), duration_weighted = TRUE)
 
 s1 <- similarity(ed1,ed2)
 s1

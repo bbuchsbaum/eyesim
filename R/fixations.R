@@ -31,7 +31,7 @@ fixation_group <- function(x, y, duration, onset, group=0) {
 
 #' @export
 rep_fixations.fixation_group <- function(x, resolution=100) {
-  nreps <- as.integer(x$duration/resolution)
+  nreps <- as.integer(x$duration/ (1/resolution))
   nreps[nreps < 1] <- 1
   x <- x[rep(1:nrow(x), nreps),]
   x

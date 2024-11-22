@@ -9,6 +9,6 @@ test_that("can center a fixation_group", {
   duration <- rep(1,length(x))
   fixgroup <- fixation_group(x,y,onset,duration)
   cfix <- center(fixgroup)
-  expect_true(mean(cfix$x) == 0)
-  expect_true(mean(cfix$y) == 0)
+  expect_equivalent(mean(cfix$x), 0)
+  expect_equivalent(mean(cfix$y), 0)
 })
