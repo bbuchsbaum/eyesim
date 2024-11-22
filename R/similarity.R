@@ -325,45 +325,213 @@ print.eye_density <- function(x,...) {
 #' @export
 #' @importFrom MASS kde2d
 #' @family eye_density
-eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
-                                       outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
-                                       normalize=TRUE, duration_weighted=FALSE, window=NULL,  origin=c(0,0)) {
+#' eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
+#'                                        outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
+#'                                        normalize=TRUE, duration_weighted=FALSE, window=NULL,  origin=c(0,0)) {
+#'
+#'   if (!is.null(window)) {
+#'     assertthat::assert_that(window[2] > window[1])
+#'     assert_that("onset" %in% colnames(x))
+#'     x <- filter(x, onset >= window[1] & onset < window[2])
+#'     assertthat::assert_that(nrow(x) > 0)
+#'   }
+#'
+#'
+#'   wts <- if (duration_weighted) {
+#'     x$duration
+#'   } else {
+#'     rep(1, nrow(x))
+#'   }
+#'
+#'   out <- if (duration_weighted || !is.null(window)) {
+#'     xrep <- rep_fixations(x, 50)
+#'     xrep <- x
+#'     kde2d(xrep$x, xrep$y, h=sigma, n=outdim, lims=c(xbounds, ybounds))
+#'   } else {
+#'     kde2d(x$x, x$y, n=outdim, h=sigma, lims=c(xbounds, ybounds))
+#'   }
+#'
+#'   if (normalize) {
+#'     out$z <- out$z/sum(out$z)
+#'   }
+#'
+#'   out$z <- zapsmall(out$z)
+#'
+#'   out$fixgroup <- x
+#'
+#'   class(out) <- c("eye_density", "density", "list")
+#'   out
+#'
+#'   #ret <- blurpoints(cbind(x$x, x$y), sigma=sigma, xbounds=xbounds, ybounds=ybounds, resolution=resolution, weights=wts, normalize=normalize)
+#' }
+#'
+#'
+#' #' Compute a density map for a fixation group.
+#' #'
+#' #' This function computes a density map for a given fixation group using kernel density estimation.
+#' #'
+#' #' @param x A fixation_group object.
+#' #' @param sigma The standard deviation of the kernel. Default is 50.
+#' #' @param xbounds The x-axis bounds. Default is the range of x values in the fixation group.
+#' #' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
+#' #' @param outdim The output dimensions of the density map. Default is the difference between the xbounds and ybounds.
+#' #' @param normalize Whether to normalize the output map. Default is TRUE.
+#' #' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
+#' #' @param window The temporal window over which to compute the density map. Default is NULL.
+#' #' @param origin The origin of the coordinate system. Default is c(0,0).
+#' #'
+#' #' @details The function computes a density map for a given fixation group using the kde2d function from the MASS package. The density map is computed based on the x and y coordinates of the fixations, with optional weighting by their duration. The resulting density map can be normalized if desired.
+#' #'
+#' #' @return An object of class c("eye_density", "density", "list") containing the computed density map and other relevant information.
+#' #' @export
+#' #' @importFrom MASS kde2d
+#' #' @family eye_density
+#' eye_density.fixation_group <- function(x, sigma=50, xbounds=c(min(x$x), max(x$x)), ybounds=c(min(x$y), max(x$y)),
+#'                                        outdim=c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
+#'                                        normalize=TRUE, duration_weighted=FALSE, window=NULL,  origin=c(0,0)) {
+#'
+#'   if (!is.null(window)) {
+#'     assertthat::assert_that(window[2] > window[1])
+#'     assert_that("onset" %in% colnames(x))
+#'     x <- filter(x, onset >= window[1] & onset < window[2])
+#'     assertthat::assert_that(nrow(x) > 0)
+#'   }
+#'
+#'
+#'   wts <- if (duration_weighted) {
+#'     x$duration
+#'   } else {
+#'     rep(1, nrow(x))
+#'   }
+#'
+#'   out <- if (duration_weighted || !is.null(window)) {
+#'     xrep <- rep_fixations(x, 50)
+#'     xrep <- x
+#'     kde2d(xrep$x, xrep$y, h=sigma, n=outdim, lims=c(xbounds, ybounds))
+#'   } else {
+#'     kde2d(x$x, x$y, n=outdim, h=sigma, lims=c(xbounds, ybounds))
+#'   }
+#'
+#'   if (normalize) {
+#'     out$z <- out$z/sum(out$z)
+#'   }
+#'
+#'   out$z <- zapsmall(out$z)
+#'
+#'   out$fixgroup <- x
+#'
+#'   class(out) <- c("eye_density", "density", "list")
+#'   out
+#'
+#'   #ret <- blurpoints(cbind(x$x, x$y), sigma=sigma, xbounds=xbounds, ybounds=ybounds, resolution=resolution, weights=wts, normalize=normalize)
+#' }
 
+#' Compute a density map for a fixation group.
+#'
+#' This function computes a density map for a given fixation group using kernel density estimation.
+#'
+#' @param x A fixation_group object.
+#' @param sigma The standard deviation of the kernel. Default is 50.
+#' @param xbounds The x-axis bounds. Default is the range of x values in the fixation group.
+#' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
+#' @param outdim The output dimensions of the density map. Default is c(100, 100).
+#' @param normalize Whether to normalize the output map. Default is TRUE.
+#' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
+#' @param window The temporal window over which to compute the density map. Default is NULL.
+#' @param origin The origin of the coordinate system. Default is c(0,0).
+#'
+#' @details The function computes a density map for a given fixation group using the kde function from the ks package. The density map is computed based on the x and y coordinates of the fixations, with optional weighting by their duration. The resulting density map can be normalized if desired.
+#'
+#' @return An object of class c("eye_density", "density", "list") containing the computed density map and other relevant information.
+#' @export
+#' @importFrom ks kde
+#' @importFrom dplyr filter
+#' @importFrom assertthat assert_that
+eye_density.fixation_group <- function(x, sigma = 50,
+                                       xbounds = c(min(x$x), max(x$x)),
+                                       ybounds = c(min(x$y), max(x$y)),
+                                       outdim = c(100, 100),
+                                       normalize = TRUE, duration_weighted = FALSE,
+                                       window = NULL, origin = c(0, 0)) {
+
+  # Load necessary packages
+  require(ks)
+  require(dplyr)
+  require(assertthat)
+
+  # Filter by window if specified
   if (!is.null(window)) {
-    assertthat::assert_that(window[2] > window[1])
-    assert_that("onset" %in% colnames(x))
+    assert_that(length(window) == 2,
+                msg = "Window must be a numeric vector of length 2.")
+    assert_that(window[2] > window[1],
+                msg = "The second element of window must be greater than the first.")
+    assert_that("onset" %in% colnames(x),
+                msg = "The data frame must contain an 'onset' column.")
+
     x <- filter(x, onset >= window[1] & onset < window[2])
-    assertthat::assert_that(nrow(x) > 0)
+    assert_that(nrow(x) > 0,
+                msg = "No fixations remain after applying the window filter.")
   }
 
+  # Prepare data and weights
+  data_matrix <- as.matrix(x[, c("x", "y")])
 
-  wts <- if (duration_weighted) {
-    x$duration
+  if (duration_weighted) {
+    #print("duration weighted")
+    # Ensure duration is numeric and positive
+    assert_that("duration" %in% colnames(x),
+                msg = "The data frame must contain a 'duration' column.")
+    assert_that(is.numeric(x$duration),
+                msg = "'duration' must be numeric.")
+    assert_that(all(x$duration > 0),
+                msg = "All durations must be positive.")
+
+    weights <- x$duration
   } else {
-    rep(1, nrow(x))
+    #print("not duration weighted")
+    weights <- rep(1, nrow(x))
   }
 
-  out <- if (duration_weighted || !is.null(window)) {
-    xrep <- rep_fixations(x, 50)
-    xrep <- x
-    kde2d(xrep$x, xrep$y, h=sigma, n=outdim, lims=c(xbounds, ybounds))
-  } else {
-    kde2d(x$x, x$y, n=outdim, h=sigma, lims=c(xbounds, ybounds))
-  }
+  weights <- weights/sum(weights) * length(weights)
+  #print(weights)
 
+  # Set bandwidth for each dimension (sigma)
+  H <- diag(rep(sigma, 2))
+
+  # Define grid points based on outdim
+  gridsize <- outdim
+
+  # Perform kernel density estimation using ks::kde
+  kde_result <- kde(x = data_matrix,
+                    H = H,
+                    gridsize = gridsize,
+                    xmin = c(xbounds[1], ybounds[1]),
+                    xmax = c(xbounds[2], ybounds[2]),
+                    w = weights,
+                    compute.cont = FALSE)  # Disable contour levels if not needed
+
+  # Extract the density matrix
+  density_matrix <- kde_result$estimate
+
+  # Normalize the density map if required
   if (normalize) {
-    out$z <- out$z/sum(out$z)
+    density_matrix <- density_matrix / sum(density_matrix)
   }
 
-  out$z <- zapsmall(out$z)
+  # Remove very small values to avoid floating-point issues
+  density_matrix <- zapsmall(density_matrix)
 
-  out$fixgroup <- x
+  # Structure the output similarly to kde2d for compatibility
+  out_list <- list(x = kde_result$eval.points[[1]],
+                   y = kde_result$eval.points[[2]],
+                   z = density_matrix,
+                   fixgroup = x)
 
-  class(out) <- c("eye_density", "density", "list")
-  out
+  class(out_list) <- c("eye_density", "density", "list")
 
-  #ret <- blurpoints(cbind(x$x, x$y), sigma=sigma, xbounds=xbounds, ybounds=ybounds, resolution=resolution, weights=wts, normalize=normalize)
+  return(out_list)
 }
+
 
 Ops.eye_density <- function(e1,e2) {
     op = .Generic[[1]]
