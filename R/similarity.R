@@ -454,10 +454,6 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        normalize = TRUE, duration_weighted = FALSE,
                                        window = NULL, origin = c(0, 0)) {
 
-  # Load necessary packages
-  require(ks)
-  require(dplyr)
-  require(assertthat)
 
   # Filter by window if specified
   if (!is.null(window)) {
@@ -495,14 +491,15 @@ eye_density.fixation_group <- function(x, sigma = 50,
   weights <- weights/sum(weights) * length(weights)
   #print(weights)
 
-  # Set bandwidth for each dimension (sigma)
-  H <- diag(rep(sigma, 2))
+  density_matrix <- if (duration_weighted) {
+    # Set bandwidth for each dimension (sigma)
+    H <- diag(rep(sigma*4, 2))
 
-  # Define grid points based on outdim
-  gridsize <- outdim
+    # Define grid points based on outdim
+    gridsize <- outdim
 
-  # Perform kernel density estimation using ks::kde
-  kde_result <- kde(x = data_matrix,
+    # Perform kernel density estimation using ks::kde
+    kde_result <- ks::kde(x = data_matrix, 
                     H = H,
                     gridsize = gridsize,
                     xmin = c(xbounds[1], ybounds[1]),
@@ -510,10 +507,18 @@ eye_density.fixation_group <- function(x, sigma = 50,
                     w = weights,
                     compute.cont = FALSE)  # Disable contour levels if not needed
 
-  # Extract the density matrix
-  density_matrix <- kde_result$estimate
+    eval_points <- list(kde_result$eval.points[[1]], kde_result$eval.points[[2]])
+    # Extract the density matrix
+    density_matrix <- kde_result$estimate
 
-  # Normalize the density map if required
+  } else {
+    kde_result <- MASS::kde2d(x$x, x$y, n=outdim, h=sigma, lims=c(xbounds, ybounds))
+    eval_points <- list(kde_result$x, kde_result$y)
+    kde_result$z
+    
+  }
+
+   # Normalize the density map if required
   if (normalize) {
     density_matrix <- density_matrix / sum(density_matrix)
   }
@@ -521,6 +526,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
   # Remove very small values to avoid floating-point issues
   density_matrix <- zapsmall(density_matrix)
 
+  #browser()
   # Structure the output similarly to kde2d for compatibility
   out_list <- list(x = kde_result$eval.points[[1]],
                    y = kde_result$eval.points[[2]],
