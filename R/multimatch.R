@@ -1,4 +1,3 @@
-
 #' @noRd
 #' @keywords internal
 merge_fix <- function(fg) {
@@ -211,7 +210,7 @@ multi_match <- function(x,y, screensize) {
     stop("multi_match: x `onset` vector must be strictly increasing")
   }
 
-  if (any(diff(x$onset) <= 0)) {
+  if (any(diff(y$onset) <= 0)) {
     stop("multi_match: y `onset` vector must be strictly increasing")
   }
 
@@ -289,5 +288,44 @@ py_multi_match <- function(fg1, fg2,
   ret <- mmgaze$docomparison(fix1, fix2, as.integer(screensize), grouping=grouping, TDir=tdir,TDur=tdur,TAmp=tamp)
   names(ret) <- c("mm_vector", "mm_direction", "mm_length", "mm_position", "mm_duration")
   ret
+}
+
+#' @noRd
+#' Compute weighted Earth Mover's Distance (Wasserstein-1) between two 2-D point clouds.
+#'
+#' This helper tries to use the T4transport package (preferred) and falls back to the
+#' transport package if available. Points are supplied as two-column matrices with
+#' corresponding non-negative weights that need not sum to one (they will be
+#' normalised internally).
+#'
+#' @param x Matrix of coordinates (n \times 2).
+#' @param wx Numeric vector of weights for `x` (length n).
+#' @param y Matrix of coordinates (m \times 2).
+#' @param wy Numeric vector of weights for `y` (length m).
+#' @return A single numeric value – the Earth Mover's Distance.
+#' @keywords internal
+emdw <- function(x, wx, y, wy, lambda = 0.01) {
+  # Prefer emdist::emdw if available (package already in Imports)
+  if (requireNamespace("emdist", quietly = TRUE)) {
+    return(emdist::emdw(x, wx, y, wy))
+  }
+
+  # Fall back to T4transport if available
+  if (requireNamespace("T4transport", quietly = TRUE)) {
+    dmat <- proxy::dist(x, y)
+    wx <- wx / sum(wx)
+    wy <- wy / sum(wy)
+    return(T4transport::sinkhornD(dmat, wx = wx, wy = wy, lambda = lambda)$distance)
+  }
+
+  # Finally, attempt with transport package
+  if (requireNamespace("transport", quietly = TRUE)) {
+    df1 <- data.frame(x = x[, 1], y = x[, 2], mass = wx / sum(wx))
+    df2 <- data.frame(x = y[, 1], y = y[, 2], mass = wy / sum(wy))
+    res <- transport::transport(df1, df2, p = 1)
+    return(sum(res$dist * res$mass))
+  }
+
+  stop("Could not compute EMD: please install the 'emdist', 'T4transport', or 'transport' package.")
 }
 

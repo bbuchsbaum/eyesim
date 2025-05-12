@@ -1,48 +1,10 @@
-
 #' Calculate Eye Density by Groups
 #'
 #' This function calculates the eye density for fixations, grouped by specified variables.
 #'
 #' @param x A data frame containing fixations and additional grouping variables.
 #' @param groups A character vector specifying the grouping variables to use.
-#' @param sigma A numeric value specifying the bandwidth for the kernel density estimation (default is 50).
-#' @param xbounds A numeric vector of length 2 specifying the x-axis bounds for the density calculation (default is c(0, 1000)).
-#' @param ybounds A numeric vector of length 2 specifying the y-axis bounds for the density calculation (default is c(0, 1000)).
-#' @param outdim A numeric vector of length 2 specifying the dimensions of the output density matrix (default is c(100, 100)).
-#' @param duration_weighted A logical value indicating whether the density should be weighted by fixation duration (default is TRUE).
-#' @param window A numeric vector of length 2 specifying the time window for selecting fixations (default is NULL).
-#' @param keep_vars A character vector specifying additional variables to keep in the output (default is NULL).
-#' @param fixvar A character string specifying the name of the fixation variable (default is "fixgroup").
-#' @param result_name A character string specifying the name for the density result variable (default is "density").
-#' @param ... Additional arguments passed to the `eye_density` function.
-#'
-#' @return A data frame containing the original grouping variables, the fixations, and the density result.
-#'
-#' @examples
-#' # Create a data frame with fixations and a grouping variable
-#' fixations <- data.frame(
-#'   subject = rep(c("A", "B"), each = 25),
-#'   x = runif(50, 0, 1000),
-#'   y = runif(50, 0, 1000),
-#'   duration = rep(1, 50),
-#'   onset = seq(1, 50)
-#' )
-#'
-#' # Calculate eye density by subject
-#' result <- density_by(fixations, groups = "subject")
-#'
-#' @export
-#' @family density_by
-#' @import rlang
-#' @importFrom dplyr group_by do rowwise
-#' @importFrom tibble as_tibble
-#' Calculate Eye Density by Groups
-#'
-#' This function calculates the eye density for fixations, grouped by specified variables.
-#'
-#' @param x A data frame containing fixations and additional grouping variables.
-#' @param groups A character vector specifying the grouping variables to use.
-#' @param sigma A numeric value specifying the bandwidth for the kernel density estimation (default is 50).
+#' @param sigma A numeric value or a numeric vector specifying the bandwidth(s) for the kernel density estimation. If a vector is provided, multiscale densities are computed. Default is 50.
 #' @param xbounds A numeric vector of length 2 specifying the x-axis bounds for the density calculation (default is c(0, 1000)).
 #' @param ybounds A numeric vector of length 2 specifying the y-axis bounds for the density calculation (default is c(0, 1000)).
 #' @param outdim A numeric vector of length 2 specifying the dimensions of the output density matrix (default is c(100, 100)).
@@ -52,7 +14,7 @@
 #' @param result_name A character string specifying the name for the density result variable (default is "density").
 #' @param ... Additional arguments passed to the `eye_density.fixation_group` function.
 #'
-#' @return A data frame containing the original grouping variables, the fixations, and the density result.
+#' @return A data frame containing the original grouping variables, the fixations, and the density result. If `sigma` is a vector, the column specified by `result_name` will contain `eye_density_multiscale` objects.
 #'
 #' @examples
 #' # Create a data frame with fixations and a grouping variable

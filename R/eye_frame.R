@@ -178,9 +178,6 @@ simulate_eye_table <- function(n_fixations, n_groups, clip_bounds=c(0,1280, 0,12
 }
 
 
-#mutate.eye_table <- function(.data, ...) {
-#  as_eye_table(NextMethod())
-#}
 
 
 

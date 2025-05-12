@@ -1,4 +1,6 @@
 
+#' @noRd 
+#' @experimental
 #' @import crqa
 crqa <- function(fg1, fg2, radius=60, delay=1, embed=1, rescale=0, metric=c("euclidean", "manhattan")) {
   nr1 <- nrow(fg1)

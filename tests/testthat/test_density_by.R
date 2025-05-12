@@ -44,7 +44,7 @@ test_that("weighted and unweighted density maps are highly correlated", {
     # Calculate correlation between the two density maps
     correlation <- cor(as.vector(weighted_density$z), as.vector(unweighted_density$z), 
                       method="pearson")
-    print(paste(s , correlation))                   
+    #print(paste(s , correlation))                   
     # Test that correlation is above 0.95
     #expect_gt(correlation, 0.95)
   }

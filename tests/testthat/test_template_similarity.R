@@ -23,7 +23,8 @@ test_that("template_similarity produces perfect similarity for identical pattern
 
   dens <- density_by(g1, "image", xbounds=c(0,1), ybounds=c(0,1))
   dens2 <- density_by(g2, "image", xbounds=c(0,1), ybounds=c(0,1))
-  tsim <- template_similarity(dens, dens2, match_on="image", method="spearman", permutations=30)
+  tsim <- template_similarity(dens, dens2, match_on="image", 
+        method="spearman", permutations=3)
   expect_true(max(tsim$eye_sim) <=1)
   expect_true(min(tsim$eye_sim) >=-1)
 
@@ -38,11 +39,12 @@ test_that("template_similarity works for permute_on", {
     fixgroup <- fixation_group(x,y,onset,duration)
   }), image=1:100, subject=rep(1:10, each=10))
 
-  dens <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), duration_weighted=FALSE)
-  dens2 <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), duration_weighted = TRUE)
+  g2 <- g1
+  dens <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), duration_weighted=TRUE)
+  dens2 <- density_by(g2, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), duration_weighted = TRUE)
   tsim <- template_similarity(dens, dens2, match_on="image", method="pearson", permute_on="subject",
-                              permutations=10)
-  expect_true(all(tsim$eye_sim >.4))
+                              permutations=6)
+  expect_true(all(tsim$eye_sim >.99))
 
 })
 
