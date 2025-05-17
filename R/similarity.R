@@ -215,7 +215,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @return A data frame or tibble containing the source table and additional columns with the similarity scores and permutation results.
 #' @export
 template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
-                                method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
+                                method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
                                 permutations=10, multiscale_aggregation = "mean", ...) {
 
 
@@ -722,22 +722,52 @@ similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap"),
 
 
 
+
 #' @importFrom proxy simil
 #' @export
-similarity.density <- function(x, y, method=c("pearson", "spearman", "fisherz", "cosine",
-                                              "l1", "jaccard", "dcov"), ...) {
-  method=match.arg(method)
-
-  if (inherits(y, "density")) {
-    y <- y$z
+similarity.density <- function(x, y,
+                               method = c("pearson", "spearman", "fisherz",
+                                           "cosine", "l1", "jaccard",
+                                           "dcov", "emd"),
+                               saliency_map = NULL, ...) {
+  method <- match.arg(method)
+  if (method == "emd") {
+    compute_similarity(x, y, method = method, saliency_map = saliency_map)
+  } else {
+    if (inherits(y, "density")) {
+      y <- y$z
+    }
+    compute_similarity(x$z, as.vector(y), method)
   }
-
-  compute_similarity(x$z, as.vector(y), method)
-
 }
-
-compute_similarity <- function(x,y, method=c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")) {
-  method=match.arg(method)
+compute_similarity <- function(x, y,
+                              method = c("pearson", "spearman", "fisherz",
+                                          "cosine", "l1", "jaccard", "dcov",
+                                          "emd"),
+                              saliency_map = NULL) {
+  method <- match.arg(method)
+  if (method == "emd") {
+    if (!all(c("x", "y", "z") %in% names(x)) || !all(c("x", "y", "z") %in% names(y))) {
+      stop("method 'emd' requires eye_density objects with x, y, z components")
+    }
+    coords <- as.matrix(expand.grid(x = x$x, y = x$y))
+    wx <- as.vector(x$z)
+    wy <- as.vector(y$z)
+    if (!is.null(saliency_map)) {
+      s_mat <- if (is.list(saliency_map) && !is.null(saliency_map$z)) saliency_map$z else saliency_map
+      if (!all(dim(s_mat) == dim(x$z))) stop("saliency_map dimensions must match density maps")
+      r1 <- x$z - s_mat
+      r2 <- y$z - s_mat
+      pos1 <- pmax(r1, 0); neg1 <- pmax(-r1, 0)
+      pos2 <- pmax(r2, 0); neg2 <- pmax(-r2, 0)
+      emd_pos <- emdw(coords, as.vector(pos1), coords, as.vector(pos2))
+      emd_neg <- emdw(coords, as.vector(neg1), coords, as.vector(neg2))
+      return(-(emd_pos + emd_neg))
+    } else {
+      emd_dist <- emdw(coords, wx, coords, wy)
+      return(1/(1 + emd_dist))
+    }
+  }
   vx <- as.vector(x)
   vy <- as.vector(y)
 

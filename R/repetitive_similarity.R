@@ -67,7 +67,7 @@
 repetitive_similarity <- function(tab,
                                   density_var = "density",
                                   condition_var,
-                                  method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
+                                  method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
                                   pairwise = FALSE,
                                   multiscale_aggregation = "mean",
                                   ...) {

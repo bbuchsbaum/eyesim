@@ -11,7 +11,7 @@ template_similarity(
   permute_on = NULL,
   refvar = "density",
   sourcevar = "density",
-  method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov"),
+  method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
   permutations = 10,
   ...
 )
@@ -29,7 +29,7 @@ template_similarity(
 
 \item{sourcevar}{A character string representing the name of the variable containing density maps in the source table (default is "density").}
 
-\item{method}{A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov" (default is "spearman").}
+\item{method}{A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov", "emd" (default is "spearman").}
 
 \item{permutations}{A numeric value specifying the number of permutations for the baseline map (default is 10).}
 
