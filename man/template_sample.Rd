@@ -19,7 +19,7 @@ template_sample(
 
 \item{fixgroup}{the name of the fixation group supplying the spatiotemporal coordinates used to sample the template}
 
-\item{time}{the time points used to extract coordinates from the the `fixation_group`}
+\item{time}{the time points used to extract coordinates from the `fixation_group`}
 
 \item{outcol}{the name of the output variable}
 }
