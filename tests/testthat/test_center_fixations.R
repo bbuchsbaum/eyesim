@@ -1,6 +1,6 @@
 
 context("centering")
-options(future.rng.onMisue = "ignore")
+options(future.rng.onMisuse = "ignore")
 
 test_that("can center a fixation_group", {
   x <- runif(10)

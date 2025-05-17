@@ -4,7 +4,7 @@ library(dplyr)
 context("density_by")
 
 test_that("template_similarity produces perfect similarity for identical patterns", {
-  options(future.rng.onMisue = "ignore")
+  options(future.rng.onMisuse = "ignore")
   g1 <- tibble(fixgroup=lapply(1:10, function(i) {
     x <- runif(10)
     y <- runif(10)
