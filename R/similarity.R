@@ -564,24 +564,25 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
 
 Ops.eye_density <- function(e1,e2) {
+    stopifnot(all(e1$x == e2$x), all(e1$y == e2$y))
     op = .Generic[[1]]
     switch(op,
            `-` = {
              delta <- e1$z - e2$z
              #delta <- (delta - min(delta))/(max(delta) - min(delta))
-             structure(list(x=e1$x, y=e2$y, z=delta, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
+             structure(list(x=e1$x, y=e1$y, z=delta, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
                        class=c("eye_density_delta", "eye_density", "density", "list"))
 
            },
            `+` = {
              add = (e1$z + e2$z)/2
-             structure(list(x=e1$x, y=e2$y, z=add, fixgorup=rbind(e1$fixgroup, e2$fixgroup)),
+             structure(list(x=e1$x, y=e1$y, z=add, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
                        class=c("eye_density_add", "eye_density", "density", "list"))
 
            },
            `/` = {
              div = log(e1$z/e2$z)
-             structure(list(x=e1$x, y=e2$y, z=div, fixgorup=rbind(e1$fixgroup, e2$fixgroup)),
+             structure(list(x=e1$x, y=e1$y, z=div, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
                        class=c("eye_density_div", "eye_density", "density", "list"))
 
            },
