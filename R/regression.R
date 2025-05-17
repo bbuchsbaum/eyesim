@@ -152,7 +152,7 @@ template_regression <- function(ref_tab, source_tab, match_on,
 #' @param source_tab the name of the table containing the density map and fixations
 #' @param template the name of the template density variable
 #' @param fixgroup the name of the fixation group supplying the spatiotemporal coordinates used to sample the template
-#' @param time the time points used to extract coordinates from the the `fixation_group`
+#' @param time the time points used to extract coordinates from the `fixation_group`
 #' @param outcol the name of the output variable
 #' @export
 #' @importFrom purrr pmap
