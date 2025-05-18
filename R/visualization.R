@@ -97,17 +97,7 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
 plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
                              transform=c("identity", "sqroot", "curoot", "rank"), ...) {
   transform <- match.arg(transform)
-  trans <- if (transform == "identity") {
-    "identity"
-  } else if (transform == "sqroot") {
-    squareroot_trans
-  } else if (transform == "curoot") {
-    cuberoot_trans
-  } else if (transform == "rank") {
-    rank_trans
-  } else {
-    "identity"
-  }
+  trans <- resolve_transform(transform)
 
   xlim <- range(x$x)
   ylim <- range(x$y)
@@ -226,17 +216,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
 
 
 
-  trans <- if (transform == "identity") {
-    "identity"
-  } else if (transform == "sqroot") {
-    squareroot_trans
-  } else if (transform == "curoot") {
-    cuberoot_trans
-  } else if (transform == "rank") {
-    rank_trans
-  } else {
-    "identity"
-  }
+  trans <- resolve_transform(transform)
 
 
   p <- if (type== "contour") {
