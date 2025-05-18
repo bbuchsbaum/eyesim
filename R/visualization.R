@@ -205,8 +205,13 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
   }
 
   if (size_points) {
-    ps <- (x$duration - min(x$duration)) / (max(x$duration) - min(x$duration))
-    x$psize <- ps*2 + 1
+    d_range <- max(x$duration) - min(x$duration)
+    if (d_range == 0) {
+      x$psize <- 1
+    } else {
+      ps <- (x$duration - min(x$duration)) / d_range
+      x$psize <- ps * 2 + 1
+    }
   }
 
   p <- ggplot(data=x, aes(x=x, y=y)) +
