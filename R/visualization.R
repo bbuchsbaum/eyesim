@@ -304,19 +304,5 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
   p
 }
 
-#' @noRd
-rank_trans <- scales::trans_new(name="rank",
-                                transform=function(x) { rank(x) },
-                                inverse=function(x) (length(x)+1) - rank(x))
-
-#' @noRd
-cuberoot_trans <- scales::trans_new(name="curoot",
-                                    transform=function(x) { x^(1/3) },
-                                    inverse=function(x) x^3)
-
-#' @noRd
-squareroot_trans <- scales::trans_new(name="sqroot",
-                                    transform=function(x) { x^(1/2) },
-                                    inverse=function(x) x^2)
 
 
