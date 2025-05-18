@@ -53,7 +53,7 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
 
 
   p <- if (type == "points") {
-    p + geom_point(aes(colour=onset, size=15), alpha=alpha, show.legend=FALSE) +
+    p + geom_point(aes(colour=onset), size=15, alpha=alpha, show.legend=FALSE) +
       scale_colour_gradientn(colours=rev(brewer.pal(n=10, "Spectral"))) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       labs(title = 'Onset: {frame_time}') +
