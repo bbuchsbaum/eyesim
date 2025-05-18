@@ -615,8 +615,8 @@ sigmoid <- function (x, a = 1, b = 0)  {
 #'
 #' This function computes the similarity between two scanpaths using a specified method.
 #'
-#' @param x A data frame containing the first scanpath.
-#' @param y A data frame containing the second scanpath.
+#' @param x A scanpath object containing the first scanpath.
+#' @param y A scanpath object containing the second scanpath.
 #' @param method A character string specifying the method to compute the similarity (default is "multimatch").
 #' @param window A numeric vector of length 2 specifying the time window to restrict the fixations in the input scanpaths (default is NULL, which considers all fixations).
 #' @param screensize A numeric vector of length 2 specifying the dimensions of the screen (e.g., c(1000, 1000)). Required for the "multimatch" method.
@@ -636,6 +636,10 @@ sigmoid <- function (x, a = 1, b = 0)  {
 similarity.scanpath <- function(x, y, method=c("multimatch"),
                                       window=NULL,
                                       screensize=NULL,...) {
+
+  if (!inherits(x, "scanpath")) {
+    stop("`x` must be of type `scanpath`")
+  }
 
   if (!inherits(y, "scanpath")) {
     stop("`y` must be of type `scanpath`")

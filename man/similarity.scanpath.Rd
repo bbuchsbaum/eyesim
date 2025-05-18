@@ -14,9 +14,9 @@
 )
 }
 \arguments{
-\item{x}{A data frame containing the first scanpath.}
+\item{x}{A scanpath object containing the first scanpath.}
 
-\item{y}{A data frame containing the second scanpath.}
+\item{y}{A scanpath object containing the second scanpath.}
 
 \item{method}{A character string specifying the method to compute the similarity (default is "multimatch").}
 
