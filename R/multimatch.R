@@ -216,9 +216,9 @@ multi_match <- function(x,y, screensize) {
 
   if (nrow(x) < 3 || nrow(y) < 3) {
     warning("multi_match requires 3 or more coordinates in each scanpath, returning NAs")
-    c(mm_vector=NA, mm_direction=NA,
-      mm_length=NA, mm_position=NA,
-      mm_duration=NA)
+    return(c(mm_vector=NA, mm_direction=NA,
+             mm_length=NA, mm_position=NA,
+             mm_duration=NA))
 
   }
 
