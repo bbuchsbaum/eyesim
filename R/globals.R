@@ -27,8 +27,6 @@ globalVariables(unique(c(
   "onset",
   # similarity.scanpath:
   "onset",
-  # simplify_dir:
-  "onset",
   # template_multireg:
   ".",
   # template_multireg : <anonymous>:
