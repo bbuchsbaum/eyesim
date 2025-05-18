@@ -61,18 +61,18 @@ emd_position_similarity <- function(fg1, fg2, screensize) {
 
 
 #' @noRd
-duration_diff_1d <- function(dur1, dur2, path, cds) {
+duration_diff_1d <- function(dur1, dur2, cds) {
   dur1 <- dur1[cds[,1]]
   dur2 <- dur2[cds[,2]]
 
   adiff <- abs(dur1-dur2)
-  denom <- sapply(1:length(dur1), function(i) max(dur1[i], dur2[i]))
+  denom <- pmax(dur1, dur2)
   adiff/denom
 }
 
 
 #' @noRd
-angle_diff_1d <- function(theta1, theta2, path, cds) {
+angle_diff_1d <- function(theta1, theta2, cds) {
   theta1 <- theta1[cds[,1]]
   theta2 <- theta2[cds[,2]]
 
@@ -85,7 +85,7 @@ angle_diff_1d <- function(theta1, theta2, path, cds) {
 }
 
 #' @noRd
-vector_diff_1d <- function(x,y,path, v1, metric=c("l1", "l2"), cds) {
+vector_diff_1d <- function(x,y, v1, metric=c("l1", "l2"), cds) {
   metric <- match.arg(metric)
   x1 = x[[v1]]
   x2 = y[[v1]]
@@ -94,7 +94,7 @@ vector_diff_1d <- function(x,y,path, v1, metric=c("l1", "l2"), cds) {
   #cds <- cbind(cds[,2], cds[,1])
 
   if (metric == "l2") {
-    sqrt((x1[cds[,1]] - x2[cds[,2]])^2)
+    abs(x1[cds[,1]] - x2[cds[,2]])
   } else {
     x1[cds[,1]] - x2[cds[,2]]
   }
@@ -102,7 +102,7 @@ vector_diff_1d <- function(x,y,path, v1, metric=c("l1", "l2"), cds) {
 }
 
 #' @noRd
-vector_diff_2d <- function(x,y,path, v1,v2, cds) {
+vector_diff_2d <- function(x,y, v1,v2, cds) {
   x1 = x[[v1]]
   x2 = y[[v1]]
   y1 = x[[v2]]
@@ -233,19 +233,19 @@ multi_match <- function(x,y, screensize) {
 
   cds <- cbind(rnum, cnum)
 
-  vector_d <- vector_diff_2d(sacx, sacy, as.integer(gout$vpath), "lenx", "leny", cds)
+  vector_d <- vector_diff_2d(sacx, sacy, "lenx", "leny", cds)
   vector_sim <-  1- median(vector_d) / (2 * sqrt(screensize[1]^2 + (screensize[2]^2)))
 
-  direction_d <- angle_diff_1d(sacx$theta,sacy$theta, as.integer(gout$vpath), cds)
+  direction_d <- angle_diff_1d(sacx$theta, sacy$theta, cds)
   direction_sim <- 1 - median(direction_d) / pi
 
-  duration_d <- duration_diff_1d(sacx$duration,sacy$duration, as.integer(gout$vpath), cds)
+  duration_d <- duration_diff_1d(sacx$duration, sacy$duration, cds)
   duration_sim <- 1 - median(duration_d)
 
-  length_d <- abs(vector_diff_1d(sacx, sacy, as.integer(gout$vpath), "rho", metric="l1", cds))
+  length_d <- abs(vector_diff_1d(sacx, sacy, "rho", metric="l1", cds))
   length_sim <- 1 - (median(length_d)) / (sqrt(screensize[1]^2 + (screensize[2]^2)))
 
-  position_d <- vector_diff_2d(sacx, sacy, as.integer(gout$vpath), "x", "y", cds)
+  position_d <- vector_diff_2d(sacx, sacy, "x", "y", cds)
   position_sim <- 1 - (median(position_d)) / (sqrt(screensize[1]^2 + (screensize[2]^2)))
 
   emd_position_sim <- emd_position_similarity(sacx, sacy, screensize)
