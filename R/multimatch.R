@@ -1,47 +1,4 @@
 #' @noRd
-#' @keywords internal
-merge_fix <- function(fg) {
-  v_x = sum(fg$lenx)
-  v_y = sum(fg$leny)
-  polar <- cart2pol(v_x, v_y)
-  tibble(index=fg$index[1], x=fg$x[1], y=fg$y[1], duration=sum(fg$duration), onset=fg$onset[1],
-         group_index=fg$group_index[1], lenx=v_x, leny=v_y, rho=polar[,1], theta=polar[,2])
-}
-
-#' @noRd
-simplify_dir <- function(x, TDir, TDur) {
-  G <- do.call(rbind, purrr::map(1:(nrow(x)-1), function(i) {
-    ang <- calcangle(c(x$lenx[i], x$leny[i]), c(x$lenx[i+1], x$leny[i+1]))
-    if (ang < TDir & x$duration[i+1] < TDur) {
-      cbind(i, i+1)
-    } else {
-      NULL
-    }
-  }) )
-
-  if (is.null(G) || nrow(G) == 0) {
-    return(x)
-  }
-
-
-  gs <- igraph::groups(igraph::components(igraph::graph_from_data_frame(G)))
-  m <- as.integer(unlist(gs))
-
-  merged <- do.call(rbind, lapply(gs, function(fg) {
-    merge_fix(x[as.integer(fg),])
-  }))
-
-  if (length(m) != nrow(x)) {
-    singletons <- (1:nrow(x))[!(1:nrow(x) %in% m)]
-    rem <- x[singletons,]
-    out <- rbind(merged, rem) %>% arrange(onset) %>% mutate(index=1:n())
-  } else {
-    out <- merged %>% arrange(onset) %>% mutate(index=1:n())
-  }
-
-}
-
-#' @noRd
 emd_position_similarity <- function(fg1, fg2, screensize) {
   # Extract x and y coordinates
   points1 <- as.matrix(fg1[, c("x", "y")])
