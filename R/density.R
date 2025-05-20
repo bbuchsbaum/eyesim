@@ -43,14 +43,21 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
   vars <- c(groups, keep_vars)
 
   if (!missing(groups) && !is.null(groups) ) {
-    ret <- x %>% group_by(.dots=groups) %>% do( {
-      g <- do.call(rbind, .[[fixvar]])
-      cbind(.[1,vars],tibble(!!fixvar := list(g)))
-    }) %>% rowwise() %>% do( {
-      d <- eye_density(.[[fixvar]], sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
-                       duration_weighted=duration_weighted, window=window, origin=attr(x, "origin"), ...)
-      cbind(as_tibble(.[vars]), tibble(!!fixvar :=list(.[[fixvar]]), !!rname := list(d)))
-    })
+    ret <- x %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(groups))) %>%
+      do({
+        g <- do.call(rbind, .[[fixvar]])
+        cbind(.[1, vars], tibble(!!fixvar := list(g)))
+      }) %>%
+      dplyr::rowwise() %>%
+      do({
+        d <- eye_density(.[[fixvar]], sigma,
+                         xbounds = xbounds, ybounds = ybounds, outdim = outdim,
+                         duration_weighted = duration_weighted, window = window,
+                         origin = attr(x, "origin"), ...)
+        cbind(as_tibble(.[vars]),
+              tibble(!!fixvar := list(.[[fixvar]]), !!rname := list(d)))
+      })
   } else {
     #browser()
     fx <- do.call(rbind, x[[fixvar]])
@@ -61,9 +68,11 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
   }
 
   # Remove rows where density computation failed (NULL results)
-  if (any(sapply(ret[[result_name]], is.null))) {
+  if (any(vapply(ret[[result_name]], is.null, logical(1)))) {
     warning("Removing rows with NULL density results in density_by().")
-    ret <- ret %>% dplyr::filter(!sapply(.data[[result_name]], is.null))
+    ret <- ret %>%
+      dplyr::ungroup() %>%
+      dplyr::filter(!vapply(.data[[result_name]], is.null, logical(1)))
   }
 
   ret
