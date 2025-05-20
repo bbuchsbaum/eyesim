@@ -345,11 +345,18 @@ print.eye_density <- function(x,...) {
 #' @param normalize Whether to normalize the output map. Default is TRUE.
 #' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
 #' @param window The temporal window over which to compute the density map. Default is NULL.
+#' @param min_fixations Minimum number of fixations required to compute a density map.
+#'   If fewer fixations are present after optional filtering, the function returns NULL.
+#'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 #'
-#' @return An object of class `eye_density` (inheriting from `density` and `list`) if `sigma` is a single value, or an object of class `eye_density_multiscale` (a list of `eye_density` objects) if `sigma` is a vector. Returns `NULL` if filtering by `window` leaves fewer than 2 fixations, or if density computation fails (e.g., due to zero weights).
+#' @return An object of class `eye_density` (inheriting from `density` and `list`) if
+#'   `sigma` is a single value, or an object of class `eye_density_multiscale` (a
+#'   list of `eye_density` objects) if `sigma` is a vector. Returns `NULL` if
+#'   filtering by `window` leaves fewer than `min_fixations` fixations, or if
+#'   density computation fails (e.g., due to zero weights).
 #' @export
 #' @importFrom ks kde
 #' @importFrom dplyr filter
@@ -359,7 +366,8 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        ybounds = c(min(x$y), max(x$y)),
                                        outdim = c(100, 100),
                                        normalize = TRUE, duration_weighted = FALSE,
-                                       window = NULL, origin = c(0, 0),
+                                       window = NULL, min_fixations = 2,
+                                       origin = c(0, 0),
                                        kde_pkg = "ks",
                                        ...) {
 
@@ -383,8 +391,10 @@ eye_density.fixation_group <- function(x, sigma = 50,
   }
 
   # Basic check for enough data points for KDE
-  if (nrow(x_filtered) < 2) {
-      warning("Not enough fixations (need >= 2) to compute density. Returning NULL. Provided: ", nrow(x_filtered))
+  if (nrow(x_filtered) < min_fixations) {
+      warning(paste0("Not enough fixations (need >= ", min_fixations,
+                     ") to compute density. Returning NULL. Provided: ",
+                     nrow(x_filtered)))
       return(NULL)
   }
 

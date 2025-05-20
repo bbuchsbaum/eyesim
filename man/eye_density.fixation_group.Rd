@@ -13,6 +13,7 @@
   normalize = TRUE,
   duration_weighted = FALSE,
   window = NULL,
+  min_fixations = 2,
   origin = c(0, 0)
 )
 }
@@ -32,6 +33,8 @@
 \item{duration_weighted}{Whether to weight the fixations by their duration. Default is FALSE.}
 
 \item{window}{The temporal window over which to compute the density map. Default is NULL.}
+
+\item{min_fixations}{Minimum number of fixations required to compute a density map. If fewer are present after filtering, the function returns \code{NULL}. Default is 2.}
 
 \item{origin}{The origin of the coordinate system. Default is c(0,0).}
 }

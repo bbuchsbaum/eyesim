@@ -13,6 +13,7 @@ density_by(
   outdim = c(100, 100),
   duration_weighted = TRUE,
   window = NULL,
+  min_fixations = 2,
   keep_vars = NULL,
   fixvar = "fixgroup",
   result_name = "density",
@@ -35,6 +36,8 @@ density_by(
 \item{duration_weighted}{A logical value indicating whether the density should be weighted by fixation duration (default is TRUE).}
 
 \item{window}{A numeric vector of length 2 specifying the time window for selecting fixations (default is NULL).}
+
+\item{min_fixations}{Minimum number of fixations required for computing a density map. Rows with fewer fixations will receive \code{NULL} results. Default is 2.}
 
 \item{keep_vars}{A character vector specifying additional variables to keep in the output (default is NULL).}
 

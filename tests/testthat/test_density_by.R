@@ -78,3 +78,19 @@ test_that("weighted and unweighted density maps are highly correlated", {
   # Test that correlation is above 0.95 for clustered data
   expect_gt(correlation2, 0.95)
 })
+
+test_that("density_by handles min_fixations correctly", {
+  fg_single <- fixation_group(x = 100, y = 100, onset = 1, duration = 1)
+  tab <- tibble(fixgroup = list(fg_single), grp = 1)
+
+  dens_default <- expect_warning(
+    density_by(tab, groups = "grp", xbounds = c(0, 200), ybounds = c(0, 200)),
+    "Removing rows"
+  )
+  expect_equal(nrow(dens_default), 0)
+
+  dens_allowed <- density_by(tab, groups = "grp", xbounds = c(0, 200),
+                             ybounds = c(0, 200), min_fixations = 1)
+  expect_equal(nrow(dens_allowed), 1)
+  expect_s3_class(dens_allowed$density[[1]], "eye_density")
+})

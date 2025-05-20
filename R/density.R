@@ -10,6 +10,9 @@
 #' @param outdim A numeric vector of length 2 specifying the dimensions of the output density matrix (default is c(100, 100)).
 #' @param duration_weighted A logical value indicating whether the density should be weighted by fixation duration (default is TRUE).
 #' @param window A numeric vector of length 2 specifying the time window for selecting fixations (default is NULL).
+#' @param min_fixations Minimum number of fixations required for computing a density map.
+#'   Rows with fewer fixations after optional filtering will receive `NULL` in the
+#'   result column. Default is 2.
 #' @param keep_vars A character vector specifying additional variables to keep in the output (default is NULL).
 #' @param result_name A character string specifying the name for the density result variable (default is "density").
 #' @param ... Additional arguments passed to the `eye_density.fixation_group` function.
@@ -35,7 +38,8 @@
 #' @importFrom dplyr group_by do rowwise
 #' @importFrom tibble as_tibble
 density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
-                       duration_weighted=TRUE, window=NULL, keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
+                       duration_weighted=TRUE, window=NULL, min_fixations=2,
+                       keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
 
   ## TODO what happens if window produces fixations < 0?
 
@@ -54,6 +58,7 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
         d <- eye_density(.[[fixvar]], sigma,
                          xbounds = xbounds, ybounds = ybounds, outdim = outdim,
                          duration_weighted = duration_weighted, window = window,
+                         min_fixations = min_fixations,
                          origin = attr(x, "origin"), ...)
         cbind(as_tibble(.[vars]),
               tibble(!!fixvar := list(.[[fixvar]]), !!rname := list(d)))
@@ -62,7 +67,9 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
     #browser()
     fx <- do.call(rbind, x[[fixvar]])
     d <- eye_density(fx, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
-                     duration_weighted=duration_weighted, window=window,origin=attr(x, "origin"), ...)
+                     duration_weighted=duration_weighted, window=window,
+                     min_fixations=min_fixations,
+                     origin=attr(x, "origin"), ...)
     ret <- tibble(!!fixvar := list(fx), !!rname := list(d))
 
   }
