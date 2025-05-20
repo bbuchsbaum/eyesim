@@ -45,6 +45,15 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     d1 <- ref_tab[[refvar]][[.$matchind]]  # Reference data
     d2 <- .[[sourcevar]]                  # Source data
 
+    is_valid_density <- function(obj) {
+      inherits(obj, c("density", "eye_density", "eye_density_multiscale")) && !is.null(obj)
+    }
+
+    if (!is_valid_density(d1) || !is_valid_density(d2)) {
+      warning("Invalid or NULL density encountered in run_similarity_analysis(). Returning NA for this comparison.")
+      return(tibble(eye_sim = NA_real_, perm_sim = NA_real_, eye_sim_diff = NA_real_))
+    }
+
     # Define a helper function inline to calculate similarity, passing multiscale_aggregation
     calculate_sim <- function(d1, d2, method, window = NULL, ...) {
         args_list <- list(...)

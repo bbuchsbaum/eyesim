@@ -60,6 +60,12 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 
   }
 
+  # Remove rows where density computation failed (NULL results)
+  if (any(sapply(ret[[result_name]], is.null))) {
+    warning("Removing rows with NULL density results in density_by().")
+    ret <- ret %>% dplyr::filter(!sapply(.data[[result_name]], is.null))
+  }
+
   ret
 
 }
