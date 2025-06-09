@@ -35,7 +35,7 @@
 #'
 #' @export
 #' @import rlang
-#' @importFrom dplyr group_by do rowwise
+#' @importFrom dplyr group_by group_split bind_rows
 #' @importFrom tibble as_tibble
 density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
                        duration_weighted=TRUE, window=NULL, min_fixations=2,
@@ -47,22 +47,20 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
   vars <- c(groups, keep_vars)
 
   if (!missing(groups) && !is.null(groups) ) {
-    ret <- x %>%
+    ret_list <- x %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(groups))) %>%
-      do({
-        g <- do.call(rbind, .[[fixvar]])
-        cbind(.[1, vars], tibble(!!fixvar := list(g)))
-      }) %>%
-      dplyr::rowwise() %>%
-      do({
-        d <- eye_density(.[[fixvar]], sigma,
+      dplyr::group_split() %>%
+      lapply(function(df) {
+        g <- do.call(rbind, df[[fixvar]])
+        d <- eye_density(g, sigma,
                          xbounds = xbounds, ybounds = ybounds, outdim = outdim,
                          duration_weighted = duration_weighted, window = window,
                          min_fixations = min_fixations,
                          origin = attr(x, "origin"), ...)
-        cbind(as_tibble(.[vars]),
-              tibble(!!fixvar := list(.[[fixvar]]), !!rname := list(d)))
+        tibble::as_tibble(df[1, vars]) %>%
+          dplyr::mutate(!!fixvar := list(g), !!rname := list(d))
       })
+    ret <- dplyr::bind_rows(ret_list)
   } else {
     #browser()
     fx <- do.call(rbind, x[[fixvar]])
