@@ -74,36 +74,45 @@ vector_diff_2d <- function(x,y, v1,v2, cds) {
 
 
 #' @noRd
-create_graph <- function(x,y) {
+create_graph <- function(x, y) {
   M <- proxy::dist(cbind(x$lenx, x$leny), cbind(y$lenx, y$leny))
-  M_assignment <- matrix(seq(nrow(M) * ncol(M)), nrow(M), ncol(M), byrow=TRUE)
+  M_assignment <- matrix(seq(nrow(M) * ncol(M)), nrow(M), ncol(M), byrow = TRUE)
 
-  # loop through every node rowwise
-  out <- do.call(rbind, lapply(seq(1, nrow(M)), function(i) {
-     # loop through every node columnwise
-     do.call(rbind, lapply(seq(1, ncol(M)), function(j) {
-       currentNode = (i-1) * ncol(M) + j
-        # if in the last (bottom) row, only go right
-        if (i == nrow(M) && (j < ncol(M))) {
-          cbind(currentNode, currentNode+1,(M[i, j + 1]))
-        } else if (i < nrow(M) && j == ncol(M)) {
-          cbind(currentNode, currentNode+ncol(M),M[i + 1, j])
-        } else if ((i == nrow(M)) && (j == ncol(M))) {
-          cbind(currentNode, currentNode,0)
-        } else {
-            cbind(rep(currentNode,3),
-                  c(currentNode+1,currentNode+ncol(M), currentNode+ncol(M)+1),
-                  c(M[i, j + 1],M[i + 1, j], M[i + 1, j + 1]))
-        }
-     }))
-  }))
+  nr <- nrow(M)
+  nc <- ncol(M)
 
-  g <- igraph::graph_from_data_frame(out[,1:2])
-  igraph::E(g)$weight <- out[,3]
-  spath <- igraph::shortest_paths(g, 1, max(igraph::V(g)), weights=igraph::E(g)$weight, output="both", predecessors = TRUE)
-  list(g=g, vpath=spath$vpath[[1]], epath=spath$epath[[1]], M=M, M_assignment=M_assignment, pred=spath$predecessors)
+  edges_right <- if (nc > 1) {
+    start <- M_assignment[, -nc, drop = FALSE]
+    cbind(as.vector(start), as.vector(start + 1), as.vector(M[, -1, drop = FALSE]))
+  } else {
+    NULL
+  }
 
+  edges_down <- if (nr > 1) {
+    start <- M_assignment[-nr, , drop = FALSE]
+    cbind(as.vector(start), as.vector(start + nc), as.vector(M[-1, , drop = FALSE]))
+  } else {
+    NULL
+  }
+
+  edges_diag <- if (nr > 1 && nc > 1) {
+    start <- M_assignment[-nr, -nc, drop = FALSE]
+    cbind(as.vector(start), as.vector(start + nc + 1), as.vector(M[-1, -1, drop = FALSE]))
+  } else {
+    NULL
+  }
+
+  last_node <- M_assignment[nr, nc]
+  edges_last <- matrix(c(last_node, last_node, 0), nrow = 1)
+
+  out <- rbind(edges_right, edges_down, edges_diag, edges_last)
+
+  g <- igraph::graph_from_data_frame(out[, 1:2])
+  igraph::E(g)$weight <- out[, 3]
+  spath <- igraph::shortest_paths(g, 1, max(igraph::V(g)), weights = igraph::E(g)$weight, output = "both", predecessors = TRUE)
+  list(g = g, vpath = spath$vpath[[1]], epath = spath$epath[[1]], M = M, M_assignment = M_assignment, pred = spath$predecessors)
 }
+
 
 
 #' @export
