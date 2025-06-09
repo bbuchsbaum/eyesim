@@ -100,90 +100,78 @@ repetitive_similarity <- function(tab,
     dplyr::ungroup() %>%   # drop any grouping structure
     dplyr::mutate(.row_id = dplyr::row_number())
 
-  all_conditions <- unique(tab[[condition_var]])
+  n_rows <- nrow(tab)
 
-  # Use map instead of map_dbl initially to handle potential vector returns
-  results_list <- purrr::map(1:nrow(tab), function(i) {
-    current_row <- tab[i, ]
-    current_density <- current_row[[density_var]][[1]]
-    current_condition <- current_row[[condition_var]]
-    current_row_id <- current_row$.row_id
+  # Pre-compute similarity matrix for all density pairs
+  sim_matrix <- matrix(vector("list", n_rows * n_rows), nrow = n_rows, ncol = n_rows)
 
-    # Indices for same condition (excluding self)
-    same_cond_indices <- which(tab[[condition_var]] == current_condition & tab$.row_id != current_row_id)
-    # Indices for other conditions
-    other_cond_indices <- which(tab[[condition_var]] != current_condition)
-
-    # Similarity function now returns a list of similarities (potentially vectors)
-    sim_fun_list <- function(other_idx) {
-       if (length(other_idx) == 0) return(list()) # Return empty list
-       purrr::map(other_idx, function(j) { # Use map here
-           other_density <- tab[[density_var]][[j]]
-           if (is.null(current_density) || is.null(other_density)) return(NA_real_)
-           # Pass multiscale_aggregation here
-           tryCatch({
-             similarity(current_density, other_density, method = method,
-                        multiscale_aggregation = multiscale_aggregation, ...)
-           }, error = function(e) {
-             warning("Error in similarity calculation for row ", i, " vs ", j, ": ", e$message)
-             NA_real_
-           })
-       })
-    }
-
-    repsim_values_list <- sim_fun_list(same_cond_indices)
-    othersim_values_list <- sim_fun_list(other_cond_indices)
-
-    # Calculate mean similarity across scales for repsim/othersim columns
-    # Regardless of multiscale_aggregation, these columns report the mean.
-    calculate_mean_sim <- function(sim_list) {
-        if (length(sim_list) == 0) return(NA_real_)
-        # Calculate mean for each comparison (element in sim_list)
-        comparison_means <- purrr::map_dbl(sim_list, function(sim_val) {
-            if (all(is.na(sim_val))) return(NA_real_)
-            mean(sim_val, na.rm = TRUE)
+  if (n_rows > 1) {
+    combn_idx <- utils::combn(n_rows, 2)
+    pair_vals <- purrr::map(seq_len(ncol(combn_idx)), function(k) {
+      i <- combn_idx[1, k]; j <- combn_idx[2, k]
+      d1 <- tab[[density_var]][[i]]
+      d2 <- tab[[density_var]][[j]]
+      if (is.null(d1) || is.null(d2)) {
+        NA_real_
+      } else {
+        tryCatch({
+          similarity(d1, d2, method = method,
+                     multiscale_aggregation = multiscale_aggregation, ...)
+        }, error = function(e) {
+          warning("Error in similarity calculation for row ", i, " vs ", j, ": ", e$message)
+          NA_real_
         })
-        # Calculate mean of those means
-        mean(comparison_means, na.rm = TRUE)
+      }
+    })
+    for (k in seq_len(ncol(combn_idx))) {
+      i <- combn_idx[1, k]; j <- combn_idx[2, k]
+      sim_matrix[[i, j]] <- pair_vals[[k]]
+      sim_matrix[[j, i]] <- pair_vals[[k]]
     }
+  }
+  for (i in seq_len(n_rows)) sim_matrix[[i, i]] <- NA_real_
 
-    repsim_mean <- calculate_mean_sim(repsim_values_list)
-    othersim_mean <- calculate_mean_sim(othersim_values_list)
+  calculate_mean_sim <- function(sim_list) {
+    if (length(sim_list) == 0) return(NA_real_)
+    comparison_means <- purrr::map_dbl(sim_list, function(sim_val) {
+      if (all(is.na(sim_val))) return(NA_real_)
+      mean(sim_val, na.rm = TRUE)
+    })
+    mean(comparison_means, na.rm = TRUE)
+  }
 
-    # Create result list
-    res_list <- list(
-      repsim = repsim_mean,
-      othersim = othersim_mean
-    )
+  repsim_vec <- numeric(n_rows)
+  othersim_vec <- numeric(n_rows)
+  pairwise_list <- vector("list", n_rows)
+
+  for (i in seq_len(n_rows)) {
+    current_condition <- tab[[condition_var]][[i]]
+    same_idx <- which(tab[[condition_var]] == current_condition & seq_len(n_rows) != i)
+    other_idx <- which(tab[[condition_var]] != current_condition)
+
+    repsim_vals <- sim_matrix[i, same_idx]
+    othersim_vals <- sim_matrix[i, other_idx]
+
+    repsim_vec[i] <- calculate_mean_sim(repsim_vals)
+    othersim_vec[i] <- calculate_mean_sim(othersim_vals)
 
     if (pairwise) {
-      # Store the potentially multi-value list; filter out NAs within each vector/scalar
-      # This will result in a list column where each element is a list of similarity results
-      # (each result being a scalar or vector depending on multiscale_aggregation)
-       processed_repsim_list <- purrr::map(repsim_values_list, function(sim_val) {
-             if (is.atomic(sim_val)) {
-                  stats::na.omit(sim_val)
-             } else {
-                  sim_val # Keep structure if not atomic (e.g., already processed NAs)
-             }
-        })
-       # Filter out comparisons that resulted in only NAs or were empty after na.omit
-       # processed_repsim_list <- Filter(function(x) length(x) > 0, processed_repsim_list)
-
-      # Wrap the processed list in an additional list so that downstream code/tests can
-       # reliably access it with `[[1]][[1]]`, obtaining the list of pairwise comparisons.
-       # This maintains backward-compatibility with existing expectations.
-       res_list$pairwise_repsim <- list(processed_repsim_list) # Store list of similarity results (scalar or vector)
+      processed_repsim <- purrr::map(repsim_vals, function(sim_val) {
+        if (is.atomic(sim_val)) {
+          stats::na.omit(sim_val)
+        } else {
+          sim_val
+        }
+      })
+      pairwise_list[[i]] <- list(processed_repsim)
     }
+  }
 
-    return(tibble::as_tibble(res_list))
+  result_tab <- tibble::tibble(repsim = repsim_vec, othersim = othersim_vec)
+  if (pairwise) result_tab$pairwise_repsim <- pairwise_list
 
-  })
-
-  # Combine results and remove temporary ID
-  results_df <- dplyr::bind_rows(results_list)
-  out_tab <- dplyr::bind_cols(tab, results_df) %>% # bind_cols handles list columns
-             dplyr::select(-.row_id) # Remove temporary row id
+  out_tab <- dplyr::bind_cols(tab, result_tab) %>%
+    dplyr::select(-.row_id)
 
   return(out_tab)
 }
