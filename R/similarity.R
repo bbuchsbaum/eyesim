@@ -246,26 +246,25 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 #'
 #' @return A data frame with columns "z" and "time", where "z" contains the sampled density values and "time" contains the corresponding time points.
 #' @export
-sample_density.density <- function(x, fix, times=NULL) {
+sample_density.density <- function(x, fix, times = NULL) {
+  nearest_index <- function(coord, grid) {
+    ind <- round(approx(grid, seq_along(grid), coord, rule = 2)$y)
+    ind[ind < 1L] <- 1L
+    ind[ind > length(grid)] <- length(grid)
+    ind
+  }
+
   if (is.null(times)) {
-    cds <- as.matrix(cbind(fix$x, fix$y))
-    ix <- sapply(cds[,1], function(p) which.min(abs(x$x - p)))
-    iy <- sapply(cds[,2], function(p) which.min(abs(x$y - p)))
-    data.frame(z=x$z[cbind(ix,iy)], time=fix$onset)
+    cds <- cbind(fix$x, fix$y)
+    ix <- nearest_index(cds[, 1], x$x)
+    iy <- nearest_index(cds[, 2], x$y)
+    data.frame(z = x$z[cbind(ix, iy)], time = fix$onset)
   } else {
     fg <- sample_fixations(fix, times)
-    cds <- as.matrix(cbind(fg$x, fg$y))
-    res <- lapply(1:nrow(cds), function(i) {
-      i1 <- which.min(abs(x$x - cds[i,1]))
-      i2 <- which.min(abs(x$y - cds[i,2]))
-      if (length(i1) > 0) {
-        x$z[i1,i2]
-      } else {
-        NA
-      }
-    })
-
-    data.frame(z=unlist(res), time=times)
+    cds <- cbind(fg$x, fg$y)
+    ix <- nearest_index(cds[, 1], x$x)
+    iy <- nearest_index(cds[, 2], x$y)
+    data.frame(z = x$z[cbind(ix, iy)], time = times)
   }
 }
 
