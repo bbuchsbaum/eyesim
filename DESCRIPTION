@@ -44,3 +44,4 @@ Suggests:
     covr,
     roxygen2
 VignetteBuilder: knitr
+URL: https://bbuchsbaum.github.io/eyesim/

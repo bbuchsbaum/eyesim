@@ -1,0 +1,94 @@
+---
+title: "Repetitive Similarity"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Repetitive Similarity}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+library(eyesim)
+library(dplyr)
+library(ggplot2)
+```
+
+## Repetitive Similarity
+
+The `repetitive_similarity` function computes eye-movement similarity for datasets where the same stimulus is viewed multiple times across experimental conditions. This is particularly useful for memory experiments where images are presented during encoding and later during retrieval phases.
+
+Rather than comparing specific encoding-retrieval pairs, repetitive similarity examines all possible within-stimulus combinations across conditions and computes summary statistics (mean, median, etc.) to characterize the overall similarity pattern.
+
+## Example
+
+Let's simulate a simple dataset with images viewed during encoding and retrieval:
+
+```{r}
+# Generate sample fixation data
+gen_fixations <- function(imname, phase, trial, participant) {
+  nfix <- ceiling(runif(1) * 8) + 2  # 2-10 fixations
+  cds <- data.frame(x = runif(nfix) * 100, y = runif(nfix) * 100)
+  onset <- cumsum(runif(nfix) * 50)
+  
+  data.frame(
+    x = cds$x, y = cds$y, onset = onset,
+    duration = c(diff(onset), 50),
+    image = imname, phase = phase, 
+    trial = trial, participant = participant
+  )
+}
+
+# Create dataset: 2 participants, 3 images, encoding + retrieval
+df <- lapply(c("s1", "s2"), function(snum) {
+  lapply(c("encoding", "retrieval"), function(phase) {
+    lapply(paste0("img", 1:3), function(img) {
+      gen_fixations(img, phase, img, snum)
+    }) %>% bind_rows()
+  }) %>% bind_rows()
+}) %>% bind_rows()
+
+# Create eye_table
+eyetab <- eye_table("x", "y", "duration", "onset", 
+                   groupvar = c("participant", "phase", "image"), 
+                   data = df)
+
+# Compute density maps
+eyedens <- density_by(eyetab, groups = c("phase", "image", "participant"), 
+                     sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
+```
+
+Now compute repetitive similarity:
+
+```{r}
+# Run repetitive similarity analysis
+rep_sim <- repetitive_similarity(eyedens, 
+                               phase_var = "phase", 
+                               stimulus_var = "image",
+                               method = "pearson")
+
+print(rep_sim)
+```
+
+## Visualization
+
+```{r, fig.width=8, fig.height=5}
+# Plot the similarity results
+ggplot(rep_sim, aes(x = image, y = rep_sim_mean)) +
+  geom_col(fill = "steelblue", alpha = 0.7) +
+  geom_errorbar(aes(ymin = rep_sim_mean - rep_sim_sd, 
+                    ymax = rep_sim_mean + rep_sim_sd),
+                width = 0.2) +
+  labs(x = "Stimulus", y = "Mean Repetitive Similarity",
+       title = "Eye-movement Similarity Across Encoding-Retrieval") +
+  theme_minimal()
+```
+
+The `repetitive_similarity` function provides a straightforward way to quantify how consistently participants look at the same locations when viewing repeated stimuli across different experimental phases.

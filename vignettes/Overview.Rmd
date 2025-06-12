@@ -245,6 +245,29 @@ hist(simres1$eye_sim_diff, main="corrected eye movement similarity")
 
 ```
 
+## Multiscale analysis
+
+Rather than choosing a single bandwidth (sigma) value, we can perform multiscale analysis by providing a vector of sigma values. This approach avoids the need to arbitrarily select a single smoothing parameter and instead captures similarity across multiple spatial scales.
+
+```{r, warning=FALSE}
+# Compute multiscale density maps using multiple sigma values
+eyedens_multi <- density_by(eyetab, groups=c("phase", "image", "participant"), 
+                           sigma=c(25, 50, 100), xbounds=c(0,100), ybounds=c(0,100))
+
+enc_dens_multi <- eyedens_multi %>% filter(phase == "encoding")
+ret_dens_multi <- eyedens_multi %>% filter(phase == "retrieval")
+
+# Run template similarity analysis with multiscale data
+simres_multi <- template_similarity(enc_dens_multi, ret_dens_multi, 
+                                  match_on="image", method="fisherz", permutations=50)
+
+# Compare single-scale vs multiscale results
+cat("Single-scale mean similarity:", round(mean(simres1$eye_sim_diff), 4), "\n")
+cat("Multiscale mean similarity:", round(mean(simres_multi$eye_sim_diff), 4), "\n")
+```
+
+The multiscale approach provides a more robust similarity estimate by averaging across different levels of spatial smoothing.
+
 
 
 
