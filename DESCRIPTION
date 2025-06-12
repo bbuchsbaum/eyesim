@@ -43,6 +43,8 @@ Suggests:
     reticulate,
     testthat,
     covr,
-    roxygen2
+    roxygen2,
+    patchwork,
+    ggridges
 VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/
