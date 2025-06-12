@@ -28,10 +28,11 @@ Imports:
     magrittr,
     pracma,
     emdist,
+    nnls,
     rlang (>= 0.4.11)
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2.9000
 Remotes: 
   bbuchsbaum/colorplane
 Depends: 
