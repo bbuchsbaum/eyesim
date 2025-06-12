@@ -29,6 +29,7 @@ Imports:
     pracma,
     emdist,
     nnls,
+    energy,
     rlang (>= 0.4.11)
 Encoding: UTF-8
 LazyData: true
