@@ -70,8 +70,7 @@ Now compute repetitive similarity:
 ```{r}
 # Run repetitive similarity analysis
 rep_sim <- repetitive_similarity(eyedens, 
-                               phase_var = "phase", 
-                               stimulus_var = "image",
+                               condition_var = "phase",
                                method = "pearson")
 
 print(rep_sim)
@@ -81,13 +80,17 @@ print(rep_sim)
 
 ```{r, fig.width=8, fig.height=5}
 # Plot the similarity results
-ggplot(rep_sim, aes(x = image, y = rep_sim_mean)) +
+ggplot(rep_sim, aes(x = image, y = repsim)) +
   geom_col(fill = "steelblue", alpha = 0.7) +
-  geom_errorbar(aes(ymin = rep_sim_mean - rep_sim_sd, 
-                    ymax = rep_sim_mean + rep_sim_sd),
-                width = 0.2) +
-  labs(x = "Stimulus", y = "Mean Repetitive Similarity",
-       title = "Eye-movement Similarity Across Encoding-Retrieval") +
+  labs(x = "Stimulus", y = "Repetitive Similarity",
+       title = "Eye-movement Similarity Within Phase") +
+  theme_minimal()
+
+# Also plot other similarity
+ggplot(rep_sim, aes(x = image, y = othersim)) +
+  geom_col(fill = "coral", alpha = 0.7) +
+  labs(x = "Stimulus", y = "Other Similarity", 
+       title = "Eye-movement Similarity Across Different Phases") +
   theme_minimal()
 ```
 
