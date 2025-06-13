@@ -256,7 +256,6 @@ py_multi_match <- function(fg1, fg2,
   ret
 }
 
-#' @noRd
 #' Compute weighted Earth Mover's Distance (Wasserstein-1) between two 2-D point clouds.
 #'
 #' This helper tries to use the T4transport package (preferred) and falls back to the
@@ -270,6 +269,7 @@ py_multi_match <- function(fg1, fg2,
 #' @param wy Numeric vector of weights for `y` (length m).
 #' @return A single numeric value – the Earth Mover's Distance.
 #' @keywords internal
+#' @noRd
 emdw <- function(x, wx, y, wy, lambda = 0.01) {
   # Prefer emdist::emdw if available (package already in Imports)
   if (requireNamespace("emdist", quietly = TRUE)) {

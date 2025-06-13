@@ -581,6 +581,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
 }
 
 
+#' @export
 Ops.eye_density <- function(e1,e2) {
     stopifnot(all(e1$x == e2$x), all(e1$y == e2$y))
     op = .Generic[[1]]

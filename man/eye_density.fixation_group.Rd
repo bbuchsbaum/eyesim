@@ -9,24 +9,26 @@
   sigma = 50,
   xbounds = c(min(x$x), max(x$x)),
   ybounds = c(min(x$y), max(x$y)),
-  outdim = c(xbounds[2] - xbounds[1], ybounds[2] - ybounds[1]),
+  outdim = c(100, 100),
   normalize = TRUE,
   duration_weighted = FALSE,
   window = NULL,
   min_fixations = 2,
-  origin = c(0, 0)
+  origin = c(0, 0),
+  kde_pkg = "ks",
+  ...
 )
 }
 \arguments{
 \item{x}{A fixation_group object.}
 
-\item{sigma}{The standard deviation of the kernel. Default is 50.}
+\item{sigma}{The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.}
 
 \item{xbounds}{The x-axis bounds. Default is the range of x values in the fixation group.}
 
 \item{ybounds}{The y-axis bounds. Default is the range of y values in the fixation group.}
 
-\item{outdim}{The output dimensions of the density map. Default is the difference between the xbounds and ybounds.}
+\item{outdim}{The output dimensions of the density map. Default is c(100, 100).}
 
 \item{normalize}{Whether to normalize the output map. Default is TRUE.}
 
@@ -34,21 +36,26 @@
 
 \item{window}{The temporal window over which to compute the density map. Default is NULL.}
 
-\item{min_fixations}{Minimum number of fixations required to compute a density map. If fewer are present after filtering, the function returns \code{NULL}. Default is 2.}
+\item{min_fixations}{Minimum number of fixations required to compute a density map.
+If fewer fixations are present after optional filtering, the function returns NULL.
+Default is 2.}
 
 \item{origin}{The origin of the coordinate system. Default is c(0,0).}
+
+\item{kde_pkg}{The package to use for kernel density estimation. Default is "ks".}
+
+\item{...}{Additional arguments passed to the kernel density estimation function.}
 }
 \value{
-An object of class c("eye_density", "density", "list") containing the computed density map and other relevant information.
+An object of class `eye_density` (inheriting from `density` and `list`) if
+  `sigma` is a single value, or an object of class `eye_density_multiscale` (a
+  list of `eye_density` objects) if `sigma` is a vector. Returns `NULL` if
+  filtering by `window` leaves fewer than `min_fixations` fixations, or if
+  density computation fails (e.g., due to zero weights).
 }
 \description{
 This function computes a density map for a given fixation group using kernel density estimation.
 }
 \details{
-The function computes a density map for a given fixation group using the kde2d function from the MASS package. The density map is computed based on the x and y coordinates of the fixations, with optional weighting by their duration. The resulting density map can be normalized if desired.
+The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 }
-\seealso{
-Other eye_density: 
-\code{\link{eye_density}()}
-}
-\concept{eye_density}

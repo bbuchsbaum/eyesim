@@ -14,6 +14,7 @@ run_similarity_analysis(
   refvar,
   sourcevar,
   window = NULL,
+  multiscale_aggregation = "mean",
   ...
 )
 }

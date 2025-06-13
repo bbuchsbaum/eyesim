@@ -2,17 +2,57 @@
 % Please edit documentation in R/multimatch.R
 \name{multi_match}
 \alias{multi_match}
-\title{multi_match}
+\title{Compute MultiMatch Metrics for Scanpath Similarity}
 \usage{
 multi_match(x, y, screensize)
 }
 \arguments{
-\item{x}{the first \code{scanpath}}
+\item{x}{A data frame representing the first scanpath. Must contain at least three columns: \code{x}, \code{y}, and \code{onset}, and at least three rows.}
 
-\item{y}{the second \code{scanpath}}
+\item{y}{A data frame representing the second scanpath. Must contain at least three columns: \code{x}, \code{y}, and \code{onset}, and at least three rows.}
 
-\item{screensize}{a two element vector indicating screen size}
+\item{screensize}{A numeric vector of length 2 indicating the width and height of the screen in pixels.}
+}
+\value{
+A named numeric vector with the following elements:
+\describe{
+  \item{mm_vector}{Similarity based on the 2D vectors between fixations.}
+  \item{mm_direction}{Similarity based on the direction (angle) of saccades between fixations.}
+  \item{mm_length}{Similarity based on the length of saccades between fixations.}
+  \item{mm_position}{Similarity based on the spatial position of fixations.}
+  \item{mm_duration}{Similarity based on the duration of fixations.}
+  \item{mm_position_emd}{Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.}
+}
 }
 \description{
-\code{multi_match} compares two scanpaths based on vector, direction, length, position, and duration.
+This function computes multiple similarity metrics between two scanpaths, including vector, direction, length, position, duration, and EMD-based position similarity.
+}
+\details{
+The function computes six different similarity metrics between the scanpaths \code{x} and \code{y}:
+\itemize{
+  \item \code{mm_vector}: Similarity based on the 2D vectors between fixations.
+  \item \code{mm_direction}: Similarity based on the direction (angle) of saccades between fixations.
+  \item \code{mm_length}: Similarity based on the length of saccades between fixations.
+  \item \code{mm_position}: Similarity based on the spatial position of fixations.
+  \item \code{mm_duration}: Similarity based on the duration of fixations.
+  \item \code{mm_position_emd}: Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.
+}
+
+The function ensures that both scanpaths have strictly increasing onset times and contain at least three fixations. It also normalizes the similarity scores to lie between 0 and 1, with higher values indicating greater similarity.
+}
+\examples{
+\dontrun{
+# Example usage:
+scanpath1 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
+scanpath2 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
+screensize <- c(500, 500)
+similarity_scores <- multi_match(scanpath1, scanpath2, screensize)
+print(similarity_scores)
+}
+
+}
+\references{
+Dewhurst, R., Nyström, M., Jarodzka, H., Foulsham, T., Johansson, R., & Holmqvist, K. (2012).
+It depends on how you look at it: Scanpath comparison in multiple dimensions with MultiMatch, a vector-based approach.
+Behavior research methods, 44, 1079-1100.
 }

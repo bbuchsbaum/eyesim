@@ -25,7 +25,7 @@ density_by(
 
 \item{groups}{A character vector specifying the grouping variables to use.}
 
-\item{sigma}{A numeric value specifying the bandwidth for the kernel density estimation (default is 50).}
+\item{sigma}{A numeric value or a numeric vector specifying the bandwidth(s) for the kernel density estimation. If a vector is provided, multiscale densities are computed. Default is 50.}
 
 \item{xbounds}{A numeric vector of length 2 specifying the x-axis bounds for the density calculation (default is c(0, 1000)).}
 
@@ -37,7 +37,9 @@ density_by(
 
 \item{window}{A numeric vector of length 2 specifying the time window for selecting fixations (default is NULL).}
 
-\item{min_fixations}{Minimum number of fixations required for computing a density map. Rows with fewer fixations will receive \code{NULL} results. Default is 2.}
+\item{min_fixations}{Minimum number of fixations required for computing a density map.
+Rows with fewer fixations after optional filtering will receive `NULL` in the
+result column. Default is 2.}
 
 \item{keep_vars}{A character vector specifying additional variables to keep in the output (default is NULL).}
 
@@ -45,10 +47,10 @@ density_by(
 
 \item{result_name}{A character string specifying the name for the density result variable (default is "density").}
 
-\item{...}{Additional arguments passed to the `eye_density` function.}
+\item{...}{Additional arguments passed to the `eye_density.fixation_group` function.}
 }
 \value{
-A data frame containing the original grouping variables, the fixations, and the density result.
+A data frame containing the original grouping variables, the fixations, and the density result. If `sigma` is a vector, the column specified by `result_name` will contain `eye_density_multiscale` objects.
 }
 \description{
 This function calculates the eye density for fixations, grouped by specified variables.
@@ -59,12 +61,12 @@ fixations <- data.frame(
   subject = rep(c("A", "B"), each = 25),
   x = runif(50, 0, 1000),
   y = runif(50, 0, 1000),
-  duration = rep(1, 50),
+  duration = runif(50, 1, 5),
   onset = seq(1, 50)
 )
+eyetab <- eye_table("x", "y", "duration", "onset", groupvar=c("subject"), data=fixations)
 
 # Calculate eye density by subject
-result <- density_by(fixations, groups = "subject")
+result <- density_by(eyetab, groups = "subject")
 
 }
-\concept{density_by}

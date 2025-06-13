@@ -163,7 +163,7 @@ repetitive_similarity <- function(tab,
           sim_val
         }
       })
-      pairwise_list[[i]] <- list(processed_repsim)
+      pairwise_list[[i]] <- processed_repsim
     }
   }
 

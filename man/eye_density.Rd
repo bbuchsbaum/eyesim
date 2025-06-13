@@ -35,8 +35,5 @@ It takes various parameters to control the computation and output of the density
 }
 \seealso{
 \code{\link{eye_density.fixation_group}} for an example of a specific method implementation for this generic.
-
-Other eye_density: 
-\code{\link{eye_density.fixation_group}()}
 }
 \concept{eye_density}

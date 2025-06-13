@@ -6,7 +6,7 @@ Author: Bradley Buchsbaum
 Maintainer: Bradley Buchsbaum <brad.buchsbaum@gmail.com>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+License: MIT + file LICENSE
 Imports:
     proxy,
     imager,
@@ -34,6 +34,7 @@ Imports:
     rlang (>= 0.4.11)
 Encoding: UTF-8
 LazyData: true
+LazyDataCompression: xz
 RoxygenNote: 7.3.2.9000
 Remotes: 
   bbuchsbaum/colorplane

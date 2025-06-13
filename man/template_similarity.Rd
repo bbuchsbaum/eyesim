@@ -13,6 +13,7 @@ template_similarity(
   sourcevar = "density",
   method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
   permutations = 10,
+  multiscale_aggregation = "mean",
   ...
 )
 }
@@ -29,9 +30,11 @@ template_similarity(
 
 \item{sourcevar}{A character string representing the name of the variable containing density maps in the source table (default is "density").}
 
-\item{method}{A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov", "emd" (default is "spearman").}
+\item{method}{A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov" (default is "spearman").}
 
 \item{permutations}{A numeric value specifying the number of permutations for the baseline map (default is 10).}
+
+\item{multiscale_aggregation}{If the density maps are multiscale (i.e., `eye_density_multiscale` objects), this specifies how to aggregate similarities from different scales. Options: "mean" (default, returns the average similarity across scales), "none" (returns a list or vector of similarities, one per scale, within the result columns). See `similarity.eye_density_multiscale`.}
 
 \item{...}{Extra arguments to pass to the `similarity` function.}
 }

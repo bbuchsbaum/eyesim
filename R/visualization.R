@@ -37,8 +37,8 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
   }
 
   p <- ggplot(data=x, aes(x=x, y=y)) +
-    scale_x_continuous(expand=expansion(mult = c(.1, .1)), lim=c(xlim[1], xlim[2])) +
-    scale_y_continuous(expand=expansion(mult = c(.1, .1)), lim=c(ylim[1], ylim[2]))
+    scale_x_continuous(expand=expansion(mult = c(.1, .1)), limits=c(xlim[1], xlim[2])) +
+    scale_y_continuous(expand=expansion(mult = c(.1, .1)), limits=c(ylim[1], ylim[2]))
 
   if (!is.null(bg_image)) {
     im <- imager::load.image(bg_image)
@@ -207,8 +207,8 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
   p <- ggplot(data=x, aes(x=x, y=y)) +
     #xlim(xlim[1], xlim[2]) +
     #ylim(ylim[1], ylim[2]) +
-    scale_x_continuous(expand=expansion(mult = c(.1, .1)), lim=c(xlim[1], xlim[2])) +
-    scale_y_continuous(expand=expansion(mult = c(.1, .1)), lim=c(ylim[1], ylim[2]))
+    scale_x_continuous(expand=expansion(mult = c(.1, .1)), limits=c(xlim[1], xlim[2])) +
+    scale_y_continuous(expand=expansion(mult = c(.1, .1)), limits=c(ylim[1], ylim[2]))
 
   if (!is.null(bg_image)) {
     im <- imager::load.image(bg_image)
