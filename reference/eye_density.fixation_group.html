@@ -49,12 +49,14 @@
 <span>  sigma <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>  xbounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">x</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">x</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  ybounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">y</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">y</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  outdim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">xbounds</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">-</span> <span class="va">xbounds</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">ybounds</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">-</span> <span class="va">ybounds</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>  outdim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">100</span>, <span class="fl">100</span><span class="op">)</span>,</span>
 <span>  normalize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  duration_weighted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  window <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  min_fixations <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  origin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span></span>
+<span>  origin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>,</span>
+<span>  kde_pkg <span class="op">=</span> <span class="st">"ks"</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -67,7 +69,7 @@
 
 
 <dt id="arg-sigma">sigma<a class="anchor" aria-label="anchor" href="#arg-sigma"></a></dt>
-<dd><p>The standard deviation of the kernel. Default is 50.</p></dd>
+<dd><p>The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.</p></dd>
 
 
 <dt id="arg-xbounds">xbounds<a class="anchor" aria-label="anchor" href="#arg-xbounds"></a></dt>
@@ -79,7 +81,7 @@
 
 
 <dt id="arg-outdim">outdim<a class="anchor" aria-label="anchor" href="#arg-outdim"></a></dt>
-<dd><p>The output dimensions of the density map. Default is the difference between the xbounds and ybounds.</p></dd>
+<dd><p>The output dimensions of the density map. Default is c(100, 100).</p></dd>
 
 
 <dt id="arg-normalize">normalize<a class="anchor" aria-label="anchor" href="#arg-normalize"></a></dt>
@@ -95,7 +97,9 @@
 
 
 <dt id="arg-min-fixations">min_fixations<a class="anchor" aria-label="anchor" href="#arg-min-fixations"></a></dt>
-<dd><p>Minimum number of fixations required to compute a density map. If fewer are present after filtering, the function returns <code>NULL</code>. Default is 2.</p></dd>
+<dd><p>Minimum number of fixations required to compute a density map.
+If fewer fixations are present after optional filtering, the function returns NULL.
+Default is 2.</p></dd>
 
 
 <dt id="arg-origin">origin<a class="anchor" aria-label="anchor" href="#arg-origin"></a></dt>
@@ -104,16 +108,15 @@
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class c("eye_density", "density", "list") containing the computed density map and other relevant information.</p>
+    <p>An object of class `eye_density` (inheriting from `density` and `list`) if
+  `sigma` is a single value, or an object of class `eye_density_multiscale` (a
+  list of `eye_density` objects) if `sigma` is a vector. Returns `NULL` if
+  filtering by `window` leaves fewer than `min_fixations` fixations, or if
+  density computation fails (e.g., due to zero weights).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The function computes a density map for a given fixation group using the kde2d function from the MASS package. The density map is computed based on the x and y coordinates of the fixations, with optional weighting by their duration. The resulting density map can be normalized if desired.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p>Other eye_density:
-<code><a href="eye_density.html">eye_density</a>()</code></p></div>
+    <p>The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

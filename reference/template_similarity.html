@@ -52,6 +52,7 @@
 <span>  sourcevar <span class="op">=</span> <span class="st">"density"</span>,</span>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spearman"</span>, <span class="st">"pearson"</span>, <span class="st">"fisherz"</span>, <span class="st">"cosine"</span>, <span class="st">"l1"</span>, <span class="st">"jaccard"</span>, <span class="st">"dcov"</span>, <span class="st">"emd"</span><span class="op">)</span>,</span>
 <span>  permutations <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  multiscale_aggregation <span class="op">=</span> <span class="st">"mean"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -85,11 +86,15 @@
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov", "emd" (default is "spearman").</p></dd>
+<dd><p>A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov" (default is "spearman").</p></dd>
 
 
 <dt id="arg-permutations">permutations<a class="anchor" aria-label="anchor" href="#arg-permutations"></a></dt>
 <dd><p>A numeric value specifying the number of permutations for the baseline map (default is 10).</p></dd>
+
+
+<dt id="arg-multiscale-aggregation">multiscale_aggregation<a class="anchor" aria-label="anchor" href="#arg-multiscale-aggregation"></a></dt>
+<dd><p>If the density maps are multiscale (i.e., `eye_density_multiscale` objects), this specifies how to aggregate similarities from different scales. Options: "mean" (default, returns the average similarity across scales), "none" (returns a list or vector of similarities, one per scale, within the result columns). See `similarity.eye_density_multiscale`.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
