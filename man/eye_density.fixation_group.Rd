@@ -41,10 +41,6 @@ If fewer fixations are present after optional filtering, the function returns NU
 Default is 2.}
 
 \item{origin}{The origin of the coordinate system. Default is c(0,0).}
-
-\item{kde_pkg}{The package to use for kernel density estimation. Default is "ks".}
-
-\item{...}{Additional arguments passed to the kernel density estimation function.}
 }
 \value{
 An object of class `eye_density` (inheriting from `density` and `list`) if

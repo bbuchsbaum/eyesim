@@ -8,8 +8,6 @@
 }
 \arguments{
 \item{x}{A fixation group object.}
-
-\item{...}{Additional arguments (currently unused).}
 }
 \value{
 A scanpath object.

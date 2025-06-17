@@ -53,8 +53,6 @@
 \item{window}{A vector specifying the time window for selecting fixations (default: NULL).}
 
 \item{transform}{The transformation to apply to the density values (default: c("identity", "sqroot", "curoot", "rank")).}
-
-\item{...}{Additional arguments passed to ggplot functions.}
 }
 \value{
 A ggplot object representing the fixation group plot.

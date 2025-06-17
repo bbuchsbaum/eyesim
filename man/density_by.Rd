@@ -43,8 +43,6 @@ result column. Default is 2.}
 
 \item{keep_vars}{A character vector specifying additional variables to keep in the output (default is NULL).}
 
-\item{fixvar}{A character string specifying the name of the fixation variable (default is "fixgroup").}
-
 \item{result_name}{A character string specifying the name for the density result variable (default is "density").}
 
 \item{...}{Additional arguments passed to the `eye_density.fixation_group` function.}
