@@ -16,6 +16,7 @@
 #' @param ... Extra arguments passed to the similarity function.
 #' @keywords internal
 #' @importFrom rlang set_names
+#' @importFrom stats bw.nrd0
 run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations, permute_on=NULL, method,
                                     refvar, sourcevar, window=NULL, multiscale_aggregation = "mean", ...) {
   args <- list(...)
@@ -891,7 +892,7 @@ kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
   gx <- seq(lims[1], lims[2], length = n[1])
   gy <- seq(lims[3], lims[4], length = n[2])
   h <- if (missing(h))
-    c(bandwidth.nrd(x), bandwidth.nrd(y))
+    c(bw.nrd0(x), bw.nrd0(y))
   else rep(h, length.out = 2L)
   if (any(h <= 0))
     stop("bandwidths must be strictly positive")
