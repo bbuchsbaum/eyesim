@@ -16,6 +16,7 @@
 #' @param ... Extra arguments passed to the similarity function.
 #' @keywords internal
 #' @importFrom rlang set_names
+#' @importFrom stats bw.nrd0
 run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations, permute_on=NULL, method,
                                     refvar, sourcevar, window=NULL, multiscale_aggregation = "mean", ...) {
   args <- list(...)
