@@ -182,9 +182,9 @@ multi_match <- function(x,y, screensize) {
 
   if (nrow(x) < 3 || nrow(y) < 3) {
     warning("multi_match requires 3 or more coordinates in each scanpath, returning NAs")
-    return(c(mm_vector=NA, mm_direction=NA,
-             mm_length=NA, mm_position=NA,
-             mm_duration=NA))
+    return(c(mm_vector = NA, mm_direction = NA,
+             mm_length = NA, mm_position = NA,
+             mm_duration = NA, mm_position_emd = NA))
 
   }
 
@@ -214,7 +214,7 @@ multi_match <- function(x,y, screensize) {
   position_d <- vector_diff_2d(sacx, sacy, "x", "y", cds)
   position_sim <- 1 - (median(position_d)) / (sqrt(screensize[1]^2 + (screensize[2]^2)))
 
-  emd_position_sim <- emd_position_similarity(sacx, sacy, screensize)
+  emd_position_sim <- emd_position_similarity(x, y, screensize)
 
   c(mm_vector=vector_sim, mm_direction=direction_sim,
     mm_length=length_sim, mm_position=position_sim,
