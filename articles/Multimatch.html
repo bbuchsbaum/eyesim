@@ -109,7 +109,7 @@ one another.</p>
 <span><span class="va">sp2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/scanpath.html">scanpath</a></span><span class="op">(</span><span class="va">fixations2</span><span class="op">)</span></span>
 <span><span class="fu">eyesim</span><span class="fu">:::</span><span class="fu"><a href="../reference/multi_match.html">multi_match</a></span><span class="op">(</span><span class="va">sp1</span>, <span class="va">sp2</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">500</span>,<span class="fl">500</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
-<span><span class="co">##       0.9930345       0.9755456       0.9916165       0.7145947       0.9462729 </span></span>
+<span><span class="co">##       0.9943500       0.9850025       0.9936300       0.7375029       0.9701308 </span></span>
 <span><span class="co">## mm_position_emd </span></span>
 <span><span class="co">##       0.9167082</span></span></code></pre>
 <p>All of the metrics give pretty high values, consistent with the known
@@ -134,7 +134,7 @@ similarity of the scanpaths.</p>
 <span></span>
 <span><span class="fu">eyesim</span><span class="fu">:::</span><span class="fu"><a href="../reference/multi_match.html">multi_match</a></span><span class="op">(</span><span class="va">sp1</span>, <span class="va">sp2</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">500</span>,<span class="fl">500</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
-<span><span class="co">##       0.9400523       0.5882368       0.9884380       0.6518825       0.9247630 </span></span>
+<span><span class="co">##       0.9683739       0.8029070       0.9913588       0.5708457       0.8874505 </span></span>
 <span><span class="co">## mm_position_emd </span></span>
 <span><span class="co">##       0.6397256</span></span></code></pre>
 <p>We will simulate 8000 pairs of randomly generated scanpaths and show
@@ -330,7 +330,7 @@ should remain high.</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">eyesim</span><span class="fu">:::</span><span class="fu"><a href="../reference/multi_match.html">multi_match</a></span><span class="op">(</span><span class="fu"><a href="../reference/scanpath.html">scanpath</a></span><span class="op">(</span><span class="va">fg</span><span class="op">)</span>, <span class="fu"><a href="../reference/scanpath.html">scanpath</a></span><span class="op">(</span><span class="va">fg2</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">500</span>,<span class="fl">500</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
-<span><span class="co">##       0.8242253       0.5280783       0.9153703       0.6467169       0.3750000 </span></span>
+<span><span class="co">##       0.9011075       0.8539349       0.9909622       0.9365680       0.8944444 </span></span>
 <span><span class="co">## mm_position_emd </span></span>
 <span><span class="co">##       0.9945680</span></span></code></pre>
 </div>

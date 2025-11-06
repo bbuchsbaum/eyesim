@@ -105,6 +105,19 @@
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame or tibble containing the source table and additional columns with the similarity scores and permutation results.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Permutation baseline and exhaustive behavior:</p><ul><li><p>The set of permutation candidates is determined by <code>permute_on</code>. If <code>permute_on</code> is provided, candidates are restricted within that stratum (e.g., within-participant); otherwise all reference items are candidates.</p></li>
+<li><p>If <code>permutations</code> is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial. Internally, sampling is performed with a fixed future seed to aid reproducibility.</p></li>
+<li><p>If <code>permutations</code> is greater than or equal to the number of available non-matching candidates, the procedure uses all candidates (excluding the true match). In other words, the permutation baseline is exhaustive when possible.</p></li>
+<li><p>For small-N designs, you can set <code>permutations</code> to a large number to trigger exhaustive behavior. For example, with 3 images per participant and <code>permute_on = participant</code>, there are only 2 non-matching candidates per trial; any <code>permutations &gt;= 2</code> will result in using both.</p></li>
+</ul><p>Returned columns and units:</p><ul><li><p><code>eye_sim</code>: the observed similarity for the matched pair, on the scale of <code>method</code>.</p></li>
+<li><p><code>perm_sim</code>: the mean similarity across permuted non-matching pairs (same scale as <code>eye_sim</code>).</p></li>
+<li><p><code>eye_sim_diff</code>: <code>eye_sim - perm_sim</code>. Units match <code>method</code>.</p></li>
+</ul><p>Notes on <code>method</code> and interpretation:</p><ul><li><p>If <code>method = "fisherz"</code>, values are Fisher z (atanh of Pearson <em>r</em>). Convert back to <em>r</em> via <code>tanh(z)</code> for reporting on the correlation scale.</p></li>
+<li><p>If <code>method = "pearson"</code> or <code>"spearman"</code>, values are correlations (roughly in <code>[-1, 1]</code>).</p></li>
+<li><p>Other methods (e.g., <code>"emd"</code>, <code>"cosine"</code>) produce scores on their respective scales.</p></li>
+</ul></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

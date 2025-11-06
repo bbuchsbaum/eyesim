@@ -136,8 +136,13 @@ contour plot, a raster plot, and a filled contour plot.</p>
 <span><span class="co">#&gt; <span style="color: #555555;">This warning is displayed once every 8 hours.</span></span></span>
 <span><span class="co">#&gt; <span style="color: #555555;">Call `lifecycle::last_lifecycle_warnings()` to see where this warning was</span></span></span>
 <span><span class="co">#&gt; <span style="color: #555555;">generated.</span></span></span>
-<span><span class="co">#&gt; Warning: Removed 396 rows containing missing values or values outside the scale range</span></span>
-<span><span class="co">#&gt; (`geom_raster()`).</span></span></code></pre></div>
+<span><span class="co">#&gt; Warning: Computation failed in `stat_density2d()`.</span></span>
+<span><span class="co">#&gt; Computation failed in `stat_density2d()`.</span></span>
+<span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span>
+<span><span class="co">#&gt; Warning: Computation failed in `stat_density2d_filled()`.</span></span>
+<span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span></code></pre></div>
 <p><img src="Overview_files/figure-html/unnamed-chunk-4-1.png" width="768"></p>
 <p>We can also vary the bandwidth of the two-dimensional density
 estimation procedure to visualize the fixations at different levels of
@@ -148,7 +153,16 @@ smoothness.</p>
 <span><span class="va">p2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span>, typ<span class="op">=</span><span class="st">"filled_contour"</span>, xlim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, ylim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, bandwidth<span class="op">=</span><span class="fl">60</span><span class="op">)</span></span>
 <span><span class="va">p3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span>, typ<span class="op">=</span><span class="st">"filled_contour"</span>, xlim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, ylim<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>,<span class="fl">110</span><span class="op">)</span>, bandwidth<span class="op">=</span><span class="fl">100</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">p1</span><span class="op">+</span><span class="va">p2</span><span class="op">+</span><span class="va">p3</span></span></code></pre></div>
+<span><span class="va">p1</span><span class="op">+</span><span class="va">p2</span><span class="op">+</span><span class="va">p3</span></span>
+<span><span class="co">#&gt; Warning: Computation failed in `stat_density2d_filled()`.</span></span>
+<span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span>
+<span><span class="co">#&gt; Warning: Computation failed in `stat_density2d_filled()`.</span></span>
+<span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span>
+<span><span class="co">#&gt; Warning: Computation failed in `stat_density2d_filled()`.</span></span>
+<span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span></code></pre></div>
 <p><img src="Overview_files/figure-html/unnamed-chunk-5-1.png" width="768"></p>
 </div>
 <div class="section level2">
@@ -357,6 +371,21 @@ score.</p>
 permutation-corrected score is returned as <code>eye_sim_diff</code>.
 The similarity score among permuted pairs is also returned as
 <code>perm_sim</code>.</p>
+<p>Note on permutations and small-N. The <code>permutations</code>
+argument is an upper bound. If it exceeds the number of available
+non-matching candidates (determined by <code>permute_on</code>), eyesim
+uses all available candidates (excluding the true match) — i.e., it is
+exhaustive when possible. For example, with 3 images per participant and
+<code>permute_on = participant</code>, there are only 2 non-matching
+candidates per trial; setting <code>permutations = 50</code> will still
+use both.</p>
+<p>Note on units with <code>method = "fisherz"</code>. In this case,
+<code>eye_sim</code>, <code>perm_sim</code>, and
+<code>eye_sim_diff</code> are Fisher z scores (atanh of Pearson r).
+Convert back to correlations with <code><a href="https://rdrr.io/r/base/Hyperbolic.html" class="external-link">tanh()</a></code> if desired (e.g.,
+<code>r_diff &lt;- tanh(simres1$eye_sim_diff)</code>). With
+<code>method = "pearson"</code> or <code>"spearman"</code>, values are
+correlations directly.</p>
 <p>Because the eye-movement fixations were generated randomly, we do not
 expect a non-zero similarity score for the <code>eye_sim_diff</code>
 variable, and we can test that with a one-sample t-test.</p>
