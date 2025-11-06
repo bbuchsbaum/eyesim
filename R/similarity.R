@@ -167,6 +167,14 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 #'
 #' @return A table containing the computed similarities between fixation groups.
 #'
+#' @details
+#' Permutation handling and units follow \code{template_similarity}:
+#' \itemize{
+#'   \item Candidate sets are defined by \code{permute_on}; sampling is without replacement when \code{permutations} is smaller than the number of candidates.
+#'   \item When \code{permutations} is greater than or equal to the available non-matching candidates, all candidates are used (exhaustive baseline).
+#'   \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), and \code{eye_sim_diff = eye_sim - perm_sim}, all on the scale of \code{method}. If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
+#' }
+#'
 #' @examples
 #' # Example usage of the fixation_similarity function
 #' ref_table <- # reference table data
@@ -221,6 +229,28 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @param multiscale_aggregation If the density maps are multiscale (i.e., `eye_density_multiscale` objects), this specifies how to aggregate similarities from different scales. Options: "mean" (default, returns the average similarity across scales), "none" (returns a list or vector of similarities, one per scale, within the result columns). See `similarity.eye_density_multiscale`.
 #' @param ... Extra arguments to pass to the `similarity` function.
 #'
+#' @details
+#' Permutation baseline and exhaustive behavior:
+#' \itemize{
+#'   \item The set of permutation candidates is determined by \code{permute_on}. If \code{permute_on} is provided, candidates are restricted within that stratum (e.g., within-participant); otherwise all reference items are candidates.
+#'   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial. Internally, sampling is performed with a fixed future seed to aid reproducibility.
+#'   \item If \code{permutations} is greater than or equal to the number of available non-matching candidates, the procedure uses all candidates (excluding the true match). In other words, the permutation baseline is exhaustive when possible.
+#'   \item For small-N designs, you can set \code{permutations} to a large number to trigger exhaustive behavior. For example, with 3 images per participant and \code{permute_on = participant}, there are only 2 non-matching candidates per trial; any \code{permutations >= 2} will result in using both.
+#' }
+#'
+#' Returned columns and units:
+#' \itemize{
+#'   \item \code{eye_sim}: the observed similarity for the matched pair, on the scale of \code{method}.
+#'   \item \code{perm_sim}: the mean similarity across permuted non-matching pairs (same scale as \code{eye_sim}).
+#'   \item \code{eye_sim_diff}: \code{eye_sim - perm_sim}. Units match \code{method}.
+#' }
+#'
+#' Notes on \code{method} and interpretation:
+#' \itemize{
+#'   \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale.
+#'   \item If \code{method = "pearson"} or \code{"spearman"}, values are correlations (roughly in \code{[-1, 1]}).
+#'   \item Other methods (e.g., \code{"emd"}, \code{"cosine"}) produce scores on their respective scales.
+#' }
 #'
 #' @return A data frame or tibble containing the source table and additional columns with the similarity scores and permutation results.
 #' @export

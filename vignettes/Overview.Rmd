@@ -220,6 +220,10 @@ First, we split out the encoding and retrieval trials using the `dplyr::filter` 
 
 The raw similarity score is returned as `eye_sim` and the permutation-corrected score is returned as `eye_sim_diff`. The similarity score among permuted pairs is also returned as `perm_sim`.
 
+Note on permutations and small-N. The `permutations` argument is an upper bound. If it exceeds the number of available non-matching candidates (determined by `permute_on`), eyesim uses all available candidates (excluding the true match) — i.e., it is exhaustive when possible. For example, with 3 images per participant and `permute_on = participant`, there are only 2 non-matching candidates per trial; setting `permutations = 50` will still use both.
+
+Note on units with `method = "fisherz"`. In this case, `eye_sim`, `perm_sim`, and `eye_sim_diff` are Fisher z scores (atanh of Pearson r). Convert back to correlations with `tanh()` if desired (e.g., `r_diff <- tanh(simres1$eye_sim_diff)`). With `method = "pearson"` or `"spearman"`, values are correlations directly.
+
 Because the eye-movement fixations were generated randomly, we do not expect a non-zero similarity score for the `eye_sim_diff` variable, and we can test that with a one-sample t-test.
 
 
@@ -267,7 +271,6 @@ cat("Multiscale mean similarity:", round(mean(simres_multi$eye_sim_diff), 4), "\
 ```
 
 The multiscale approach provides a more robust similarity estimate by averaging across different levels of spatial smoothing.
-
 
 
 

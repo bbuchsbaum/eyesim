@@ -44,6 +44,14 @@ A table containing the computed similarities between fixation groups.
 \description{
 Compute the similarity between each fixation group in a \code{source_tab} and a matching fixation group in \code{ref_tab}.
 }
+\details{
+Permutation handling and units follow \code{template_similarity}:
+\itemize{
+  \item Candidate sets are defined by \code{permute_on}; sampling is without replacement when \code{permutations} is smaller than the number of candidates.
+  \item When \code{permutations} is greater than or equal to the available non-matching candidates, all candidates are used (exhaustive baseline).
+  \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), and \code{eye_sim_diff = eye_sim - perm_sim}, all on the scale of \code{method}. If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
+}
+}
 \examples{
 # Example usage of the fixation_similarity function
 ref_table <- # reference table data

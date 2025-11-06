@@ -75,12 +75,18 @@ vector_diff_2d <- function(x,y, v1,v2, cds) {
 
 #' @noRd
 create_graph <- function(x, y) {
+  # Pairwise distances between saccade vectors (lenx, leny)
   M <- proxy::dist(cbind(x$lenx, x$leny), cbind(y$lenx, y$leny))
+  # Node ids laid out row-wise to mirror numpy's reshape default
   M_assignment <- matrix(seq(nrow(M) * ncol(M)), nrow(M), ncol(M), byrow = TRUE)
 
   nr <- nrow(M)
   nc <- ncol(M)
 
+  # Build edges with weights matching the Python reference implementation:
+  # right:  weight = M[i, j+1]
+  # down:   weight = M[i+1, j]
+  # diag:   weight = M[i+1, j+1]
   edges_right <- if (nc > 1) {
     start <- M_assignment[, -nc, drop = FALSE]
     cbind(as.vector(start), as.vector(start + 1), as.vector(M[, -1, drop = FALSE]))
@@ -102,15 +108,31 @@ create_graph <- function(x, y) {
     NULL
   }
 
+  # Add terminal self-edge to mirror Python behavior
   last_node <- M_assignment[nr, nc]
   edges_last <- matrix(c(last_node, last_node, 0), nrow = 1)
 
   out <- rbind(edges_right, edges_down, edges_diag, edges_last)
 
-  g <- igraph::graph_from_data_frame(out[, 1:2])
-  igraph::E(g)$weight <- out[, 3]
-  spath <- igraph::shortest_paths(g, 1, max(igraph::V(g)), weights = igraph::E(g)$weight, output = "both", predecessors = TRUE)
-  list(g = g, vpath = spath$vpath[[1]], epath = spath$epath[[1]], M = M, M_assignment = M_assignment, pred = spath$predecessors)
+  # Use vertex names to avoid relying on internal igraph id ordering
+  df_edges <- data.frame(
+    from = as.character(out[, 1]),
+    to   = as.character(out[, 2]),
+    weight = as.numeric(out[, 3]),
+    stringsAsFactors = FALSE
+  )
+
+  g <- igraph::graph_from_data_frame(df_edges[, 1:2], directed = TRUE)
+  igraph::E(g)$weight <- df_edges$weight
+
+  start_name <- as.character(M_assignment[1, 1])
+  end_name <- as.character(last_node)
+  spath <- igraph::shortest_paths(g, from = start_name, to = end_name,
+                                  weights = igraph::E(g)$weight,
+                                  output = "both", predecessors = TRUE)
+
+  list(g = g, vpath = spath$vpath[[1]], epath = spath$epath[[1]],
+       M = M, M_assignment = M_assignment, pred = spath$predecessors)
 }
 
 
@@ -192,7 +214,8 @@ multi_match <- function(x,y, screensize) {
   sacy <- y[1:(nrow(y)-1),]
 
   gout <- create_graph(sacx,sacy)
-  p <- as.integer(gout$vpath)
+  # Map vertex sequence to our node ids via vertex names to ensure alignment
+  p <- as.integer(igraph::as_ids(gout$vpath))
   rnum <- ceiling(p / ncol(gout$M))
   cnum <-  p %% ncol(gout$M)
   cnum[cnum==0] <- ncol(gout$M)
@@ -252,6 +275,9 @@ py_multi_match <- function(fg1, fg2,
   colnames(fix2) <- c("start_x", "start_y", "duration")
 
   ret <- mmgaze$docomparison(fix1, fix2, as.integer(screensize), grouping=grouping, TDir=tdir,TDur=tdur,TAmp=tamp)
+  # Ensure conversion to a named numeric vector in R
+  ret <- reticulate::py_to_r(ret)
+  ret <- as.numeric(ret)
   names(ret) <- c("mm_vector", "mm_direction", "mm_length", "mm_position", "mm_duration")
   ret
 }
@@ -294,4 +320,3 @@ emdw <- function(x, wx, y, wy, lambda = 0.01) {
 
   stop("Could not compute EMD: please install the 'emdist', 'T4transport', or 'transport' package.")
 }
-
