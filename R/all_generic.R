@@ -76,7 +76,7 @@ coords <- function(x) {
 #'
 #' @family rescale
 #' @return An object with rescaled spatial coordinates.
-#' @seealso \code{\link{rescale.fixation_group}} and \code{\link{rescale.eye_density}} for examples of specific method implementations for this generic.
+#' @seealso \code{\link{rescale.fixation_group}} for an example of a specific method implementation for this generic.
 #' @export
 rescale <- function(x, sx, sy) {
   UseMethod("rescale", x)
@@ -105,8 +105,9 @@ rep_fixations <- function(x, resolution) {
 #'
 #' @param x the fixation group
 #' @param time the continuous time points to sample
+#' @param ... Additional arguments passed to methods.
 #' @export
-sample_fixations <- function(x, time) {
+sample_fixations <- function(x, time, ...) {
   UseMethod("sample_fixations", x)
 }
 

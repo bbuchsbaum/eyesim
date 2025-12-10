@@ -158,6 +158,7 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
 #' @param alpha The opacity level for the points (default: 0.8).
 #' @param window A vector specifying the time window for selecting fixations (default: NULL).
 #' @param transform The transformation to apply to the density values (default: c("identity", "sqroot", "curoot", "rank")).
+#' @param ... Additional arguments (currently unused).
 #' @return A ggplot object representing the fixation group plot.
 #' @import ggplot2
 #' @importFrom ggplot2 ggplot aes annotation_raster geom_point

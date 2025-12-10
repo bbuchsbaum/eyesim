@@ -10,6 +10,7 @@
   xbounds = c(min(x$x), max(x$x)),
   ybounds = c(min(x$y), max(x$y)),
   outdim = c(100, 100),
+  weights = NULL,
   normalize = TRUE,
   duration_weighted = FALSE,
   window = NULL,
@@ -30,6 +31,8 @@
 
 \item{outdim}{The output dimensions of the density map. Default is c(100, 100).}
 
+\item{weights}{Optional numeric vector of fixation weights. If NULL and duration_weighted is TRUE, uses fixation durations as weights. Default is NULL.}
+
 \item{normalize}{Whether to normalize the output map. Default is TRUE.}
 
 \item{duration_weighted}{Whether to weight the fixations by their duration. Default is FALSE.}
@@ -41,6 +44,10 @@ If fewer fixations are present after optional filtering, the function returns NU
 Default is 2.}
 
 \item{origin}{The origin of the coordinate system. Default is c(0,0).}
+
+\item{kde_pkg}{A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.}
+
+\item{...}{Additional arguments passed to the underlying KDE function.}
 }
 \value{
 An object of class `eye_density` (inheriting from `density` and `list`) if

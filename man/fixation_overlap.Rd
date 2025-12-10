@@ -25,9 +25,9 @@ fixation_overlap(
 }
 \value{
 A list containing the following elements:
-\itemize{
-  \item{overlap}{ The number of overlapping fixations between the two fixation groups.}
-  \item{perc}{ The percentage of overlapping fixations.}
+\describe{
+  \item{overlap}{The number of overlapping fixations between the two fixation groups.}
+  \item{perc}{The percentage of overlapping fixations.}
 }
 }
 \description{

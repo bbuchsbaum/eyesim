@@ -43,6 +43,7 @@ calcangle <- function(x1, x2) {
 #' @param x A data frame.
 #' @param outvar The output variable name for the scanpath. Defaults to "scanpath".
 #' @param fixvar The fixation group variable name. Defaults to "fixgroup".
+#' @param ... Additional arguments (currently unused).
 #'
 #' @return A data frame with the added scanpath.
 #' @export
@@ -51,7 +52,7 @@ calcangle <- function(x1, x2) {
 #' df <- data.frame(x = 1:5, y = 6:10, fixgroup = rep(1, 5))
 #' # Add a scanpath to the data frame
 #' df <- add_scanpath.data.frame(df)
-add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup" ) {
+add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup", ...) {
   x %>% mutate(!!outvar := list(scanpath(.data[[fixvar]][[1]])))
 }
 
@@ -62,6 +63,7 @@ add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup" ) {
 #' @param x An eye table object.
 #' @param outvar The output variable name for the scanpath. Defaults to "scanpath".
 #' @param fixvar The fixation group variable name. Defaults to "fixgroup".
+#' @param ... Additional arguments (currently unused).
 #'
 #' @return An eye table object with the added scanpath.
 #' @export
@@ -71,7 +73,7 @@ add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup" ) {
 #' eye_table_df <- as_eye_table(df)
 #' # Add a scanpath to the eye table
 #' eye_table_df <- add_scanpath.eye_table(eye_table_df)
-add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup" ) {
+add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...) {
   x %>% mutate(!!outvar := list(scanpath(.data[[fixvar]][[1]])))
 }
 
@@ -82,6 +84,7 @@ add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup" ) {
 #' This function creates a scanpath for a fixation group.
 #'
 #' @param x A fixation group object.
+#' @param ... Additional arguments (currently unused).
 #'
 #' @return A scanpath object.
 #' @export

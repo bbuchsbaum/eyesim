@@ -4,7 +4,7 @@
 \alias{add_scanpath.data.frame}
 \title{Add Scanpath to a Data Frame}
 \usage{
-\method{add_scanpath}{data.frame}(x, outvar = "scanpath", fixvar = "fixgroup")
+\method{add_scanpath}{data.frame}(x, outvar = "scanpath", fixvar = "fixgroup", ...)
 }
 \arguments{
 \item{x}{A data frame.}
@@ -12,6 +12,8 @@
 \item{outvar}{The output variable name for the scanpath. Defaults to "scanpath".}
 
 \item{fixvar}{The fixation group variable name. Defaults to "fixgroup".}
+
+\item{...}{Additional arguments (currently unused).}
 }
 \value{
 A data frame with the added scanpath.

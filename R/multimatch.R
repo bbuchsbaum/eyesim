@@ -137,6 +137,18 @@ create_graph <- function(x, y) {
 
 
 
+#' Install Python multimatch_gaze Package
+#'
+#' This function installs the Python `multimatch_gaze` package using pip via reticulate.
+#' This package is required for the Python-based MultiMatch implementation.
+#'
+#' @return NULL (called for side effect of installing the package).
+#'
+#' @examples
+#' \dontrun{
+#' install_multimatch()
+#' }
+#'
 #' @export
 install_multimatch <- function() {
   reticulate::py_install("multimatch_gaze", pip=TRUE)

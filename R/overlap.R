@@ -14,9 +14,9 @@
 #' @param dist_method A character string specifying the distance metric to use for measuring the distance between fixations. Options are "euclidean" and "manhattan" (default is "euclidean").
 #'
 #' @return A list containing the following elements:
-#' \itemize{
-#'   \item{overlap}{ The number of overlapping fixations between the two fixation groups.}
-#'   \item{perc}{ The percentage of overlapping fixations.}
+#' \describe{
+#'   \item{overlap}{The number of overlapping fixations between the two fixation groups.}
+#'   \item{perc}{The percentage of overlapping fixations.}
 #' }
 #'
 #' @examples

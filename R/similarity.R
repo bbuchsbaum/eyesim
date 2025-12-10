@@ -196,7 +196,18 @@ fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 
 }
 
+#' Scanpath Similarity
+#'
+#' Compute similarity between scanpaths in a source table and matching scanpaths in a reference table.
+#'
 #' @inheritParams template_similarity
+#' @param method The similarity method to use. Currently only "multimatch" is supported.
+#' @param refvar The name of the column containing scanpaths in the reference table (default is "scanpath").
+#' @param sourcevar The name of the column containing scanpaths in the source table (default is "scanpath").
+#' @param window An optional temporal window for restricting the scanpath comparison.
+#'
+#' @return A table containing the computed similarities between scanpaths.
+#'
 #' @export
 scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
                                 method=c("multimatch"),
@@ -276,8 +287,9 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 #' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
 #'
 #' @return A data frame with columns "z" and "time", where "z" contains the sampled density values and "time" contains the corresponding time points.
+#' @rdname sample_density
 #' @export
-sample_density.density <- function(x, fix, times = NULL) {
+sample_density.density <- function(x, fix, times = NULL, ...) {
   nearest_index <- function(coord, grid) {
     ind <- round(approx(grid, seq_along(grid), coord, rule = 2)$y)
     ind[ind < 1L] <- 1L
@@ -664,6 +676,7 @@ print.eye_density <- function(x,...) {
 #' @param xbounds The x-axis bounds. Default is the range of x values in the fixation group.
 #' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
 #' @param outdim The output dimensions of the density map. Default is c(100, 100).
+#' @param weights Optional numeric vector of fixation weights. If NULL and duration_weighted is TRUE, uses fixation durations as weights. Default is NULL.
 #' @param normalize Whether to normalize the output map. Default is TRUE.
 #' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
 #' @param window The temporal window over which to compute the density map. Default is NULL.
@@ -671,6 +684,8 @@ print.eye_density <- function(x,...) {
 #'   If fewer fixations are present after optional filtering, the function returns NULL.
 #'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
+#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.
+#' @param ... Additional arguments passed to the underlying KDE function.
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 #'
@@ -687,6 +702,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        xbounds = c(min(x$x), max(x$x)),
                                        ybounds = c(min(x$y), max(x$y)),
                                        outdim = c(100, 100),
+                                       weights = NULL,
                                        normalize = TRUE, duration_weighted = FALSE,
                                        window = NULL, min_fixations = 2,
                                        origin = c(0, 0),

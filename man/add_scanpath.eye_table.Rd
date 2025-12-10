@@ -4,7 +4,7 @@
 \alias{add_scanpath.eye_table}
 \title{Add Scanpath to an Eye Table}
 \usage{
-\method{add_scanpath}{eye_table}(x, outvar = "scanpath", fixvar = "fixgroup")
+\method{add_scanpath}{eye_table}(x, outvar = "scanpath", fixvar = "fixgroup", ...)
 }
 \arguments{
 \item{x}{An eye table object.}
@@ -12,6 +12,8 @@
 \item{outvar}{The output variable name for the scanpath. Defaults to "scanpath".}
 
 \item{fixvar}{The fixation group variable name. Defaults to "fixgroup".}
+
+\item{...}{Additional arguments (currently unused).}
 }
 \value{
 An eye table object with the added scanpath.

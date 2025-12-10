@@ -14,6 +14,7 @@
 #'   Rows with fewer fixations after optional filtering will receive `NULL` in the
 #'   result column. Default is 2.
 #' @param keep_vars A character vector specifying additional variables to keep in the output (default is NULL).
+#' @param fixvar A character string specifying the name of the column containing fixation groups (default is "fixgroup").
 #' @param result_name A character string specifying the name for the density result variable (default is "density").
 #' @param ... Additional arguments passed to the `eye_density.fixation_group` function.
 #'

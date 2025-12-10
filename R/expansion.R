@@ -89,9 +89,9 @@ match_scale <- function(ref_tab, source_tab, match_on,
 }
 
 
+#' @rdname rescale
 #' @export
-#' @family rescale
-rescale.fixation_group <- function(x, sx,sy) {
+rescale.fixation_group <- function(x, sx, sy) {
   x %>% mutate(x=x*sx, y=y*sy)
 }
 
