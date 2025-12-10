@@ -35,6 +35,7 @@ reference:
   - multi_match
   - similarity.scanpath
   - template_similarity
+  - sample_density_time
   - repetitive_similarity
 - title: Scanpath
   desc: Functions for creating and adding scanpaths.

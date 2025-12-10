@@ -20,9 +20,10 @@ An object containing the centered eye-movements in the new coordinate system.
 This function centers the eye-movements in a new coordinate system with the specified origin.
 }
 \examples{
+\dontrun{
 # Example usage of the center function
-input_object <- # input object data containing eye-movements
 new_origin <- c(500, 500) # New coordinate system origin
 centered_object <- center(input_object, origin = new_origin)
+}
 
 }

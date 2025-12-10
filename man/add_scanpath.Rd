@@ -18,9 +18,9 @@ A dataset with the added scanpath.
 This function adds a scanpath to the input dataset.
 }
 \examples{
+\dontrun{
 # Example usage of the add_scanpath function
-input_dataset <- # input dataset data
-# Additional arguments required for the specific method that adds the scanpath
-updated_dataset <- add_scanpath(input_dataset, ...)
+updated_dataset <- add_scanpath(input_dataset)
+}
 
 }

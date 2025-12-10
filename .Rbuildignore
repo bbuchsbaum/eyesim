@@ -11,3 +11,5 @@ phelps.gif
 res_OA.csv
 test_data
 ^\.github$
+^doc$
+^Meta$

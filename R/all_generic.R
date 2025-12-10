@@ -122,10 +122,10 @@ sample_fixations <- function(x, time) {
 #' @return A numeric value representing the similarity between the two input objects.
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the similarity function
-#' object1 <- # first object data
-#' object2 <- # second object data
-#' similarity_value <- similarity(object1, object2, method = "some_method")
+#' similarity_value <- similarity(object1, object2, method = "pearson")
+#' }
 #'
 #' @family similarity
 #' @export
@@ -144,10 +144,10 @@ similarity <- function(x, y, method, ...) {
 #' @return A density matrix representing the input object, taking into account the specified grouping variable if provided.
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the density_matrix function
-#' input_object <- # input object data
-#' grouping_variable <- # optional grouping variable
 #' result_density_matrix <- density_matrix(input_object, groups = grouping_variable)
+#' }
 #'
 #' @export
 density_matrix <- function(x, groups,...) {
@@ -165,10 +165,11 @@ density_matrix <- function(x, groups,...) {
 #' @return An object containing the centered eye-movements in the new coordinate system.
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the center function
-#' input_object <- # input object data containing eye-movements
 #' new_origin <- c(500, 500) # New coordinate system origin
 #' centered_object <- center(input_object, origin = new_origin)
+#' }
 #'
 #' @export
 center <- function(x, origin, ...) {
@@ -188,11 +189,13 @@ center <- function(x, origin, ...) {
 #' @return An object containing the normalized eye-movements in the unit range.
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the normalize function
-#' input_object <- # input object data containing eye-movements
+#' # input_object <- eye-movement data object
 #' x_bounds <- c(0, 1000) # X bounds for normalization
 #' y_bounds <- c(0, 1000) # Y bounds for normalization
 #' normalized_object <- normalize(input_object, xbounds = x_bounds, ybounds = y_bounds)
+#' }
 #'
 #' @export
 normalize <- function(x, xbounds, ybounds, ...) {
@@ -228,10 +231,10 @@ scanpath <- function(x, ...) {
 #' @return A dataset with the added scanpath.
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the add_scanpath function
-#' input_dataset <- # input dataset data
-#' # Additional arguments required for the specific method that adds the scanpath
-#' updated_dataset <- add_scanpath(input_dataset, ...)
+#' updated_dataset <- add_scanpath(input_dataset)
+#' }
 #'
 #' @export
 add_scanpath <- function(x, ...) {

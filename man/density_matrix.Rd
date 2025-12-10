@@ -20,9 +20,9 @@ A density matrix representing the input object, taking into account the specifie
 This function computes the density matrix for a given object, optionally taking into account a grouping variable.
 }
 \examples{
+\dontrun{
 # Example usage of the density_matrix function
-input_object <- # input object data
-grouping_variable <- # optional grouping variable
 result_density_matrix <- density_matrix(input_object, groups = grouping_variable)
+}
 
 }

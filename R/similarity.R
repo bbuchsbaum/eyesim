@@ -300,6 +300,298 @@ sample_density.density <- function(x, fix, times = NULL) {
 }
 
 
+#' Sample density maps at fixation locations over time
+#'
+#' This function samples template density maps at source fixation locations across
+#' specified time points. It is useful for analyzing how fixation patterns relate
+#' to a reference density map over the course of a trial (e.g., "reinstatement
+#' across time" analysis).
+#'
+#' @param template_tab A data frame or tibble containing template density maps
+#'   (e.g., from an encoding phase).
+#' @param source_tab A data frame or tibble containing fixation groups
+#'   (e.g., from a retrieval phase).
+#' @param match_on A character string specifying the column name used to match
+#'   template density maps to source fixation groups.
+#' @param times A numeric vector of time points (in ms) at which to sample the
+#'   density. Default is \code{seq(0, 3000, by = 50)}.
+#' @param time_bins An optional numeric vector specifying bin boundaries for
+#'   aggregating samples. For example, \code{c(0, 1000, 2000, 3000)} creates
+#'   3 bins: [0-1000), [1000-2000), [2000-3000). Default is NULL (no binning).
+#' @param template_var A character string specifying the name of the density
+#'   column in \code{template_tab}. Default is "density".
+#' @param source_var A character string specifying the name of the fixation
+#'   group column in \code{source_tab}. Default is "fixgroup".
+#' @param permutations An integer specifying the number of permutation samples
+#'   for computing a baseline. Default is 0 (no permutations).
+#' @param permute_on An optional character string specifying the column used to
+#'   stratify permutations (e.g., "subject" to permute within subjects).
+#' @param aggregate_fun A function used to aggregate density values within time
+#'   bins. Default is \code{mean}.
+#'
+#' @details
+#' The function matches each row in \code{source_tab} to a corresponding density
+
+#' map in \code{template_tab} based on the \code{match_on} column. For each matched
+#' pair, it samples the template density at the fixation coordinates interpolated
+#' at each time point in \code{times}.
+#'
+#' This approach avoids the problem of having too few fixations to compute density
+#' maps within short time windows. Instead, a single density map is created from
+#' all fixations (e.g., during encoding), and the sampling is done over time
+#' (e.g., during retrieval).
+#'
+#' If \code{time_bins} is provided, the sampled values are aggregated within each
+#' bin using \code{aggregate_fun}. The result includes columns named \code{bin_1},
+#' \code{bin_2}, etc.
+#'
+#' If \code{permutations > 0}, a baseline is computed by sampling from non-matching
+#' density maps. The result includes \code{perm_sampled} (mean permuted trajectory)
+#' and bin-specific permutation columns if binning is used.
+#'
+#' @return A tibble containing:
+#' \itemize{
+#'   \item All columns from \code{source_tab}
+#'   \item \code{sampled}: A list column with data frames containing \code{z}
+#'     (density values) and \code{time} columns for each row
+#'   \item If \code{time_bins} is provided: columns \code{bin_1}, \code{bin_2}, etc.
+#'     with aggregated values for each bin
+#'   \item If \code{permutations > 0}: \code{perm_sampled} (list column with mean
+#'     permuted trajectory) and \code{perm_bin_1}, \code{perm_bin_2}, etc.
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Create encoding density maps
+#' encoding_dens <- eyetab %>%
+#'   filter(condition == "encoding") %>%
+#'   density_by(groups = c("subject", "image"), sigma = 200)
+#'
+#' # Get retrieval fixations (as eye_table, not density)
+#' retrieval_fix <- eyetab %>%
+#'   filter(condition == "retrieval")
+#'
+#' # Sample encoding density at retrieval fixation locations over time
+#' results <- sample_density_time(
+#'   template_tab = encoding_dens,
+#'   source_tab = retrieval_fix,
+#'   match_on = "subject_image",
+#'   times = seq(0, 5000, by = 50),
+#'   time_bins = c(0, 1000, 2000, 3000, 4000, 5000),
+#'   permutations = 50,
+#'   permute_on = "subject"
+#' )
+#' }
+#'
+#' @export
+#' @importFrom dplyr bind_cols mutate filter select
+#' @importFrom purrr map map_dbl
+#' @importFrom tibble tibble
+#' @importFrom rlang sym
+sample_density_time <- function(template_tab,
+                                source_tab,
+                                match_on,
+                                times = seq(0, 3000, by = 50),
+                                time_bins = NULL,
+                                template_var = "density",
+                                source_var = "fixgroup",
+                                permutations = 0,
+                                permute_on = NULL,
+                                aggregate_fun = mean) {
+
+
+  # Validate inputs
+
+  assertthat::assert_that(match_on %in% names(template_tab),
+                          msg = paste("match_on column", match_on, "not found in template_tab"))
+  assertthat::assert_that(match_on %in% names(source_tab),
+                          msg = paste("match_on column", match_on, "not found in source_tab"))
+  assertthat::assert_that(template_var %in% names(template_tab),
+                          msg = paste("template_var column", template_var, "not found in template_tab"))
+  assertthat::assert_that(source_var %in% names(source_tab),
+                          msg = paste("source_var column", source_var, "not found in source_tab"))
+
+  if (!is.null(time_bins)) {
+    assertthat::assert_that(length(time_bins) >= 2,
+                            msg = "time_bins must have at least 2 values to define bin boundaries")
+    assertthat::assert_that(all(diff(time_bins) > 0),
+                            msg = "time_bins must be monotonically increasing")
+  }
+
+  # Ungroup source_tab to avoid issues with grouped operations
+
+  source_tab <- dplyr::ungroup(source_tab)
+
+  # Match source to template
+  matchind <- match(source_tab[[match_on]], template_tab[[match_on]])
+
+  # Handle unmatched rows
+  if (any(is.na(matchind))) {
+    n_missing <- sum(is.na(matchind))
+    warning("Did not find matching template for ", n_missing, " source rows. Removing non-matching elements.")
+    keep_rows <- !is.na(matchind)
+    source_tab <- source_tab[keep_rows, , drop = FALSE]
+    matchind <- matchind[keep_rows]
+  }
+
+  # If permutations requested, set up match index splits
+  match_split <- NULL
+  if (permutations > 0 && !is.null(permute_on)) {
+    assertthat::assert_that(permute_on %in% names(source_tab),
+                            msg = paste("permute_on column", permute_on, "not found in source_tab"))
+    assertthat::assert_that(permute_on %in% names(template_tab),
+                            msg = paste("permute_on column", permute_on, "not found in template_tab"))
+    match_split <- split(matchind, source_tab[[permute_on]])
+  }
+
+  # Helper function to aggregate samples into bins
+  aggregate_bins <- function(sampled_df, time_bins, aggregate_fun) {
+    if (is.null(sampled_df) || nrow(sampled_df) == 0) {
+      return(rep(NA_real_, length(time_bins) - 1))
+    }
+    bin_labels <- cut(sampled_df$time, breaks = time_bins, right = FALSE,
+                      labels = FALSE, include.lowest = TRUE)
+    vapply(seq_len(length(time_bins) - 1), function(b) {
+      vals <- sampled_df$z[bin_labels == b]
+      if (length(vals) == 0 || all(is.na(vals))) NA_real_ else aggregate_fun(vals, na.rm = TRUE)
+    }, numeric(1))
+  }
+
+  # Process each row
+  template_data <- template_tab[[template_var]]
+  source_data <- source_tab[[source_var]]
+
+  results <- lapply(seq_along(matchind), function(i) {
+    template_dens <- template_data[[matchind[i]]]
+    source_fix <- source_data[[i]]
+
+    # Check for valid inputs
+    if (is.null(template_dens) || is.null(source_fix)) {
+      sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
+    } else {
+      sampled <- tryCatch({
+        sample_density(template_dens, source_fix, times = times)
+      }, error = function(e) {
+        warning("Error sampling density for row ", i, ": ", e$message)
+        data.frame(z = rep(NA_real_, length(times)), time = times)
+      })
+    }
+
+    result <- list(sampled = sampled)
+
+    # Compute bin aggregates if requested
+    if (!is.null(time_bins)) {
+      bin_vals <- aggregate_bins(sampled, time_bins, aggregate_fun)
+      for (b in seq_along(bin_vals)) {
+        result[[paste0("bin_", b)]] <- bin_vals[b]
+      }
+    }
+
+    # Compute permutation baseline if requested
+    if (permutations > 0) {
+      # Get candidate indices for permutation
+      if (!is.null(permute_on)) {
+        perm_key <- as.character(source_tab[[permute_on]][i])
+        mind <- match_split[[perm_key]]
+      } else {
+        mind <- matchind
+      }
+
+      # Remove the current match from candidates
+      current_match <- matchind[i]
+      mind <- mind[mind != current_match]
+
+      if (length(mind) == 0) {
+        # No candidates for permutation
+        perm_sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
+        if (!is.null(time_bins)) {
+          for (b in seq_len(length(time_bins) - 1)) {
+            result[[paste0("perm_bin_", b)]] <- NA_real_
+          }
+        }
+      } else {
+        # Sample permutation candidates
+        if (permutations < length(mind)) {
+          mind <- sample(mind, permutations)
+        }
+
+        # Compute permuted samples
+        perm_samples <- lapply(mind, function(j) {
+          perm_dens <- template_data[[j]]
+          if (is.null(perm_dens) || is.null(source_fix)) {
+            return(rep(NA_real_, length(times)))
+          }
+          tryCatch({
+            sample_density(perm_dens, source_fix, times = times)$z
+          }, error = function(e) {
+            rep(NA_real_, length(times))
+          })
+        })
+
+        # Average across permutations
+        perm_matrix <- do.call(rbind, perm_samples)
+        perm_mean <- colMeans(perm_matrix, na.rm = TRUE)
+        perm_sampled <- data.frame(z = perm_mean, time = times)
+
+        result$perm_sampled <- perm_sampled
+
+        # Compute permuted bin aggregates
+        if (!is.null(time_bins)) {
+          perm_bin_vals <- aggregate_bins(perm_sampled, time_bins, aggregate_fun)
+          for (b in seq_along(perm_bin_vals)) {
+            result[[paste0("perm_bin_", b)]] <- perm_bin_vals[b]
+          }
+        }
+      }
+
+      if (is.null(result$perm_sampled)) {
+        result$perm_sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
+      }
+    }
+
+    result
+  })
+
+  # Assemble output tibble
+  out <- source_tab
+
+  # Add sampled column (list column)
+  out$sampled <- lapply(results, `[[`, "sampled")
+
+  # Add bin columns if present
+  if (!is.null(time_bins)) {
+    n_bins <- length(time_bins) - 1
+    for (b in seq_len(n_bins)) {
+      col_name <- paste0("bin_", b)
+      out[[col_name]] <- vapply(results, function(r) r[[col_name]] %||% NA_real_, numeric(1))
+    }
+  }
+
+  # Add permutation columns if present
+  if (permutations > 0) {
+    out$perm_sampled <- lapply(results, `[[`, "perm_sampled")
+
+    if (!is.null(time_bins)) {
+      n_bins <- length(time_bins) - 1
+      for (b in seq_len(n_bins)) {
+        col_name <- paste0("perm_bin_", b)
+        out[[col_name]] <- vapply(results, function(r) r[[col_name]] %||% NA_real_, numeric(1))
+      }
+
+      # Add difference columns (observed - permuted)
+      for (b in seq_len(n_bins)) {
+        obs_col <- paste0("bin_", b)
+        perm_col <- paste0("perm_bin_", b)
+        diff_col <- paste0("diff_bin_", b)
+        out[[diff_col]] <- out[[obs_col]] - out[[perm_col]]
+      }
+    }
+  }
+
+  tibble::as_tibble(out)
+}
+
+
 #' This function creates a density object from the provided x, y, and z matrices. The density object is a list containing the x, y, and z values with a class attribute set to "density" and "list".
 #'
 #' @param x A numeric vector representing the x-axis values of the density map.

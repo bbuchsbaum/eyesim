@@ -31,6 +31,7 @@ After creating a `fixation_group` object, we then plot it to visualize the locat
 library(eyesim)
 library(patchwork)
 library(dplyr)
+library(ggplot2)
 fg <- fixation_group(x=c(-100, 0, 100), y=c(0, 100, 0), onset=c(0,10,60), duration=c(10,50,100))
 plot(fg)
 
@@ -272,6 +273,78 @@ cat("Multiscale mean similarity:", round(mean(simres_multi$eye_sim_diff), 4), "\
 
 The multiscale approach provides a more robust similarity estimate by averaging across different levels of spatial smoothing.
 
+## Temporal Density Sampling
+
+Sometimes we want to understand how eye-movement patterns relate to a reference density map **over time** during a trial. For example, in memory research, we might ask: "At each moment during retrieval, how much does the current gaze location correspond to where the participant looked during encoding?"
+
+This is different from comparing overall density maps (which `template_similarity` does). Instead, we sample the encoding density at the retrieval fixation locations at each time point, creating a time series of "reinstatement" values.
+
+The `sample_density_time()` function provides this capability. It takes:
+- A template table with density maps (e.g., from encoding)
+- A source table with fixation groups (e.g., from retrieval)
+- Time points at which to sample
+- Optional time bins for aggregation
+
+This approach avoids a common problem: if you try to compute separate density maps for short time windows, you often end up with too few fixations (<2) to estimate a density. By using the full encoding density and sampling it over time, we avoid this issue entirely.
+
+```{r, warning=FALSE}
+# We already have encoding densities from above
+# Now let's sample them at retrieval fixation locations over time
+
+# First, we need an eye_table with fixation groups for retrieval
+ret_eyetab <- eyetab %>% filter(phase == "retrieval")
+
+# Create a matching key for both tables
+enc_dens <- enc_dens %>% mutate(match_key = paste(participant, image, sep = "_"))
+ret_eyetab_matched <- ret_eyetab %>% mutate(match_key = paste(participant, image, sep = "_"))
+
+# Sample encoding density at retrieval fixation locations
+# every 50ms from 0-500ms, aggregated into two 250ms bins
+temporal_results <- sample_density_time(
+ template_tab = enc_dens,
+ source_tab = ret_eyetab_matched,
+ match_on = "match_key",
+ times = seq(0, 500, by = 50),
+ time_bins = c(0, 250, 500),
+ permutations = 10,
+ permute_on = "participant"
+)
+
+# View the results
+temporal_results %>%
+ select(participant, image, bin_1, bin_2, perm_bin_1, perm_bin_2, diff_bin_1, diff_bin_2) %>%
+ head()
+```
+
+The output includes:
+- `sampled`: A list column with the full time series (density value at each time point)
+- `bin_1`, `bin_2`, etc.: Aggregated density values for each time bin
+- `perm_bin_1`, `perm_bin_2`, etc.: Permuted baseline values (from non-matching templates)
+- `diff_bin_1`, `diff_bin_2`, etc.: The difference (observed - permuted)
+
+We can visualize how the sampled density changes over time:
+
+```{r, fig.width=8, fig.height=4, warning=FALSE}
+# Extract and plot the time series for a few trials
+library(tidyr)
+
+# Get the first 6 trials' time series
+time_series_data <- temporal_results %>%
+ head(6) %>%
+ mutate(trial_id = paste(participant, image, sep = "_")) %>%
+ select(trial_id, sampled) %>%
+ unnest(sampled)
+
+ggplot(time_series_data, aes(x = time, y = z, color = trial_id)) +
+ geom_line(linewidth = 1) +
+ labs(x = "Time (ms)", y = "Sampled Density Value",
+      title = "Encoding Density Sampled at Retrieval Fixation Locations",
+      color = "Trial") +
+ theme_minimal() +
+ theme(legend.position = "bottom")
+```
+
+This temporal analysis reveals when during retrieval participants are looking at locations that were fixated during encoding, which can provide insights into the time course of memory-guided attention.
 
 
 

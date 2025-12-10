@@ -22,10 +22,12 @@ An object containing the normalized eye-movements in the unit range.
 This function normalizes the eye-movements to a unit range based on the specified x and y bounds.
 }
 \examples{
+\dontrun{
 # Example usage of the normalize function
-input_object <- # input object data containing eye-movements
+# input_object <- eye-movement data object
 x_bounds <- c(0, 1000) # X bounds for normalization
 y_bounds <- c(0, 1000) # Y bounds for normalization
 normalized_object <- normalize(input_object, xbounds = x_bounds, ybounds = y_bounds)
+}
 
 }

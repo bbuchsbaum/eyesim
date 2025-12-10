@@ -22,10 +22,10 @@ A numeric value representing the similarity between the two input objects.
 This function computes the similarity between two objects using a specified similarity metric.
 }
 \examples{
+\dontrun{
 # Example usage of the similarity function
-object1 <- # first object data
-object2 <- # second object data
-similarity_value <- similarity(object1, object2, method = "some_method")
+similarity_value <- similarity(object1, object2, method = "pearson")
+}
 
 }
 \seealso{

@@ -40,7 +40,7 @@ Remotes:
   bbuchsbaum/colorplane
 Depends: 
     R (>= 2.10)
-Suggests: 
+Suggests:
     knitr,
     rmarkdown,
     reticulate,
@@ -48,6 +48,7 @@ Suggests:
     covr,
     roxygen2,
     patchwork,
-    ggridges
+    ggridges,
+    tidyr
 VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/
