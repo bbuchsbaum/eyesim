@@ -1,10 +1,18 @@
 ---
-title: "Overview"
+title: Overview
 output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Overview}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+vignette: |
+  %\VignetteIndexEntry{Overview} %\VignetteEngine{knitr::rmarkdown} %\VignetteEncoding{UTF-8}
+params:
+  family: red
+css: albers.css
+resource_files:
+- albers.css
+- albers.js
+includes:
+  in_header: |-
+    <script src="albers.js"></script>
+    <script>document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('palette-red'));</script>
 
 ---
 

@@ -1,6 +1,7 @@
 url: https://bbuchsbaum.github.io/eyesim/
 template:
   bootstrap: 5
+  package: albersdown
 reference:
 - title: Density and sampling
   desc: Functions for computing density maps, sampling, and density matrix.
@@ -64,4 +65,3 @@ reference:
   contents:
   - density_by
   - sample_density.density
-
