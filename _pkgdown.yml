@@ -24,6 +24,7 @@ reference:
 - title: Fixation operations
   desc: Functions for working with fixation sequences.
   contents:
+  - fixation_group
   - rep_fixations
   - sample_fixations
   - rep_fixations
@@ -34,10 +35,12 @@ reference:
   contents:
   - similarity
   - multi_match
+  - scanpath_similarity
   - similarity.scanpath
   - template_similarity
   - sample_density_time
   - repetitive_similarity
+  - install_multimatch
 - title: Scanpath
   desc: Functions for creating and adding scanpaths.
   contents:
@@ -65,3 +68,9 @@ reference:
   contents:
   - density_by
   - sample_density.density
+- title: Data
+  desc: Example datasets included with the package.
+  contents:
+  - wynn_study
+  - wynn_study_image
+  - wynn_test
