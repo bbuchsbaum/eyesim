@@ -75,6 +75,11 @@ density_by(
   A character vector specifying additional variables to keep in the
   output (default is NULL).
 
+- fixvar:
+
+  A character string specifying the name of the column containing
+  fixation groups (default is "fixgroup").
+
 - result_name:
 
   A character string specifying the name for the density result variable

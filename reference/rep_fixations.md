@@ -6,6 +6,9 @@ Replicate a fixation sequence.
 
 ``` r
 rep_fixations(x, resolution)
+
+# S3 method for class 'fixation_group'
+rep_fixations(x, resolution = 100)
 ```
 
 ## Arguments

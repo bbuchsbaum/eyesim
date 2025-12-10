@@ -15,6 +15,10 @@ scanpath(x, ...)
 
   A fixation group object.
 
+- ...:
+
+  Additional arguments (currently unused).
+
 ## Value
 
 A scanpath object.

@@ -1,6 +1,7 @@
 # Repetitive Similarity
 
 ``` r
+if (requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("albersdown", quietly = TRUE)) ggplot2::theme_set(albersdown::theme_albers(params$family))
 library(eyesim)
 library(dplyr)
 library(ggplot2)

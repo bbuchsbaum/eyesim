@@ -7,6 +7,9 @@ specified x and y bounds.
 
 ``` r
 normalize(x, xbounds, ybounds, ...)
+
+# S3 method for class 'fixation_group'
+normalize(x, xbounds, ybounds, ...)
 ```
 
 ## Arguments

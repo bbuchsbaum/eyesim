@@ -81,9 +81,14 @@ based on a minimum distance threshold, and the percentage of overlapping fixatio
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list containing the following elements:</p><ul><li><p>overlap The number of overlapping fixations between the two fixation groups.</p></li>
-<li><p>perc The percentage of overlapping fixations.</p></li>
-</ul></div>
+    <p>A list containing the following elements:</p><dl><dt>overlap</dt>
+<dd><p>The number of overlapping fixations between the two fixation groups.</p></dd>
+
+  <dt>perc</dt>
+<dd><p>The percentage of overlapping fixations.</p></dd>
+
+
+</dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>This function computes the number of overlapping fixations within a minimum distance
@@ -94,9 +99,9 @@ between two fixations is less than the specified distance threshold.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Create two fixation groups</span></span></span>
-<span class="r-in"><span><span class="va">fg1</span> <span class="op">&lt;-</span> <span class="fu">fixation_group</span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span><span class="va">fg1</span> <span class="op">&lt;-</span> <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">fg2</span> <span class="op">&lt;-</span> <span class="fu">fixation_group</span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span><span class="va">fg2</span> <span class="op">&lt;-</span> <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Calculate the number of overlapping fixations and the percentage of overlapping fixations</span></span></span>

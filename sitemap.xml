@@ -24,11 +24,13 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/eye_density.fixation_group.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/eye_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/eye_table.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_group.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_overlap.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_similarity.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/gen_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/get_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/index.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/install_multimatch.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/match_scale.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/multi_match.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/normalize.html</loc></url>
@@ -38,12 +40,12 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/rescale.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/run_similarity_analysis.html</loc></url>
-<url><loc>https://bbuchsbaum.github.io/eyesim/reference/sample_density.density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/sample_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/sample_density_time.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/sample_fixations.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/scanpath.fixation_group.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/scanpath.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/scanpath_similarity.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/similarity.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/similarity.scanpath.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/simulate_eye_table.html</loc></url>
@@ -52,5 +54,8 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_regression.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_sample.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_similarity.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/wynn_study.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/wynn_study_image.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/wynn_test.html</loc></url>
 </urlset>
 

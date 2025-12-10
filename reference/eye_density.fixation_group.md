@@ -13,6 +13,7 @@ eye_density(
   xbounds = c(min(x$x), max(x$x)),
   ybounds = c(min(x$y), max(x$y)),
   outdim = c(100, 100),
+  weights = NULL,
   normalize = TRUE,
   duration_weighted = FALSE,
   window = NULL,
@@ -49,6 +50,12 @@ eye_density(
 
   The output dimensions of the density map. Default is c(100, 100).
 
+- weights:
+
+  Optional numeric vector of fixation weights. If NULL and
+  duration_weighted is TRUE, uses fixation durations as weights. Default
+  is NULL.
+
 - normalize:
 
   Whether to normalize the output map. Default is TRUE.
@@ -71,6 +78,16 @@ eye_density(
 - origin:
 
   The origin of the coordinate system. Default is c(0,0).
+
+- kde_pkg:
+
+  A character string specifying which package to use for kernel density
+  estimation. Options are "ks" (default) or "MASS". The "ks" package
+  supports weighted density estimation.
+
+- ...:
+
+  Additional arguments passed to the underlying KDE function.
 
 ## Value
 

@@ -40,6 +40,8 @@ Functions for manipulating spatial coordinates and transformations.
 
 Functions for working with fixation sequences.
 
+- [`fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_group.md)
+  : Create a Fixation Group Object
 - [`rep_fixations()`](https://bbuchsbaum.github.io/eyesim/reference/rep_fixations.md)
   : rep_fixations
 - [`sample_fixations()`](https://bbuchsbaum.github.io/eyesim/reference/sample_fixations.md)
@@ -57,6 +59,8 @@ Functions for computing similarity between objects.
   : Compute Similarity Between Two Objects
 - [`multi_match()`](https://bbuchsbaum.github.io/eyesim/reference/multi_match.md)
   : Compute MultiMatch Metrics for Scanpath Similarity
+- [`scanpath_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/scanpath_similarity.md)
+  : Scanpath Similarity
 - [`similarity(`*`<scanpath>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/similarity.scanpath.md)
   : Compute Similarity Between Scanpaths
 - [`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
@@ -65,6 +69,8 @@ Functions for computing similarity between objects.
   : Sample density maps at fixation locations over time
 - [`repetitive_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
   : Repetitive Similarity Analysis for Density Maps
+- [`install_multimatch()`](https://bbuchsbaum.github.io/eyesim/reference/install_multimatch.md)
+  : Install Python multimatch_gaze Package
 
 ## Scanpath
 
@@ -114,6 +120,16 @@ Functions for density operations by groups.
 
 - [`density_by()`](https://bbuchsbaum.github.io/eyesim/reference/density_by.md)
   : Calculate Eye Density by Groups
-- [`sample_density(`*`<density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.density.md)
-  : Sample a smooth fixation density map with a set of discrete
-  fixations.
+- [`sample_density()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.md)
+  : sample_density
+
+## Data
+
+Example datasets included with the package.
+
+- [`wynn_study`](https://bbuchsbaum.github.io/eyesim/reference/wynn_study.md)
+  : Eye-tracking study data from Wynn et al.
+- [`wynn_study_image`](https://bbuchsbaum.github.io/eyesim/reference/wynn_study_image.md)
+  : Study image from Wynn et al.
+- [`wynn_test`](https://bbuchsbaum.github.io/eyesim/reference/wynn_test.md)
+  : Eye-tracking test data from Wynn et al.

@@ -5,7 +5,10 @@ sample_fixations
 ## Usage
 
 ``` r
-sample_fixations(x, time)
+sample_fixations(x, time, ...)
+
+# S3 method for class 'fixation_group'
+sample_fixations(x, time, fast = TRUE, ...)
 ```
 
 ## Arguments
@@ -17,3 +20,11 @@ sample_fixations(x, time)
 - time:
 
   the continuous time points to sample
+
+- ...:
+
+  Additional arguments passed to methods.
+
+- fast:
+
+  Logical. If TRUE (default), uses faster approximation method.

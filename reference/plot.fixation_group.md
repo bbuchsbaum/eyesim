@@ -98,6 +98,10 @@ plot(
   The transformation to apply to the density values (default:
   c("identity", "sqroot", "curoot", "rank")).
 
+- ...:
+
+  Additional arguments (currently unused).
+
 ## Value
 
 A ggplot object representing the fixation group plot.

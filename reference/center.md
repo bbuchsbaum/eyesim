@@ -7,6 +7,9 @@ the specified origin.
 
 ``` r
 center(x, origin, ...)
+
+# S3 method for class 'fixation_group'
+center(x, origin = NULL, ...)
 ```
 
 ## Arguments

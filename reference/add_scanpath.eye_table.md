@@ -6,7 +6,7 @@ This function adds a scanpath to an eye table.
 
 ``` r
 # S3 method for class 'eye_table'
-add_scanpath(x, outvar = "scanpath", fixvar = "fixgroup")
+add_scanpath(x, outvar = "scanpath", fixvar = "fixgroup", ...)
 ```
 
 ## Arguments
@@ -22,6 +22,10 @@ add_scanpath(x, outvar = "scanpath", fixvar = "fixgroup")
 - fixvar:
 
   The fixation group variable name. Defaults to "fixgroup".
+
+- ...:
+
+  Additional arguments (currently unused).
 
 ## Value
 

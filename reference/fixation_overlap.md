@@ -46,10 +46,13 @@ fixation_overlap(
 
 A list containing the following elements:
 
-- overlap The number of overlapping fixations between the two fixation
-  groups.
+- overlap:
 
-- perc The percentage of overlapping fixations.
+  The number of overlapping fixations between the two fixation groups.
+
+- perc:
+
+  The percentage of overlapping fixations.
 
 ## Details
 

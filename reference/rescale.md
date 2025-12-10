@@ -6,6 +6,9 @@ Rescale spatial coordinates.
 
 ``` r
 rescale(x, sx, sy)
+
+# S3 method for class 'fixation_group'
+rescale(x, sx, sy)
 ```
 
 ## Arguments
@@ -33,5 +36,5 @@ scale factors.
 
 ## See also
 
-`rescale.fixation_group` and `rescale.eye_density` for examples of
-specific method implementations for this generic.
+`rescale.fixation_group` for an example of a specific method
+implementation for this generic.
