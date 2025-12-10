@@ -98,9 +98,10 @@ late-occurring in this group.</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://bbuchsbaum.github.io/eyesim/">eyesim</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://patchwork.data-imaginist.com" class="external-link">patchwork</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="va">fg</span> <span class="op">&lt;-</span> <span class="fu">fixation_group</span><span class="op">(</span>x<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">100</span>, <span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, y<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">100</span>, <span class="fl">0</span><span class="op">)</span>, onset<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">10</span>,<span class="fl">60</span><span class="op">)</span>, duration<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>,<span class="fl">50</span>,<span class="fl">100</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span><span class="op">)</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-2-1.png" width="768"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-2-1.png" class="r-plt" width="768"></p>
 <p>Now we create larger group consisting of 25 randomly generated
 eye-movements.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -116,7 +117,7 @@ eye-movements.</p>
 <span><span class="co">## construct a "fixation_group" object</span></span>
 <span><span class="va">fg</span> <span class="op">&lt;-</span> <span class="fu">fixation_group</span><span class="op">(</span>x<span class="op">=</span><span class="va">cds</span><span class="op">[</span>,<span class="fl">1</span><span class="op">]</span>, y<span class="op">=</span><span class="va">cds</span><span class="op">[</span>,<span class="fl">2</span><span class="op">]</span>, onset<span class="op">=</span><span class="va">onset</span>, duration<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">onset</span><span class="op">)</span>,<span class="fl">25</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg</span><span class="op">)</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-3-1.png" width="700"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-3-1.png" class="r-plt" width="700"></p>
 <p>That’s a pretty busy display, but captures the sequence of
 eye-movements. We can also plot various kinds of “density” maps which
 show where the fixations were most likely to occur.</p>
@@ -143,7 +144,7 @@ contour plot, a raster plot, and a filled contour plot.</p>
 <span><span class="co">#&gt; Warning: Computation failed in `stat_density2d_filled()`.</span></span>
 <span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-4-1.png" width="768"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-4-1.png" class="r-plt" width="768"></p>
 <p>We can also vary the bandwidth of the two-dimensional density
 estimation procedure to visualize the fixations at different levels of
 smoothness.</p>
@@ -163,7 +164,7 @@ smoothness.</p>
 <span><span class="co">#&gt; Warning: Computation failed in `stat_density2d_filled()`.</span></span>
 <span><span class="co">#&gt; Caused by error in `precompute_2d_bw()`:</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `h` must be a vector of length 2, not length 1.</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-5-1.png" width="768"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-5-1.png" class="r-plt" width="768"></p>
 </div>
 <div class="section level2">
 <h2 id="computing-similarity-between-fixation-groups">Computing similarity between fixation groups<a class="anchor" aria-label="anchor" href="#computing-similarity-between-fixation-groups"></a>
@@ -196,7 +197,7 @@ compute a series of similarity metrics on the two patterns.</p>
 <span><span class="va">p1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg1</span><span class="op">)</span></span>
 <span><span class="va">p2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fg2</span><span class="op">)</span></span>
 <span><span class="va">p1</span><span class="op">+</span><span class="va">p2</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-6-1.png" width="672"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-6-1.png" class="r-plt" width="672"></p>
 <p>To compute the similarity between any two
 <code>fixation_group</code>s we use the <code>similarity</code> generic
 function. First we convert the <code>fixation_group</code>s into
@@ -332,7 +333,7 @@ the resulting set.</p>
 <span><span class="va">p4</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">eyedens</span><span class="op">$</span><span class="va">density</span><span class="op">[[</span><span class="fl">4</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span></span>
 <span><span class="op">(</span><span class="va">p1</span> <span class="op">+</span> <span class="va">p2</span><span class="op">)</span> <span class="op">/</span> <span class="op">(</span><span class="va">p3</span><span class="op">+</span> <span class="va">p4</span><span class="op">)</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-12-1.png" width="700"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-12-1.png" class="r-plt" width="700"></p>
 <p>Below we print the first 10 rows of the resulting data.frame, which
 contains the <code>eye_density</code> objects stored in the
 <code>density</code> variable.</p>
@@ -416,7 +417,7 @@ histograms of similarity scores.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span><span class="va">simres1</span><span class="op">$</span><span class="va">eye_sim</span>, main<span class="op">=</span><span class="st">"raw eye movement similarity"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span><span class="va">simres1</span><span class="op">$</span><span class="va">perm_sim</span>, main<span class="op">=</span><span class="st">"image-permuted eye movement similarity"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span><span class="va">simres1</span><span class="op">$</span><span class="va">eye_sim_diff</span>, main<span class="op">=</span><span class="st">"corrected eye movement similarity"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="Overview_files/figure-html/unnamed-chunk-15-1.png" width="672"></p>
+<p><img src="Overview_files/figure-html/unnamed-chunk-15-1.png" class="r-plt" width="672"></p>
 </div>
 <div class="section level2">
 <h2 id="multiscale-analysis">Multiscale analysis<a class="anchor" aria-label="anchor" href="#multiscale-analysis"></a>
@@ -446,6 +447,93 @@ instead captures similarity across multiple spatial scales.</p>
 <p>The multiscale approach provides a more robust similarity estimate by
 averaging across different levels of spatial smoothing.</p>
 </div>
+<div class="section level2">
+<h2 id="temporal-density-sampling">Temporal Density Sampling<a class="anchor" aria-label="anchor" href="#temporal-density-sampling"></a>
+</h2>
+<p>Sometimes we want to understand how eye-movement patterns relate to a
+reference density map <strong>over time</strong> during a trial. For
+example, in memory research, we might ask: “At each moment during
+retrieval, how much does the current gaze location correspond to where
+the participant looked during encoding?”</p>
+<p>This is different from comparing overall density maps (which
+<code>template_similarity</code> does). Instead, we sample the encoding
+density at the retrieval fixation locations at each time point, creating
+a time series of “reinstatement” values.</p>
+<p>The <code><a href="../reference/sample_density_time.html">sample_density_time()</a></code> function provides this
+capability. It takes: - A template table with density maps (e.g., from
+encoding) - A source table with fixation groups (e.g., from retrieval) -
+Time points at which to sample - Optional time bins for aggregation</p>
+<p>This approach avoids a common problem: if you try to compute separate
+density maps for short time windows, you often end up with too few
+fixations (&lt;2) to estimate a density. By using the full encoding
+density and sampling it over time, we avoid this issue entirely.</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># We already have encoding densities from above</span></span>
+<span><span class="co"># Now let's sample them at retrieval fixation locations over time</span></span>
+<span></span>
+<span><span class="co"># First, we need an eye_table with fixation groups for retrieval</span></span>
+<span><span class="va">ret_eyetab</span> <span class="op">&lt;-</span> <span class="va">eyetab</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">phase</span> <span class="op">==</span> <span class="st">"retrieval"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Create a matching key for both tables</span></span>
+<span><span class="va">enc_dens</span> <span class="op">&lt;-</span> <span class="va">enc_dens</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>match_key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">participant</span>, <span class="va">image</span>, sep <span class="op">=</span> <span class="st">"_"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">ret_eyetab_matched</span> <span class="op">&lt;-</span> <span class="va">ret_eyetab</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>match_key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">participant</span>, <span class="va">image</span>, sep <span class="op">=</span> <span class="st">"_"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Sample encoding density at retrieval fixation locations</span></span>
+<span><span class="co"># every 50ms from 0-500ms, aggregated into two 250ms bins</span></span>
+<span><span class="va">temporal_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sample_density_time.html">sample_density_time</a></span><span class="op">(</span></span>
+<span> template_tab <span class="op">=</span> <span class="va">enc_dens</span>,</span>
+<span> source_tab <span class="op">=</span> <span class="va">ret_eyetab_matched</span>,</span>
+<span> match_on <span class="op">=</span> <span class="st">"match_key"</span>,</span>
+<span> times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">500</span>, by <span class="op">=</span> <span class="fl">50</span><span class="op">)</span>,</span>
+<span> time_bins <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span><span class="op">)</span>,</span>
+<span> permutations <span class="op">=</span> <span class="fl">10</span>,</span>
+<span> permute_on <span class="op">=</span> <span class="st">"participant"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># View the results</span></span>
+<span><span class="va">temporal_results</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">participant</span>, <span class="va">image</span>, <span class="va">bin_1</span>, <span class="va">bin_2</span>, <span class="va">perm_bin_1</span>, <span class="va">perm_bin_2</span>, <span class="va">diff_bin_1</span>, <span class="va">diff_bin_2</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 8</span></span></span>
+<span><span class="co">#&gt;   participant image   bin_1    bin_2 perm_bin_1 perm_bin_2 diff_bin_1 diff_bin_2</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> s1          im1   1.08<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> <span style="color: #BB0000;">NA</span>   <span style="color: #949494;"> </span>    0.000<span style="text-decoration: underline;">104</span>  <span style="color: #BB0000;">NA</span>            4.19<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   <span style="color: #BB0000;">NA</span>   <span style="color: #949494;"> </span>  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> s1          im10  1.03<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  9.26<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">103</span>   0.000<span style="text-decoration: underline;">094</span>4    9.25<span style="color: #949494;">e</span><span style="color: #BB0000;">-9</span>   -<span style="color: #BB0000;">1.73</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> s1          im11  1.03<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> <span style="color: #BB0000;">NA</span>   <span style="color: #949494;"> </span>    0.000<span style="text-decoration: underline;">105</span>  <span style="color: #BB0000;">NA</span>           -<span style="color: #BB0000;">1.96</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   <span style="color: #BB0000;">NA</span>   <span style="color: #949494;"> </span>  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> s1          im12  9.39<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  1.00<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">089</span>7  0.000<span style="text-decoration: underline;">102</span>     4.26<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">2.08</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> s1          im13  9.99<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  1.01<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">097</span>6  0.000<span style="text-decoration: underline;">101</span>     2.28<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">8.44</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-8</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> s1          im14  9.91<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  9.90<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">101</span>   0.000<span style="text-decoration: underline;">098</span>8   -<span style="color: #BB0000;">1.41</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>    1.30<span style="color: #949494;">e</span><span style="color: #BB0000;">-7</span></span></span></code></pre></div>
+<p>The output includes: - <code>sampled</code>: A list column with the
+full time series (density value at each time point) -
+<code>bin_1</code>, <code>bin_2</code>, etc.: Aggregated density values
+for each time bin - <code>perm_bin_1</code>, <code>perm_bin_2</code>,
+etc.: Permuted baseline values (from non-matching templates) -
+<code>diff_bin_1</code>, <code>diff_bin_2</code>, etc.: The difference
+(observed - permuted)</p>
+<p>We can visualize how the sampled density changes over time:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Extract and plot the time series for a few trials</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyr.tidyverse.org" class="external-link">tidyr</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Get the first 6 trials' time series</span></span>
+<span><span class="va">time_series_data</span> <span class="op">&lt;-</span> <span class="va">temporal_results</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>trial_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">participant</span>, <span class="va">image</span>, sep <span class="op">=</span> <span class="st">"_"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">trial_id</span>, <span class="va">sampled</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span> <span class="fu"><a href="https://tidyr.tidyverse.org/reference/unnest.html" class="external-link">unnest</a></span><span class="op">(</span><span class="va">sampled</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">time_series_data</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">time</span>, y <span class="op">=</span> <span class="va">z</span>, color <span class="op">=</span> <span class="va">trial_id</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>linewidth <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Time (ms)"</span>, y <span class="op">=</span> <span class="st">"Sampled Density Value"</span>,</span>
+<span>      title <span class="op">=</span> <span class="st">"Encoding Density Sampled at Retrieval Fixation Locations"</span>,</span>
+<span>      color <span class="op">=</span> <span class="st">"Trial"</span><span class="op">)</span> <span class="op">+</span></span>
+<span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>legend.position <span class="op">=</span> <span class="st">"bottom"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="Overview_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" width="768"></p>
+<p>This temporal analysis reveals when during retrieval participants are
+looking at locations that were fixated during encoding, which can
+provide insights into the time course of memory-guided attention.</p>
+</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
@@ -457,7 +545,7 @@ averaging across different levels of spatial smoothing.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

@@ -1,0 +1,96 @@
+# Construct an Eye-Movement Data Frame
+
+The \`eye_table\` function creates a \`data.frame\` to store
+eye-movement data with columns for x and y coordinates, fixation
+duration, onset time, and an optional grouping variable. Additional
+variables can also be retained. The function filters the data based on
+the clip bounds and can compute relative coordinates.
+
+## Usage
+
+``` r
+eye_table(
+  x,
+  y,
+  duration,
+  onset,
+  groupvar,
+  vars = NULL,
+  data,
+  clip_bounds = c(0, 1280, 0, 1280),
+  relative_coords = TRUE
+)
+```
+
+## Arguments
+
+- x:
+
+  A character or symbol representing the column for the x coordinates in
+  the source data.
+
+- y:
+
+  A character or symbol representing the column for the y coordinates in
+  the source data.
+
+- duration:
+
+  A character or symbol representing the column for fixation durations
+  in the source data.
+
+- onset:
+
+  A character or symbol representing the column for fixation onset times
+  in the source data.
+
+- groupvar:
+
+  A character or symbol representing the column for the grouping
+  variable in the source data.
+
+- vars:
+
+  A character vector of additional variable names to retain, or NULL
+  (default) if no additional variables are needed.
+
+- data:
+
+  The source \`data.frame\` containing the eye-movement data.
+
+- clip_bounds:
+
+  A numeric vector of length 4 representing the clip bounds for the
+  field of view in the form c(xmin, xmax, ymin, ymax). Default is c(0,
+  1280, 0, 1280).
+
+- relative_coords:
+
+  A logical value indicating whether to compute relative coordinates
+  (TRUE by default). If TRUE, x and y coordinates will be transformed
+  based on the clip_bounds.
+
+## Value
+
+A \`data.frame\` of class "eye_table" with columns for x and y
+coordinates, fixation duration, onset time, the grouping variable, and
+any additional specified variables. The data frame will also have an
+"origin" attribute containing the center coordinates of the field of
+view.
+
+## Details
+
+The \`eye_table\` function first checks that the input \`data\` is a
+\`data.frame\` and then renames the columns specified by x, y, duration,
+and onset to their standard names. The function then filters the data
+based on the specified clip_bounds, ensuring that all x and y
+coordinates fall within the bounds. If relative_coords is TRUE, the x
+and y coordinates will be transformed to be relative to the clip_bounds.
+
+The function groups the data by the specified grouping variable and
+constructs a fixation_group object for each group, which is added to the
+output data frame as a new "fixgroup" column. The output data frame
+retains the specified additional variables and is assigned a class of
+"eye_table". The "origin" attribute of the output data frame contains
+the center coordinates of the field of view, which are computed based on
+the clip_bounds and whether relative_coords is TRUE or FALSE.
