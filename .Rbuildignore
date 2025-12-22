@@ -13,3 +13,7 @@ test_data
 ^\.github$
 ^doc$
 ^Meta$
+^AGENTS\.md$
+^CLAUDE\.md$
+^\.claude$
+vignettes/Overview\.html$

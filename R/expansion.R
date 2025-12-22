@@ -13,6 +13,7 @@
 #'
 #' @keywords internal
 #' @importFrom pracma hausdorff_dist
+#' @importFrom stats optim
 estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 
   if (!is.null(window)) {
@@ -54,10 +55,11 @@ estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 #' @return A data frame containing the original source fixation data with additional columns for the matched scaling parameters.
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the match_scale function
-#' ref_tab <- # reference fixation data
-#' source_tab <- # source fixation data
+#' # ref_tab and source_tab should be data frames with fixation groups
 #' matched_data <- match_scale(ref_tab, source_tab, match_on = "subject_id")
+#' }
 #'
 #' @importFrom dplyr ungroup mutate filter bind_rows
 #' @importFrom purrr pmap
@@ -94,7 +96,6 @@ match_scale <- function(ref_tab, source_tab, match_on,
 rescale.fixation_group <- function(x, sx, sy) {
   x %>% mutate(x=x*sx, y=y*sy)
 }
-
 
 
 

@@ -15,6 +15,7 @@
 #' @import gganimate
 #' @importFrom ggplot2 ggplot aes scale_x_continuous scale_y_continuous geom_point scale_colour_gradientn theme_void labs theme scale_alpha_continuous
 #' @importFrom ggplot2 annotation_raster stat_density_2d scale_fill_gradientn guides
+#' @importFrom grDevices as.raster
 #' @examples
 #' # Create a fixation group
 #' fg <- fixation_group(x=c(.1,.5,1), y=c(1,.5,1), onset=1:3, duration=rep(1,3))
@@ -88,11 +89,15 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
 #' @import colorplane
 #' @importFrom ggplot2 ggplot aes geom_raster scale_fill_gradientn theme annotation_raster
 #' @importFrom ggplot2 element_blank
+#' @importFrom grDevices as.raster
 #' @family visualization
 #' @examples
-#' # Assume `ed` is an "eye_density" object
+#' # Create a fixation group and compute eye density
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' ed <- eye_density(fg, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300))
 #' # Plot the eye density
-#' plot_eye_density <- plot.eye_density(ed)
+#' plot(ed)
 #' @export
 plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
                              transform=c("identity", "sqroot", "curoot", "rank"), ...) {
@@ -153,7 +158,7 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
 #' @param show_path Whether to show the fixation path (default: TRUE).
 #' @param bins Number of bins for density calculations (default: max(as.integer(length(x$x)/10), 4)).
 #' @param bg_image An optional background image file name.
-#' @param colours Color palette to use for the plot (default: rev(RColorBrewer.brewer.pal(n=10, "Spectral"))).
+#' @param colours Color palette to use for the plot (default: rev(brewer.pal(n=10, "Spectral"))).
 #' @param alpha_range A vector specifying the minimum and maximum alpha values for density plots (default: c(0.5, 1)).
 #' @param alpha The opacity level for the points (default: 0.8).
 #' @param window A vector specifying the time window for selecting fixations (default: NULL).
@@ -164,13 +169,14 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
 #' @importFrom ggplot2 ggplot aes annotation_raster geom_point
 #' @importFrom imager load.image
 #' @importFrom RColorBrewer brewer.pal
+#' @importFrom grDevices as.raster
 #' @importFrom dplyr filter
 #' @family visualization
 #' @examples
 #' # Create a fixation_group object
 #' fg <- fixation_group(x=runif(50, 0, 100), y=runif(50, 0, 100), duration=rep(1,50), onset=seq(1,50))
-#' # Plot the fixation group
-#' plot_fixation_group(fg)
+#' # Plot the fixation group using the S3 method
+#' plot(fg)
 #' @export
 plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour", "density", "raster"),
                                 bandwidth=60,
@@ -181,7 +187,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
                                 show_path=TRUE,
                                 bins=max(as.integer(length(x$x)/10),4),
                                 bg_image=NULL,
-                                colours=rev(RColorBrewer.brewer.pal(n=10, "Spectral")),
+                                colours=rev(brewer.pal(n=10, "Spectral")),
                                 alpha_range=c(.5,1),
                                 alpha=.8,
                                 window=NULL,
@@ -304,5 +310,3 @@ cuberoot_trans <- scales::trans_new(name="curoot",
 squareroot_trans <- scales::trans_new(name="sqroot",
                                     transform=function(x) { x^(1/2) },
                                     inverse=function(x) x^2)
-
-

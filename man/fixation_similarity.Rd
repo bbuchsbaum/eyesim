@@ -53,10 +53,10 @@ Permutation handling and units follow \code{template_similarity}:
 }
 }
 \examples{
+\dontrun{
 # Example usage of the fixation_similarity function
-ref_table <- # reference table data
-source_table <- # source table data
-match_column <- # column name to match fixation groups
-similarity_results <- fixation_similarity(ref_table, source_table, match_column)
+# ref_table and source_table should be eye_table objects with fixation groups
+similarity_results <- fixation_similarity(ref_table, source_table, match_column = "trial")
+}
 
 }

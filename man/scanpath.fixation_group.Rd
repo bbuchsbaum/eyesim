@@ -19,7 +19,7 @@ This function creates a scanpath for a fixation group.
 }
 \examples{
 # Create a fixation group
-fixgroup <- data.frame(x = 1:5, y = 6:10)
-# Create a scanpath for the fixation group
-scanpath_obj <- scanpath.fixation_group(fixgroup)
+fg <- fixation_group(x = 1:5, y = 6:10, duration = rep(0.2, 5), onset = 1:5)
+# Create a scanpath for the fixation group using the S3 generic
+scanpath_obj <- scanpath(fg)
 }

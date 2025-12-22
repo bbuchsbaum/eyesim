@@ -1,8 +1,10 @@
 ---
 title: Overview
 output: rmarkdown::html_vignette
-vignette: |
-  %\VignetteIndexEntry{Overview} %\VignetteEngine{knitr::rmarkdown} %\VignetteEncoding{UTF-8}
+vignette: >
+  %\VignetteIndexEntry{Overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 params:
   family: red
 css: albers.css
@@ -353,7 +355,6 @@ ggplot(time_series_data, aes(x = time, y = z, color = trial_id)) +
 ```
 
 This temporal analysis reveals when during retrieval participants are looking at locations that were fixated during encoding, which can provide insights into the time course of memory-guided attention.
-
 
 
 

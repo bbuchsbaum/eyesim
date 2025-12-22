@@ -1,4 +1,6 @@
 #' @noRd
+#' @importFrom igraph graph_from_data_frame shortest_paths E as_ids
+mmgaze <- NULL
 emd_position_similarity <- function(fg1, fg2, screensize) {
   # Extract x and y coordinates
   points1 <- as.matrix(fg1[, c("x", "y")])
@@ -194,8 +196,16 @@ install_multimatch <- function() {
 #' @examples
 #' \dontrun{
 #' # Example usage:
-#' scanpath1 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
-#' scanpath2 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
+#' scanpath1 <- data.frame(
+#'   x = runif(10, 0, 500),
+#'   y = runif(10, 0, 500),
+#'   onset = cumsum(runif(10, 1, 5))
+#' )
+#' scanpath2 <- data.frame(
+#'   x = runif(10, 0, 500),
+#'   y = runif(10, 0, 500),
+#'   onset = cumsum(runif(10, 1, 5))
+#' )
 #' screensize <- c(500, 500)
 #' similarity_scores <- multi_match(scanpath1, scanpath2, screensize)
 #' print(similarity_scores)

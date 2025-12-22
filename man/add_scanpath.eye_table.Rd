@@ -23,8 +23,7 @@ This function adds a scanpath to an eye table.
 }
 \examples{
 # Create an eye table with a fixation group
-df <- data.frame(x = 1:5, y = 6:10, fixgroup = rep(1, 5))
-eye_table_df <- as_eye_table(df)
-# Add a scanpath to the eye table
-eye_table_df <- add_scanpath.eye_table(eye_table_df)
+fg <- fixation_group(x = 1:5, y = 6:10, duration = rep(0.2, 5), onset = 1:5)
+et <- as_eye_table(tibble::tibble(id = 1, fixgroup = list(fg)))
+et <- add_scanpath(et)
 }

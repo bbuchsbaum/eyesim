@@ -1,6 +1,7 @@
 
+#' @importFrom stats sd
 #' @export
-summary.fixation_group <- function(object) {
+summary.fixation_group <- function(object, ...) {
   cen_x <- mean(object$x)
   cen_y <- mean(object$y)
   nfix <- nrow(object)
@@ -57,6 +58,8 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 
 #' @rdname sample_fixations
 #' @param fast Logical. If TRUE (default), uses faster approximation method.
+#' @importFrom stats approx
+#' @importFrom purrr map_dfr
 #' @export
 sample_fixations.fixation_group <- function(x, time, fast=TRUE, ...) {
 

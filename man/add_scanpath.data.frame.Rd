@@ -22,8 +22,7 @@ A data frame with the added scanpath.
 This function adds a scanpath to a data frame.
 }
 \examples{
-# Create a data frame with a fixation group
-df <- data.frame(x = 1:5, y = 6:10, fixgroup = rep(1, 5))
-# Add a scanpath to the data frame
-df <- add_scanpath.data.frame(df)
+fg <- fixation_group(x = 1:5, y = 6:10, duration = rep(0.2, 5), onset = 1:5)
+df <- tibble::tibble(fixgroup = list(fg))
+df <- add_scanpath(df)
 }

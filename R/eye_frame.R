@@ -9,7 +9,7 @@
 #' The function filters the data based on the clip bounds and can compute
 #' relative coordinates.
 #'
-#' @importFrom dplyr do group_by select filter as_tibble rename_with
+#' @importFrom dplyr do group_by select filter as_tibble rename_with all_of select_at group_by_at
 #' @importFrom magrittr %>%
 #' @importFrom assertthat assert_that
 #'
@@ -156,6 +156,7 @@ as_eye_table <- function(x) {
 #'
 #' @examples
 #' sim_eye_table <- simulate_eye_table(n_fixations = 100, n_groups = 10)
+#' @importFrom stats runif rnorm
 simulate_eye_table <- function(n_fixations, n_groups, clip_bounds=c(0,1280, 0,1280), relative_coords=TRUE) {
 
   # Simulate eye-movement data
@@ -176,8 +177,6 @@ simulate_eye_table <- function(n_fixations, n_groups, clip_bounds=c(0,1280, 0,12
 
   return(sim_eye_table)
 }
-
-
 
 
 

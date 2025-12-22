@@ -1,0 +1,81 @@
+---
+title: "Latent Transforms for Template Similarity"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{Latent Transforms for Template Similarity}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(eyesim)
+library(dplyr)
+```
+
+## Why latent transforms?
+
+`template_similarity()` compares densities in screen space. When encoding and retrieval differ by a linear transform (e.g., scale/translation) or domain shift (participant/device), raw cosine/correlation can underestimate true reinstatement. Latent transforms insert an optional pre-step that maps both sides into a shared space before similarity. This keeps the core API unchanged while allowing domain adaptation.
+
+### Available transforms
+
+- `latent_pca_transform()`: PCA projection to a fixed number of components. Use when you want dimensionality reduction and mild noise smoothing.
+- `coral_transform()`: CORAL (CORrelation ALignment) whitens the source domain and re-colors it with the reference covariance. Unsupervised; good for device/participant shifts when differences are mostly second-moment changes.
+- `cca_transform()`: Regularized CCA on matched pairs in PCA space. Supervised; emphasizes components that covary across domains. Use when pairings are reliable and you want item-level alignment.
+
+All are invoked via `template_similarity(..., similarity_transform = <fn>, similarity_transform_args = list(...))`.
+
+## Minimal example
+
+Here we build two tiny density tables where the source is a scaled version of the reference. CORAL should recover higher similarity than the raw comparison.
+
+```{r}
+make_density_vec <- function(vec) {
+  structure(list(
+    z = matrix(vec, nrow = 2, ncol = 2, byrow = TRUE),
+    x = 1:2,
+    y = 1:2,
+    sigma = 50
+  ), class = c("density", "eye_density"))
+}
+
+set.seed(1)
+base_vecs <- replicate(8, rnorm(4, 0, 1), simplify = FALSE)
+scale_mat <- diag(c(2, 0.6, 1.7, 0.8))
+source_vecs <- lapply(base_vecs, function(v) as.vector(scale_mat %*% v))
+
+ref_tab <- tibble(id = seq_along(base_vecs), density = lapply(base_vecs, make_density_vec))
+source_tab <- tibble(id = seq_along(source_vecs), density = lapply(source_vecs, make_density_vec))
+
+raw <- template_similarity(ref_tab, source_tab, match_on = "id", permutations = 0, method = "cosine")
+coral <- template_similarity(
+  ref_tab, source_tab,
+  match_on = "id", permutations = 0, method = "cosine",
+  similarity_transform = coral_transform,
+  similarity_transform_args = list(comps = 4, shrink = 1e-6)
+)
+
+mean(raw$eye_sim)
+mean(coral$eye_sim)
+```
+
+## Choosing a transform
+
+- **PCA**: default choice for dimensionality reduction; low risk, no pairing needed.
+- **CORAL**: unsupervised domain shift; assumes linear, covariance-level differences (e.g., calibration drift, different screen sizes).
+- **CCA**: supervised; leverages matched pairs to find shared latent axes. Set `comps` modestly (5–15) and add `shrink` to stabilize small-N fits.
+
+After the transform, `template_similarity` still uses your chosen `method` (cosine, pearson, fisherz, etc.) on the transformed vectors.
+
+## Notes and limitations
+
+- Multiscale densities are supported only when all scales share the same grid size; otherwise latent transforms will error.
+- These transforms operate on flattened densities; downstream similarity still uses the chosen `method`.
+- Regularization (`shrink`) and component count (`comps`) can affect stability on small-N data—tune as needed.
+- CORAL and CCA are linear; they will not correct nonlinear spatial warps. Keep `comps` low to reduce overfitting, especially with few pairs.

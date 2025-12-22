@@ -22,7 +22,7 @@
 #' @importFrom broom tidy
 #' @importFrom MASS rlm
 #' @importFrom nnls nnls
-#' @importFrom stats lm glm
+#' @importFrom stats lm glm as.formula coef
 #' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
   ret <- source_tab %>% rowwise() %>% do( {
@@ -96,6 +96,7 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #' @importFrom quantreg rq
 #' @importFrom ppcor pcor
 #' @importFrom MASS rlm
+#' @importFrom stats coef
 #' @export
 template_regression <- function(ref_tab, source_tab, match_on,
                                 baseline_tab, baseline_key,

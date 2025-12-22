@@ -27,6 +27,8 @@ globalVariables(unique(c(
   "onset",
   # similarity.scanpath:
   "onset",
+  # repetitive_similarity:
+  ".row_id",
   # template_multireg:
   ".",
   # template_multireg : <anonymous>:

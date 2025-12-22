@@ -14,6 +14,8 @@ template_similarity(
   method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
   permutations = 10,
   multiscale_aggregation = "mean",
+  similarity_transform = NULL,
+  similarity_transform_args = list(),
   ...
 )
 }
@@ -35,6 +37,10 @@ template_similarity(
 \item{permutations}{A numeric value specifying the number of permutations for the baseline map (default is 10).}
 
 \item{multiscale_aggregation}{If the density maps are multiscale (i.e., `eye_density_multiscale` objects), this specifies how to aggregate similarities from different scales. Options: "mean" (default, returns the average similarity across scales), "none" (returns a list or vector of similarities, one per scale, within the result columns). See `similarity.eye_density_multiscale`.}
+
+\item{similarity_transform}{Optional preprocessing hook applied before similarity is computed. Should be a function that accepts (\code{ref_tab}, \code{source_tab}, \code{match_on}, \code{refvar}, \code{sourcevar}) and returns a list with updated tables/column names. See `latent_pca_transform`, `coral_transform`, and `cca_transform`.}
+
+\item{similarity_transform_args}{Named list of extra arguments passed to `similarity_transform`.}
 
 \item{...}{Extra arguments to pass to the `similarity` function.}
 }

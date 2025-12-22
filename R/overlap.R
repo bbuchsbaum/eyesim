@@ -44,4 +44,5 @@ fixation_overlap <- function(x, y, dthresh=60, time_samples=seq(0,max(x$onset), 
   d <- proxy::dist(fx1[,1:2], fx2[,1:2], pairwise=TRUE, method=method)
   overlap <- sum(d[!is.na(d)] < dthresh)
   perc <- overlap/length(d)
+  list(overlap = overlap, perc = perc)
 }

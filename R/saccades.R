@@ -8,6 +8,7 @@
 #'
 #' @return A matrix with two columns, where the first column is rho (the radial coordinate)
 #'   and the second column is theta (the angular coordinate).
+#' @export
 #' @examples
 #' cart2pol(c(1, 2), c(2, 2))
 cart2pol <- function(x, y) {
@@ -48,10 +49,9 @@ calcangle <- function(x1, x2) {
 #' @return A data frame with the added scanpath.
 #' @export
 #' @examples
-#' # Create a data frame with a fixation group
-#' df <- data.frame(x = 1:5, y = 6:10, fixgroup = rep(1, 5))
-#' # Add a scanpath to the data frame
-#' df <- add_scanpath.data.frame(df)
+#' fg <- fixation_group(x = 1:5, y = 6:10, duration = rep(0.2, 5), onset = 1:5)
+#' df <- tibble::tibble(fixgroup = list(fg))
+#' df <- add_scanpath(df)
 add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup", ...) {
   x %>% mutate(!!outvar := list(scanpath(.data[[fixvar]][[1]])))
 }
@@ -69,10 +69,9 @@ add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup", ...
 #' @export
 #' @examples
 #' # Create an eye table with a fixation group
-#' df <- data.frame(x = 1:5, y = 6:10, fixgroup = rep(1, 5))
-#' eye_table_df <- as_eye_table(df)
-#' # Add a scanpath to the eye table
-#' eye_table_df <- add_scanpath.eye_table(eye_table_df)
+#' fg <- fixation_group(x = 1:5, y = 6:10, duration = rep(0.2, 5), onset = 1:5)
+#' et <- as_eye_table(tibble::tibble(id = 1, fixgroup = list(fg)))
+#' et <- add_scanpath(et)
 add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...) {
   x %>% mutate(!!outvar := list(scanpath(.data[[fixvar]][[1]])))
 }
@@ -90,9 +89,9 @@ add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...)
 #' @export
 #' @examples
 #' # Create a fixation group
-#' fixgroup <- data.frame(x = 1:5, y = 6:10)
-#' # Create a scanpath for the fixation group
-#' scanpath_obj <- scanpath.fixation_group(fixgroup)
+#' fg <- fixation_group(x = 1:5, y = 6:10, duration = rep(0.2, 5), onset = 1:5)
+#' # Create a scanpath for the fixation group using the S3 generic
+#' scanpath_obj <- scanpath(fg)
 scanpath.fixation_group <- function(x,...) {
 
   lenx <- diff(x$x)
@@ -104,6 +103,4 @@ scanpath.fixation_group <- function(x,...) {
   class(x) <- c("scanpath", class(x))
   x
 }
-
-
 

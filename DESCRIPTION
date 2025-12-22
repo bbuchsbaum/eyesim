@@ -12,7 +12,6 @@ Imports:
     imager,
     quantreg,
     assertthat,
-    Matrix,
     dplyr,
     ggplot2,
     tibble,
@@ -31,7 +30,8 @@ Imports:
     nnls,
     energy,
     ks,
-    rlang (>= 0.4.11)
+    rlang (>= 0.4.11),
+    igraph
 Encoding: UTF-8
 LazyData: true
 LazyDataCompression: xz
@@ -49,6 +49,8 @@ Suggests:
     roxygen2,
     patchwork,
     ggridges,
-    tidyr
+    tidyr,
+    T4transport,
+    transport
 VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/

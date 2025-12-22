@@ -1,8 +1,10 @@
 ---
 title: Multimatch
 output: rmarkdown::html_vignette
-vignette: |
-  %\VignetteIndexEntry{Multimatch} %\VignetteEngine{knitr::rmarkdown} %\VignetteEncoding{UTF-8}
+vignette: >
+  %\VignetteIndexEntry{Multimatch}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 params:
   family: red
 css: albers.css

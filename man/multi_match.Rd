@@ -43,8 +43,16 @@ The function ensures that both scanpaths have strictly increasing onset times an
 \examples{
 \dontrun{
 # Example usage:
-scanpath1 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
-scanpath2 <- data.frame(x = runif(10, 0, 500), y = runif(10, 0, 500), onset = cumsum(runif(10, 1, 5)))
+scanpath1 <- data.frame(
+  x = runif(10, 0, 500),
+  y = runif(10, 0, 500),
+  onset = cumsum(runif(10, 1, 5))
+)
+scanpath2 <- data.frame(
+  x = runif(10, 0, 500),
+  y = runif(10, 0, 500),
+  onset = cumsum(runif(10, 1, 5))
+)
 screensize <- c(500, 500)
 similarity_scores <- multi_match(scanpath1, scanpath2, screensize)
 print(similarity_scores)

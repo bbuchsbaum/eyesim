@@ -1,8 +1,10 @@
 ---
 title: Repetitive Similarity
 output: rmarkdown::html_vignette
-vignette: |
-  %\VignetteIndexEntry{Repetitive Similarity} %\VignetteEngine{knitr::rmarkdown} %\VignetteEncoding{UTF-8}
+vignette: >
+  %\VignetteIndexEntry{Repetitive Similarity}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 params:
   family: red
 css: albers.css

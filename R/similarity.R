@@ -46,12 +46,14 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     d1 <- ref_tab[[refvar]][[.$matchind]]  # Reference data
     d2 <- .[[sourcevar]]                  # Source data
 
-    is_valid_density <- function(obj) {
-      inherits(obj, c("density", "eye_density", "eye_density_multiscale")) && !is.null(obj)
+    is_valid_similarity_obj <- function(obj) {
+      (!is.null(obj)) &&
+        (inherits(obj, c("density", "eye_density", "eye_density_multiscale")) ||
+         is.numeric(obj) || is.matrix(obj))
     }
 
-    if (!is_valid_density(d1) || !is_valid_density(d2)) {
-      warning("Invalid or NULL density encountered in run_similarity_analysis(). Returning NA for this comparison.")
+    if (!is_valid_similarity_obj(d1) || !is_valid_similarity_obj(d2)) {
+      warning("Invalid or NULL similarity input encountered in run_similarity_analysis(). Returning NA for this comparison.")
       return(tibble(eye_sim = NA_real_, perm_sim = NA_real_, eye_sim_diff = NA_real_))
     }
 
@@ -176,11 +178,11 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 #' }
 #'
 #' @examples
+#' \dontrun{
 #' # Example usage of the fixation_similarity function
-#' ref_table <- # reference table data
-#' source_table <- # source table data
-#' match_column <- # column name to match fixation groups
-#' similarity_results <- fixation_similarity(ref_table, source_table, match_column)
+#' # ref_table and source_table should be eye_table objects with fixation groups
+#' similarity_results <- fixation_similarity(ref_table, source_table, match_column = "trial")
+#' }
 #'
 #' @export
 fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, permute_on=NULL,
@@ -238,6 +240,8 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @param method A character string specifying the similarity method to use. Possible values are "spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", and "dcov" (default is "spearman").
 #' @param permutations A numeric value specifying the number of permutations for the baseline map (default is 10).
 #' @param multiscale_aggregation If the density maps are multiscale (i.e., `eye_density_multiscale` objects), this specifies how to aggregate similarities from different scales. Options: "mean" (default, returns the average similarity across scales), "none" (returns a list or vector of similarities, one per scale, within the result columns). See `similarity.eye_density_multiscale`.
+#' @param similarity_transform Optional preprocessing hook applied before similarity is computed. Should be a function that accepts (\code{ref_tab}, \code{source_tab}, \code{match_on}, \code{refvar}, \code{sourcevar}) and returns a list with updated tables/column names. See `latent_pca_transform`, `coral_transform`, and `cca_transform`.
+#' @param similarity_transform_args Named list of extra arguments passed to `similarity_transform`.
 #' @param ... Extra arguments to pass to the `similarity` function.
 #'
 #' @details
@@ -267,12 +271,32 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @export
 template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL, refvar="density", sourcevar="density",
                                 method=c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
-                                permutations=10, multiscale_aggregation = "mean", ...) {
+                                permutations=10, multiscale_aggregation = "mean",
+                                similarity_transform = NULL, similarity_transform_args = list(), ...) {
 
+  if (!is.null(similarity_transform)) {
+    transform_res <- do.call(similarity_transform, c(
+      list(ref_tab = ref_tab, source_tab = source_tab, match_on = match_on,
+           refvar = refvar, sourcevar = sourcevar),
+      similarity_transform_args))
+
+    if (!is.null(transform_res$ref_tab)) ref_tab <- transform_res$ref_tab
+    if (!is.null(transform_res$source_tab)) source_tab <- transform_res$source_tab
+    if (!is.null(transform_res$refvar)) refvar <- transform_res$refvar
+    if (!is.null(transform_res$sourcevar)) sourcevar <- transform_res$sourcevar
+    transform_info <- transform_res$info
+  } else {
+    transform_info <- NULL
+  }
 
   method <- match.arg(method)
   message("template_similarity: similarity metric is ", method)
-  run_similarity_analysis(ref_tab, source_tab, match_on, permutations, permute_on, method, refvar, sourcevar, multiscale_aggregation = multiscale_aggregation, ...)
+  res <- run_similarity_analysis(ref_tab, source_tab, match_on, permutations, permute_on, method, refvar, sourcevar, multiscale_aggregation = multiscale_aggregation, ...)
+
+  if (!is.null(transform_info)) {
+    attr(res, "similarity_transform") <- transform_info
+  }
+  res
 }
 
 
@@ -283,11 +307,12 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 #' @param x An object of class "density" representing the smooth fixation density map.
 #' @param fix A data frame or tibble containing discrete fixations with columns "x", "y", and "onset".
 #' @param times A vector of numeric values representing the time points at which the density map should be sampled (default is NULL).
-#'
+#' 
 #' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
-#'
+#' 
 #' @return A data frame with columns "z" and "time", where "z" contains the sampled density values and "time" contains the corresponding time points.
 #' @rdname sample_density
+#' @importFrom stats approx
 #' @export
 sample_density.density <- function(x, fix, times = NULL, ...) {
   nearest_index <- function(coord, grid) {
@@ -983,10 +1008,14 @@ sigmoid <- function (x, a = 1, b = 0)  {
 #' @return A numeric value representing the similarity between the two input scanpaths.
 #'
 #' @examples
-#' # Example usage of the similarity.scanpath function
-#' scanpath1 <- # first scanpath data
-#' scanpath2 <- # second scanpath data
-#' similarity_value <- similarity.scanpath(scanpath1, scanpath2, method = "multimatch", screensize = c(1000, 1000))
+#' # Create two scanpaths from fixation groups
+#' fg1 <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                       onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' fg2 <- fixation_group(x = c(110, 210, 290), y = c(110, 140, 210),
+#'                       onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' sp1 <- scanpath(fg1)
+#' sp2 <- scanpath(fg2)
+#' similarity_value <- similarity(sp1, sp2, method = "multimatch", screensize = c(1000, 1000))
 #'
 #' @importFrom dplyr filter
 #' @export
@@ -1103,11 +1132,19 @@ similarity.density <- function(x, y,
     compute_similarity(x$z, as.vector(y), method)
   }
 }
+
+#' @export
+similarity.default <- function(x, y,
+                               method = c("pearson", "spearman", "fisherz",
+                                          "cosine", "l1", "jaccard", "dcov", "emd"),
+                               ...) {
+  compute_similarity(x, y, method = method, ...)
+}
 compute_similarity <- function(x, y,
                               method = c("pearson", "spearman", "fisherz",
                                           "cosine", "l1", "jaccard", "dcov",
                                           "emd"),
-                              saliency_map = NULL) {
+                              saliency_map = NULL, ...) {
   method <- match.arg(method)
   if (method == "emd") {
     if (!all(c("x", "y", "z") %in% names(x)) || !all(c("x", "y", "z") %in% names(y))) {
@@ -1217,7 +1254,10 @@ compute_similarity <- function(x, y,
 }
 
 
-
+#' Weighted 2D KDE with optional weights
+#'
+#' @keywords internal
+#' @importFrom stats dnorm bw.nrd0
 kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
 {
   nx <- length(x)
