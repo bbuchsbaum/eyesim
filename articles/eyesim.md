@@ -185,7 +185,6 @@ eyetab <- eye_table("x", "y", "duration", "onset",
                     data = df)
 eyetab
 #> # A tibble: 120 × 4
-#> # Groups:   participant, phase, image [120]
 #>    participant phase    image fixgroup           
 #>    <chr>       <chr>    <chr> <list>             
 #>  1 s1          encoding img1  <fxtn_grp [10 × 6]>
