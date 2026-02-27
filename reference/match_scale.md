@@ -60,9 +60,9 @@ additional columns for the matched scaling parameters.
 ## Examples
 
 ``` r
+if (FALSE) { # \dontrun{
 # Example usage of the match_scale function
-ref_tab <- # reference fixation data
-source_tab <- # source fixation data
+# ref_tab and source_tab should be data frames with fixation groups
 matched_data <- match_scale(ref_tab, source_tab, match_on = "subject_id")
-#> Error in match_scale(ref_tab, source_tab, match_on = "subject_id"): could not find function "match_scale"
+} # }
 ```

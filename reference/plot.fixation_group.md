@@ -19,7 +19,7 @@ plot(
   show_path = TRUE,
   bins = max(as.integer(length(x$x)/10), 4),
   bg_image = NULL,
-  colours = rev(RColorBrewer.brewer.pal(n = 10, "Spectral")),
+  colours = rev(brewer.pal(n = 10, "Spectral")),
   alpha_range = c(0.5, 1),
   alpha = 0.8,
   window = NULL,
@@ -76,8 +76,8 @@ plot(
 
 - colours:
 
-  Color palette to use for the plot (default:
-  rev(RColorBrewer.brewer.pal(n=10, "Spectral"))).
+  Color palette to use for the plot (default: rev(brewer.pal(n=10,
+  "Spectral"))).
 
 - alpha_range:
 
@@ -117,7 +117,6 @@ Other visualization:
 ``` r
 # Create a fixation_group object
 fg <- fixation_group(x=runif(50, 0, 100), y=runif(50, 0, 100), duration=rep(1,50), onset=seq(1,50))
-# Plot the fixation group
-plot_fixation_group(fg)
-#> Error in plot_fixation_group(fg): could not find function "plot_fixation_group"
+# Plot the fixation group using the S3 method
+plot(fg)
 ```

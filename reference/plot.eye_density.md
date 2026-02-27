@@ -51,8 +51,10 @@ Other visualization:
 ## Examples
 
 ``` r
-# Assume `ed` is an "eye_density" object
+# Create a fixation group and compute eye density
+fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                     onset = c(0, 200, 400), duration = c(200, 200, 200))
+ed <- eye_density(fg, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300))
 # Plot the eye density
-plot_eye_density <- plot.eye_density(ed)
-#> Error in plot.eye_density(ed): could not find function "plot.eye_density"
+plot(ed)
 ```

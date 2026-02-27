@@ -114,6 +114,15 @@ Functions for computing similarity between objects.
 - [`install_multimatch()`](https://bbuchsbaum.github.io/eyesim/reference/install_multimatch.md)
   : Install Python multimatch_gaze Package
 
+## Latent transforms
+
+Domain-adaptation transforms for use with template_similarity().
+
+- [`latent_pca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  [`coral_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  [`cca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  : Latent-space transforms for template-based similarity
+
 ## Scanpath
 
 Functions for creating and adding scanpaths.
@@ -180,7 +189,11 @@ Example datasets included with the package.
 
 ### All vignettes
 
-- [Multimatch](https://bbuchsbaum.github.io/eyesim/articles/Multimatch.md):
-- [Overview](https://bbuchsbaum.github.io/eyesim/articles/Overview.md):
-- [Repetitive
-  Similarity](https://bbuchsbaum.github.io/eyesim/articles/RepetitiveSimilarity.md):
+- [Comparing Eye-Movement
+  Patterns](https://bbuchsbaum.github.io/eyesim/articles/eyesim.md):
+- [Latent Transforms for Template
+  Similarity](https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.md):
+- [Comparing Scanpaths with
+  MultiMatch](https://bbuchsbaum.github.io/eyesim/articles/Multimatch.md):
+- [Measuring Similarity Across Repeated
+  Viewings](https://bbuchsbaum.github.io/eyesim/articles/RepetitiveSimilarity.md):

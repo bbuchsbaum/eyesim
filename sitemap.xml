@@ -1,11 +1,13 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://bbuchsbaum.github.io/eyesim/404.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/AGENTS.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/CLAUDE.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/LICENSE-text.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/articles/Multimatch.html</loc></url>
-<url><loc>https://bbuchsbaum.github.io/eyesim/articles/Overview.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/articles/RepetitiveSimilarity.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/articles/eyesim.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/articles/index.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/authors.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/index.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/add_scanpath.data.frame.html</loc></url>
@@ -31,6 +33,8 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/get_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/index.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/install_multimatch.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/kde2d_weighted.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/match_scale.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/multi_match.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/normalize.html</loc></url>

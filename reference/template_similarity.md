@@ -16,6 +16,8 @@ template_similarity(
   method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
   permutations = 10,
   multiscale_aggregation = "mean",
+  similarity_transform = NULL,
+  similarity_transform_args = list(),
   ...
 )
 ```
@@ -69,6 +71,18 @@ template_similarity(
   across scales), "none" (returns a list or vector of similarities, one
   per scale, within the result columns). See
   \`similarity.eye_density_multiscale\`.
+
+- similarity_transform:
+
+  Optional preprocessing hook applied before similarity is computed.
+  Should be a function that accepts (`ref_tab`, `source_tab`,
+  `match_on`, `refvar`, `sourcevar`) and returns a list with updated
+  tables/column names. See \`latent_pca_transform\`,
+  \`coral_transform\`, and \`cca_transform\`.
+
+- similarity_transform_args:
+
+  Named list of extra arguments passed to \`similarity_transform\`.
 
 - ...:
 

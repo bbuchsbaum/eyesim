@@ -46,5 +46,4 @@ A \`data.frame\` of class "eye_table" with simulated data.
 
 ``` r
 sim_eye_table <- simulate_eye_table(n_fixations = 100, n_groups = 10)
-#> Error in select_at(., c("x", "y", "duration", "onset", groupvar)): could not find function "select_at"
 ```

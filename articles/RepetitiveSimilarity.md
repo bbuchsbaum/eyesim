@@ -1,115 +1,152 @@
-# Repetitive Similarity
+# Measuring Similarity Across Repeated Viewings
 
 ``` r
-if (requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("albersdown", quietly = TRUE)) ggplot2::theme_set(albersdown::theme_albers(params$family))
 library(eyesim)
 library(dplyr)
 library(ggplot2)
 ```
 
-## Repetitive Similarity
+When participants view the same image multiple times — say, during
+encoding and retrieval — do they look at the same locations each time?
+And is that consistency specific to the repeated stimulus, or just a
+general gaze pattern?
 
-The `repetitive_similarity` function computes eye-movement similarity
-for datasets where the same stimulus is viewed multiple times across
-experimental conditions. This is particularly useful for memory
-experiments where images are presented during encoding and later during
-retrieval phases.
+[`repetitive_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
+answers these questions by computing within-stimulus similarity across
+experimental conditions and comparing it to cross-stimulus similarity.
+Unlike
+[`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
+which requires explicit encoding-retrieval pairing,
+[`repetitive_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
+examines *all* possible within-stimulus combinations and summarizes
+them.
 
-Rather than comparing specific encoding-retrieval pairs, repetitive
-similarity examines all possible within-stimulus combinations across
-conditions and computes summary statistics (mean, median, etc.) to
-characterize the overall similarity pattern.
+## Setting up the data
 
-## Example
-
-Let’s simulate a simple dataset with images viewed during encoding and
-retrieval:
+Let’s simulate a small dataset: 2 participants view 3 images during
+encoding and retrieval.
 
 ``` r
-# Generate sample fixation data
-gen_fixations <- function(imname, phase, trial, participant) {
-  nfix <- ceiling(runif(1) * 8) + 2  # 2-10 fixations
-  cds <- data.frame(x = runif(nfix) * 100, y = runif(nfix) * 100)
-  onset <- cumsum(runif(nfix) * 50)
-  
+set.seed(42)
+
+gen_fixations <- function(imname, phase, participant) {
+  nfix <- sample(3:10, 1)
   data.frame(
-    x = cds$x, y = cds$y, onset = onset,
-    duration = c(diff(onset), 50),
-    image = imname, phase = phase, 
-    trial = trial, participant = participant
+    x = runif(nfix, 0, 100), y = runif(nfix, 0, 100),
+    onset = cumsum(runif(nfix, 20, 80)),
+    duration = runif(nfix, 80, 300),
+    image = imname, phase = phase, participant = participant
   )
 }
 
-# Create dataset: 2 participants, 3 images, encoding + retrieval
-df <- lapply(c("s1", "s2"), function(snum) {
-  lapply(c("encoding", "retrieval"), function(phase) {
-    lapply(paste0("img", 1:3), function(img) {
-      gen_fixations(img, phase, img, snum)
-    }) %>% bind_rows()
-  }) %>% bind_rows()
-}) %>% bind_rows()
+df <- do.call(rbind, lapply(c("s1", "s2"), function(s) {
+  do.call(rbind, lapply(c("encoding", "retrieval"), function(p) {
+    do.call(rbind, lapply(paste0("img", 1:3), function(img) {
+      gen_fixations(img, p, s)
+    }))
+  }))
+}))
 
-# Create eye_table
-eyetab <- eye_table("x", "y", "duration", "onset", 
-                   groupvar = c("participant", "phase", "image"), 
-                   data = df)
-
-# Compute density maps
-eyedens <- density_by(eyetab, groups = c("phase", "image", "participant"), 
-                     sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
+eyetab <- eye_table("x", "y", "duration", "onset",
+                    groupvar = c("participant", "phase", "image"),
+                    data = df)
 ```
 
-Now compute repetitive similarity:
+Compute density maps for each participant-phase-image combination:
 
 ``` r
-# Run repetitive similarity analysis
-rep_sim <- repetitive_similarity(eyedens, 
-                               condition_var = "phase",
-                               method = "pearson")
+eyedens <- density_by(eyetab,
+                      groups = c("phase", "image", "participant"),
+                      sigma = 50,
+                      xbounds = c(0, 100), ybounds = c(0, 100))
+```
 
-print(rep_sim)
+## Computing repetitive similarity
+
+[`repetitive_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
+takes the density table and a condition variable (here `phase`) that
+defines the repeated viewings:
+
+``` r
+rep_sim <- repetitive_similarity(eyedens,
+                                 condition_var = "phase",
+                                 method = "pearson")
+rep_sim
 #> # A tibble: 12 × 7
-#>    phase     image participant fixgroup           density        repsim othersim
-#>    <chr>     <chr> <chr>       <list>             <list>          <dbl>    <dbl>
-#>  1 encoding  img1  s1          <fxtn_grp [3 × 6]> <ey_dnsty [5]>  0.368    0.484
-#>  2 encoding  img1  s2          <fxtn_grp [6 × 6]> <ey_dnsty [5]>  0.591    0.413
-#>  3 encoding  img2  s1          <fxtn_grp [9 × 6]> <ey_dnsty [5]>  0.649    0.636
-#>  4 encoding  img2  s2          <fxtn_grp [7 × 6]> <ey_dnsty [5]>  0.683    0.510
-#>  5 encoding  img3  s1          <fxtn_grp [4 × 6]> <ey_dnsty [5]>  0.660    0.540
-#>  6 encoding  img3  s2          <fxtn_grp [3 × 6]> <ey_dnsty [5]>  0.748    0.643
-#>  7 retrieval img1  s1          <fxtn_grp [5 × 6]> <ey_dnsty [5]>  0.533    0.626
-#>  8 retrieval img1  s2          <fxtn_grp [8 × 6]> <ey_dnsty [5]>  0.220    0.514
-#>  9 retrieval img2  s1          <fxtn_grp [7 × 6]> <ey_dnsty [5]>  0.557    0.685
-#> 10 retrieval img2  s2          <fxtn_grp [9 × 6]> <ey_dnsty [5]>  0.388    0.625
-#> 11 retrieval img3  s1          <fxtn_grp [3 × 6]> <ey_dnsty [5]>  0.189    0.482
-#> 12 retrieval img3  s2          <fxtn_grp [3 × 6]> <ey_dnsty [5]>  0.238    0.294
+#>    phase     image participant fixgroup            density    repsim othersim
+#>    <chr>     <chr> <chr>       <list>              <list>      <dbl>    <dbl>
+#>  1 encoding  img1  s1          <fxtn_grp [3 × 6]>  <ey_dnsty> 0.304     0.367
+#>  2 encoding  img1  s2          <fxtn_grp [9 × 6]>  <ey_dnsty> 0.377     0.626
+#>  3 encoding  img2  s1          <fxtn_grp [6 × 6]>  <ey_dnsty> 0.423     0.506
+#>  4 encoding  img2  s2          <fxtn_grp [6 × 6]>  <ey_dnsty> 0.461     0.694
+#>  5 encoding  img3  s1          <fxtn_grp [10 × 6]> <ey_dnsty> 0.204     0.243
+#>  6 encoding  img3  s2          <fxtn_grp [3 × 6]>  <ey_dnsty> 0.0566    0.388
+#>  7 retrieval img1  s1          <fxtn_grp [9 × 6]>  <ey_dnsty> 0.688     0.582
+#>  8 retrieval img1  s2          <fxtn_grp [5 × 6]>  <ey_dnsty> 0.531     0.408
+#>  9 retrieval img2  s1          <fxtn_grp [5 × 6]>  <ey_dnsty> 0.534     0.565
+#> 10 retrieval img2  s2          <fxtn_grp [3 × 6]>  <ey_dnsty> 0.341     0.389
+#> 11 retrieval img3  s1          <fxtn_grp [7 × 6]>  <ey_dnsty> 0.538     0.587
+#> 12 retrieval img3  s2          <fxtn_grp [5 × 6]>  <ey_dnsty> 0.312     0.293
 ```
 
-## Visualization
+The result contains two key columns:
+
+- **repsim** — within-stimulus similarity: how consistently participants
+  looked at the same locations for the *same* image across conditions
+- **othersim** — cross-stimulus similarity: baseline similarity between
+  *different* images viewed under different conditions
+
+## Interpreting the results
 
 ``` r
-# Plot the similarity results
 ggplot(rep_sim, aes(x = image, y = repsim)) +
   geom_col(fill = "steelblue", alpha = 0.7) +
   labs(x = "Stimulus", y = "Repetitive Similarity",
-       title = "Eye-movement Similarity Within Phase") +
+       title = "Same image across conditions") +
   theme_minimal()
 ```
 
-![](RepetitiveSimilarity_files/figure-html/unnamed-chunk-4-1.png)
+![Within-stimulus similarity (repsim). Higher values indicate that
+participants fixated similar locations when viewing the same image
+across encoding and
+retrieval.](RepetitiveSimilarity_files/figure-html/plot-repsim-1.png)
+
+Within-stimulus similarity (repsim). Higher values indicate that
+participants fixated similar locations when viewing the same image
+across encoding and retrieval.
 
 ``` r
-
-# Also plot other similarity
 ggplot(rep_sim, aes(x = image, y = othersim)) +
   geom_col(fill = "coral", alpha = 0.7) +
-  labs(x = "Stimulus", y = "Other Similarity", 
-       title = "Eye-movement Similarity Across Different Phases") +
+  labs(x = "Stimulus", y = "Other Similarity",
+       title = "Different images across conditions") +
   theme_minimal()
 ```
 
-![](RepetitiveSimilarity_files/figure-html/unnamed-chunk-4-2.png)
+![Cross-stimulus similarity (othersim). This represents the baseline:
+how similar gaze patterns are when comparing different images across
+conditions.](RepetitiveSimilarity_files/figure-html/plot-othersim-1.png)
 
-The `repetitive_similarity` function provides a straightforward way to
-quantify how consistently participants look at the same locations when
-viewing repeated stimuli across different experimental phases.
+Cross-stimulus similarity (othersim). This represents the baseline: how
+similar gaze patterns are when comparing different images across
+conditions.
+
+With random data, both values should be near zero. In a real experiment,
+you would expect `repsim` to be higher than `othersim` if participants
+show stimulus-specific eye-movement reinstatement. The difference
+(`repsim - othersim`) gives you a corrected measure of reinstatement
+that controls for general gaze tendencies.
+
+## What’s next?
+
+- See
+  [`?repetitive_similarity`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
+  for additional options, including `pairwise = TRUE` to return all
+  pairwise similarities instead of summaries
+- [`vignette("eyesim")`](https://bbuchsbaum.github.io/eyesim/articles/eyesim.md)
+  covers the full
+  [`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
+  workflow with permutation-based baselines
+- [`vignette("latent-transforms")`](https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.md)
+  describes domain-adaptation methods that can improve similarity
+  estimates across devices or participants

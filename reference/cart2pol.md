@@ -28,5 +28,7 @@ coordinate) and the second column is theta (the angular coordinate).
 
 ``` r
 cart2pol(c(1, 2), c(2, 2))
-#> Error in cart2pol(c(1, 2), c(2, 2)): could not find function "cart2pol"
+#>           rho     theta
+#> [1,] 2.236068 1.1071487
+#> [2,] 2.828427 0.7853982
 ```

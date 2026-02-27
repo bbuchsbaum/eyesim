@@ -73,7 +73,5 @@ duration = rep(1, 50), onset = seq(1, 50))
 # Calculate the number of overlapping fixations and the percentage of overlapping fixations
 result <- fixation_overlap(fg1, fg2)
 overlap <- result$overlap
-#> Error in result$overlap: $ operator is invalid for atomic vectors
 perc <- result$perc
-#> Error in result$perc: $ operator is invalid for atomic vectors
 ```

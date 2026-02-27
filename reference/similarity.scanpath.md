@@ -60,9 +60,12 @@ Other similarity:
 ## Examples
 
 ``` r
-# Example usage of the similarity.scanpath function
-scanpath1 <- # first scanpath data
-scanpath2 <- # second scanpath data
-similarity_value <- similarity.scanpath(scanpath1, scanpath2, method = "multimatch", screensize = c(1000, 1000))
-#> Error in similarity.scanpath(scanpath1, scanpath2, method = "multimatch",     screensize = c(1000, 1000)): could not find function "similarity.scanpath"
+# Create two scanpaths from fixation groups
+fg1 <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+fg2 <- fixation_group(x = c(110, 210, 290), y = c(110, 140, 210),
+                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+sp1 <- scanpath(fg1)
+sp2 <- scanpath(fg2)
+similarity_value <- similarity(sp1, sp2, method = "multimatch", screensize = c(1000, 1000))
 ```

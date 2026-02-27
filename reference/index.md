@@ -72,6 +72,15 @@ Functions for computing similarity between objects.
 - [`install_multimatch()`](https://bbuchsbaum.github.io/eyesim/reference/install_multimatch.md)
   : Install Python multimatch_gaze Package
 
+## Latent transforms
+
+Domain-adaptation transforms for use with template_similarity().
+
+- [`latent_pca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  [`coral_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  [`cca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  : Latent-space transforms for template-based similarity
+
 ## Scanpath
 
 Functions for creating and adding scanpaths.

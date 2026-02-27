@@ -108,9 +108,7 @@ fixations <- data.frame(
   onset = seq(1, 50)
 )
 eyetab <- eye_table("x", "y", "duration", "onset", groupvar=c("subject"), data=fixations)
-#> Error in select_at(., c("x", "y", "duration", "onset", groupvar)): could not find function "select_at"
 
 # Calculate eye density by subject
 result <- density_by(eyetab, groups = "subject")
-#> Error: object 'eyetab' not found
 ```
