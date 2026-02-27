@@ -1,8 +1,10 @@
 
-#' @noRd 
+#' @noRd
 #' @keywords internal
-#' @import crqa
 crqa <- function(fg1, fg2, radius=60, delay=1, embed=1, rescale=0, metric=c("euclidean", "manhattan")) {
+  if (!requireNamespace("crqa", quietly = TRUE)) {
+    stop("Package 'crqa' is required for this function. Install it with install.packages('crqa').")
+  }
   nr1 <- nrow(fg1)
   nr2 <- nrow(fg2)
   nr <- min(nr1,nr2)

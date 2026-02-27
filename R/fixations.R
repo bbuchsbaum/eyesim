@@ -110,5 +110,6 @@ center.fixation_group <- function(x, origin=NULL, ...) {
 #' @rdname normalize
 #' @export
 normalize.fixation_group <- function(x, xbounds, ybounds, ...) {
-  x %>% mutate(x=(x - xbounds[1])/xbounds[2], y=(y-ybounds[1])/ybounds[2])
+  x %>% mutate(x=(x - xbounds[1])/(xbounds[2] - xbounds[1]),
+               y=(y - ybounds[1])/(ybounds[2] - ybounds[1]))
 }

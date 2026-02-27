@@ -17,7 +17,7 @@
 estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 
   if (!is.null(window)) {
-    y <- subset(x, onset >= window[1] & onset < window[2])
+    y <- subset(y, onset >= window[1] & onset < window[2])
   }
 
   if (nrow(x) == 0 || nrow(y) == 0) {
@@ -31,7 +31,6 @@ estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
   cy <- as.matrix(y[,1:2])
   par <- c(1,1)
   f <- function(p) {
-    #browser()
     newy <- cy %*% diag(c(p[1],p[2]))
     pracma::hausdorff_dist(newy,cx)
   }

@@ -63,7 +63,6 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
       })
     ret <- dplyr::bind_rows(ret_list)
   } else {
-    #browser()
     fx <- do.call(rbind, x[[fixvar]])
     d <- eye_density(fx, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
                      duration_weighted=duration_weighted, window=window,
@@ -84,16 +83,3 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
   ret
 
 }
-
-
-#' @keywords internal
-#' @noRd
-rank_trans <- scales::trans_new(name="rank",
-                                transform=function(x) { rank(x) },
-                                inverse=function(x) (length(x)+1) - rank(x))
-
-#' @keywords internal
-#' @noRd
-cuberoot_trans <- scales::trans_new(name="rank",
-                                    transform=function(x) { x^(1/3) },
-                                    inverse=function(x) x^3)

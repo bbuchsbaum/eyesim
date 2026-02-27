@@ -9,7 +9,7 @@
 #' The function filters the data based on the clip bounds and can compute
 #' relative coordinates.
 #'
-#' @importFrom dplyr do group_by select filter as_tibble rename_with all_of select_at group_by_at
+#' @importFrom dplyr group_by select filter as_tibble rename_with all_of across summarise left_join
 #' @importFrom magrittr %>%
 #' @importFrom assertthat assert_that
 #'
@@ -43,10 +43,9 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
                                .fn = function(x){colmapping[x]}) %>% as_tibble()
 
   data <- if (is.null(vars)) {
-    #data %>% select_at("x","y","duration", "onset", .dots=c(groupvar))
-    data %>% select_at(c("x","y","duration", "onset", groupvar))
+    data %>% select(all_of(c("x","y","duration", "onset", groupvar)))
   } else {
-    data %>% select_at(c("x","y","duration", "onset", vars, groupvar))
+    data %>% select(all_of(c("x","y","duration", "onset", vars, groupvar)))
   }
 
 
@@ -65,10 +64,17 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
 
 
   res <- data %>%
-    group_by_at(groupvar) %>%
-    do({
-        cbind(.[1,], tibble(fixgroup=list(fixation_group(.[["x"]], .[["y"]], .[["duration"]], .[["onset"]]))))
-    }) %>% select_at(c("fixgroup", vars))
+    group_by(across(all_of(groupvar))) %>%
+    summarise(fixgroup = list(fixation_group(.data[["x"]], .data[["y"]], .data[["duration"]], .data[["onset"]])),
+              .groups = "drop")
+
+  if (!is.null(vars)) {
+    # Re-attach the first value of each kept variable per group
+    var_data <- data %>%
+      group_by(across(all_of(groupvar))) %>%
+      summarise(across(all_of(vars), ~ .x[1]), .groups = "drop")
+    res <- dplyr::left_join(res, var_data, by = groupvar)
+  }
 
   class(res) <- c("eye_table", class(res))
 
@@ -159,14 +165,17 @@ as_eye_table <- function(x) {
 #' @importFrom stats runif rnorm
 simulate_eye_table <- function(n_fixations, n_groups, clip_bounds=c(0,1280, 0,1280), relative_coords=TRUE) {
 
-  # Simulate eye-movement data
-  data <- data.frame(
-    x = runif(n_fixations, min = clip_bounds[1], max = clip_bounds[2]),
-    y = runif(n_fixations, min = clip_bounds[3], max = clip_bounds[4]),
-    duration = rnorm(n_fixations, mean = 300, sd = 50),
-    onset = cumsum(rnorm(n_fixations, mean = 400, sd = 100)),
-    groupvar = factor(rep(1:n_groups, each = n_fixations / n_groups))
-  )
+  # Simulate eye-movement data with per-group onset times
+  fix_per_group <- as.integer(n_fixations / n_groups)
+  data <- do.call(rbind, lapply(seq_len(n_groups), function(g) {
+    data.frame(
+      x = runif(fix_per_group, min = clip_bounds[1], max = clip_bounds[2]),
+      y = runif(fix_per_group, min = clip_bounds[3], max = clip_bounds[4]),
+      duration = abs(rnorm(fix_per_group, mean = 300, sd = 50)),
+      onset = cumsum(abs(rnorm(fix_per_group, mean = 400, sd = 100))),
+      groupvar = factor(g, levels = seq_len(n_groups))
+    )
+  }))
 
   # Create an eye_table object from the simulated data
   sim_eye_table <- eye_table(

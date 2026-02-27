@@ -12,7 +12,6 @@
 #' @param time_bin The size of the time bins (default: 1).
 #'
 #' @return A gganimate object representing the animated scanpath.
-#' @import gganimate
 #' @importFrom ggplot2 ggplot aes scale_x_continuous scale_y_continuous geom_point scale_colour_gradientn theme_void labs theme scale_alpha_continuous
 #' @importFrom ggplot2 annotation_raster stat_density_2d scale_fill_gradientn guides
 #' @importFrom grDevices as.raster
@@ -29,6 +28,10 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
                           type=c("points", "raster"),
                           time_bin=1) {
 
+  if (!requireNamespace("gganimate", quietly = TRUE)) {
+    stop("Package 'gganimate' is required for anim_scanpath(). Install it with install.packages('gganimate').")
+  }
+
   anim_over <- match.arg(anim_over)
   type <- match.arg(type)
 
@@ -42,6 +45,9 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
     scale_y_continuous(expand=expansion(mult = c(.1, .1)), limits=c(ylim[1], ylim[2]))
 
   if (!is.null(bg_image)) {
+    if (!requireNamespace("imager", quietly = TRUE)) {
+      stop("Package 'imager' is required for bg_image support. Install it with install.packages('imager').")
+    }
     im <- imager::load.image(bg_image)
     p <- p + annotation_raster(as.raster(im),
                                xmin=xlim[1],
@@ -60,7 +66,7 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
       labs(title = 'Onset: {frame_time}') +
      gganimate::transition_time(.data[[anim_over]])
   } else {
-    p + stat_density_2d(aes(fill = ..density.., alpha=..density..), geom="raster", bins=20,
+    p + stat_density_2d(aes(fill = after_stat(density), alpha=after_stat(density)), geom="raster", bins=20,
                         h=100, contour = FALSE, interpolate=TRUE) +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide = "none") +
       scale_alpha_continuous(range=c(.5,1), guide = "none") +
@@ -86,7 +92,6 @@ anim_scanpath <- function(x, bg_image=NULL, xlim=range(x$x),
 #' @param transform The transformation to apply to the density values (default: c("identity", "sqroot", "curoot", "rank")).
 #' @param ... Additional args
 #' @return A ggplot object representing the eye density plot.
-#' @import colorplane
 #' @importFrom ggplot2 ggplot aes geom_raster scale_fill_gradientn theme annotation_raster
 #' @importFrom ggplot2 element_blank
 #' @importFrom grDevices as.raster
@@ -113,6 +118,9 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
   p <- ggplot(data=dfx, aes(x=x, y=y, fill=z))
 
   if (!is.null(bg_image)) {
+    if (!requireNamespace("imager", quietly = TRUE)) {
+      stop("Package 'imager' is required for bg_image support. Install it with install.packages('imager').")
+    }
     im <- imager::load.image(bg_image)
     p <- p + annotation_raster(as.raster(im),
                                xmin=xlim[1],
@@ -167,7 +175,6 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
 #' @return A ggplot object representing the fixation group plot.
 #' @import ggplot2
 #' @importFrom ggplot2 ggplot aes annotation_raster geom_point
-#' @importFrom imager load.image
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom grDevices as.raster
 #' @importFrom dplyr filter
@@ -218,6 +225,9 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
     scale_y_continuous(expand=expansion(mult = c(.1, .1)), limits=c(ylim[1], ylim[2]))
 
   if (!is.null(bg_image)) {
+    if (!requireNamespace("imager", quietly = TRUE)) {
+      stop("Package 'imager' is required for bg_image support. Install it with install.packages('imager').")
+    }
     im <- imager::load.image(bg_image)
     p <- p + annotation_raster(as.raster(im),
                                xmin=xlim[1],
@@ -237,7 +247,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
     #  guides(size = "none") +
     #  theme_void()
 
-    p + stat_density_2d(aes(colour=..level..), h=bandwidth) +
+    p + stat_density_2d(aes(colour=after_stat(level)), h=bandwidth) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       guides(size = "none")
   } else if (type == "filled_contour") {
@@ -249,7 +259,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
       guides(size = "none")
 
   } else if (type == "density") {
-    p + stat_density2d(aes(fill = ..level.., alpha=..level..), geom = "polygon", bins=bins, h=bandwidth)   +
+    p + stat_density2d(aes(fill = after_stat(level), alpha=after_stat(level)), geom = "polygon", bins=bins, h=bandwidth)   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide="none", trans=cuberoot_trans) +
       scale_alpha_continuous(range=alpha_range, trans=trans, guide="none") +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
@@ -257,7 +267,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
       #+
       #scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "raster") {
-    p + stat_density_2d(aes(fill = ..density.., alpha=..density..), geom="raster", bins=bins,
+    p + stat_density_2d(aes(fill = after_stat(density), alpha=after_stat(density)), geom="raster", bins=bins,
                         h=bandwidth, contour = FALSE, interpolate=TRUE) +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = "none") +
       scale_alpha_continuous(range=alpha_range, guide = "none", trans=trans) +

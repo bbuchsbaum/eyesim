@@ -103,10 +103,6 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
         calculate_sim(d1p, d2, method, window)
       }))
 
-      #if (length(psim) == 0) {
-      #  browser()
-      #}
-
       # Calculate the mean permuted similarity and the difference between the observed and permuted similarities
       if (ncol(psim) > 1) {
         # Handle potential vector/list 'sim' when calculating means and differences
@@ -665,19 +661,15 @@ get_density.eye_density <- function(x, ...) {
 #' @param x An eye_density object to be converted into a data.frame.
 #' @param ... Additional arguments passed to the method (currently not used).
 #'
-#' @details The function extracts the x and y values from the eye_density object, then creates a data.frame with all possible combinations of x and y using purrr::cross_df(). It then adds a new column 'z' to the data.frame with the density values from the eye_density object.
+#' @details The function extracts the x and y values from the eye_density object, then creates a data.frame with all possible combinations of x and y. It then adds the density values from the eye_density object as a column 'z'.
 #'
 #' @return A data.frame with columns x, y, and z representing the x-axis, y-axis, and density values, respectively.
 #' @export
-#' @importFrom purrr cross_df
 #' @importFrom dplyr mutate
 as.data.frame.eye_density <- function(x, ...) {
   z <- x$z
-  kde_df <- x %>%
-    .[c("x", "y")] %>%
-    purrr::cross_df() %>%
-    dplyr::mutate(z = as.vector(z))
-
+  kde_df <- expand.grid(x = x$x, y = x$y)
+  kde_df$z <- as.vector(z)
   kde_df
 }
 
@@ -733,6 +725,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        origin = c(0, 0),
                                        kde_pkg = "ks",
                                        ...) {
+
+  assert_that(is.numeric(sigma) && all(sigma > 0),
+              msg = "sigma must be a positive numeric value or vector")
 
   # Filter by window if specified
   x_filtered <- x # Use a new variable for the potentially filtered data
@@ -1100,6 +1095,9 @@ similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap"),
     xdur <- x$duration/sum(x$duration)
     ydur <- y$duration/sum(y$duration)
 
+    if (!requireNamespace("T4transport", quietly = TRUE)) {
+      stop("Package 'T4transport' is required for method='sinkhorn'. Install it with install.packages('T4transport').")
+    }
     d0 <- T4transport::sinkhornD(d,wx=xdur, wy=ydur, lambda=lambda)$distance
     1/(1+d0)
   } else if (method == "overlap") {
@@ -1248,6 +1246,9 @@ compute_similarity <- function(x, y,
      }
      x1 <- vx_common / sum_x
      x2 <- vy_common / sum_y
+    if (!requireNamespace("energy", quietly = TRUE)) {
+      stop("Package 'energy' is required for method='dcov'. Install it with install.packages('energy').")
+    }
     energy::dcor(x1, x2)
   }
 
@@ -1265,7 +1266,6 @@ kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
     stop("data vectors must be the same length")
   if (length(w) != nx & length(w) != 1)
     stop("weight vectors must be 1 or length of data")
-  #browser()
   n <- rep(n, length.out = 2L)
   gx <- seq(lims[1], lims[2], length = n[1])
   gy <- seq(lims[3], lims[4], length = n[2])

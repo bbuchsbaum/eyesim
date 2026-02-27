@@ -16,4 +16,6 @@ test_data
 ^AGENTS\.md$
 ^CLAUDE\.md$
 ^\.claude$
+^\.omc$
+^Rplots\.pdf$
 vignettes/Overview\.html$

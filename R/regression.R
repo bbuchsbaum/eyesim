@@ -18,7 +18,7 @@
 #'
 #' @return A data frame with the source table augmented with a new column, multireg, containing
 #'   the results of the multiple regression analysis.
-#' @importFrom dplyr rowwise bind_cols
+#' @importFrom dplyr rowwise bind_cols do
 #' @importFrom broom tidy
 #' @importFrom MASS rlm
 #' @importFrom nnls nnls
@@ -26,24 +26,17 @@
 #' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
   ret <- source_tab %>% rowwise() %>% do( {
-    #browser()
     y <- as.vector(.[[response]]$z/sum(.[[response]]$z))
     xs <- lapply(covars, function(x) as.vector(.[[x]]$z/sum(.[[x]]$z)))
     names(xs) <- covars
     xs[[".response"]] <- y
     dfx <- try(as.data.frame(xs))
-    #if (inherits(dfx, "try-error")) {
-    #  browser()
-    #}
 
     form <- if (intercept) {
       as.formula(paste(".response", "~", paste(covars, collapse=" + ")))
     } else {
       as.formula(paste(".response", "~", paste(covars, collapse=" + "), " -1"))
     }
-
-
-   # browser()
 
     fit <- if (method== "lm") {
       tidy(stats::lm(form, data=dfx))
@@ -93,8 +86,6 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #' @return A data frame with the source table augmented with two new columns, beta_baseline and beta_source,
 #'   representing the estimated beta weights for the baseline and source maps, respectively.
 #' @importFrom dplyr ungroup mutate filter rowwise
-#' @importFrom quantreg rq
-#' @importFrom ppcor pcor
 #' @importFrom MASS rlm
 #' @importFrom stats coef
 #' @export
@@ -127,9 +118,9 @@ template_regression <- function(ref_tab, source_tab, match_on,
       res <- MASS::rlm(y ~ baseline + x2, data=df1, maxit=100)
       coef(res)[2:3]
     } else if (method == "rank") {
-      #browser()
-      #res <- rfit(y ~ baseline + x2, data=df1)
-      #coef(res)[2:3]
+      if (!requireNamespace("ppcor", quietly = TRUE)) {
+        stop("Package 'ppcor' is required for method='rank'. Install it with install.packages('ppcor').")
+      }
       res <- ppcor::pcor(df1, method="spearman")
       res$estimate[2:3,1]
     } else {
@@ -168,15 +159,6 @@ template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL
     sample_density(a,b, time)
   })
 
-
-  # res <- source_tab %>% rowwise() %>% do({
-  #   temp <- .[[template]]
-  #   fix <- .[[fixgroup]]
-  #   cds <- as.matrix(cbind(fix$x, fix$y))
-  #   s <- sample_density(temp, fix, time)
-  #   browser()
-  #   as_tibble(rbind(.)) %>% mutate(samples=list(s))
-  # })
 
   oname <- rlang::sym(outcol)
   source_tab %>% add_column(!!oname := ret)

@@ -1,34 +1,32 @@
 Package: eyesim
 Type: Package
-Title: analysis of eye-movement data
+Title: Analysis of Eye-Movement Data
 Version: 0.1.0
-Author: Bradley Buchsbaum
-Maintainer: Bradley Buchsbaum <brad.buchsbaum@gmail.com>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Authors@R: person("Bradley", "Buchsbaum", email = "brad.buchsbaum@gmail.com",
+    role = c("aut", "cre"))
+Description: Tools for analyzing eye-movement fixation data with a focus on
+    computing fixation pattern similarity, density map generation, scanpath
+    comparison, and recognition memory paradigms. Implements template-based
+    similarity analysis, the MultiMatch algorithm for scanpath comparison,
+    cross-recurrence quantification analysis (CRQA), Earth Mover's Distance
+    (EMD) based similarity, and latent-space transforms (PCA, CORAL, CCA)
+    for density map comparison.
 License: MIT + file LICENSE
 Imports:
     proxy,
-    imager,
-    quantreg,
     assertthat,
     dplyr,
     ggplot2,
     tibble,
-    colorplane,
-    ppcor,
     broom,
     furrr,
     purrr,
-    crqa,
-    gganimate,
     MASS,
     RColorBrewer,
     magrittr,
     pracma,
     emdist,
     nnls,
-    energy,
     ks,
     rlang (>= 0.4.11),
     igraph
@@ -41,16 +39,23 @@ Remotes:
 Depends: 
     R (>= 2.10)
 Suggests:
-    knitr,
-    rmarkdown,
-    reticulate,
-    testthat,
+    albersdown,
+    colorplane,
     covr,
-    roxygen2,
-    patchwork,
+    crqa,
+    energy,
+    gganimate,
     ggridges,
-    tidyr,
+    imager,
+    knitr,
+    patchwork,
+    ppcor,
+    reticulate,
+    rmarkdown,
+    roxygen2,
     T4transport,
+    testthat,
+    tidyr,
     transport
 VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/

@@ -41,22 +41,20 @@ The function computes six different similarity metrics between the scanpaths \co
 The function ensures that both scanpaths have strictly increasing onset times and contain at least three fixations. It also normalizes the similarity scores to lie between 0 and 1, with higher values indicating greater similarity.
 }
 \examples{
-\dontrun{
-# Example usage:
-scanpath1 <- data.frame(
-  x = runif(10, 0, 500),
-  y = runif(10, 0, 500),
-  onset = cumsum(runif(10, 1, 5))
-)
-scanpath2 <- data.frame(
-  x = runif(10, 0, 500),
-  y = runif(10, 0, 500),
-  onset = cumsum(runif(10, 1, 5))
-)
-screensize <- c(500, 500)
-similarity_scores <- multi_match(scanpath1, scanpath2, screensize)
-print(similarity_scores)
-}
+set.seed(1)
+sp1 <- scanpath(fixation_group(
+  x = cumsum(runif(5, -50, 50)) + 250,
+  y = cumsum(runif(5, -50, 50)) + 250,
+  onset = cumsum(runif(5, 100, 300)),
+  duration = runif(5, 150, 350)
+))
+sp2 <- scanpath(fixation_group(
+  x = cumsum(runif(5, -50, 50)) + 250,
+  y = cumsum(runif(5, -50, 50)) + 250,
+  onset = cumsum(runif(5, 100, 300)),
+  duration = runif(5, 150, 350)
+))
+multi_match(sp1, sp2, screensize = c(500, 500))
 
 }
 \references{

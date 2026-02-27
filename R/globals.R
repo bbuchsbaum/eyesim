@@ -1,11 +1,11 @@
 globalVariables(unique(c(
   # anim_scanpath:
-  "..density..", "onset", "y",
+  "onset", "y",
   # as.data.frame.eye_density:
   ".",
   # center.fixation_group:
   "y",
-  # crqa: possible error in crqa(ts1, ts2, method = "mdcrqa", radius = radius): unused argument (method = "mdcrqa") density_by:
+  # crqa:
   ".",
   # estimate_scale:
   "onset",
@@ -18,7 +18,7 @@ globalVariables(unique(c(
   # plot.eye_density:
   "y", "z",
   # plot.fixation_group:
-  "..density..", "..level..", "index", "onset", "psize", "y",
+  "index", "level", "onset", "psize", "y",
   # py_multi_match:
   "mmgaze", "onset",
   # rescale.fixation_group:

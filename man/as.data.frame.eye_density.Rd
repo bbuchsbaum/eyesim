@@ -18,5 +18,5 @@ A data.frame with columns x, y, and z representing the x-axis, y-axis, and densi
 This function converts an eye_density object into a data.frame with x, y, and z values.
 }
 \details{
-The function extracts the x and y values from the eye_density object, then creates a data.frame with all possible combinations of x and y using purrr::cross_df(). It then adds a new column 'z' to the data.frame with the density values from the eye_density object.
+The function extracts the x and y values from the eye_density object, then creates a data.frame with all possible combinations of x and y. It then adds the density values from the eye_density object as a column 'z'.
 }
