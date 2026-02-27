@@ -41,6 +41,12 @@ reference:
   - sample_density_time
   - repetitive_similarity
   - install_multimatch
+- title: Latent transforms
+  desc: Domain-adaptation transforms for use with template_similarity().
+  contents:
+  - latent_pca_transform
+  - coral_transform
+  - cca_transform
 - title: Scanpath
   desc: Functions for creating and adding scanpaths.
   contents:

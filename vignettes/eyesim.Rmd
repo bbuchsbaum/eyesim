@@ -1,0 +1,369 @@
+---
+title: "Comparing Eye-Movement Patterns"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Comparing Eye-Movement Patterns}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+params:
+  family: red
+css: albers.css
+resource_files:
+- albers.css
+- albers.js
+includes:
+  in_header: |-
+    <script src="albers.js"></script>
+    <script>document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('palette-red'));</script>
+
+---
+
+```{r setup, include = FALSE}
+if (requireNamespace("ggplot2", quietly = TRUE) &&
+    requireNamespace("albersdown", quietly = TRUE))
+  ggplot2::theme_set(albersdown::theme_albers(params$family))
+
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+```{r load-packages}
+library(eyesim)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+```
+
+When you study an image, you move your eyes to different locations in a
+particular sequence. If you later see that same image during a memory test, do
+you look at the same places? This kind of "eye-movement reinstatement" is a
+powerful marker of memory, and `eyesim` gives you the tools to measure it.
+
+This vignette walks you through the core workflow: representing fixations,
+computing density maps, and measuring similarity between fixation patterns
+across experimental conditions.
+
+## How do you represent fixations?
+
+A `fixation_group` holds a set of eye fixations — each defined by an x/y
+screen position, an onset time (when the fixation began), and a duration (how
+long the eye stayed there). You can create one directly:
+
+```{r create-fixation-group}
+fg <- fixation_group(
+  x = c(-100, 0, 100),
+  y = c(0, 100, 0),
+  onset = c(0, 10, 60),
+  duration = c(10, 50, 100)
+)
+```
+
+```{r plot-fixation-group, echo = FALSE, fig.cap = "Three fixations. Point size reflects duration; color reflects onset time (yellow = early, red = late)."}
+plot(fg)
+```
+
+Point size shows how long each fixation lasted. Color indicates when it
+occurred: yellow for early fixations, red for later ones.
+
+Here is a more realistic group with 25 randomly placed fixations:
+
+```{r random-fixations}
+set.seed(42)
+fg <- fixation_group(
+  x = runif(25, 0, 100),
+  y = runif(25, 0, 100),
+  onset = cumsum(runif(25, 0, 100)),
+  duration = runif(25, 50, 300)
+)
+```
+
+```{r plot-random-fixations, echo = FALSE, fig.cap = "25 randomly placed fixations."}
+plot(fg)
+```
+
+## How do you visualize fixation density?
+
+Individual points can be hard to interpret. Density maps show you where
+fixations cluster. The `plot()` method supports several display styles:
+
+```{r density-types, fig.width = 9, fig.cap = "Three density visualizations: contour, raster, and filled contour."}
+p1 <- plot(fg, typ = "contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
+p2 <- plot(fg, typ = "raster", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
+p3 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
+p1 + p2 + p3
+```
+
+The `bandwidth` parameter controls the smoothing level. Higher values blur
+out fine detail and emphasize broad patterns:
+
+```{r density-bandwidth, fig.width = 9, fig.cap = "Effect of bandwidth: narrow (20), medium (60), and wide (100)."}
+p1 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 20)
+p2 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 60)
+p3 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 100)
+p1 + p2 + p3
+```
+
+## How do you compare two fixation patterns?
+
+To quantify how similar two fixation patterns are, convert them to
+`eye_density` maps and call `similarity()`. Here we create two patterns that
+share roughly half their fixation locations:
+
+```{r create-pair}
+set.seed(123)
+x_shared <- runif(12, 0, 100)
+y_shared <- runif(12, 0, 100)
+
+fg1 <- fixation_group(
+  x = c(x_shared, runif(13, 0, 100)),
+  y = c(y_shared, runif(13, 0, 100)),
+  onset = cumsum(runif(25, 0, 100)),
+  duration = runif(25, 50, 300)
+)
+
+fg2 <- fixation_group(
+  x = c(x_shared, runif(13, 0, 100)),
+  y = c(y_shared, runif(13, 0, 100)),
+  onset = cumsum(runif(25, 0, 100)),
+  duration = runif(25, 50, 300)
+)
+```
+
+```{r plot-pair, fig.width = 8, echo = FALSE, fig.cap = "Two fixation patterns sharing roughly half their locations."}
+plot(fg1) + plot(fg2)
+```
+
+Now convert to density maps and compute their similarity:
+
+```{r compute-similarity}
+ed1 <- eye_density(fg1, sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
+ed2 <- eye_density(fg2, sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
+similarity(ed1, ed2)
+```
+
+The default metric is the Pearson correlation. Several alternatives are
+available:
+
+```{r similarity-methods}
+methods <- c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")
+results <- sapply(methods, function(m) similarity(ed1, ed2, method = m))
+data.frame(method = methods, similarity = round(unlist(results), 4))
+```
+
+## How do you analyze a full experiment?
+
+In a typical memory study, participants view images during encoding and again
+during retrieval. You want to compare fixation patterns between these phases
+for the same image and control for non-specific similarity.
+
+Let's simulate a small experiment: 3 participants, 20 images, encoding +
+retrieval.
+
+```{r simulate-experiment, include = FALSE}
+set.seed(99)
+
+gen_fixations <- function(imname, phase, participant) {
+  nfix <- sample(3:10, 1)
+  data.frame(
+    x = runif(nfix, 0, 100), y = runif(nfix, 0, 100),
+    onset = cumsum(runif(nfix, 50, 200)),
+    duration = runif(nfix, 100, 400),
+    image = imname, phase = phase, participant = participant
+  )
+}
+
+df <- do.call(rbind, lapply(c("s1", "s2", "s3"), function(s) {
+  do.call(rbind, lapply(c("encoding", "retrieval"), function(p) {
+    do.call(rbind, lapply(paste0("img", 1:20), function(img) {
+      gen_fixations(img, p, s)
+    }))
+  }))
+}))
+```
+
+```{r show-experiment}
+head(df)
+cat("Rows:", nrow(df),
+    " | Participants:", length(unique(df$participant)),
+    " | Images:", length(unique(df$image)))
+```
+
+Wrap the raw data in an `eye_table`, which groups fixations by the variables
+that define your experimental design:
+
+```{r create-eye-table}
+eyetab <- eye_table("x", "y", "duration", "onset",
+                    groupvar = c("participant", "phase", "image"),
+                    data = df)
+eyetab
+```
+
+### Computing density maps by group
+
+`density_by()` computes a density map for every combination of your grouping
+variables:
+
+```{r compute-densities}
+eyedens <- density_by(eyetab,
+                      groups = c("phase", "image", "participant"),
+                      sigma = 100,
+                      xbounds = c(0, 100), ybounds = c(0, 100))
+```
+
+```{r plot-densities, fig.width = 8, echo = FALSE, fig.cap = "Four density maps from the simulated experiment."}
+p1 <- plot(eyedens$density[[1]])
+p2 <- plot(eyedens$density[[2]])
+p3 <- plot(eyedens$density[[3]])
+p4 <- plot(eyedens$density[[4]])
+(p1 + p2) / (p3 + p4)
+```
+
+```{r show-densities}
+eyedens
+```
+
+### Template similarity analysis
+
+`template_similarity()` compares each retrieval density map to its matched
+encoding density map. It estimates a baseline by permuting image labels and
+reports the corrected difference:
+
+```{r template-similarity}
+set.seed(1234)
+enc_dens <- eyedens %>% filter(phase == "encoding")
+ret_dens <- eyedens %>% filter(phase == "retrieval")
+
+simres <- template_similarity(enc_dens, ret_dens,
+                              match_on = "image",
+                              method = "fisherz",
+                              permutations = 50)
+```
+
+The result includes three key columns:
+
+- `eye_sim` — raw similarity between matched pairs
+- `perm_sim` — average similarity across non-matching pairs (baseline)
+- `eye_sim_diff` — the corrected score (raw minus baseline)
+
+Since our data is random, there should be no true reinstatement:
+
+```{r test-similarity}
+t.test(simres$eye_sim_diff)
+```
+
+```{r plot-similarity, fig.width = 9, echo = FALSE, fig.cap = "Distribution of raw, permuted, and corrected similarity scores."}
+library(tidyr)
+
+sim_long <- simres %>%
+  select(eye_sim, perm_sim, eye_sim_diff) %>%
+  pivot_longer(everything(), names_to = "type", values_to = "similarity") %>%
+  mutate(type = factor(type,
+    levels = c("eye_sim", "perm_sim", "eye_sim_diff"),
+    labels = c("Raw", "Permuted", "Corrected")))
+
+ggplot(sim_long, aes(x = similarity)) +
+  geom_histogram(bins = 20, fill = "steelblue", alpha = 0.7) +
+  facet_wrap(~type, scales = "free_x") +
+  labs(x = "Similarity (Fisher z)", y = "Count") +
+  theme_minimal()
+```
+
+As expected, the corrected similarity is centered near zero.
+
+**A note on units.** With `method = "fisherz"`, all similarity values are
+Fisher z scores (atanh of Pearson r). Convert back to correlations with
+`tanh()` if desired. With `method = "pearson"` or `"spearman"`, values are
+correlations directly.
+
+**A note on permutations.** The `permutations` argument is an upper bound. If
+fewer non-matching candidates are available, `eyesim` uses all of them
+exhaustively.
+
+## What about multiscale analysis?
+
+Choosing a single bandwidth is somewhat arbitrary. You can compute density at
+multiple scales by passing a vector of sigma values:
+
+```{r multiscale}
+eyedens_multi <- density_by(eyetab,
+                            groups = c("phase", "image", "participant"),
+                            sigma = c(25, 50, 100),
+                            xbounds = c(0, 100), ybounds = c(0, 100))
+
+enc_multi <- eyedens_multi %>% filter(phase == "encoding")
+ret_multi <- eyedens_multi %>% filter(phase == "retrieval")
+
+simres_multi <- template_similarity(enc_multi, ret_multi,
+                                    match_on = "image",
+                                    method = "fisherz",
+                                    permutations = 50)
+
+cat("Single-scale mean:", round(mean(simres$eye_sim_diff), 4), "\n")
+cat("Multiscale mean:  ", round(mean(simres_multi$eye_sim_diff), 4), "\n")
+```
+
+Multiscale analysis provides a more robust similarity estimate by averaging
+across spatial resolutions.
+
+## How does similarity evolve over time?
+
+Sometimes you want to know *when* during retrieval participants look at
+previously-fixated locations. `sample_density_time()` samples the encoding
+density at retrieval fixation locations at each time point:
+
+```{r temporal-similarity}
+ret_eyetab <- eyetab %>% filter(phase == "retrieval")
+
+enc_dens <- enc_dens %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
+ret_matched <- ret_eyetab %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
+
+temporal <- sample_density_time(
+  template_tab = enc_dens,
+  source_tab = ret_matched,
+  match_on = "match_key",
+  times = seq(0, 500, by = 50),
+  time_bins = c(0, 250, 500),
+  permutations = 10,
+  permute_on = "participant"
+)
+```
+
+```{r show-temporal}
+temporal %>%
+  select(participant, image, bin_1, bin_2,
+         perm_bin_1, perm_bin_2, diff_bin_1, diff_bin_2) %>%
+  head()
+```
+
+```{r plot-temporal, fig.width = 8, fig.height = 4, echo = FALSE, fig.cap = "Encoding density sampled at retrieval fixation locations over time, for six example trials."}
+time_series <- temporal %>%
+  head(6) %>%
+  mutate(trial_id = paste(participant, image, sep = "_")) %>%
+  select(trial_id, sampled) %>%
+  tidyr::unnest(sampled)
+
+ggplot(time_series, aes(x = time, y = z, color = trial_id)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Time (ms)", y = "Sampled Density",
+       title = "Encoding density at retrieval fixation locations") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+This reveals when during retrieval participants fixate locations that mattered
+during encoding — a window into the time course of memory-guided attention.
+
+## What's next?
+
+- `vignette("Multimatch")` — compare scanpath structure across five dimensions
+- `vignette("RepetitiveSimilarity")` — analyze repeated viewing of the same stimulus
+- `vignette("latent-transforms")` — domain adaptation for cross-device or cross-participant comparisons
+- The package ships real data: `data(wynn_study)` and `data(wynn_test)` from a recognition memory experiment
