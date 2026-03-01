@@ -113,3 +113,62 @@ normalize.fixation_group <- function(x, xbounds, ybounds, ...) {
   x %>% mutate(x=(x - xbounds[1])/(xbounds[2] - xbounds[1]),
                y=(y - ybounds[1])/(ybounds[2] - ybounds[1]))
 }
+
+
+#' @export
+print.fixation_group <- function(x, ...) {
+  cat("Fixation group:", nrow(x), "fixations\n")
+  cat("  x range: [", round(min(x$x), 1), ", ", round(max(x$x), 1), "]\n", sep = "")
+  cat("  y range: [", round(min(x$y), 1), ", ", round(max(x$y), 1), "]\n", sep = "")
+  cat("  duration range: [", round(min(x$duration), 1), ", ", round(max(x$duration), 1), "]\n", sep = "")
+  cat("  onset range: [", round(min(x$onset), 1), ", ", round(max(x$onset), 1), "]\n", sep = "")
+  invisible(x)
+}
+
+
+#' Concatenate Fixation Groups
+#'
+#' Combines multiple fixation_group objects into one by row-binding. Onset
+#' times are shifted so that each subsequent group continues from where the
+#' previous one ended.
+#'
+#' @param ... \code{fixation_group} objects to concatenate.
+#' @param recursive Ignored (present for S3 method compatibility).
+#'
+#' @return A single \code{fixation_group} object.
+#' @export
+#'
+#' @examples
+#' fg1 <- fixation_group(x = c(1, 2), y = c(3, 4),
+#'                        onset = c(0, 100), duration = c(100, 100))
+#' fg2 <- fixation_group(x = c(5, 6), y = c(7, 8),
+#'                        onset = c(0, 100), duration = c(100, 100))
+#' combined <- c(fg1, fg2)
+c.fixation_group <- function(..., recursive = FALSE) {
+  args <- list(...)
+  # Filter NULLs
+  args <- args[!vapply(args, is.null, logical(1))]
+  if (length(args) == 0) return(NULL)
+
+  # Validate all are fixation_group
+  is_fg <- vapply(args, inherits, logical(1), what = "fixation_group")
+  if (!all(is_fg)) {
+    stop("All arguments to c.fixation_group() must be fixation_group objects.")
+  }
+
+  if (length(args) == 1) return(args[[1]])
+
+  # Shift onsets sequentially
+  result <- args[[1]]
+  for (i in 2:length(args)) {
+    fg <- args[[i]]
+    offset <- max(result$onset) + max(result$duration[nrow(result)])
+    fg$onset <- fg$onset + offset
+    result <- rbind(result, fg)
+  }
+
+  # Reindex
+  result$index <- seq_len(nrow(result))
+  class(result) <- c("fixation_group", setdiff(class(result), "fixation_group"))
+  result
+}

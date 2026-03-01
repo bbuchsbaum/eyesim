@@ -2,10 +2,11 @@ pandoc: 3.7.0.2
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
+  eyesim: eyesim.html
+  latent-transforms: latent-transforms.html
   Multimatch: Multimatch.html
-  Overview: Overview.html
   RepetitiveSimilarity: RepetitiveSimilarity.html
-last_built: 2025-12-10T01:15Z
+last_built: 2026-03-01T15:52Z
 urls:
   reference: https://bbuchsbaum.github.io/eyesim/reference
   article: https://bbuchsbaum.github.io/eyesim/articles

@@ -35,6 +35,28 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
 
   assertthat::assert_that(inherits(data, "data.frame"))
 
+  # Validate that required columns exist
+  required <- c(x, y, duration, onset, groupvar)
+  missing_cols <- setdiff(required, names(data))
+  if (length(missing_cols) > 0) {
+    stop("Column(s) not found in data: ", paste(missing_cols, collapse = ", "))
+  }
+
+  # Validate that coordinate/timing columns are numeric
+  for (col in c(x, y, duration, onset)) {
+    if (!is.numeric(data[[col]])) {
+      stop("Column '", col, "' must be numeric, but is ", class(data[[col]])[1])
+    }
+  }
+
+  # Validate non-negative duration and onset
+  if (any(data[[duration]] < 0, na.rm = TRUE)) {
+    stop("Column '", duration, "' contains negative values. Durations must be non-negative.")
+  }
+  if (any(data[[onset]] < 0, na.rm = TRUE)) {
+    stop("Column '", onset, "' contains negative values. Onset times must be non-negative.")
+  }
+
   colmapping <- c("x","y","duration", "onset")
   names(colmapping) <- c(x,y,duration,onset)
 
@@ -91,6 +113,18 @@ eye_table <- function(x, y, duration, onset, groupvar, vars=NULL, data,
 
 }
 
+
+#' @export
+print.eye_table <- function(x, ...) {
+  ngroups <- nrow(x)
+  nfix <- sum(vapply(x$fixgroup, nrow, integer(1)))
+  origin <- attr(x, "origin")
+  cat("Eye table:", ngroups, "groups,", nfix, "total fixations\n")
+  if (!is.null(origin)) {
+    cat("  origin: (", round(origin[1], 1), ", ", round(origin[2], 1), ")\n", sep = "")
+  }
+  NextMethod()
+}
 
 #' Reapply the 'eye_table' Class to an Object
 #'

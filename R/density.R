@@ -42,7 +42,10 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
                        duration_weighted=TRUE, window=NULL, min_fixations=2,
                        keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
 
-  ## TODO what happens if window produces fixations < 0?
+  ## Window filtering that leaves fewer than min_fixations fixations is handled
+
+  ## by eye_density.fixation_group(), which returns NULL. NULL results are
+  ## removed below with a warning.
 
   rname <- rlang::sym(result_name)
   vars <- c(groups, keep_vars)
@@ -82,4 +85,65 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 
   ret
 
+}
+
+
+#' Suggest Kernel Bandwidth for Density Estimation
+#'
+#' Estimates a reasonable kernel bandwidth (sigma) for fixation density maps
+#' using a 2D variant of Silverman's rule of thumb, adapted for eye-tracking
+#' data. The estimate accounts for spatial spread of fixations and sample size.
+#'
+#' @param x A \code{fixation_group} object, or a numeric vector of x-coordinates.
+#' @param y A numeric vector of y-coordinates (only used when \code{x} is not a
+#'   \code{fixation_group}).
+#' @param xbounds Optional numeric vector of length 2 for the x-axis display
+#'   bounds. Used to scale the estimate relative to display size.
+#' @param ybounds Optional numeric vector of length 2 for the y-axis display
+#'   bounds. Used to scale the estimate relative to display size.
+#'
+#' @return A single numeric value representing the suggested sigma
+#'   (kernel standard deviation in coordinate units).
+#'
+#' @details
+#' The function uses a 2D Silverman rule: \eqn{\sigma = n^{-1/6} \cdot
+#' \sqrt{(IQR_x^2 + IQR_y^2)/2} / 1.349}. When display bounds are provided,
+#' the result is clamped to between 1\% and 15\% of the mean display dimension
+#' to avoid extreme values.
+#'
+#' @examples
+#' fg <- fixation_group(x = runif(30, 0, 1280), y = runif(30, 0, 1024),
+#'                      onset = cumsum(rep(200, 30)), duration = rep(200, 30))
+#' suggest_sigma(fg, xbounds = c(0, 1280), ybounds = c(0, 1024))
+#'
+#' @export
+#' @importFrom stats IQR
+suggest_sigma <- function(x, y = NULL, xbounds = NULL, ybounds = NULL) {
+  if (inherits(x, "fixation_group")) {
+    yvals <- x$y
+    xvals <- x$x
+  } else {
+    if (is.null(y)) stop("'y' must be provided when 'x' is not a fixation_group.")
+    xvals <- x
+    yvals <- y
+  }
+
+  n <- length(xvals)
+  if (n < 2) return(NA_real_)
+
+  iqr_x <- IQR(xvals)
+  iqr_y <- IQR(yvals)
+
+  # 2D Silverman rule: use geometric mean of IQRs, scaled by n^{-1/6}
+  spread <- sqrt((iqr_x^2 + iqr_y^2) / 2) / 1.349
+  sigma <- spread * n^(-1/6)
+
+  # Clamp to reasonable fraction of display if bounds provided
+  if (!is.null(xbounds) && !is.null(ybounds)) {
+    display_scale <- mean(c(diff(range(xbounds)), diff(range(ybounds))))
+    sigma <- max(sigma, display_scale * 0.01)  # at least 1% of display
+    sigma <- min(sigma, display_scale * 0.15)  # at most 15% of display
+  }
+
+  sigma
 }

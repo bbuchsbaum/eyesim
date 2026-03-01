@@ -1,5 +1,4 @@
 #' @noRd
-#' @importFrom igraph graph_from_data_frame shortest_paths E as_ids
 mmgaze <- NULL
 emd_position_similarity <- function(fg1, fg2, screensize) {
   # Extract x and y coordinates
@@ -77,6 +76,9 @@ vector_diff_2d <- function(x,y, v1,v2, cds) {
 
 #' @noRd
 create_graph <- function(x, y) {
+  if (!requireNamespace("igraph", quietly = TRUE)) {
+    stop("Package 'igraph' is required for this functionality. Install it with install.packages('igraph').")
+  }
   # Pairwise distances between saccade vectors (lenx, leny)
   M <- proxy::dist(cbind(x$lenx, x$leny), cbind(y$lenx, y$leny))
   # Node ids laid out row-wise to mirror numpy's reshape default
@@ -317,7 +319,7 @@ py_multi_match <- function(fg1, fg2,
 #' @keywords internal
 #' @noRd
 emdw <- function(x, wx, y, wy, lambda = 0.01) {
-  # Prefer emdist::emdw if available (package already in Imports)
+  # Prefer emdist::emdw if available
   if (requireNamespace("emdist", quietly = TRUE)) {
     return(emdist::emdw(x, wx, y, wy))
   }

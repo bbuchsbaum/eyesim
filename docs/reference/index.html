@@ -15,12 +15,13 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/eyesim.html">Get started</a></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/Multimatch.html">Multimatch</a></li>
-    <li><a class="dropdown-item" href="../articles/Overview.html">Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Repetitive Similarity</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+    <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
+    <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -149,6 +150,20 @@
 
       <dl><dt>
 
+          <code><a href="fixation_group.html">fixation_group()</a></code>
+
+        </dt>
+        <dd>Create a Fixation Group Object</dd>
+
+        <dt>
+
+          <code><a href="c.fixation_group.html">c(<i>&lt;fixation_group&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Concatenate Fixation Groups</dd>
+
+        <dt>
+
           <code><a href="rep_fixations.html">rep_fixations()</a></code>
 
         </dt>
@@ -200,6 +215,13 @@
 
         <dt>
 
+          <code><a href="scanpath_similarity.html">scanpath_similarity()</a></code>
+
+        </dt>
+        <dd>Scanpath Similarity</dd>
+
+        <dt>
+
           <code><a href="similarity.scanpath.html">similarity(<i>&lt;scanpath&gt;</i>)</a></code>
 
         </dt>
@@ -225,6 +247,29 @@
 
         </dt>
         <dd>Repetitive Similarity Analysis for Density Maps</dd>
+
+        <dt>
+
+          <code><a href="install_multimatch.html">install_multimatch()</a></code>
+
+        </dt>
+        <dd>Install Python multimatch_gaze Package</dd>
+      </dl></div><div class="section level2">
+      <h2 id="latent-transforms">Latent transforms<a class="anchor" aria-label="anchor" href="#latent-transforms"></a></h2>
+
+      <div class="section-desc"><p>Domain-adaptation transforms for use with template_similarity().</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="latent_pca_transform.html">latent_pca_transform()</a></code> <code><a href="latent_pca_transform.html">coral_transform()</a></code> <code><a href="latent_pca_transform.html">cca_transform()</a></code>
+
+        </dt>
+        <dd>Latent-space transforms for template-based similarity</dd>
       </dl></div><div class="section level2">
       <h2 id="scanpath">Scanpath<a class="anchor" aria-label="anchor" href="#scanpath"></a></h2>
 
@@ -374,10 +419,47 @@
 
         <dt>
 
-          <code><a href="sample_density.density.html">sample_density(<i>&lt;density&gt;</i>)</a></code>
+          <code><a href="suggest_sigma.html">suggest_sigma()</a></code>
 
         </dt>
-        <dd>Sample a smooth fixation density map with a set of discrete fixations.</dd>
+        <dd>Suggest Kernel Bandwidth for Density Estimation</dd>
+
+        <dt>
+
+          <code><a href="sample_density.html">sample_density()</a></code>
+
+        </dt>
+        <dd>sample_density</dd>
+      </dl></div><div class="section level2">
+      <h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a></h2>
+
+      <div class="section-desc"><p>Example datasets included with the package.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="wynn_study.html">wynn_study</a></code>
+
+        </dt>
+        <dd>Eye-tracking study data from Wynn et al.</dd>
+
+        <dt>
+
+          <code><a href="wynn_study_image.html">wynn_study_image</a></code>
+
+        </dt>
+        <dd>Study image from Wynn et al.</dd>
+
+        <dt>
+
+          <code><a href="wynn_test.html">wynn_test</a></code>
+
+        </dt>
+        <dd>Eye-tracking test data from Wynn et al.</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

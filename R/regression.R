@@ -18,16 +18,16 @@
 #'
 #' @return A data frame with the source table augmented with a new column, multireg, containing
 #'   the results of the multiple regression analysis.
-#' @importFrom dplyr rowwise bind_cols do
+#' @importFrom dplyr rowwise bind_cols bind_rows
 #' @importFrom broom tidy
 #' @importFrom MASS rlm
-#' @importFrom nnls nnls
 #' @importFrom stats lm glm as.formula coef
 #' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
-  ret <- source_tab %>% rowwise() %>% do( {
-    y <- as.vector(.[[response]]$z/sum(.[[response]]$z))
-    xs <- lapply(covars, function(x) as.vector(.[[x]]$z/sum(.[[x]]$z)))
+  rows <- lapply(seq_len(nrow(source_tab)), function(i) {
+    row <- source_tab[i, ]
+    y <- as.vector(row[[response]][[1]]$z/sum(row[[response]][[1]]$z))
+    xs <- lapply(covars, function(x) as.vector(row[[x]][[1]]$z/sum(row[[x]][[1]]$z)))
     names(xs) <- covars
     xs[[".response"]] <- y
     dfx <- try(as.data.frame(xs))
@@ -45,18 +45,21 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
     } else if (method == "logistic") {
       tidy(glm(form, data=dfx, family="binomial"))
     } else if (method == "nnls") {
+      if (!requireNamespace("nnls", quietly = TRUE)) {
+        stop("Package 'nnls' is required for this functionality. Install it with install.packages('nnls').")
+      }
       A <- as.matrix(dfx[covars])
       b <- dfx[[".response"]]
-      fit <- nnls(A,b)
+      fit <- nnls::nnls(A,b)
       data.frame(term=covars, estimate=coef(fit))
     } else {
-      stop()
+      stop("Unknown regression method '", method, "'. Supported methods: lm, rlm, nnls, logistic.")
     }
 
     tibble(multireg=list(fit))
   })
 
-  #ret %>% mutate(multireg_result=ret)
+  ret <- dplyr::bind_rows(rows)
   ret <- bind_cols(source_tab, ret)
   ret
 
@@ -85,7 +88,7 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #'
 #' @return A data frame with the source table augmented with two new columns, beta_baseline and beta_source,
 #'   representing the estimated beta weights for the baseline and source maps, respectively.
-#' @importFrom dplyr ungroup mutate filter rowwise
+#' @importFrom dplyr ungroup mutate filter bind_rows
 #' @importFrom MASS rlm
 #' @importFrom stats coef
 #' @export
@@ -103,11 +106,12 @@ template_regression <- function(ref_tab, source_tab, match_on,
   }
 
 
-  ret <- source_tab %>% rowwise() %>% do( {
-    id <- which(baseline_tab[[baseline_key]] == .[[baseline_key]][1])
+  rows <- lapply(seq_len(nrow(source_tab)), function(i) {
+    row <- source_tab[i, ]
+    id <- which(baseline_tab[[baseline_key]] == row[[baseline_key]][[1]])
     bdens <- baseline_tab$density[[id]]
-    d1 <- ref_tab$density[[.$matchind]]
-    d2 <- .$density
+    d1 <- ref_tab$density[[row$matchind]]
+    d2 <- row$density[[1]]
 
     df1 <- data.frame(y=as.vector(d2$z), baseline=as.vector(bdens$z), x2=as.vector(d1$z))
 
@@ -124,12 +128,13 @@ template_regression <- function(ref_tab, source_tab, match_on,
       res <- ppcor::pcor(df1, method="spearman")
       res$estimate[2:3,1]
     } else {
-      stop()
+      stop("Unknown regression method '", method, "'. Supported methods: lm, rlm, rank.")
     }
 
     data.frame(b0=est[1], b1=est[2])
   })
 
+  ret <- dplyr::bind_rows(rows)
 
   source_tab %>% mutate(beta_baseline=ret$b0, beta_source=ret$b1)
 

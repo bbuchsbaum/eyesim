@@ -15,12 +15,13 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/eyesim.html">Get started</a></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/Multimatch.html">Multimatch</a></li>
-    <li><a class="dropdown-item" href="../articles/Overview.html">Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Repetitive Similarity</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+    <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
+    <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -54,6 +55,10 @@
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
 <dd><p>A fixation group object.</p></dd>
 
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Additional arguments (currently unused).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -63,10 +68,9 @@
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Create a fixation group</span></span></span>
-<span class="r-in"><span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, y <span class="op">=</span> <span class="fl">6</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="co"># Create a scanpath for the fixation group</span></span></span>
-<span class="r-in"><span><span class="va">scanpath_obj</span> <span class="op">&lt;-</span> <span class="fu">scanpath.fixation_group</span><span class="op">(</span><span class="va">fixgroup</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in scanpath.fixation_group(fixgroup):</span> could not find function "scanpath.fixation_group"</span>
+<span class="r-in"><span><span class="va">fg</span> <span class="op">&lt;-</span> <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, y <span class="op">=</span> <span class="fl">6</span><span class="op">:</span><span class="fl">10</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0.2</span>, <span class="fl">5</span><span class="op">)</span>, onset <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Create a scanpath for the fixation group using the S3 generic</span></span></span>
+<span class="r-in"><span><span class="va">scanpath_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="scanpath.html">scanpath</a></span><span class="op">(</span><span class="va">fg</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

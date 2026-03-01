@@ -25,11 +25,9 @@ Imports:
     RColorBrewer,
     magrittr,
     pracma,
-    emdist,
-    nnls,
     ks,
     rlang (>= 0.4.11),
-    igraph
+    scales
 Encoding: UTF-8
 LazyData: true
 LazyDataCompression: xz
@@ -43,11 +41,14 @@ Suggests:
     colorplane,
     covr,
     crqa,
+    emdist,
     energy,
     gganimate,
     ggridges,
+    igraph,
     imager,
     knitr,
+    nnls,
     patchwork,
     ppcor,
     reticulate,
@@ -59,3 +60,4 @@ Suggests:
     transport
 VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/
+Config/Needs/website: albersdown

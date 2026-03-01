@@ -1,5 +1,5 @@
 ---
-title: "Measuring Similarity Across Repeated Viewings"
+title: Measuring Similarity Across Repeated Viewings
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Measuring Similarity Across Repeated Viewings}
@@ -7,6 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 params:
   family: red
+  preset: homage
 css: albers.css
 resource_files:
 - albers.css
@@ -14,7 +15,7 @@ resource_files:
 includes:
   in_header: |-
     <script src="albers.js"></script>
-    <script>document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('palette-red'));</script>
+    <script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('palette-violet');});</script>
 
 ---
 

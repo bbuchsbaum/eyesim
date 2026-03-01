@@ -247,19 +247,19 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
     #  guides(size = "none") +
     #  theme_void()
 
-    p + stat_density_2d(aes(colour=after_stat(level)), h=bandwidth) +
+    p + stat_density_2d(aes(colour=after_stat(level)), h=rep(bandwidth, 2)) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       guides(size = "none")
   } else if (type == "filled_contour") {
     ##dens <- as.data.frame.eye_density(eye_density(x, sigma=bandwidth))
-    p + geom_density_2d_filled(alpha=alpha, h=bandwidth) +
+    p + geom_density_2d_filled(alpha=alpha, h=rep(bandwidth, 2)) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
       #scale_alpha_continuous(range=alpha_range, trans=trans, guide=FALSE) +
       theme(legend.position = "none") +
       guides(size = "none")
 
   } else if (type == "density") {
-    p + stat_density2d(aes(fill = after_stat(level), alpha=after_stat(level)), geom = "polygon", bins=bins, h=bandwidth)   +
+    p + stat_density_2d(aes(fill = after_stat(level), alpha=after_stat(level)), geom = "polygon", bins=bins, h=rep(bandwidth, 2))   +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), guide="none", trans=cuberoot_trans) +
       scale_alpha_continuous(range=alpha_range, trans=trans, guide="none") +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
@@ -268,7 +268,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
       #scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0))
   } else if (type == "raster") {
     p + stat_density_2d(aes(fill = after_stat(density), alpha=after_stat(density)), geom="raster", bins=bins,
-                        h=bandwidth, contour = FALSE, interpolate=TRUE) +
+                        h=rep(bandwidth, 2), contour = FALSE, interpolate=TRUE) +
       scale_fill_gradientn(colours=rev(brewer.pal(n=10, "Spectral")), trans=cuberoot_trans, guide = "none") +
       scale_alpha_continuous(range=alpha_range, guide = "none", trans=trans) +
       theme_void() + theme(panel.grid = element_blank(), panel.border = element_blank()) +
@@ -288,15 +288,25 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
   }
 
   if (show_points) {
-    if (size_points) {
-      p <- p + geom_point(aes(size=psize, colour=onset), alpha=alpha, show.legend=FALSE) +
-        scale_colour_gradient(low = "yellow", high = "red", na.value = NA)
+    density_type <- type %in% c("contour", "filled_contour", "density", "raster")
+    if (density_type) {
+      # Use fixed colour for points so they don't clobber the density colour/fill scales
+      if (size_points) {
+        p <- p + geom_point(aes(size=psize), colour="grey30", alpha=alpha * 0.6, show.legend=FALSE)
+      } else {
+        p <- p + geom_point(colour="grey30", alpha=alpha * 0.6, show.legend=FALSE)
+      }
       if (nrow(x) < 50) {
-        p <- p + geom_text(aes(x,y, label=index))
+        p <- p + geom_text(aes(x,y, label=index), size=3, colour="grey20")
       }
     } else {
-      p <- p + geom_point(aes(colour=onset), alpha=alpha, show.legend=FALSE) +
-        scale_colour_gradient(low = "yellow", high = "red", na.value = NA)
+      if (size_points) {
+        p <- p + geom_point(aes(size=psize, colour=onset), alpha=alpha, show.legend=FALSE) +
+          scale_colour_gradient(low = "yellow", high = "red", na.value = NA)
+      } else {
+        p <- p + geom_point(aes(colour=onset), alpha=alpha, show.legend=FALSE) +
+          scale_colour_gradient(low = "yellow", high = "red", na.value = NA)
+      }
       if (nrow(x) < 50) {
         p <- p + geom_text(aes(x,y, label=index))
       }
@@ -307,6 +317,7 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
 }
 
 #' @noRd
+#' @importFrom scales trans_new
 rank_trans <- scales::trans_new(name="rank",
                                 transform=function(x) { rank(x) },
                                 inverse=function(x) (length(x)+1) - rank(x))

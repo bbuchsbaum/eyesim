@@ -15,12 +15,13 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/eyesim.html">Get started</a></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/Multimatch.html">Multimatch</a></li>
-    <li><a class="dropdown-item" href="../articles/Overview.html">Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Repetitive Similarity</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+    <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
+    <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -53,6 +54,8 @@
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spearman"</span>, <span class="st">"pearson"</span>, <span class="st">"fisherz"</span>, <span class="st">"cosine"</span>, <span class="st">"l1"</span>, <span class="st">"jaccard"</span>, <span class="st">"dcov"</span>, <span class="st">"emd"</span><span class="op">)</span>,</span>
 <span>  permutations <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  multiscale_aggregation <span class="op">=</span> <span class="st">"mean"</span>,</span>
+<span>  similarity_transform <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  similarity_transform_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -95,6 +98,14 @@
 
 <dt id="arg-multiscale-aggregation">multiscale_aggregation<a class="anchor" aria-label="anchor" href="#arg-multiscale-aggregation"></a></dt>
 <dd><p>If the density maps are multiscale (i.e., `eye_density_multiscale` objects), this specifies how to aggregate similarities from different scales. Options: "mean" (default, returns the average similarity across scales), "none" (returns a list or vector of similarities, one per scale, within the result columns). See `similarity.eye_density_multiscale`.</p></dd>
+
+
+<dt id="arg-similarity-transform">similarity_transform<a class="anchor" aria-label="anchor" href="#arg-similarity-transform"></a></dt>
+<dd><p>Optional preprocessing hook applied before similarity is computed. Should be a function that accepts (<code>ref_tab</code>, <code>source_tab</code>, <code>match_on</code>, <code>refvar</code>, <code>sourcevar</code>) and returns a list with updated tables/column names. See `latent_pca_transform`, `coral_transform`, and `cca_transform`.</p></dd>
+
+
+<dt id="arg-similarity-transform-args">similarity_transform_args<a class="anchor" aria-label="anchor" href="#arg-similarity-transform-args"></a></dt>
+<dd><p>Named list of extra arguments passed to `similarity_transform`.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

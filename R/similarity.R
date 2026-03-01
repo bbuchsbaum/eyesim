@@ -680,6 +680,21 @@ print.eye_density <- function(x,...) {
   cat("xlim: ", range(x$x), "\n")
   cat("ylim: ", range(x$y), "\n")
   cat("z range: ", range(x$z), "\n")
+  invisible(x)
+}
+
+#' @export
+summary.eye_density <- function(object, ...) {
+  zr <- range(object$z)
+  list(
+    sigma = object$sigma,
+    xlim = range(object$x),
+    ylim = range(object$y),
+    grid_dim = dim(object$z),
+    z_range = zr,
+    z_mean = mean(object$z),
+    z_sum = sum(object$z)
+  )
 }
 
 
