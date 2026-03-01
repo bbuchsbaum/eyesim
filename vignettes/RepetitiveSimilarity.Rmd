@@ -1,7 +1,7 @@
 ---
 title: Measuring Similarity Across Repeated Viewings
 output: rmarkdown::html_vignette
-vignette: >
+vignette: |
   %\VignetteIndexEntry{Measuring Similarity Across Repeated Viewings}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}

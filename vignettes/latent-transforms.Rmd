@@ -4,7 +4,7 @@ output:
   rmarkdown::html_vignette:
     toc: yes
     toc_depth: 2
-vignette: >
+vignette: |
   %\VignetteIndexEntry{Latent Transforms for Template Similarity}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
