@@ -184,6 +184,8 @@ eyetab <- eye_table("x", "y", "duration", "onset",
                     groupvar = c("participant", "phase", "image"),
                     data = df)
 eyetab
+#> Eye table: 120 groups, 783 total fixations
+#>   origin: (640, 640)
 #> # A tibble: 120 × 4
 #>    participant phase    image fixgroup           
 #>    <chr>       <chr>    <chr> <list>             

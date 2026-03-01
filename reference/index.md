@@ -42,6 +42,8 @@ Functions for working with fixation sequences.
 
 - [`fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_group.md)
   : Create a Fixation Group Object
+- [`c(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/c.fixation_group.md)
+  : Concatenate Fixation Groups
 - [`rep_fixations()`](https://bbuchsbaum.github.io/eyesim/reference/rep_fixations.md)
   : rep_fixations
 - [`sample_fixations()`](https://bbuchsbaum.github.io/eyesim/reference/sample_fixations.md)
@@ -129,6 +131,8 @@ Functions for density operations by groups.
 
 - [`density_by()`](https://bbuchsbaum.github.io/eyesim/reference/density_by.md)
   : Calculate Eye Density by Groups
+- [`suggest_sigma()`](https://bbuchsbaum.github.io/eyesim/reference/suggest_sigma.md)
+  : Suggest Kernel Bandwidth for Density Estimation
 - [`sample_density()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.md)
   : sample_density
 

@@ -16,6 +16,7 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/anim_scanpath.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/as.data.frame.eye_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/as_eye_table.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/c.fixation_group.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/calcangle.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/cart2pol.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/center.html</loc></url>
@@ -54,6 +55,7 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/similarity.scanpath.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/simulate_eye_table.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/sub-.eye_table.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/suggest_sigma.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_multireg.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_regression.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_sample.html</loc></url>
