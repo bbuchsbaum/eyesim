@@ -11,6 +11,11 @@
   --shadow-card: 0 1px 5px rgba(9, 11, 15, 0.055);
   --content: 78ch;
   --anchor-offset: 76px;
+  --font-body: "Avenir Next", "Gill Sans", "Trebuchet MS", system-ui, -apple-system, sans-serif;
+  --font-display: "Avenir Next", "Gill Sans", "Century Gothic", "Trebuchet MS", system-ui, sans-serif;
+  --font-mono: "Iosevka Term", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --heading-weight: 730;
+  --module: 4px;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -33,7 +38,7 @@
   --table-hover-alpha: 70%;
 
   /* Homage Red (default family) */
-  --A900: #cd2d26;
+  --A900: #c22b23;
   --A700: #dc3925;
   --A500: #e44926;
   --A300: #e35b2d;
@@ -79,60 +84,73 @@
 }
 
 /* -- Palette families ---------------------------------------------------- */
-.palette-lapis  {
-  --A900: #1b2a74;
-  --A700: #20399c;
-  --A500: #2c4fcc;
-  --A300: #4968d6;
-  --accent-hover: #1a377f;
-  --accent-tint: rgba(44, 79, 204, 0.1);
+/* ALBERS_TOKENS_FAMILIES_START */
+.palette-red {
+  --A900: #C22B23;
+  --A700: #DC3925;
+  --A500: #E44926;
+  --A300: #E35B2D;
+  --accent-hover: #A9351F;
+  --accent-tint: rgba(228, 73, 38, 0.09);
+  --accent-band: rgba(228, 73, 38, 0.14);
+}
+
+.palette-lapis {
+  --A900: #1B2A74;
+  --A700: #20399C;
+  --A500: #2C4FCC;
+  --A300: #4968D6;
+  --accent-hover: #1A377F;
+  --accent-tint: rgba(44, 79, 204, 0.10);
   --accent-band: rgba(44, 79, 204, 0.15);
 }
 
-.palette-ochre  {
-  --A900: #6f5200;
-  --A700: #8b6700;
-  --A500: #b48900;
-  --A300: #d7a700;
-  --accent-hover: #7a5c00;
-  --accent-tint: rgba(180, 137, 0, 0.1);
+.palette-ochre {
+  --A900: #6F5200;
+  --A700: #8B6700;
+  --A500: #B48900;
+  --A300: #D7A700;
+  --accent-hover: #7A5C00;
+  --accent-tint: rgba(180, 137, 0, 0.10);
   --accent-band: rgba(180, 137, 0, 0.16);
 }
 
-.palette-teal   {
-  --A900: #0d4a4a;
-  --A700: #0f5e5e;
+.palette-teal {
+  --A900: #0D4A4A;
+  --A700: #0F5E5E;
   --A500: #127373;
-  --A300: #2f8c8c;
-  --accent-hover: #0f6060;
-  --accent-tint: rgba(18, 115, 115, 0.1);
+  --A300: #2F8C8C;
+  --accent-hover: #0F6060;
+  --accent-tint: rgba(18, 115, 115, 0.10);
   --accent-band: rgba(18, 115, 115, 0.15);
 }
 
-.palette-green  {
-  --A900: #1b5e20;
-  --A700: #2e7d32;
-  --A500: #388e3c;
-  --A300: #66bb6a;
-  --accent-hover: #2e7d32;
-  --accent-tint: rgba(56, 142, 60, 0.1);
+.palette-green {
+  --A900: #1B5E20;
+  --A700: #2E7D32;
+  --A500: #388E3C;
+  --A300: #66BB6A;
+  --accent-hover: #2E7D32;
+  --accent-tint: rgba(56, 142, 60, 0.10);
   --accent-band: rgba(56, 142, 60, 0.15);
 }
 
 .palette-violet {
-  --A900: #4a148c;
-  --A700: #6a1b9a;
-  --A500: #8e24aa;
-  --A300: #ba68c8;
-  --accent-ink-dark: #d59ae7;
-  --accent-hover: #71208d;
+  --A900: #4A148C;
+  --A700: #6A1B9A;
+  --A500: #8E24AA;
+  --A300: #BA68C8;
+  --accent-ink-dark: #D59AE7;
+  --accent-hover: #71208D;
   --accent-tint: rgba(142, 36, 170, 0.11);
   --accent-band: rgba(142, 36, 170, 0.16);
 }
+/* ALBERS_TOKENS_FAMILIES_END */
 
 /* -- Presets: ground / surface / ink variations --------------------------- */
 
-/* Study — clean analytical white (Interaction of Color plates) */
+/* ALBERS_TOKENS_PRESETS_START */
+/* Study preset */
 .preset-study {
   --bg: #f7f9fb;
   --surface: #ffffff;
@@ -141,9 +159,11 @@
   --muted: #68717d;
   --border: #dde2e8;
   --code-bg: #f1f4f8;
+  --font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+  --heading-weight: 730;
 }
 
-/* Structural — beton brut, shadowless precision (Structural Constellations) */
+/* Structural preset */
 .preset-structural {
   --bg: #e6e9ed;
   --surface: #f1f3f6;
@@ -154,9 +174,11 @@
   --code-bg: #e0e5ea;
   --shadow-soft: none;
   --shadow-card: none;
+  --font-display: "Franklin Gothic Medium", "Avenir Next", "Gill Sans", sans-serif;
+  --heading-weight: 760;
 }
 
-/* Adobe — warm architectural grey, Le Corbusier beton (not sandy) */
+/* Adobe preset */
 .preset-adobe {
   --bg: #ece9e7;
   --surface: #f3f1ef;
@@ -167,24 +189,26 @@
   --code-bg: #e3dfdc;
   --shadow-soft: 0 2px 7px rgba(0, 0, 0, 0.04);
   --shadow-card: 0 2px 9px rgba(0, 0, 0, 0.05);
+  --font-display: "Optima", "Avenir Next", "Gill Sans", sans-serif;
+  --heading-weight: 720;
 }
 
-/* Midnight — deep dark (jewel-tone accents against indigo-black) */
+/* Midnight preset */
 .preset-midnight {
   --bg: #0d1117;
   --surface: #151b24;
   --surface-strong: #1a212d;
   --ink: #e8e6e1;
-  --muted: #9aa2b0;
+  --muted: #b2bac7;
   --border: #2c3342;
-  --code-bg: #111722;
+  --code-bg: #0f1520;
   --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.4);
   --shadow-card: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  --heading-weight: 740;
   --accent-ink: var(--accent-ink-dark);
-  --accent-hover: #f2b2a7;
-  --accent-tint: rgba(228, 73, 38, 0.2);
-  --accent-band: rgba(228, 73, 38, 0.25);
 }
+/* ALBERS_TOKENS_PRESETS_END */
 
 /* -- Dark mode (system / Bootstrap) -------------------------------------- */
 @media (prefers-color-scheme: dark) {
@@ -221,6 +245,100 @@
   --accent-band: rgba(228, 73, 38, 0.25);
 }
 
+/* ALBERS_TOKENS_DARK_FAMILIES_START */
+body[data-bs-theme="dark"].palette-red,
+[data-bs-theme="dark"] body.palette-red {
+  --accent-ink: #FFB8A9;
+  --accent-hover: #FFD2C7;
+  --accent-tint: rgba(228, 73, 38, 0.24);
+  --accent-band: rgba(228, 73, 38, 0.30);
+}
+
+body[data-bs-theme="dark"].palette-lapis,
+[data-bs-theme="dark"] body.palette-lapis {
+  --accent-ink: #AAB9FF;
+  --accent-hover: #C6D0FF;
+  --accent-tint: rgba(73, 104, 214, 0.24);
+  --accent-band: rgba(73, 104, 214, 0.30);
+}
+
+body[data-bs-theme="dark"].palette-ochre,
+[data-bs-theme="dark"] body.palette-ochre {
+  --accent-ink: #FFD46E;
+  --accent-hover: #FFE4A7;
+  --accent-tint: rgba(180, 137, 0, 0.24);
+  --accent-band: rgba(180, 137, 0, 0.31);
+}
+
+body[data-bs-theme="dark"].palette-teal,
+[data-bs-theme="dark"] body.palette-teal {
+  --accent-ink: #9BDCD9;
+  --accent-hover: #B8E8E5;
+  --accent-tint: rgba(47, 140, 140, 0.24);
+  --accent-band: rgba(47, 140, 140, 0.30);
+}
+
+body[data-bs-theme="dark"].palette-green,
+[data-bs-theme="dark"] body.palette-green {
+  --accent-ink: #AFE7B1;
+  --accent-hover: #CAF0CB;
+  --accent-tint: rgba(102, 187, 106, 0.24);
+  --accent-band: rgba(102, 187, 106, 0.30);
+}
+
+body[data-bs-theme="dark"].palette-violet,
+[data-bs-theme="dark"] body.palette-violet {
+  --accent-ink: #DFB3EC;
+  --accent-hover: #ECCFF4;
+  --accent-tint: rgba(186, 104, 200, 0.24);
+  --accent-band: rgba(186, 104, 200, 0.31);
+}
+
+@media (prefers-color-scheme: dark) {
+  body.palette-red {
+    --accent-ink: #FFB8A9;
+    --accent-hover: #FFD2C7;
+    --accent-tint: rgba(228, 73, 38, 0.24);
+    --accent-band: rgba(228, 73, 38, 0.30);
+  }
+
+  body.palette-lapis {
+    --accent-ink: #AAB9FF;
+    --accent-hover: #C6D0FF;
+    --accent-tint: rgba(73, 104, 214, 0.24);
+    --accent-band: rgba(73, 104, 214, 0.30);
+  }
+
+  body.palette-ochre {
+    --accent-ink: #FFD46E;
+    --accent-hover: #FFE4A7;
+    --accent-tint: rgba(180, 137, 0, 0.24);
+    --accent-band: rgba(180, 137, 0, 0.31);
+  }
+
+  body.palette-teal {
+    --accent-ink: #9BDCD9;
+    --accent-hover: #B8E8E5;
+    --accent-tint: rgba(47, 140, 140, 0.24);
+    --accent-band: rgba(47, 140, 140, 0.30);
+  }
+
+  body.palette-green {
+    --accent-ink: #AFE7B1;
+    --accent-hover: #CAF0CB;
+    --accent-tint: rgba(102, 187, 106, 0.24);
+    --accent-band: rgba(102, 187, 106, 0.30);
+  }
+
+  body.palette-violet {
+    --accent-ink: #DFB3EC;
+    --accent-hover: #ECCFF4;
+    --accent-tint: rgba(186, 104, 200, 0.24);
+    --accent-band: rgba(186, 104, 200, 0.31);
+  }
+}
+/* ALBERS_TOKENS_DARK_FAMILIES_END */
+
 /* -- Base typography & layout -------------------------------------------- */
 :root { scrollbar-gutter: stable both-edges; }
 
@@ -228,13 +346,40 @@ html,
 body {
   background-color: var(--bg);
   color: var(--ink);
-  font-family: "Avenir Next", "Gill Sans", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   font-size: 17.5px;
   line-height: 1.58;
   letter-spacing: 0.01em;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* -- Albers calibration: strict orthogonal UI ----------------------------- */
+.navbar .nav-link,
+.navbar .navbar-brand,
+.nav-item .nav-link,
+.btn,
+.form-control,
+input[type="search"],
+button.copy-code,
+pre,
+table,
+blockquote,
+.callout,
+.theme-lab__panel,
+.theme-lab__preview,
+.albers-chip,
+#toc > .nav a.nav-link,
+aside,
+.dropdown-menu,
+.popover,
+.page-content,
+.article,
+.reference,
+.template-home,
+.page-header {
+  border-radius: 0 !important;
 }
 
 main,
@@ -338,6 +483,7 @@ p { margin-block: 0 1.02rem; }
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
   color: var(--ink);
   line-height: 1.18;
   margin-top: var(--space-6);
@@ -346,22 +492,23 @@ h3 {
 
 h1 {
   font-size: clamp(2rem, 2.6vw, 2.42rem);
-  letter-spacing: 0.012em;
+  letter-spacing: 0.008em;
   text-wrap: balance;
-  font-weight: 760;
+  font-weight: calc(var(--heading-weight) + 35);
 }
 
 h2 {
   font-size: clamp(1.34rem, 2vw, 1.58rem);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.075em;
   text-transform: uppercase;
-  font-weight: 730;
+  font-weight: var(--heading-weight);
 }
 
 h3 {
   font-size: clamp(1.08rem, 1.5vw, 1.24rem);
-  letter-spacing: 0.02em;
-  font-weight: 690;
+  letter-spacing: 0.04em;
+  font-weight: calc(var(--heading-weight) - 40);
+  text-transform: uppercase;
 }
 
 h2,
@@ -420,7 +567,7 @@ code,
 pre,
 kbd,
 samp {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.95em;
   line-height: 1.52;
 }
@@ -438,12 +585,24 @@ pre {
   -moz-tab-size: 2;
 }
 
+/* Keep code legible when Bootstrap switches `data-bs-theme`. */
+pre,
+.sourceCode pre {
+  color: var(--ink);
+}
+
+[data-bs-theme="dark"] pre,
+[data-bs-theme="dark"] code {
+  background-color: var(--code-bg);
+}
+
 pre code {
   background: transparent;
   border: none;
   padding: 0;
   word-break: normal;
   overflow-wrap: normal;
+  color: var(--ink);
 }
 
 button.copy-code {
@@ -454,7 +613,7 @@ button.copy-code {
   background: var(--surface);
   color: var(--accent-ink);
   padding: 4px 8px;
-  font: 650 11px/1 "Avenir Next", system-ui, sans-serif;
+  font: 650 11px/1 var(--font-display);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
@@ -472,6 +631,49 @@ p code {
   background: var(--code-bg);
   border: var(--rule-thin) solid var(--border);
   padding: 0.12em 0.36em;
+}
+
+/* -- Syntax Highlighting -------------------------------------------------- */
+.sourceCode .va,
+.sourceCode .op,
+.sourceCode .pp,
+.sourceCode .ot,
+.sourceCode .sc {
+  color: var(--ink);
+}
+
+pre code .kw,
+.sourceCode .kw,
+.hljs-keyword {
+  color: var(--A900);
+  font-weight: 650;
+}
+
+pre code .fu,
+.sourceCode .fu,
+.hljs-title,
+.hljs-function {
+  color: var(--A700);
+}
+
+pre code .st,
+.sourceCode .st,
+.hljs-string {
+  color: color-mix(in srgb, var(--A500) 68%, var(--ink));
+}
+
+pre code .co,
+.sourceCode .co,
+.hljs-comment {
+  color: var(--muted);
+  font-style: italic;
+}
+
+pre code .cn,
+.sourceCode .cn,
+.hljs-number,
+.hljs-literal {
+  color: color-mix(in srgb, var(--A300) 64%, var(--ink));
 }
 
 /* -- Tables -------------------------------------------------------------- */
@@ -518,6 +720,32 @@ caption {
   font-size: 0.94em;
 }
 
+/* -- Figures ------------------------------------------------------------- */
+figure {
+  margin-block: 1.2rem 1.6rem;
+  padding: 0.78rem 0.82rem;
+  border: var(--rule-thin) solid var(--border);
+  background: var(--surface);
+}
+
+figure::before {
+  content: "";
+  display: block;
+  height: var(--rule-strong);
+  width: clamp(64px, 18%, 160px);
+  background: var(--A500);
+  opacity: 0.58;
+  margin-bottom: 0.68rem;
+}
+
+figcaption {
+  margin-top: 0.58rem;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.052em;
+  color: var(--muted);
+}
+
 /* -- Callouts ------------------------------------------------------------ */
 blockquote,
 .callout {
@@ -529,6 +757,28 @@ blockquote,
 }
 
 blockquote p { margin: 0; }
+
+.callout-note {
+  border-left-color: var(--A500);
+  background: var(--accent-band);
+}
+
+.callout-insight {
+  border-left-color: var(--A700);
+  background: var(--accent-tint);
+}
+
+.callout-warning {
+  border-left-color: #b48900;
+  background: rgba(180, 137, 0, 0.12);
+}
+
+.callout-experiment {
+  border-left-color: color-mix(in srgb, var(--A500) 60%, var(--A900));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--A300) 22%, transparent) 0 2px, transparent 2px),
+    color-mix(in srgb, var(--accent-band) 75%, var(--surface));
+}
 
 /* -- Anchors ------------------------------------------------------------- */
 h2:hover .anchor,
@@ -574,6 +824,72 @@ h3:focus-within .anchor {
   margin-block: 1rem 0.55rem;
 }
 
+/* -- Interaction plate motif ---------------------------------------------- */
+.albers-plate {
+  position: relative;
+  width: min(100%, 560px);
+  aspect-ratio: 1 / 1;
+  margin: calc(var(--module) * 7) 0 calc(var(--module) * 8);
+  border: var(--rule-thin) solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.albers-plate__outer,
+.albers-plate__inner,
+.albers-plate__core {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.albers-plate__outer {
+  width: 72%;
+  aspect-ratio: 1 / 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--A300);
+}
+
+.albers-plate__inner {
+  width: 50%;
+  aspect-ratio: 1 / 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--A700);
+}
+
+.albers-plate__core {
+  width: 28%;
+  aspect-ratio: 1 / 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--A900);
+}
+
+.albers-composition {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 5;
+  min-height: clamp(96px, 18vw, 214px);
+  background: var(--surface);
+  border: var(--rule-thin) solid var(--border);
+  margin-block: 1.2rem 1.5rem;
+  overflow: hidden;
+}
+
+.albers-composition svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.albers-composition--dense {
+  min-height: clamp(120px, 23vw, 270px);
+}
+
 .hr-notch {
   height: 0;
   border-top: var(--rule-thin) solid var(--border);
@@ -602,6 +918,86 @@ h3:focus-within .anchor {
   color: var(--A500);
   font-weight: var(--overview-dash-weight);
   opacity: var(--overview-dash-opacity);
+}
+
+/* -- Theme Lab ----------------------------------------------------------- */
+.theme-lab {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.theme-lab__panel {
+  border: var(--rule-thin) solid var(--border);
+  background: var(--surface-strong);
+  padding: var(--space-4);
+}
+
+.theme-lab__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.theme-lab label {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: var(--space-1);
+}
+
+.theme-lab select,
+.theme-lab input {
+  width: 100%;
+  border: var(--rule-thin) solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.46rem 0.5rem;
+}
+
+.theme-lab__preview {
+  border: var(--rule-thin) solid var(--border);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+
+.theme-lab__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.albers-chip {
+  border: var(--rule-thin) solid var(--border);
+  background: var(--surface-strong);
+  color: var(--ink);
+  padding: 0.2rem 0.44rem;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+body.preset-midnight #toc > .nav a.nav-link {
+  color: color-mix(in srgb, var(--ink) 84%, var(--A300));
+}
+
+body.preset-midnight #toc > .nav a.nav-link:hover,
+body.preset-midnight #toc > .nav a.nav-link:focus {
+  background-color: color-mix(in srgb, var(--A300) 24%, transparent);
+}
+
+body.preset-midnight #toc > .nav a.nav-link.active {
+  color: var(--accent-ink);
+  background-color: color-mix(in srgb, var(--A300) 30%, var(--surface));
+}
+
+/* Bootstrap inverts `img.r-plt` in dark mode; disable it for true midnight renders. */
+body.preset-midnight img.r-plt,
+body.preset-midnight pre .r-plt.img img,
+body.preset-midnight .cell-output-display img,
+body.preset-midnight .html-widget {
+  filter: none !important;
 }
 
 /* -- Responsive ---------------------------------------------------------- */
