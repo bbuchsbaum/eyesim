@@ -18,7 +18,8 @@ sample_density_time(
   source_var = "fixgroup",
   permutations = 0,
   permute_on = NULL,
-  aggregate_fun = mean
+  aggregate_fun = mean,
+  normalize = c("none", "max", "sum", "zscore")
 )
 ```
 
@@ -74,6 +75,16 @@ sample_density_time(
 
   A function used to aggregate density values within time bins. Default
   is `mean`.
+
+- normalize:
+
+  A character string specifying how to normalize each density map before
+  sampling. One of `"none"` (default), `"max"`, `"sum"`, or `"zscore"`.
+  See
+  [`sample_density`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.md)
+  for details. Using `"zscore"` is recommended when comparing across
+  conditions or groups that may differ in fixation count or density
+  bandwidth.
 
 ## Value
 

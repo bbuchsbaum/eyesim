@@ -11,7 +11,13 @@ object `x` with a set of discrete fixations provided in `fix`.
 sample_density(x, fix, ...)
 
 # S3 method for class 'density'
-sample_density(x, fix, times = NULL, ...)
+sample_density(
+  x,
+  fix,
+  times = NULL,
+  normalize = c("none", "max", "sum", "zscore"),
+  ...
+)
 ```
 
 ## Arguments
@@ -28,12 +34,37 @@ sample_density(x, fix, times = NULL, ...)
 
 - ...:
 
-  Additional arguments passed on to the method.
+  Additional arguments passed on to the method, including `normalize`
+  (one of `"none"`, `"max"`, `"sum"`, or `"zscore"`) to control density
+  map normalization before sampling.
 
 - times:
 
   A vector of numeric values representing the time points at which the
   density map should be sampled (default is NULL).
+
+- normalize:
+
+  A character string specifying how to normalize the density map before
+  sampling. One of:
+
+  `"none"`
+
+  :   No normalization (default). Returns raw density values.
+
+  `"max"`
+
+  :   Divide by the maximum density value, yielding values in \[0, 1\].
+
+  `"sum"`
+
+  :   Divide by the sum of all density values, yielding a probability
+      distribution.
+
+  `"zscore"`
+
+  :   Z-score the density map (subtract mean, divide by SD). Useful for
+      comparing across maps with different scales.
 
 ## Value
 

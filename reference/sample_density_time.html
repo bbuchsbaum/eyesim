@@ -63,7 +63,8 @@ across time" analysis).</p>
 <span>  source_var <span class="op">=</span> <span class="st">"fixgroup"</span>,</span>
 <span>  permutations <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  permute_on <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  aggregate_fun <span class="op">=</span> <span class="va">mean</span></span>
+<span>  aggregate_fun <span class="op">=</span> <span class="va">mean</span>,</span>
+<span>  normalize <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"max"</span>, <span class="st">"sum"</span>, <span class="st">"zscore"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -120,6 +121,14 @@ stratify permutations (e.g., "subject" to permute within subjects).</p></dd>
 <dt id="arg-aggregate-fun">aggregate_fun<a class="anchor" aria-label="anchor" href="#arg-aggregate-fun"></a></dt>
 <dd><p>A function used to aggregate density values within time
 bins. Default is <code>mean</code>.</p></dd>
+
+
+<dt id="arg-normalize">normalize<a class="anchor" aria-label="anchor" href="#arg-normalize"></a></dt>
+<dd><p>A character string specifying how to normalize each density
+map before sampling. One of <code>"none"</code> (default), <code>"max"</code>,
+<code>"sum"</code>, or <code>"zscore"</code>. See <code><a href="sample_density.html">sample_density</a></code> for details.
+Using <code>"zscore"</code> is recommended when comparing across conditions or
+groups that may differ in fixation count or density bandwidth.</p></dd>
 
 </dl></div>
     <div class="section level2">
