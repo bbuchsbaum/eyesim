@@ -14,7 +14,8 @@ sample_density_time(
   source_var = "fixgroup",
   permutations = 0,
   permute_on = NULL,
-  aggregate_fun = mean
+  aggregate_fun = mean,
+  normalize = c("none", "max", "sum", "zscore")
 )
 }
 \arguments{
@@ -48,6 +49,12 @@ stratify permutations (e.g., "subject" to permute within subjects).}
 
 \item{aggregate_fun}{A function used to aggregate density values within time
 bins. Default is \code{mean}.}
+
+\item{normalize}{A character string specifying how to normalize each density
+map before sampling. One of \code{"none"} (default), \code{"max"},
+\code{"sum"}, or \code{"zscore"}. See \code{\link{sample_density}} for details.
+Using \code{"zscore"} is recommended when comparing across conditions or
+groups that may differ in fixation count or density bandwidth.}
 }
 \value{
 A tibble containing:

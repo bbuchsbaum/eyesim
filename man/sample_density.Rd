@@ -7,16 +7,35 @@
 \usage{
 sample_density(x, fix, ...)
 
-\method{sample_density}{density}(x, fix, times = NULL, ...)
+\method{sample_density}{density}(
+  x,
+  fix,
+  times = NULL,
+  normalize = c("none", "max", "sum", "zscore"),
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class "density" representing the smooth fixation density map.}
 
 \item{fix}{A data frame or tibble containing discrete fixations with columns "x", "y", and "onset".}
 
-\item{...}{Additional arguments passed on to the method.}
+\item{...}{Additional arguments passed on to the method, including
+\code{normalize} (one of \code{"none"}, \code{"max"}, \code{"sum"}, or
+\code{"zscore"}) to control density map normalization before sampling.}
 
 \item{times}{A vector of numeric values representing the time points at which the density map should be sampled (default is NULL).}
+
+\item{normalize}{A character string specifying how to normalize the density
+map before sampling. One of:
+\describe{
+  \item{\code{"none"}}{No normalization (default). Returns raw density values.}
+  \item{\code{"max"}}{Divide by the maximum density value, yielding values in [0, 1].}
+  \item{\code{"sum"}}{Divide by the sum of all density values, yielding a
+    probability distribution.}
+  \item{\code{"zscore"}}{Z-score the density map (subtract mean, divide by SD).
+    Useful for comparing across maps with different scales.}
+}}
 }
 \value{
 A data frame with columns 'z' (density estimates at fixation locations) and 'time' (onset time of fixations).

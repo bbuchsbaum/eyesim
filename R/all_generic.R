@@ -45,7 +45,9 @@ get_density <- function(x,...) {
 #'
 #' @param x An object representing the smooth fixation density map to be sampled.
 #' @param fix A data frame containing the discrete fixations used for sampling the density map.
-#' @param ... Additional arguments passed on to the method.
+#' @param ... Additional arguments passed on to the method, including
+#'   \code{normalize} (one of \code{"none"}, \code{"max"}, \code{"sum"}, or
+#'   \code{"zscore"}) to control density map normalization before sampling.
 #'
 #' @return A data frame with columns 'z' (density estimates at fixation locations) and 'time' (onset time of fixations).
 #' @seealso \code{\link{sample_density.density}} for an example of a specific method implementation for this generic.

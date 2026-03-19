@@ -306,11 +306,23 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 #' 
 #' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
 #' 
+#' @param normalize A character string specifying how to normalize the density
+#'   map before sampling. One of:
+#'   \describe{
+#'     \item{\code{"none"}}{No normalization (default). Returns raw density values.}
+#'     \item{\code{"max"}}{Divide by the maximum density value, yielding values in [0, 1].}
+#'     \item{\code{"sum"}}{Divide by the sum of all density values, yielding a
+#'       probability distribution.}
+#'     \item{\code{"zscore"}}{Z-score the density map (subtract mean, divide by SD).
+#'       Useful for comparing across maps with different scales.}
+#'   }
 #' @return A data frame with columns "z" and "time", where "z" contains the sampled density values and "time" contains the corresponding time points.
 #' @rdname sample_density
 #' @importFrom stats approx
 #' @export
-sample_density.density <- function(x, fix, times = NULL, ...) {
+sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "max", "sum", "zscore"), ...) {
+  normalize <- match.arg(normalize)
+
   nearest_index <- function(coord, grid) {
     ind <- round(approx(grid, seq_along(grid), coord, rule = 2)$y)
     ind[ind < 1L] <- 1L
@@ -318,17 +330,31 @@ sample_density.density <- function(x, fix, times = NULL, ...) {
     ind
   }
 
+  # Normalize the density matrix
+  zmat <- x$z
+  if (normalize == "max") {
+    mx <- max(zmat, na.rm = TRUE)
+    if (mx > 0) zmat <- zmat / mx
+  } else if (normalize == "sum") {
+    s <- sum(zmat, na.rm = TRUE)
+    if (s > 0) zmat <- zmat / s
+  } else if (normalize == "zscore") {
+    mu <- mean(zmat, na.rm = TRUE)
+    sd_val <- stats::sd(as.vector(zmat), na.rm = TRUE)
+    if (sd_val > 0) zmat <- (zmat - mu) / sd_val
+  }
+
   if (is.null(times)) {
     cds <- cbind(fix$x, fix$y)
     ix <- nearest_index(cds[, 1], x$x)
     iy <- nearest_index(cds[, 2], x$y)
-    data.frame(z = x$z[cbind(ix, iy)], time = fix$onset)
+    data.frame(z = zmat[cbind(ix, iy)], time = fix$onset)
   } else {
     fg <- sample_fixations(fix, times)
     cds <- cbind(fg$x, fg$y)
     ix <- nearest_index(cds[, 1], x$x)
     iy <- nearest_index(cds[, 2], x$y)
-    data.frame(z = x$z[cbind(ix, iy)], time = times)
+    data.frame(z = zmat[cbind(ix, iy)], time = times)
   }
 }
 
@@ -361,6 +387,11 @@ sample_density.density <- function(x, fix, times = NULL, ...) {
 #'   stratify permutations (e.g., "subject" to permute within subjects).
 #' @param aggregate_fun A function used to aggregate density values within time
 #'   bins. Default is \code{mean}.
+#' @param normalize A character string specifying how to normalize each density
+#'   map before sampling. One of \code{"none"} (default), \code{"max"},
+#'   \code{"sum"}, or \code{"zscore"}. See \code{\link{sample_density}} for details.
+#'   Using \code{"zscore"} is recommended when comparing across conditions or
+#'   groups that may differ in fixation count or density bandwidth.
 #'
 #' @details
 #' The function matches each row in \code{source_tab} to a corresponding density
@@ -430,7 +461,10 @@ sample_density_time <- function(template_tab,
                                 source_var = "fixgroup",
                                 permutations = 0,
                                 permute_on = NULL,
-                                aggregate_fun = mean) {
+                                aggregate_fun = mean,
+                                normalize = c("none", "max", "sum", "zscore")) {
+
+  normalize <- match.arg(normalize)
 
 
   # Validate inputs
@@ -503,7 +537,7 @@ sample_density_time <- function(template_tab,
       sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
     } else {
       sampled <- tryCatch({
-        sample_density(template_dens, source_fix, times = times)
+        sample_density(template_dens, source_fix, times = times, normalize = normalize)
       }, error = function(e) {
         warning("Error sampling density for row ", i, ": ", e$message)
         data.frame(z = rep(NA_real_, length(times)), time = times)
@@ -555,7 +589,7 @@ sample_density_time <- function(template_tab,
             return(rep(NA_real_, length(times)))
           }
           tryCatch({
-            sample_density(perm_dens, source_fix, times = times)$z
+            sample_density(perm_dens, source_fix, times = times, normalize = normalize)$z
           }, error = function(e) {
             rep(NA_real_, length(times))
           })
