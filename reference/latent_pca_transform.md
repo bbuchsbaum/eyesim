@@ -42,6 +42,8 @@ cca_transform(
   center = TRUE,
   scale. = FALSE,
   shrink = 0.001,
+  fit_by = NULL,
+  unique_match_only = FALSE,
   ...
 )
 ```
@@ -75,6 +77,16 @@ cca_transform(
 - shrink:
 
   Ridge term for covariance regularization.
+
+- fit_by:
+
+  Optional character vector of column names used to fit CCA separately
+  within strata shared by \`ref_tab\` and \`source_tab\`.
+
+- unique_match_only:
+
+  Logical; if \`TRUE\`, CCA fitting uses at most one matched pair per
+  \`match_on\` key within each fitting stratum.
 
 ## Value
 
