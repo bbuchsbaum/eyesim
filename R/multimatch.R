@@ -158,6 +158,21 @@ install_multimatch <- function() {
   reticulate::py_install("multimatch_gaze", pip=TRUE)
 }
 
+# Internal helper to preserve the documented MultiMatch metric shape for
+# degenerate scanpaths that cannot be compared.
+na_multimatch_metrics <- function() {
+  stats::setNames(
+    rep(NA_real_, 6L),
+    c(
+      "mm_vector",
+      "mm_direction",
+      "mm_length",
+      "mm_position",
+      "mm_duration",
+      "mm_position_emd"
+    )
+  )
+}
 
 #' Compute MultiMatch Metrics for Scanpath Similarity
 #'
@@ -226,9 +241,7 @@ multi_match <- function(x,y, screensize) {
 
   if (nrow(x) < 3 || nrow(y) < 3) {
     warning("multi_match requires 3 or more coordinates in each scanpath, returning NAs")
-    return(c(mm_vector=NA, mm_direction=NA,
-             mm_length=NA, mm_position=NA,
-             mm_duration=NA))
+    return(na_multimatch_metrics())
 
   }
 

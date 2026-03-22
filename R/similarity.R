@@ -21,6 +21,99 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
                                     refvar, sourcevar, window=NULL, multiscale_aggregation = "mean", ...) {
   args <- list(...)
 
+  flatten_similarity_output <- function(x, default_prefix = "eye_sim") {
+    if (is.list(x)) {
+      x <- unlist(x, use.names = TRUE)
+    } else if (!is.atomic(x)) {
+      x <- unlist(x, use.names = TRUE)
+    }
+
+    if (length(x) == 1) {
+      return(as.numeric(x[[1]]))
+    }
+
+    nm <- names(x)
+    if (is.null(nm) || any(nm == "")) {
+      nm <- paste0(default_prefix, "_", seq_along(x))
+    }
+
+    out <- as.numeric(x)
+    names(out) <- nm
+    out
+  }
+
+  format_similarity_result <- function(sim, perm_sim = NULL, expand_vector = FALSE) {
+    sim_flat <- flatten_similarity_output(sim)
+
+    if (length(sim_flat) == 1) {
+      if (is.null(perm_sim)) {
+        return(tibble::tibble(eye_sim = sim_flat))
+      }
+
+      perm_flat <- flatten_similarity_output(perm_sim, default_prefix = "perm_sim")
+      perm_val <- if (length(perm_flat) == 0) NA_real_ else as.numeric(perm_flat[[1]])
+
+      return(tibble::tibble(
+        eye_sim = sim_flat,
+        perm_sim = perm_val,
+        eye_sim_diff = sim_flat - perm_val
+      ))
+    }
+
+    if (!expand_vector) {
+      if (is.null(perm_sim)) {
+        return(tibble::tibble(eye_sim = list(sim_flat)))
+      }
+
+      perm_flat <- flatten_similarity_output(perm_sim, default_prefix = "perm_sim")
+      if (length(perm_flat) == 1 && is.na(perm_flat)) {
+        perm_flat <- rep(NA_real_, length(sim_flat))
+        names(perm_flat) <- names(sim_flat)
+      } else {
+        if (length(perm_flat) != length(sim_flat)) {
+          stop("Permutation mean does not match similarity output length.")
+        }
+        if (is.null(names(perm_flat))) {
+          names(perm_flat) <- names(sim_flat)
+        }
+        perm_flat <- perm_flat[names(sim_flat)]
+      }
+
+      return(tibble::tibble(
+        eye_sim = list(sim_flat),
+        perm_sim = list(perm_flat),
+        eye_sim_diff = list(sim_flat - perm_flat)
+      ))
+    }
+
+    sim_names <- names(sim_flat)
+    sim_tbl <- tibble::as_tibble_row(as.list(stats::setNames(unname(sim_flat), sim_names)))
+
+    if (is.null(perm_sim)) {
+      return(sim_tbl)
+    }
+
+    perm_flat <- flatten_similarity_output(perm_sim, default_prefix = "perm_sim")
+    if (length(perm_flat) == 1 && is.na(perm_flat)) {
+      perm_flat <- rep(NA_real_, length(sim_flat))
+      names(perm_flat) <- sim_names
+    } else {
+      if (length(perm_flat) != length(sim_flat)) {
+        stop("Permutation mean does not match similarity output length.")
+      }
+      if (is.null(names(perm_flat))) {
+        names(perm_flat) <- sim_names
+      }
+      perm_flat <- perm_flat[sim_names]
+    }
+
+    diff_flat <- sim_flat - perm_flat
+    perm_tbl <- tibble::as_tibble_row(as.list(stats::setNames(unname(perm_flat), paste0(sim_names, "_perm"))))
+    diff_tbl <- tibble::as_tibble_row(as.list(stats::setNames(unname(diff_flat), paste0(sim_names, "_diff"))))
+
+    dplyr::bind_cols(sim_tbl, perm_tbl, diff_tbl)
+  }
+
   # Match indices between source and reference tables
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
 
@@ -43,33 +136,37 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
   # Calculate similarities and permutation tests (if specified) for each row in the source table
   ret <- source_tab %>% furrr::future_pmap(function(...) {
     . <- list(...)
+    expand_vector_output <- identical(method, "multimatch")
     d1 <- ref_tab[[refvar]][[.$matchind]]  # Reference data
     d2 <- .[[sourcevar]]                  # Source data
 
     is_valid_similarity_obj <- function(obj) {
       (!is.null(obj)) &&
-        (inherits(obj, c("density", "eye_density", "eye_density_multiscale")) ||
+        (inherits(obj, c("density", "eye_density", "eye_density_multiscale", "fixation_group", "scanpath")) ||
          is.numeric(obj) || is.matrix(obj))
     }
 
     if (!is_valid_similarity_obj(d1) || !is_valid_similarity_obj(d2)) {
       warning("Invalid or NULL similarity input encountered in run_similarity_analysis(). Returning NA for this comparison.")
-      return(tibble(eye_sim = NA_real_, perm_sim = NA_real_, eye_sim_diff = NA_real_))
+      return(if (permutations > 0) {
+        tibble::tibble(eye_sim = NA_real_, perm_sim = NA_real_, eye_sim_diff = NA_real_)
+      } else {
+        tibble::tibble(eye_sim = NA_real_)
+      })
     }
 
     # Define a helper function inline to calculate similarity, passing multiscale_aggregation
-    calculate_sim <- function(d1, d2, method, window = NULL, ...) {
-        args_list <- list(...)
+    calculate_sim <- function(d1, d2, method, window = NULL, extra_args = list()) {
         if (!is.null(window)) {
             p <- purrr::partial(similarity, d1, d2, method = method, window = window)
         } else {
             p <- purrr::partial(similarity, d1, d2, method = method)
         }
         # Pass multiscale_aggregation explicitly here
-        do.call(p, c(args_list, list(multiscale_aggregation = multiscale_aggregation)))
+        do.call(p, c(extra_args, list(multiscale_aggregation = multiscale_aggregation)))
     }
 
-    sim <- calculate_sim(d1, d2, method, window, ... = args)
+    sim <- calculate_sim(d1, d2, method, window, extra_args = args)
 
     # Perform permutation tests if the number of permutations is greater than 0
     if (permutations > 0) {
@@ -94,51 +191,27 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 
       if (length(mind) == 0) {
         warning("no matching candidate indices for permutation test. Skipping.")
-        return(tibble(eye_sim=NA, perm_sim=NA, eye_sim_diff=NA))
+        return(format_similarity_result(sim, NA_real_, expand_vector = expand_vector_output))
       }
 
       # Calculate permuted similarities for each remaining index in mind
       psim <- do.call(rbind, lapply(mind, function(i) {
         d1p <- ref_tab[[refvar]][[i]]
-        calculate_sim(d1p, d2, method, window)
+        calculate_sim(d1p, d2, method, window, extra_args = args)
       }))
 
       # Calculate the mean permuted similarity and the difference between the observed and permuted similarities
-      if (ncol(psim) > 1) {
-        # Handle potential vector/list 'sim' when calculating means and differences
-        # Calculate mean permuted similarity, preserving names
-        perm_sim_mean <- colMeans(psim, na.rm = TRUE)
-
-        # Ensure operations work correctly if sim is a vector/list
-        # Need to handle element-wise subtraction potentially
-        if (is.list(sim) || (is.vector(sim) && length(sim) > 1)) {
-            # Assuming sim and perm_sim_mean have compatible structures/names for subtraction
-            sim_vec <- unlist(sim) # Use unlist carefully or match by name if needed
-            diff_val <- sim_vec - perm_sim_mean
-
-            # Construct tibble ensuring list columns
-            tibble::lst(
-                eye_sim = list(sim_vec), # Wrap in list
-                perm_sim = list(perm_sim_mean),
-                eye_sim_diff = list(diff_val)
-            ) %>% tibble::as_tibble()
-        } else {
-             # Original logic for scalar sim
-             diff_val <- sim - perm_sim_mean
-             tibble::tibble(eye_sim = sim, perm_sim = perm_sim_mean, eye_sim_diff = diff_val)
-        }
+      perm_sim_mean <- if (is.null(dim(psim))) {
+        mean(psim, na.rm = TRUE)
       } else {
-        # Create a tibble with the observed similarity, mean permuted similarity, and their difference
-        tibble(eye_sim=sim, perm_sim=mean(psim), eye_sim_diff=sim - mean(psim))
+        colMeans(psim, na.rm = TRUE)
       }
+      perm_sim_mean[is.nan(perm_sim_mean)] <- NA_real_
+
+      format_similarity_result(sim, perm_sim_mean, expand_vector = expand_vector_output)
     } else {
-      # If no permutation tests, return a tibble with the observed similarity
-      if (length(sim) == 1) {
-        tibble(eye_sim=sim)
-      } else {
-        # Ensure vector 'sim' is wrapped in a list to create a list column
-        tibble(eye_sim = list(sim))
-      }
+      # If no permutation tests, return the observed similarity in scalar or expanded-vector form.
+      format_similarity_result(sim, expand_vector = expand_vector_output)
     }
   }, .options=furrr::furrr_options(seed = TRUE)) %>% dplyr::bind_rows() # Combine the results of each row in the source table into a single tibble
 
@@ -1153,7 +1226,7 @@ similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap"),
     if (is.null(time_samples)) {
       stop("method `overlap` requires a vector of `time_samples`")
     }
-    fixation_overlap(x, y, dthresh=dthresh, time_samples=time_samples)
+    fixation_overlap(x, y, dthresh=dthresh, time_samples=time_samples)$perc
   }
 
 }
