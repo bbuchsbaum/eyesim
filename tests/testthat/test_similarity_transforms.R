@@ -22,6 +22,23 @@ make_density_vec <- function(vec) {
   )
 }
 
+make_gaussian_density <- function(mean = c(0, 0), cov = diag(c(0.2, 0.2)),
+                                  x = seq(-2, 2, length.out = 25),
+                                  y = seq(-2, 2, length.out = 25)) {
+  coords <- as.matrix(expand.grid(x = x, y = y))
+  inv_cov <- solve(cov)
+  centered <- sweep(coords, 2, mean, FUN = "-")
+  expo <- rowSums((centered %*% inv_cov) * centered)
+  z <- exp(-0.5 * expo)
+  z <- matrix(z, nrow = length(x), ncol = length(y))
+  z <- z / sum(z)
+
+  structure(
+    list(z = z, x = x, y = y, sigma = 1),
+    class = c("density", "eye_density")
+  )
+}
+
 test_that("latent_pca_transform produces numeric vectors", {
   ref_tab <- tibble::tibble(id = 1:2, density = list(make_density_stub(1), make_density_stub(2)))
   source_tab <- tibble::tibble(id = 1:2, density = list(make_density_stub(1.1), make_density_stub(1.9)))
@@ -187,6 +204,174 @@ test_that("coral_transform remains finite for near-singular covariance", {
 
   expect_true(all(is.finite(src_mat)))
   expect_equal(dim(src_mat), c(6, 4))
+})
+
+test_that("coral_transform with a single fit_by stratum matches pooled CORAL", {
+  set.seed(111)
+  n <- 20
+  base_vecs <- replicate(n, rnorm(4), simplify = FALSE)
+  scale_mat <- diag(c(1.7, 0.9, 1.2, 0.8))
+  source_vecs <- lapply(base_vecs, function(v) as.vector(scale_mat %*% v))
+
+  ref_tab <- tibble::tibble(
+    id = seq_len(n),
+    pid = rep("p1", n),
+    density = lapply(base_vecs, make_density_vec)
+  )
+  source_tab <- tibble::tibble(
+    id = seq_len(n),
+    pid = rep("p1", n),
+    density = lapply(source_vecs, make_density_vec)
+  )
+
+  pooled <- coral_transform(ref_tab, source_tab, match_on = "id", comps = 4, shrink = 1e-6)
+  grouped <- coral_transform(ref_tab, source_tab, match_on = "id", comps = 4, shrink = 1e-6, fit_by = "pid")
+
+  expect_equal(do.call(rbind, grouped$ref_tab$density), do.call(rbind, pooled$ref_tab$density), tolerance = 1e-10)
+  expect_equal(do.call(rbind, grouped$source_tab$density), do.call(rbind, pooled$source_tab$density), tolerance = 1e-8)
+})
+
+test_that("contract_transform improves similarity under isotropic contraction and shift", {
+  set.seed(901)
+  ref_means <- list(c(-0.6, -0.2), c(0.4, -0.1), c(-0.2, 0.5), c(0.7, 0.4))
+  ref_cov <- matrix(c(0.18, 0.02, 0.02, 0.12), nrow = 2)
+  scale_true <- 0.72
+  shift_true <- c(0.18, -0.12)
+
+  ref_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu) make_gaussian_density(mean = mu, cov = ref_cov))
+  )
+  source_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu_ref) {
+      mu_src <- as.numeric((mu_ref - shift_true) / scale_true)
+      cov_src <- ref_cov / (scale_true^2)
+      make_gaussian_density(mean = mu_src, cov = cov_src)
+    })
+  )
+
+  raw <- template_similarity(ref_tab, source_tab, match_on = "id", permutations = 0, method = "cosine")
+  contracted <- template_similarity(
+    ref_tab,
+    source_tab,
+    match_on = "id",
+    permutations = 0,
+    method = "cosine",
+    similarity_transform = contract_transform,
+    similarity_transform_args = list(shrink = 1e-6)
+  )
+
+  expect_gt(mean(contracted$eye_sim), mean(raw$eye_sim))
+})
+
+test_that("affine_transform improves similarity under affine distortion", {
+  ref_means <- list(c(-0.7, -0.1), c(0.5, 0.2), c(-0.1, 0.6), c(0.6, -0.5))
+  ref_cov <- matrix(c(0.16, 0.05, 0.05, 0.11), nrow = 2)
+  A_true <- matrix(c(0.82, 0.18, -0.12, 1.08), nrow = 2, byrow = TRUE)
+  t_true <- c(0.14, -0.09)
+  A_inv <- solve(A_true)
+
+  ref_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu) make_gaussian_density(mean = mu, cov = ref_cov))
+  )
+  source_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu_ref) {
+      mu_src <- as.numeric(A_inv %*% (mu_ref - t_true))
+      cov_src <- A_inv %*% ref_cov %*% t(A_inv)
+      make_gaussian_density(mean = mu_src, cov = cov_src)
+    })
+  )
+
+  raw <- template_similarity(ref_tab, source_tab, match_on = "id", permutations = 0, method = "cosine")
+  affine <- template_similarity(
+    ref_tab,
+    source_tab,
+    match_on = "id",
+    permutations = 0,
+    method = "cosine",
+    similarity_transform = affine_transform,
+    similarity_transform_args = list(shrink = 1e-6)
+  )
+
+  expect_gt(mean(affine$eye_sim), mean(raw$eye_sim))
+})
+
+test_that("coral_transform supports grouped covariance alignment via fit_by", {
+  set.seed(222)
+  n_per_group <- 30
+  base_a <- replicate(n_per_group, rnorm(4), simplify = FALSE)
+  base_b <- replicate(n_per_group, rnorm(4), simplify = FALSE)
+  scale_a <- diag(c(2.2, 0.7, 1.0, 1.3))
+  scale_b <- diag(c(0.8, 1.9, 1.4, 0.6))
+
+  ref_tab <- tibble::tibble(
+    id = seq_len(2 * n_per_group),
+    pid = rep(c("p1", "p2"), each = n_per_group),
+    density = c(lapply(base_a, make_density_vec), lapply(base_b, make_density_vec))
+  )
+  source_tab <- tibble::tibble(
+    id = seq_len(2 * n_per_group),
+    pid = rep(c("p1", "p2"), each = n_per_group),
+    density = c(
+      lapply(base_a, function(v) make_density_vec(as.vector(scale_a %*% v))),
+      lapply(base_b, function(v) make_density_vec(as.vector(scale_b %*% v)))
+    )
+  )
+
+  pooled <- coral_transform(ref_tab, source_tab, match_on = "id", comps = 4, shrink = 1e-6)
+  grouped <- coral_transform(ref_tab, source_tab, match_on = "id", comps = 4, shrink = 1e-6, fit_by = "pid")
+
+  cov_gap_sum <- function(transformed_source) {
+    sum(vapply(c("p1", "p2"), function(pid) {
+      ref_mat <- do.call(rbind, lapply(ref_tab$density[ref_tab$pid == pid], function(x) as.vector(x$z)))
+      src_mat <- do.call(rbind, transformed_source$density[transformed_source$pid == pid])
+      sqrt(sum((stats::cov(src_mat) - stats::cov(ref_mat))^2))
+    }, numeric(1)))
+  }
+
+  grouped_notes <- stats::setNames(
+    vapply(grouped$info$groups, `[[`, character(1), "note"),
+    vapply(grouped$info$groups, `[[`, character(1), "group")
+  )
+
+  expect_lt(cov_gap_sum(grouped$source_tab), cov_gap_sum(pooled$source_tab))
+  expect_equal(unname(grouped_notes[c("p1", "p2")]), c("ok", "ok"))
+})
+
+test_that("grouped coral_transform is invariant to source row order", {
+  set.seed(223)
+  n_per_group <- 10
+  base_a <- replicate(n_per_group, rnorm(4), simplify = FALSE)
+  base_b <- replicate(n_per_group, rnorm(4), simplify = FALSE)
+  scale_a <- diag(c(2.1, 0.8, 1.1, 1.2))
+  scale_b <- diag(c(0.9, 1.8, 1.5, 0.7))
+
+  ref_tab <- tibble::tibble(
+    id = seq_len(2 * n_per_group),
+    pid = rep(c("p1", "p2"), each = n_per_group),
+    density = c(lapply(base_a, make_density_vec), lapply(base_b, make_density_vec))
+  )
+  source_tab <- tibble::tibble(
+    row_id = seq_len(2 * n_per_group),
+    id = seq_len(2 * n_per_group),
+    pid = rep(c("p1", "p2"), each = n_per_group),
+    density = c(
+      lapply(base_a, function(v) make_density_vec(as.vector(scale_a %*% v))),
+      lapply(base_b, function(v) make_density_vec(as.vector(scale_b %*% v)))
+    )
+  )
+  shuffled_source <- source_tab[sample(seq_len(nrow(source_tab))), , drop = FALSE]
+
+  ordered <- coral_transform(ref_tab, source_tab, match_on = "id", comps = 4, shrink = 1e-6, fit_by = "pid")
+  shuffled <- coral_transform(ref_tab, shuffled_source, match_on = "id", comps = 4, shrink = 1e-6, fit_by = "pid")
+
+  ordered_mat <- do.call(rbind, ordered$source_tab$density)
+  shuffled_mat <- do.call(rbind, shuffled$source_tab$density[order(shuffled$source_tab$row_id)])
+
+  expect_equal(ordered_mat, shuffled_mat, tolerance = 1e-8)
 })
 
 test_that("cca_transform recovers a linear mixing between domains", {

@@ -133,6 +133,24 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     match_split <- split(matchind, source_tab[[permute_on]])
   }
 
+  fast_cosine_ret <- maybe_run_fast_cosine_similarity(
+    ref_tab = ref_tab,
+    source_tab = source_tab,
+    matchind = matchind,
+    permutations = permutations,
+    permute_on = permute_on,
+    match_split = if (exists("match_split", inherits = FALSE)) match_split else NULL,
+    method = method,
+    refvar = refvar,
+    sourcevar = sourcevar,
+    window = window,
+    multiscale_aggregation = multiscale_aggregation,
+    extra_args = args
+  )
+  if (!is.null(fast_cosine_ret)) {
+    return(source_tab %>% bind_cols(fast_cosine_ret))
+  }
+
   # Calculate similarities and permutation tests (if specified) for each row in the source table
   ret <- source_tab %>% furrr::future_pmap(function(...) {
     . <- list(...)
@@ -217,6 +235,118 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 
   # Bind the calculated similarity values to the source table and return the result
   source_tab %>% bind_cols(ret)
+}
+
+maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, permutations, permute_on = NULL,
+                                             match_split = NULL, method, refvar, sourcevar, window = NULL,
+                                             multiscale_aggregation = "mean", extra_args = list()) {
+  if (!identical(method, "cosine") ||
+      !is.null(window) ||
+      length(extra_args) > 0L ||
+      !identical(multiscale_aggregation, "mean")) {
+    return(NULL)
+  }
+
+  ref_mat <- vectorize_fast_cosine_tab(ref_tab[[refvar]])
+  src_mat <- vectorize_fast_cosine_tab(source_tab[[sourcevar]], expected_len = ncol(ref_mat))
+  if (is.null(ref_mat) || is.null(src_mat) || nrow(source_tab) == 0L) {
+    return(NULL)
+  }
+
+  sim_mat <- cosine_similarity_matrix(src_mat, ref_mat)
+  obs_sim <- sim_mat[cbind(seq_len(nrow(source_tab)), matchind)]
+
+  if (permutations <= 0) {
+    return(tibble::tibble(eye_sim = obs_sim))
+  }
+
+  perm_sim <- vapply(seq_len(nrow(source_tab)), function(i) {
+    candidates <- if (!is.null(permute_on)) {
+      match_split[[as.character(source_tab[[permute_on]][i])]]
+    } else {
+      matchind
+    }
+
+    if (is.null(candidates) || length(candidates) == 0L) {
+      return(NA_real_)
+    }
+
+    if (permutations < length(candidates)) {
+      candidates <- sample(candidates, permutations)
+    }
+
+    match_pos <- match(matchind[[i]], candidates)
+    if (!is.na(match_pos) && length(match_pos) > 0L) {
+      candidates <- candidates[-match_pos]
+    }
+
+    if (length(candidates) == 0L) {
+      return(NA_real_)
+    }
+
+    mean(sim_mat[i, candidates], na.rm = TRUE)
+  }, numeric(1))
+
+  perm_sim[is.nan(perm_sim)] <- NA_real_
+  tibble::tibble(
+    eye_sim = obs_sim,
+    perm_sim = perm_sim,
+    eye_sim_diff = obs_sim - perm_sim
+  )
+}
+
+vectorize_fast_cosine_tab <- function(x, expected_len = NULL) {
+  vecs <- lapply(x, vectorize_fast_cosine_obj)
+  if (length(vecs) == 0L) {
+    ncol <- if (is.null(expected_len)) 0L else expected_len
+    return(matrix(numeric(0), nrow = 0L, ncol = ncol))
+  }
+
+  if (any(vapply(vecs, is.null, logical(1)))) {
+    return(NULL)
+  }
+
+  lens <- vapply(vecs, length, integer(1))
+  if (length(unique(lens)) != 1L) {
+    return(NULL)
+  }
+  if (!is.null(expected_len) && unique(lens) != expected_len) {
+    return(NULL)
+  }
+
+  mat <- matrix(unlist(vecs, use.names = FALSE), nrow = length(vecs), byrow = TRUE)
+  if (anyNA(mat)) {
+    return(NULL)
+  }
+  mat
+}
+
+vectorize_fast_cosine_obj <- function(obj) {
+  if (inherits(obj, c("density", "eye_density"))) {
+    return(as.vector(obj$z))
+  }
+
+  if (is.numeric(obj) || is.matrix(obj)) {
+    return(as.vector(obj))
+  }
+
+  NULL
+}
+
+cosine_similarity_matrix <- function(x, y) {
+  x_norm <- sqrt(rowSums(x^2))
+  y_norm <- sqrt(rowSums(y^2))
+  sims <- x %*% t(y)
+  denom <- tcrossprod(x_norm, y_norm)
+
+  out <- sims / denom
+  zero_x <- x_norm <= .Machine$double.eps
+  zero_y <- y_norm <= .Machine$double.eps
+  out[denom <= .Machine$double.eps] <- 0
+  if (any(zero_x) && any(zero_y)) {
+    out[outer(zero_x, zero_y)] <- 1
+  }
+  out
 }
 
 
@@ -366,6 +496,212 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
     attr(res, "similarity_transform") <- transform_info
   }
   res
+}
+
+#' Cross-Fitted Template Similarity
+#'
+#' Compute template similarity on held-out folds while fitting any optional
+#' domain-adaptation transform only on training rows.
+#'
+#' This function is the leakage-safe counterpart to `template_similarity()` when
+#' using learned transforms such as `latent_pca_transform`, `coral_transform`,
+#' or `cca_transform`. For each fold, it:
+#' \enumerate{
+#'   \item assigns held-out source rows using `split_on`,
+#'   \item excludes held-out `match_on` keys from transform fitting,
+#'   \item fits the transform on the remaining training rows only,
+#'   \item applies the fitted transform to held-out source rows and their
+#'   matched reference rows, and
+#'   \item computes similarity only on the held-out rows.
+#' }
+#'
+#' @inheritParams template_similarity
+#' @param split_on Character vector of source-table columns used to assign folds.
+#'   All rows sharing the same `split_on` values are held out together. Defaults
+#'   to `match_on`.
+#' @param n_folds Number of folds. Defaults to `min(5, n_unique_groups)`.
+#' @param seed Random seed used for fold assignment.
+#' @param fit_source_filter Optional logical vector or function selecting which
+#'   source rows are eligible for transform fitting. Functions receive
+#'   `source_tab` and must return a logical vector with one value per row.
+#' @param eval_source_filter Optional logical vector or function selecting which
+#'   source rows are scored. Functions receive `source_tab` and must return a
+#'   logical vector with one value per row.
+#'
+#' @return A tibble containing only held-out evaluation rows from `source_tab`,
+#'   augmented with similarity columns and a `.cv_fold` column. Fold metadata is
+#'   stored in `attr(x, "similarity_cv")`.
+#' @export
+template_similarity_cv <- function(ref_tab, source_tab, match_on, permute_on = NULL,
+                                   refvar = "density", sourcevar = "density",
+                                   method = c("spearman", "pearson", "fisherz", "cosine", "l1", "jaccard", "dcov", "emd"),
+                                   permutations = 10, multiscale_aggregation = "mean",
+                                   similarity_transform = NULL, similarity_transform_args = list(),
+                                   split_on = match_on, n_folds = NULL, seed = 1,
+                                   fit_source_filter = NULL, eval_source_filter = NULL, ...) {
+
+  method <- match.arg(method)
+  source_tab <- dplyr::ungroup(source_tab)
+  source_tab[["..cv_row_id"]] <- seq_len(nrow(source_tab))
+
+  fit_mask <- resolve_similarity_cv_filter(source_tab, fit_source_filter, "fit_source_filter")
+  eval_mask <- resolve_similarity_cv_filter(source_tab, eval_source_filter, "eval_source_filter")
+  if (!any(eval_mask)) {
+    stop("eval_source_filter did not select any source rows.")
+  }
+
+  fold_spec <- make_similarity_cv_folds(source_tab, split_on = split_on, n_folds = n_folds, seed = seed)
+  fold_results <- vector("list", fold_spec$n_folds)
+  fold_info <- vector("list", fold_spec$n_folds)
+
+  for (fold in seq_len(fold_spec$n_folds)) {
+    eval_rows <- which(fold_spec$fold_id == fold & eval_mask)
+    if (length(eval_rows) == 0L) {
+      fold_info[[fold]] <- list(
+        fold = fold,
+        train_source_n = 0L,
+        eval_source_n = 0L,
+        train_match_n = 0L,
+        eval_match_n = 0L,
+        overlap_match_n = 0L,
+        note = "no evaluation rows"
+      )
+      next
+    }
+
+    eval_source <- source_tab[eval_rows, , drop = FALSE]
+    eval_match_keys <- unique(eval_source[[match_on]])
+    train_candidate_rows <- which(fold_spec$fold_id != fold & fit_mask)
+    overlap_train_rows <- train_candidate_rows[source_tab[[match_on]][train_candidate_rows] %in% eval_match_keys]
+    train_rows <- setdiff(train_candidate_rows, overlap_train_rows)
+    train_source <- source_tab[train_rows, , drop = FALSE]
+    train_match_keys <- unique(train_source[[match_on]])
+
+    ref_eval <- ref_tab[ref_tab[[match_on]] %in% eval_match_keys, , drop = FALSE]
+    ref_train <- ref_tab[ref_tab[[match_on]] %in% train_match_keys, , drop = FALSE]
+
+    fold_note <- "ok"
+    transform_info <- NULL
+    if (!is.null(similarity_transform)) {
+      if (nrow(train_source) == 0L || nrow(ref_train) == 0L) {
+        stop("Fold ", fold, " has no training rows available for transform fitting. Reduce n_folds or relax the fit filter.")
+      }
+
+      model <- do.call(
+        fit_similarity_transform_model,
+        c(
+          list(
+            similarity_transform = similarity_transform,
+            ref_tab = ref_train,
+            source_tab = train_source,
+            match_on = match_on,
+            refvar = refvar,
+            sourcevar = sourcevar
+          ),
+          similarity_transform_args
+        )
+      )
+      transformed <- apply_similarity_transform_model(model, ref_tab = ref_eval, source_tab = eval_source)
+      ref_eval <- transformed$ref_tab
+      eval_source <- transformed$source_tab
+      refvar <- transformed$refvar
+      sourcevar <- transformed$sourcevar
+      transform_info <- transformed$info
+    }
+
+    res_fold <- run_similarity_analysis(
+      ref_tab = ref_eval,
+      source_tab = eval_source,
+      match_on = match_on,
+      permutations = permutations,
+      permute_on = permute_on,
+      method = method,
+      refvar = refvar,
+      sourcevar = sourcevar,
+      multiscale_aggregation = multiscale_aggregation,
+      ...
+    )
+    res_fold[[".cv_fold"]] <- fold
+    fold_results[[fold]] <- res_fold
+    fold_info[[fold]] <- list(
+      fold = fold,
+      train_source_n = nrow(train_source),
+      eval_source_n = nrow(eval_source),
+      train_match_n = length(train_match_keys),
+      eval_match_n = length(eval_match_keys),
+      overlap_match_n = length(intersect(train_match_keys, eval_match_keys)),
+      dropped_overlap_train_n = length(overlap_train_rows),
+      transform_info = transform_info,
+      note = fold_note
+    )
+  }
+
+  res <- dplyr::bind_rows(fold_results)
+  if (nrow(res) == 0L) {
+    stop("No held-out evaluation rows were scored.")
+  }
+  res <- res[order(res[["..cv_row_id"]]), , drop = FALSE]
+  res[["..cv_row_id"]] <- NULL
+  attr(res, "similarity_cv") <- list(
+    split_on = split_on,
+    n_folds = fold_spec$n_folds,
+    seed = seed,
+    similarity_transform = if (is.null(similarity_transform)) NULL else transform_name(similarity_transform),
+    folds = fold_info
+  )
+  res
+}
+
+resolve_similarity_cv_filter <- function(source_tab, filter_spec, label) {
+  if (is.null(filter_spec)) {
+    return(rep(TRUE, nrow(source_tab)))
+  }
+
+  vals <- if (is.function(filter_spec)) filter_spec(source_tab) else filter_spec
+  if (!is.logical(vals) || length(vals) != nrow(source_tab)) {
+    stop(label, " must be NULL, a logical vector of length nrow(source_tab), or a function returning one.")
+  }
+  vals
+}
+
+make_similarity_cv_folds <- function(source_tab, split_on, n_folds = NULL, seed = 1) {
+  if (length(split_on) == 0L || !all(split_on %in% names(source_tab))) {
+    stop("split_on must name one or more columns in source_tab.")
+  }
+
+  split_key <- interaction(source_tab[split_on], drop = TRUE, lex.order = TRUE, sep = "::")
+  groups <- sort(unique(as.character(split_key)))
+  if (length(groups) < 2L) {
+    stop("Cross-fitted similarity requires at least two unique split groups.")
+  }
+
+  if (is.null(n_folds)) {
+    n_folds <- min(5L, length(groups))
+  }
+  n_folds <- min(as.integer(n_folds), length(groups))
+  if (n_folds < 2L) {
+    stop("n_folds must be at least 2.")
+  }
+
+  set.seed(seed)
+  shuffled_groups <- sample(groups, length(groups))
+  fold_lookup <- stats::setNames(rep(seq_len(n_folds), length.out = length(groups)), shuffled_groups)
+
+  list(
+    fold_id = unname(fold_lookup[as.character(split_key)]),
+    split_key = as.character(split_key),
+    n_folds = n_folds
+  )
+}
+
+transform_name <- function(similarity_transform) {
+  transform_fun <- resolve_similarity_transform_function(similarity_transform)
+  if (identical(transform_fun, latent_pca_transform)) return("latent_pca_transform")
+  if (identical(transform_fun, contract_transform)) return("contract_transform")
+  if (identical(transform_fun, affine_transform)) return("affine_transform")
+  if (identical(transform_fun, coral_transform)) return("coral_transform")
+  if (identical(transform_fun, cca_transform)) return("cca_transform")
+  "<custom>"
 }
 
 

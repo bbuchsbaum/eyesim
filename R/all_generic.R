@@ -136,6 +136,21 @@ similarity <- function(x, y, method, ...) {
   UseMethod("similarity", x)
 }
 
+#' Compute Fixation Entropy
+#'
+#' This generic computes entropy summaries for fixation patterns represented as
+#' fixation groups or density maps.
+#'
+#' @param x The input object.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return A numeric entropy value, or a named numeric vector for multiscale
+#'   objects when requested.
+#' @export
+fixation_entropy <- function(x, ...) {
+  UseMethod("fixation_entropy", x)
+}
+
 #' Compute Density Matrix for a Given Object
 #'
 #' This function computes the density matrix for a given object, optionally taking into account a grouping variable.

@@ -53,7 +53,7 @@ calcangle <- function(x1, x2) {
 #' df <- tibble::tibble(fixgroup = list(fg))
 #' df <- add_scanpath(df)
 add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup", ...) {
-  x %>% mutate(!!outvar := list(scanpath(.data[[fixvar]][[1]])))
+  x %>% mutate(!!outvar := lapply(.data[[fixvar]], scanpath))
 }
 
 #' Add Scanpath to an Eye Table
@@ -73,7 +73,7 @@ add_scanpath.data.frame <- function(x, outvar="scanpath", fixvar="fixgroup", ...
 #' et <- as_eye_table(tibble::tibble(id = 1, fixgroup = list(fg)))
 #' et <- add_scanpath(et)
 add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...) {
-  x %>% mutate(!!outvar := list(scanpath(.data[[fixvar]][[1]])))
+  x %>% mutate(!!outvar := lapply(.data[[fixvar]], scanpath))
 }
 
 
@@ -103,4 +103,3 @@ scanpath.fixation_group <- function(x,...) {
   class(x) <- c("scanpath", class(x))
   x
 }
-
