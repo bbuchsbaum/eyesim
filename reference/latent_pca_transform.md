@@ -19,6 +19,30 @@ latent_pca_transform(
   ...
 )
 
+contract_transform(
+  ref_tab,
+  source_tab,
+  match_on,
+  refvar = "density",
+  sourcevar = "density",
+  shrink = 1e-06,
+  fit_by = NULL,
+  unique_match_only = FALSE,
+  ...
+)
+
+affine_transform(
+  ref_tab,
+  source_tab,
+  match_on,
+  refvar = "density",
+  sourcevar = "density",
+  shrink = 1e-06,
+  fit_by = NULL,
+  unique_match_only = FALSE,
+  ...
+)
+
 coral_transform(
   ref_tab,
   source_tab,
@@ -29,6 +53,7 @@ coral_transform(
   center = TRUE,
   scale. = FALSE,
   shrink = 0.001,
+  fit_by = NULL,
   ...
 )
 
@@ -80,13 +105,14 @@ cca_transform(
 
 - fit_by:
 
-  Optional character vector of column names used to fit CCA separately
-  within strata shared by \`ref_tab\` and \`source_tab\`.
+  Optional character vector of column names used to fit CORAL, CCA, or
+  geometric transforms separately within strata shared by \`ref_tab\`
+  and \`source_tab\`.
 
 - unique_match_only:
 
-  Logical; if \`TRUE\`, CCA fitting uses at most one matched pair per
-  \`match_on\` key within each fitting stratum.
+  Logical; if \`TRUE\`, supervised fitting uses at most one matched pair
+  per \`match_on\` key within each fitting stratum.
 
 ## Value
 

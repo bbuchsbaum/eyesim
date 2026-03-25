@@ -72,81 +72,293 @@
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
-<h2 id="why-latent-transforms">Why latent transforms?<a class="anchor" aria-label="anchor" href="#why-latent-transforms"></a>
+<h2 id="why-transforms">Why transforms?<a class="anchor" aria-label="anchor" href="#why-transforms"></a>
 </h2>
 <p><code><a href="../reference/template_similarity.html">template_similarity()</a></code> compares density maps in raw
-screen space. But when encoding and retrieval differ by a linear
+screen space. But when encoding and retrieval differ by a systematic
 transform — different screen sizes, calibration drift between sessions,
-or systematic participant differences — raw correlation can
-underestimate true reinstatement.</p>
-<p>Latent transforms address this by mapping both sides into a shared
-space before computing similarity. You add them to
-<code><a href="../reference/template_similarity.html">template_similarity()</a></code> with two arguments; the core API
-stays unchanged.</p>
+participant-specific domain shifts, or contraction/distortion between
+phases — raw correlation can underestimate true reinstatement.</p>
+<p><code>eyesim</code> supports two families of transform hooks before
+similarity is computed:</p>
+<ul>
+<li>
+<strong>latent transforms</strong> such as PCA, CORAL, and CCA</li>
+<li>
+<strong>geometric transforms</strong> such as contraction and affine
+warps</li>
+</ul>
+<p>You add them to <code><a href="../reference/template_similarity.html">template_similarity()</a></code> with two
+arguments; the core API stays unchanged.</p>
 </div>
 <div class="section level2">
 <h2 id="a-concrete-example">A concrete example<a class="anchor" aria-label="anchor" href="#a-concrete-example"></a>
 </h2>
-<p>Suppose two devices record eye-movements on the same stimuli, but one
-device scales coordinates differently. Let’s simulate this:</p>
+<p>Suppose retrieval is a contracted and shifted version of encoding.
+That is a better match for a geometric transform than for a latent
+covariance method, so we will use <code><a href="../reference/latent_pca_transform.html">contract_transform()</a></code> as
+the running example:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">901</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">make_density</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">vec</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">fg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fixation_group.html">fixation_group</a></span><span class="op">(</span></span>
-<span>    x <span class="op">=</span> <span class="va">vec</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span> <span class="op">*</span> <span class="fl">50</span> <span class="op">+</span> <span class="fl">50</span>,</span>
-<span>    y <span class="op">=</span> <span class="va">vec</span><span class="op">[</span><span class="fl">3</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span> <span class="op">*</span> <span class="fl">50</span> <span class="op">+</span> <span class="fl">50</span>,</span>
-<span>    onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>,</span>
-<span>    duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">100</span>, <span class="fl">100</span><span class="op">)</span></span>
+<span><span class="va">make_gaussian_density</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">mean</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, <span class="va">cov</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2</span>, <span class="fl">0.2</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                                  <span class="va">x</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2</span>, <span class="fl">2</span>, length.out <span class="op">=</span> <span class="fl">25</span><span class="op">)</span>,</span>
+<span>                                  <span class="va">y</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2</span>, <span class="fl">2</span>, length.out <span class="op">=</span> <span class="fl">25</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">coords</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">inv_cov</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">cov</span><span class="op">)</span></span>
+<span>  <span class="va">centered</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sweep.html" class="external-link">sweep</a></span><span class="op">(</span><span class="va">coords</span>, <span class="fl">2</span>, <span class="va">mean</span>, FUN <span class="op">=</span> <span class="st">"-"</span><span class="op">)</span></span>
+<span>  <span class="va">expo</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="op">(</span><span class="va">centered</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">inv_cov</span><span class="op">)</span> <span class="op">*</span> <span class="va">centered</span><span class="op">)</span></span>
+<span>  <span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span> <span class="op">*</span> <span class="va">expo</span><span class="op">)</span></span>
+<span>  <span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="va">z</span>, nrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, ncol <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">y</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">z</span> <span class="op">&lt;-</span> <span class="va">z</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/structure.html" class="external-link">structure</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>z <span class="op">=</span> <span class="va">z</span>, x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, sigma <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>    class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"density"</span>, <span class="st">"eye_density"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/eye_density.html">eye_density</a></span><span class="op">(</span><span class="va">fg</span>, sigma <span class="op">=</span> <span class="fl">30</span>, xbounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span>, ybounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">100</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="va">base_vecs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="fl">8</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span>, simplify <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p>Now create a “source” set that is a scaled version of the reference —
-as if recorded on a differently-calibrated device:</p>
+<span><span class="va">ref_means</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="fl">12</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">2</span>, <span class="op">-</span><span class="fl">0.8</span>, <span class="fl">0.8</span><span class="op">)</span>, simplify <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">ref_cov</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.18</span>, <span class="fl">0.02</span>, <span class="fl">0.02</span>, <span class="fl">0.12</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">scale_true</span> <span class="op">&lt;-</span> <span class="fl">0.72</span></span>
+<span><span class="va">shift_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.18</span>, <span class="op">-</span><span class="fl">0.12</span><span class="op">)</span></span></code></pre></div>
+<p>Now create a source set whose densities are shifted and expanded so
+that the best alignment is a global contraction plus translation:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">scale_factors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">0.6</span>, <span class="fl">1.7</span>, <span class="fl">0.8</span><span class="op">)</span></span>
-<span><span class="va">source_vecs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">base_vecs</span>, <span class="kw">function</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="va">v</span> <span class="op">*</span> <span class="va">scale_factors</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ref_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">base_vecs</span><span class="op">)</span>,</span>
-<span>                  density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">base_vecs</span>, <span class="va">make_density</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">source_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">source_vecs</span><span class="op">)</span>,</span>
-<span>                     density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">source_vecs</span>, <span class="va">make_density</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">ref_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span>  id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">ref_means</span><span class="op">)</span>,</span>
+<span>  density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">ref_means</span>, <span class="kw">function</span><span class="op">(</span><span class="va">mu</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">make_gaussian_density</span><span class="op">(</span>mean <span class="op">=</span> <span class="va">mu</span>, cov <span class="op">=</span> <span class="va">ref_cov</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">source_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span>  id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">ref_means</span><span class="op">)</span>,</span>
+<span>  density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">ref_means</span>, <span class="kw">function</span><span class="op">(</span><span class="va">mu_ref</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">mu_src</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="op">(</span><span class="va">mu_ref</span> <span class="op">-</span> <span class="va">shift_true</span><span class="op">)</span> <span class="op">/</span> <span class="va">scale_true</span><span class="op">)</span></span>
+<span>    <span class="va">cov_src</span> <span class="op">&lt;-</span> <span class="va">ref_cov</span> <span class="op">/</span> <span class="op">(</span><span class="va">scale_true</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
+<span>    <span class="fu">make_gaussian_density</span><span class="op">(</span>mean <span class="op">=</span> <span class="va">mu_src</span>, cov <span class="op">=</span> <span class="va">cov_src</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="comparing-raw-vs--coral-transformed-similarity">Comparing raw vs. CORAL-transformed similarity<a class="anchor" aria-label="anchor" href="#comparing-raw-vs--coral-transformed-similarity"></a>
+<h2 id="comparing-raw-vs--in-sample-contract-alignment">Comparing raw vs. in-sample contract alignment<a class="anchor" aria-label="anchor" href="#comparing-raw-vs--in-sample-contract-alignment"></a>
 </h2>
-<p>Without any transform, the scaling distortion reduces similarity:</p>
+<p>Without any transform, the contraction distortion reduces
+similarity:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/template_similarity.html">template_similarity</a></span><span class="op">(</span><span class="va">ref_tab</span>, <span class="va">source_tab</span>,</span>
 <span>                           match_on <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>                           permutations <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                           method <span class="op">=</span> <span class="st">"cosine"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Raw mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">raw</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Raw mean similarity: 0.86</span></span></code></pre></div>
-<p>CORAL (CORrelation ALignment) whitens the source domain and re-colors
-it with the reference covariance, correcting for the scaling
-difference:</p>
+<span><span class="va">raw_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">raw</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">raw_mean</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">raw</span><span class="op">)</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ref_tab</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Raw mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">raw_mean</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Raw mean similarity: 0.809</span></span></code></pre></div>
+<p>Now fit <code><a href="../reference/latent_pca_transform.html">contract_transform()</a></code> on the same matched rows
+and compare the in-sample result:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">coral_res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/template_similarity.html">template_similarity</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">contract_res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/template_similarity.html">template_similarity</a></span><span class="op">(</span></span>
 <span>  <span class="va">ref_tab</span>, <span class="va">source_tab</span>,</span>
+<span>  match_on <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  permutations <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"cosine"</span>,</span>
+<span>  similarity_transform <span class="op">=</span> <span class="va">contract_transform</span>,</span>
+<span>  similarity_transform_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>shrink <span class="op">=</span> <span class="fl">1e-6</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">contract_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">contract_res</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">contract_mean</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">contract_res</span><span class="op">)</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ref_tab</span><span class="op">)</span>,</span>
+<span>  <span class="va">contract_mean</span> <span class="op">&gt;</span> <span class="va">raw_mean</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Contract mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">contract_mean</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Contract mean similarity: 0.999</span></span></code></pre></div>
+<div class="figure">
+<img src="latent-transforms_files/figure-html/plot-comparison-1.png" class="r-plt" alt="Paired comparison of raw vs. contract-transformed similarity for each item. The geometric transform recovers higher similarity when the distortion is a global contraction plus translation." width="672"><p class="caption">
+Paired comparison of raw vs. contract-transformed similarity for each
+item. The geometric transform recovers higher similarity when the
+distortion is a global contraction plus translation.
+</p>
+</div>
+<p>The transform recovers substantially higher similarity because the
+simulated distortion matches the model. This example is intentionally
+fit and evaluated on the same rows, so it shows what the transform can
+recover, not a leakage-free effect estimate.</p>
+</div>
+<div class="section level2">
+<h2 id="a-coral-positive-control">A CORAL-positive control<a class="anchor" aria-label="anchor" href="#a-coral-positive-control"></a>
+</h2>
+<p><code><a href="../reference/latent_pca_transform.html">contract_transform()</a></code> works above because the mismatch is
+geometric in screen space. CORAL is a better fit when the shift is a
+global linear distortion in the vectorized density representation
+itself.</p>
+<p>The next toy example is intentionally low-dimensional: each “density”
+is a 2 x 2 matrix, and the source domain is created by feature-wise
+scaling of the flattened density vector. That is exactly the kind of
+covariance mismatch that CORAL is designed to correct.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">make_density_vec</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">vec</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/structure.html" class="external-link">structure</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>      z <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="va">vec</span>, nrow <span class="op">=</span> <span class="fl">2</span>, ncol <span class="op">=</span> <span class="fl">2</span>, byrow <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>      x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>,</span>
+<span>      y <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>,</span>
+<span>      sigma <span class="op">=</span> <span class="fl">50</span></span>
+<span>    <span class="op">)</span>,</span>
+<span>    class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"density"</span>, <span class="st">"eye_density"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
+<span><span class="va">n_coral</span> <span class="op">&lt;-</span> <span class="fl">80</span></span>
+<span><span class="va">base_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_coral</span> <span class="op">*</span> <span class="fl">4</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="va">n_coral</span>, ncol <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
+<span><span class="va">scale_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">0.6</span>, <span class="fl">1.7</span>, <span class="fl">0.8</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">source_mat</span> <span class="op">&lt;-</span> <span class="va">base_mat</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">scale_mat</span></span>
+<span></span>
+<span><span class="va">coral_ref_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span>  id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_coral</span><span class="op">)</span>,</span>
+<span>  density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_coral</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu">make_density_vec</span><span class="op">(</span><span class="va">base_mat</span><span class="op">[</span><span class="va">i</span>, <span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">coral_source_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span>  id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_coral</span><span class="op">)</span>,</span>
+<span>  density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_coral</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu">make_density_vec</span><span class="op">(</span><span class="va">source_mat</span><span class="op">[</span><span class="va">i</span>, <span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">raw_coral</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/template_similarity.html">template_similarity</a></span><span class="op">(</span></span>
+<span>  <span class="va">coral_ref_tab</span>,</span>
+<span>  <span class="va">coral_source_tab</span>,</span>
+<span>  match_on <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  permutations <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"cosine"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">coral_positive</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/template_similarity.html">template_similarity</a></span><span class="op">(</span></span>
+<span>  <span class="va">coral_ref_tab</span>,</span>
+<span>  <span class="va">coral_source_tab</span>,</span>
 <span>  match_on <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  permutations <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  method <span class="op">=</span> <span class="st">"cosine"</span>,</span>
 <span>  similarity_transform <span class="op">=</span> <span class="va">coral_transform</span>,</span>
 <span>  similarity_transform_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>comps <span class="op">=</span> <span class="fl">4</span>, shrink <span class="op">=</span> <span class="fl">1e-6</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"CORAL mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">coral_res</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; CORAL mean similarity: 0.642</span></span></code></pre></div>
-<div class="figure">
-<img src="latent-transforms_files/figure-html/plot-comparison-1.png" class="r-plt" alt="Paired comparison of raw vs. CORAL-transformed similarity for each item. CORAL recovers higher similarity by correcting the scaling distortion." width="672"><p class="caption">
-Paired comparison of raw vs. CORAL-transformed similarity for each item.
-CORAL recovers higher similarity by correcting the scaling distortion.
-</p>
+<span></span>
+<span><span class="va">raw_coral_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">raw_coral</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span></span>
+<span><span class="va">coral_positive_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">coral_positive</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">raw_coral_mean</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">coral_positive_mean</span><span class="op">)</span>,</span>
+<span>  <span class="va">coral_positive_mean</span> <span class="op">&gt;</span> <span class="va">raw_coral_mean</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Raw CORAL toy mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">raw_coral_mean</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Raw CORAL toy mean similarity: 0.928</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"CORAL toy mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">coral_positive_mean</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; CORAL toy mean similarity: 0.996</span></span></code></pre></div>
+<p>Here CORAL does help, because the source shift is an exact linear
+distortion in the representation that CORAL aligns. This is the right
+kind of positive control for CORAL. It is not a model of geometric
+screen-space warping, so it should not replace the contraction example
+above.</p>
 </div>
-<p>CORAL recovers substantially higher similarity by correcting the
-covariance mismatch between the two “devices.”</p>
+<div class="section level2">
+<h2 id="leakage-and-double-dipping">Leakage and double-dipping<a class="anchor" aria-label="anchor" href="#leakage-and-double-dipping"></a>
+</h2>
+<p>This point matters for any learned transform.</p>
+<p>If you call <code><a href="../reference/template_similarity.html">template_similarity()</a></code> with
+<code>similarity_transform = ...</code>, the transform is fit on the
+same rows that are then scored. That is convenient and useful for
+exploration, but it is <strong>not leakage-free</strong>. In other
+words:</p>
+<ul>
+<li>
+<code>template_similarity(..., similarity_transform = NULL)</code>
+is just a direct similarity computation and has no fitting-stage leakage
+issue.</li>
+<li>
+<code>template_similarity(..., similarity_transform = coral_transform)</code>
+fits the transform on the analysis rows themselves. Treat that as
+exploratory or transductive.</li>
+<li>
+<code>template_similarity_cv(...)</code> is the leakage-safe path.
+It fits the transform on training rows only and evaluates similarity on
+held-out rows.</li>
+</ul>
+<p>So the rule is simple:</p>
+<ul>
+<li>use <code><a href="../reference/template_similarity.html">template_similarity()</a></code> for raw similarity, quick
+checks, and exploratory transform probes</li>
+<li>use <code><a href="../reference/template_similarity_cv.html">template_similarity_cv()</a></code> for any analysis you want
+to interpret out-of-sample</li>
+</ul>
+<p>The key choice is the held-out unit. Split on the unit that could
+leak information across rows, such as participant, scene, or
+participant-scene key, not just arbitrary row numbers.</p>
+</div>
+<div class="section level2">
+<h2 id="a-leakage-free-transform-analysis">A leakage-free transform analysis<a class="anchor" aria-label="anchor" href="#a-leakage-free-transform-analysis"></a>
+</h2>
+<p>The held-out API mirrors <code><a href="../reference/template_similarity.html">template_similarity()</a></code>, but it
+cross-fits the transform internally:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">contract_cv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/template_similarity_cv.html">template_similarity_cv</a></span><span class="op">(</span></span>
+<span>  <span class="va">ref_tab</span>,</span>
+<span>  <span class="va">source_tab</span>,</span>
+<span>  match_on <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  split_on <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  n_folds <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  permutations <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"cosine"</span>,</span>
+<span>  similarity_transform <span class="op">=</span> <span class="va">contract_transform</span>,</span>
+<span>  similarity_transform_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>shrink <span class="op">=</span> <span class="fl">1e-6</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">contract_cv_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">contract_cv</span><span class="op">$</span><span class="va">eye_sim</span><span class="op">)</span></span>
+<span><span class="va">cv_info</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">contract_cv</span>, <span class="st">"similarity_cv"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">contract_cv_mean</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">contract_cv</span><span class="op">)</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ref_tab</span><span class="op">)</span>,</span>
+<span>  <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">cv_info</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">cv_info</span><span class="op">$</span><span class="va">folds</span><span class="op">)</span> <span class="op">==</span> <span class="fl">4</span>,</span>
+<span>  <span class="va">contract_cv_mean</span> <span class="op">&gt;</span> <span class="va">raw_mean</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Held-out contract mean similarity:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">contract_cv_mean</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Held-out contract mean similarity: 0.999</span></span></code></pre></div>
+<p>In <code><a href="../reference/template_similarity_cv.html">template_similarity_cv()</a></code>:</p>
+<ol style="list-style-type: decimal">
+<li>held-out rows are assigned by <code>split_on</code>
+</li>
+<li>held-out <code>match_on</code> keys are excluded from transform
+fitting</li>
+<li>the transform is fit on training rows only</li>
+<li>similarity is computed only on the held-out rows</li>
+</ol>
+<p>That is the recommended workflow whenever transform fitting is part
+of the analysis rather than just a diagnostic.</p>
+<p>In practice, use <code><a href="../reference/template_similarity_cv.html">template_similarity_cv()</a></code> whenever you
+want to report a transform-based result as part of the substantive
+analysis. Reserve
+<code>template_similarity(..., similarity_transform = ...)</code> for
+exploration, positive controls, and method development.</p>
+<p>For retrieval-style analyses, you can also separate the rows used for
+fitting and evaluation. For example, fit on positive-control
+<code>scene</code> rows and evaluate on <code>delay</code> rows:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/template_similarity_cv.html">template_similarity_cv</a></span><span class="op">(</span></span>
+<span>  <span class="va">ref_tab</span>,</span>
+<span>  <span class="va">source_tab</span>,</span>
+<span>  match_on <span class="op">=</span> <span class="st">"scene_id"</span>,</span>
+<span>  split_on <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"scene_id"</span><span class="op">)</span>,</span>
+<span>  similarity_transform <span class="op">=</span> <span class="va">contract_transform</span>,</span>
+<span>  similarity_transform_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit_by <span class="op">=</span> <span class="st">"participant"</span><span class="op">)</span>,</span>
+<span>  fit_source_filter <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">tab</span><span class="op">)</span> <span class="va">tab</span><span class="op">$</span><span class="va">phase</span> <span class="op">==</span> <span class="st">"scene"</span>,</span>
+<span>  eval_source_filter <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">tab</span><span class="op">)</span> <span class="va">tab</span><span class="op">$</span><span class="va">phase</span> <span class="op">==</span> <span class="st">"delay"</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"cosine"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>That pattern avoids learning the transform on the same delay rows you
+are trying to rescue.</p>
 </div>
 <div class="section level2">
 <h2 id="available-transforms">Available transforms<a class="anchor" aria-label="anchor" href="#available-transforms"></a>
@@ -169,6 +381,17 @@ covariance mismatch between the two “devices.”</p>
 <td align="left">Dimensionality reduction, mild noise smoothing</td>
 </tr>
 <tr class="even">
+<td align="left"><code><a href="../reference/latent_pca_transform.html">contract_transform()</a></code></td>
+<td align="left">Yes (matched pairs)</td>
+<td align="left">Global contraction/expansion with translation</td>
+</tr>
+<tr class="odd">
+<td align="left"><code><a href="../reference/latent_pca_transform.html">affine_transform()</a></code></td>
+<td align="left">Yes (matched pairs)</td>
+<td align="left">Linear geometric distortion, shear, anisotropic
+scaling</td>
+</tr>
+<tr class="even">
 <td align="left"><code><a href="../reference/latent_pca_transform.html">coral_transform()</a></code></td>
 <td align="left">No</td>
 <td align="left">Device/participant shifts (covariance-level
@@ -183,7 +406,7 @@ differences)</td>
 </table>
 <p>All are passed to <code><a href="../reference/template_similarity.html">template_similarity()</a></code> via the
 <code>similarity_transform</code> argument:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/template_similarity.html">template_similarity</a></span><span class="op">(</span></span>
 <span>  <span class="va">ref_tab</span>, <span class="va">source_tab</span>,</span>
 <span>  match_on <span class="op">=</span> <span class="st">"id"</span>,</span>
@@ -200,9 +423,18 @@ differences)</td>
 reduction with no assumptions about domain differences. Use when you
 want noise smoothing without domain adaptation.</li>
 <li>
+<strong>Contract</strong> is a good first geometric model when
+retrieval looks like a globally contracted or expanded version of
+encoding.</li>
+<li>
+<strong>Affine</strong> is the next step when distortion appears
+anisotropic or sheared rather than purely radial.</li>
+<li>
 <strong>CORAL</strong> is unsupervised and assumes linear,
 covariance-level differences between domains. Good for calibration drift
-or different screen sizes.</li>
+or different screen sizes, but because it aligns distributions rather
+than matched pairs it is not guaranteed to increase per-item similarity
+on its own.</li>
 <li>
 <strong>CCA</strong> is supervised and leverages matched pairs to
 find shared latent axes. Set <code>comps</code> modestly (5–15) and add
@@ -216,14 +448,19 @@ transformed vectors.</p>
 <h2 id="notes-and-limitations">Notes and limitations<a class="anchor" aria-label="anchor" href="#notes-and-limitations"></a>
 </h2>
 <ul>
+<li>If a transform is fit and evaluated on the same rows via
+<code><a href="../reference/template_similarity.html">template_similarity()</a></code>, the result is exploratory. For
+leakage-free results, use <code><a href="../reference/template_similarity_cv.html">template_similarity_cv()</a></code>.</li>
 <li>Multiscale densities are supported only when all scales share the
 same grid size; otherwise latent transforms will error.</li>
 <li>Regularization (<code>shrink</code>) and component count
 (<code>comps</code>) affect stability on small-N data — tune as
 needed.</li>
 <li>CORAL and CCA are linear; they will not correct nonlinear spatial
-warps. Keep <code>comps</code> low to reduce overfitting, especially
-with few pairs.</li>
+warps. <code><a href="../reference/latent_pca_transform.html">contract_transform()</a></code> and
+<code><a href="../reference/latent_pca_transform.html">affine_transform()</a></code> help with simple geometric distortion,
+but not highly nonlinear warps. Keep <code>comps</code> low to reduce
+overfitting, especially with few pairs.</li>
 <li>See <code><a href="../articles/eyesim.html">vignette("eyesim")</a></code> for the core
 <code><a href="../reference/template_similarity.html">template_similarity()</a></code> workflow without transforms.</li>
 </ul>

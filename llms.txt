@@ -92,6 +92,14 @@ Functions for working with fixation sequences.
 
 - [`fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_group.md)
   : Create a Fixation Group Object
+- [`fixation_entropy()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.md)
+  : Compute Fixation Entropy
+- [`fixation_entropy(`*`<default>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
+  [`fixation_entropy(`*`<eye_density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
+  [`fixation_entropy(`*`<density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
+  [`fixation_entropy(`*`<eye_density_multiscale>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
+  [`fixation_entropy(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
+  : Entropy of fixation patterns
 - [`c(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/c.fixation_group.md)
   : Concatenate Fixation Groups
 - [`rep_fixations()`](https://bbuchsbaum.github.io/eyesim/reference/rep_fixations.md)
@@ -117,6 +125,8 @@ Functions for computing similarity between objects.
   : Compute Similarity Between Scanpaths
 - [`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
   : template_similarity
+- [`template_similarity_cv()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity_cv.md)
+  : Cross-Fitted Template Similarity
 - [`sample_density_time()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density_time.md)
   : Sample density maps at fixation locations over time
 - [`repetitive_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
@@ -129,6 +139,8 @@ Functions for computing similarity between objects.
 Domain-adaptation transforms for use with template_similarity().
 
 - [`latent_pca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  [`contract_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  [`affine_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
   [`coral_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
   [`cca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
   : Latent-space transforms for template-based similarity
