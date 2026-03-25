@@ -44,6 +44,68 @@ make_cv_density_tables <- function() {
   list(ref_tab = ref_tab, source_tab = source_tab)
 }
 
+make_cv_warp_density <- function(mean = c(0, 0), cov = diag(c(0.2, 0.2)),
+                                 x = seq(-2, 2, length.out = 25),
+                                 y = seq(-2, 2, length.out = 25)) {
+  coords <- as.matrix(expand.grid(x = x, y = y))
+  inv_cov <- solve(cov)
+  centered <- sweep(coords, 2, mean, FUN = "-")
+  expo <- rowSums((centered %*% inv_cov) * centered)
+  z <- exp(-0.5 * expo)
+  z <- matrix(z, nrow = length(x), ncol = length(y))
+  z <- z / sum(z)
+  structure(list(z = z, x = x, y = y, sigma = 1), class = c("density", "eye_density"))
+}
+
+make_contract_cv_tables <- function(n = 16, seed = 1) {
+  set.seed(seed)
+  ref_cov <- matrix(c(0.16, 0.03, 0.03, 0.12), nrow = 2)
+  scale_true <- 0.74
+  shift_true <- c(0.16, -0.11)
+  ref_means <- replicate(n, runif(2, -0.8, 0.8), simplify = FALSE)
+
+  ref_tab <- tibble::tibble(
+    id = seq_len(n),
+    density = lapply(ref_means, function(mu) make_cv_warp_density(mean = mu, cov = ref_cov))
+  )
+  source_tab <- tibble::tibble(
+    row_id = seq_len(n),
+    id = seq_len(n),
+    density = lapply(ref_means, function(mu_ref) {
+      mu_src <- as.numeric((mu_ref - shift_true) / scale_true)
+      cov_src <- ref_cov / (scale_true^2)
+      make_cv_warp_density(mean = mu_src, cov = cov_src)
+    })
+  )
+
+  list(ref_tab = ref_tab, source_tab = source_tab)
+}
+
+make_affine_cv_tables <- function(n = 16, seed = 2) {
+  set.seed(seed)
+  ref_cov <- matrix(c(0.16, 0.05, 0.05, 0.11), nrow = 2)
+  A_true <- matrix(c(0.82, 0.18, -0.12, 1.08), nrow = 2, byrow = TRUE)
+  t_true <- c(0.14, -0.09)
+  A_inv <- solve(A_true)
+  ref_means <- replicate(n, runif(2, -0.8, 0.8), simplify = FALSE)
+
+  ref_tab <- tibble::tibble(
+    id = seq_len(n),
+    density = lapply(ref_means, function(mu) make_cv_warp_density(mean = mu, cov = ref_cov))
+  )
+  source_tab <- tibble::tibble(
+    row_id = seq_len(n),
+    id = seq_len(n),
+    density = lapply(ref_means, function(mu_ref) {
+      mu_src <- as.numeric(A_inv %*% (mu_ref - t_true))
+      cov_src <- A_inv %*% ref_cov %*% t(A_inv)
+      make_cv_warp_density(mean = mu_src, cov = cov_src)
+    })
+  )
+
+  list(ref_tab = ref_tab, source_tab = source_tab)
+}
+
 test_that("template_similarity_cv excludes held-out match keys from transform fitting", {
   tabs <- make_cv_density_tables()
 
@@ -311,19 +373,6 @@ test_that("template_similarity_cv matches manual held-out grouped CORAL computat
 })
 
 test_that("template_similarity_cv matches manual held-out contract transform computation", {
-  make_warp_density <- function(mean = c(0, 0), cov = diag(c(0.2, 0.2)),
-                                x = seq(-2, 2, length.out = 25),
-                                y = seq(-2, 2, length.out = 25)) {
-    coords <- as.matrix(expand.grid(x = x, y = y))
-    inv_cov <- solve(cov)
-    centered <- sweep(coords, 2, mean, FUN = "-")
-    expo <- rowSums((centered %*% inv_cov) * centered)
-    z <- exp(-0.5 * expo)
-    z <- matrix(z, nrow = length(x), ncol = length(y))
-    z <- z / sum(z)
-    structure(list(z = z, x = x, y = y, sigma = 1), class = c("density", "eye_density"))
-  }
-
   ref_means <- list(c(-0.5, -0.2), c(0.4, -0.1), c(-0.2, 0.4), c(0.6, 0.3))
   ref_cov <- matrix(c(0.16, 0.03, 0.03, 0.12), nrow = 2)
   scale_true <- 0.74
@@ -333,7 +382,7 @@ test_that("template_similarity_cv matches manual held-out contract transform com
     id = 1:4,
     participant = c("p1", "p1", "p2", "p2"),
     phase = "scene",
-    density = lapply(ref_means, function(mu) make_warp_density(mean = mu, cov = ref_cov))
+    density = lapply(ref_means, function(mu) make_cv_warp_density(mean = mu, cov = ref_cov))
   )
   source_tab <- tibble::tibble(
     row_id = 1:8,
@@ -343,7 +392,7 @@ test_that("template_similarity_cv matches manual held-out contract transform com
     density = lapply(rep(ref_means, each = 2), function(mu_ref) {
       mu_src <- as.numeric((mu_ref - shift_true) / scale_true)
       cov_src <- ref_cov / (scale_true^2)
-      make_warp_density(mean = mu_src, cov = cov_src)
+      make_cv_warp_density(mean = mu_src, cov = cov_src)
     })
   )
 
@@ -403,4 +452,56 @@ test_that("template_similarity_cv matches manual held-out contract transform com
 
   expect_equal(cv_fold$row_id, manual$row_id)
   expect_equal(cv_fold$eye_sim, manual$eye_sim, tolerance = 1e-10)
+})
+
+test_that("template_similarity_cv improves held-out similarity under contract distortion", {
+  tabs <- make_contract_cv_tables(n = 16, seed = 11)
+
+  raw <- template_similarity(
+    tabs$ref_tab,
+    tabs$source_tab,
+    match_on = "id",
+    permutations = 0,
+    method = "cosine"
+  )
+  cv <- template_similarity_cv(
+    tabs$ref_tab,
+    tabs$source_tab,
+    match_on = "id",
+    split_on = "id",
+    n_folds = 4,
+    permutations = 0,
+    method = "cosine",
+    similarity_transform = contract_transform,
+    similarity_transform_args = list(shrink = 1e-6),
+    seed = 1
+  )
+
+  expect_gt(mean(cv$eye_sim), mean(raw$eye_sim))
+})
+
+test_that("template_similarity_cv improves held-out similarity under affine distortion", {
+  tabs <- make_affine_cv_tables(n = 16, seed = 12)
+
+  raw <- template_similarity(
+    tabs$ref_tab,
+    tabs$source_tab,
+    match_on = "id",
+    permutations = 0,
+    method = "cosine"
+  )
+  cv <- template_similarity_cv(
+    tabs$ref_tab,
+    tabs$source_tab,
+    match_on = "id",
+    split_on = "id",
+    n_folds = 4,
+    permutations = 0,
+    method = "cosine",
+    similarity_transform = affine_transform,
+    similarity_transform_args = list(shrink = 1e-6),
+    seed = 1
+  )
+
+  expect_gt(mean(cv$eye_sim), mean(raw$eye_sim))
 })

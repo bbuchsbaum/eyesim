@@ -283,6 +283,42 @@ test_that("contract_transform improves similarity under isotropic contraction an
   expect_gt(mean(contracted$eye_sim), mean(raw$eye_sim))
 })
 
+test_that("contract_transform approximately recovers known scale and translation", {
+  set.seed(902)
+  ref_means <- replicate(10, runif(2, -0.8, 0.8), simplify = FALSE)
+  ref_cov <- matrix(c(0.18, 0.02, 0.02, 0.12), nrow = 2)
+  scale_true <- 0.72
+  shift_true <- c(0.18, -0.12)
+
+  ref_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu) make_gaussian_density(mean = mu, cov = ref_cov))
+  )
+  source_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu_ref) {
+      mu_src <- as.numeric((mu_ref - shift_true) / scale_true)
+      cov_src <- ref_cov / (scale_true^2)
+      make_gaussian_density(mean = mu_src, cov = cov_src)
+    })
+  )
+
+  model <- eyesim:::fit_similarity_transform_model(
+    similarity_transform = contract_transform,
+    ref_tab = ref_tab,
+    source_tab = source_tab,
+    match_on = "id",
+    refvar = "density",
+    sourcevar = "density",
+    shrink = 1e-6
+  )
+  fit <- model$group_models$all
+
+  expect_equal(fit$A, diag(scale_true, 2), tolerance = 0.03)
+  expect_equal(unname(fit$scale), scale_true, tolerance = 0.03)
+  expect_equal(unname(fit$t), shift_true, tolerance = 0.04)
+})
+
 test_that("affine_transform improves similarity under affine distortion", {
   ref_means <- list(c(-0.7, -0.1), c(0.5, 0.2), c(-0.1, 0.6), c(0.6, -0.5))
   ref_cov <- matrix(c(0.16, 0.05, 0.05, 0.11), nrow = 2)
@@ -315,6 +351,42 @@ test_that("affine_transform improves similarity under affine distortion", {
   )
 
   expect_gt(mean(affine$eye_sim), mean(raw$eye_sim))
+})
+
+test_that("affine_transform approximately recovers known affine warp", {
+  set.seed(903)
+  ref_means <- replicate(10, runif(2, -0.8, 0.8), simplify = FALSE)
+  ref_cov <- matrix(c(0.16, 0.05, 0.05, 0.11), nrow = 2)
+  A_true <- matrix(c(0.82, 0.18, 0.18, 1.08), nrow = 2, byrow = TRUE)
+  t_true <- c(0.14, -0.09)
+  A_inv <- solve(A_true)
+
+  ref_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu) make_gaussian_density(mean = mu, cov = ref_cov))
+  )
+  source_tab <- tibble::tibble(
+    id = seq_along(ref_means),
+    density = lapply(ref_means, function(mu_ref) {
+      mu_src <- as.numeric(A_inv %*% (mu_ref - t_true))
+      cov_src <- A_inv %*% ref_cov %*% t(A_inv)
+      make_gaussian_density(mean = mu_src, cov = cov_src)
+    })
+  )
+
+  model <- eyesim:::fit_similarity_transform_model(
+    similarity_transform = affine_transform,
+    ref_tab = ref_tab,
+    source_tab = source_tab,
+    match_on = "id",
+    refvar = "density",
+    sourcevar = "density",
+    shrink = 1e-6
+  )
+  fit <- model$group_models$all
+
+  expect_equal(fit$A, A_true, tolerance = 0.05)
+  expect_equal(unname(fit$t), t_true, tolerance = 0.05)
 })
 
 test_that("coral_transform supports grouped covariance alignment via fit_by", {
