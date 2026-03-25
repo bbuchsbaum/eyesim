@@ -25,6 +25,8 @@ reference:
   desc: Functions for working with fixation sequences.
   contents:
   - fixation_group
+  - fixation_entropy
+  - fixation_entropy.default
   - c.fixation_group
   - rep_fixations
   - sample_fixations
@@ -39,6 +41,7 @@ reference:
   - scanpath_similarity
   - similarity.scanpath
   - template_similarity
+  - template_similarity_cv
   - sample_density_time
   - repetitive_similarity
   - install_multimatch

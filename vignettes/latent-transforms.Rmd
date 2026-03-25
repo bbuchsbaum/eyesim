@@ -164,6 +164,83 @@ distortion matches the model. This example is intentionally fit and evaluated
 on the same rows, so it shows what the transform can recover, not a
 leakage-free effect estimate.
 
+## A CORAL-positive control
+
+`contract_transform()` works above because the mismatch is geometric in screen
+space. CORAL is a better fit when the shift is a global linear distortion in
+the vectorized density representation itself.
+
+The next toy example is intentionally low-dimensional: each "density" is a
+2 x 2 matrix, and the source domain is created by feature-wise scaling of the
+flattened density vector. That is exactly the kind of covariance mismatch that
+CORAL is designed to correct.
+
+```{r coral-build-data}
+make_density_vec <- function(vec) {
+  structure(
+    list(
+      z = matrix(vec, nrow = 2, ncol = 2, byrow = TRUE),
+      x = 1:2,
+      y = 1:2,
+      sigma = 50
+    ),
+    class = c("density", "eye_density")
+  )
+}
+
+set.seed(123)
+n_coral <- 80
+base_mat <- matrix(rnorm(n_coral * 4), nrow = n_coral, ncol = 4)
+scale_mat <- diag(c(2, 0.6, 1.7, 0.8))
+source_mat <- base_mat %*% scale_mat
+
+coral_ref_tab <- tibble(
+  id = seq_len(n_coral),
+  density = lapply(seq_len(n_coral), function(i) make_density_vec(base_mat[i, ]))
+)
+coral_source_tab <- tibble(
+  id = seq_len(n_coral),
+  density = lapply(seq_len(n_coral), function(i) make_density_vec(source_mat[i, ]))
+)
+```
+
+```{r coral-positive-control}
+raw_coral <- template_similarity(
+  coral_ref_tab,
+  coral_source_tab,
+  match_on = "id",
+  permutations = 0,
+  method = "cosine"
+)
+
+coral_positive <- template_similarity(
+  coral_ref_tab,
+  coral_source_tab,
+  match_on = "id",
+  permutations = 0,
+  method = "cosine",
+  similarity_transform = coral_transform,
+  similarity_transform_args = list(comps = 4, shrink = 1e-6)
+)
+
+raw_coral_mean <- mean(raw_coral$eye_sim)
+coral_positive_mean <- mean(coral_positive$eye_sim)
+
+stopifnot(
+  is.finite(raw_coral_mean),
+  is.finite(coral_positive_mean),
+  coral_positive_mean > raw_coral_mean
+)
+
+cat("Raw CORAL toy mean similarity:", round(raw_coral_mean, 3), "\n")
+cat("CORAL toy mean similarity:", round(coral_positive_mean, 3), "\n")
+```
+
+Here CORAL does help, because the source shift is an exact linear distortion in
+the representation that CORAL aligns. This is the right kind of positive
+control for CORAL. It is not a model of geometric screen-space warping, so it
+should not replace the contraction example above.
+
 ## Leakage and double-dipping
 
 This point matters for any learned transform.
@@ -291,7 +368,9 @@ template_similarity(
 - **Affine** is the next step when distortion appears anisotropic or sheared
   rather than purely radial.
 - **CORAL** is unsupervised and assumes linear, covariance-level differences
-  between domains. Good for calibration drift or different screen sizes.
+  between domains. Good for calibration drift or different screen sizes, but
+  because it aligns distributions rather than matched pairs it is not
+  guaranteed to increase per-item similarity on its own.
 - **CCA** is supervised and leverages matched pairs to find shared latent axes.
   Set `comps` modestly (5–15) and add `shrink` to stabilize small-N fits.
 

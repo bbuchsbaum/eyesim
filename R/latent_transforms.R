@@ -372,7 +372,8 @@ fit_latent_pca_model <- function(ref_tab, source_tab, refvar = "density", source
 
   rank_target <- min(comps, nrow(combined), ncol(combined))
   pc_args <- list(x = combined, center = center, scale. = scale.)
-  if ("rank." %in% names(formals(stats:::prcomp.default))) {
+  prcomp_default <- utils::getS3method("prcomp", "default", optional = TRUE)
+  if (!is.null(prcomp_default) && "rank." %in% names(formals(prcomp_default))) {
     pc_args$rank. <- rank_target
   }
   pc <- do.call(stats::prcomp, pc_args)

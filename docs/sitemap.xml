@@ -28,6 +28,8 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/eye_density.fixation_group.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/eye_density.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/eye_table.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_group.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_overlap.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/fixation_similarity.html</loc></url>
@@ -61,6 +63,7 @@
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_regression.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_sample.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_similarity.html</loc></url>
+<url><loc>https://bbuchsbaum.github.io/eyesim/reference/template_similarity_cv.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/wynn_study.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/wynn_study_image.html</loc></url>
 <url><loc>https://bbuchsbaum.github.io/eyesim/reference/wynn_test.html</loc></url>

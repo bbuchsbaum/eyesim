@@ -152,7 +152,25 @@ test_that("coral_transform improves similarity under feature-wise scaling", {
   raw_gap <- frob(cov_raw - cov_ref)
   adapted_gap <- frob(cov_adapted - cov_ref)
 
+  raw_sim <- template_similarity(
+    ref_tab,
+    source_tab,
+    match_on = "id",
+    permutations = 0,
+    method = "cosine"
+  )
+  coral_sim <- template_similarity(
+    ref_tab,
+    source_tab,
+    match_on = "id",
+    permutations = 0,
+    method = "cosine",
+    similarity_transform = coral_transform,
+    similarity_transform_args = list(comps = 4, shrink = 1e-6)
+  )
+
   expect_lt(adapted_gap, raw_gap)
+  expect_gt(mean(coral_sim$eye_sim), mean(raw_sim$eye_sim))
 })
 
 test_that("coral_transform is invariant to source row order", {
