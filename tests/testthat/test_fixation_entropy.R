@@ -135,3 +135,97 @@ test_that("fixation_entropy stays within [0, 1] when normalized", {
   expect_gte(ent_dens, 0)
   expect_lte(ent_dens, 1)
 })
+
+test_that("fixation_entropy.default errors for unsupported classes", {
+  expect_error(fixation_entropy("not a density"), "No fixation_entropy")
+  expect_error(fixation_entropy(42), "No fixation_entropy")
+})
+
+test_that("fixation_entropy returns NA for empty fixation_group", {
+  fg <- fixation_group(x = 1, y = 1, onset = 0, duration = 100)
+  fg <- fg[integer(0), ]  # zero-row fixation_group
+  expect_true(is.na(fixation_entropy(fg, method = "density")))
+  expect_true(is.na(fixation_entropy(fg, method = "grid")))
+})
+
+test_that("duration_weighted density entropy differs from unweighted", {
+  fg <- fixation_group(
+    x = c(0.2, 0.8),
+    y = c(0.2, 0.8),
+    onset = c(0, 500),
+    duration = c(50, 500)
+  )
+  ent_unweighted <- fixation_entropy(fg, method = "density", sigma = 0.1,
+                                     xbounds = c(0, 1), ybounds = c(0, 1),
+                                     outdim = c(30, 30), duration_weighted = FALSE)
+  ent_weighted <- fixation_entropy(fg, method = "density", sigma = 0.1,
+                                   xbounds = c(0, 1), ybounds = c(0, 1),
+                                   outdim = c(30, 30), duration_weighted = TRUE)
+
+  expect_false(is.na(ent_unweighted))
+  expect_false(is.na(ent_weighted))
+  # Highly unequal durations should shift entropy
+
+  expect_false(isTRUE(all.equal(ent_unweighted, ent_weighted)))
+  # Both still valid normalized entropy
+  expect_gte(ent_weighted, 0)
+  expect_lte(ent_weighted, 1)
+})
+
+test_that("density entropy with sigma=NULL uses suggest_sigma", {
+  fg <- fixation_group(
+    x = c(100, 200, 600, 700),
+    y = c(100, 200, 600, 700),
+    onset = c(0, 200, 400, 600),
+    duration = rep(150, 4)
+  )
+  ent_auto <- fixation_entropy(fg, method = "density",
+                               xbounds = c(0, 1024), ybounds = c(0, 768),
+                               outdim = c(30, 30))
+  expect_false(is.na(ent_auto))
+  expect_gte(ent_auto, 0)
+  expect_lte(ent_auto, 1)
+
+  # Should match manually calling suggest_sigma
+  sig <- suggest_sigma(fg, xbounds = c(0, 1024), ybounds = c(0, 768))
+  ent_explicit <- fixation_entropy(fg, method = "density", sigma = sig,
+                                   xbounds = c(0, 1024), ybounds = c(0, 768),
+                                   outdim = c(30, 30))
+  expect_equal(ent_auto, ent_explicit, tolerance = 1e-12)
+})
+
+test_that("resolve_fixation_entropy_bounds pads when no bounds supplied", {
+  fg <- fixation_group(
+    x = c(100, 200, 300),
+    y = c(400, 500, 600),
+    onset = c(0, 100, 200),
+    duration = rep(100, 3)
+  )
+  # No bounds: entropy should still work (auto-padding)
+  ent <- fixation_entropy(fg, method = "density", sigma = 20, outdim = c(20, 20))
+  expect_false(is.na(ent))
+  expect_gte(ent, 0)
+  expect_lte(ent, 1)
+
+  # Grid method without bounds
+
+  ent_grid <- fixation_entropy(fg, method = "grid", grid = c(5, 5))
+  expect_false(is.na(ent_grid))
+  expect_gte(ent_grid, 0)
+  expect_lte(ent_grid, 1)
+})
+
+test_that("grid_fixation_counts rejects invalid grid argument", {
+  fg <- fixation_group(
+    x = c(0.5), y = c(0.5),
+    onset = 0, duration = 100
+  )
+  expect_error(
+    fixation_entropy(fg, method = "grid", grid = c(0, 5)),
+    "positive integers"
+  )
+  expect_error(
+    fixation_entropy(fg, method = "grid", grid = 5),
+    "length-2"
+  )
+})
