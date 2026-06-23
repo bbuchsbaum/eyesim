@@ -16,6 +16,7 @@ EMD-based similarity measures.
 ### Building and Testing
 
 ``` r
+
 # Install dependencies
 devtools::install_deps()
 
@@ -40,6 +41,7 @@ devtools::install()
 ### Documentation
 
 ``` r
+
 # Build pkgdown documentation site
 pkgdown::build_site()
 

@@ -128,6 +128,13 @@ Returned columns and units:
 
 - `eye_sim_diff`: `eye_sim - perm_sim`. Units match `method`.
 
+- `n_perm`: the number of permuted non-matching comparisons that
+  contributed to `perm_sim` for that row. This varies across rows (e.g.,
+  small `permute_on` strata, or fewer candidates than requested) and is
+  `0` when no baseline could be computed (`perm_sim = NA`). Use it to
+  drop rows with too few permutations, e.g.
+  `dplyr::filter(res, n_perm >= k)`.
+
 Notes on `method` and interpretation:
 
 - If `method = "fisherz"`, values are Fisher z (atanh of Pearson *r*).

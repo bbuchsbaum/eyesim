@@ -85,8 +85,10 @@ Permutation handling and units follow `template_similarity`:
   baseline).
 
 - When permutations are requested, the result includes `eye_sim`,
-  `perm_sim` (mean permuted similarity), and
-  `eye_sim_diff = eye_sim - perm_sim`, all on the scale of `method`. If
+  `perm_sim` (mean permuted similarity),
+  `eye_sim_diff = eye_sim - perm_sim` (all on the scale of `method`),
+  and `n_perm` (the number of permuted comparisons that contributed to
+  `perm_sim` for that row; `0` when no baseline could be computed). If
   `method = "fisherz"`, convert to correlations via
   [`tanh()`](https://rdrr.io/r/base/Hyperbolic.html) if desired.
 

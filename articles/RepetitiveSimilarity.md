@@ -1,6 +1,7 @@
 # Measuring Similarity Across Repeated Viewings
 
 ``` r
+
 library(eyesim)
 library(dplyr)
 library(ggplot2)
@@ -27,6 +28,7 @@ Let’s simulate a small dataset: 2 participants view 3 images during
 encoding and retrieval.
 
 ``` r
+
 set.seed(42)
 
 gen_fixations <- function(imname, phase, participant) {
@@ -55,6 +57,7 @@ eyetab <- eye_table("x", "y", "duration", "onset",
 Compute density maps for each participant-phase-image combination:
 
 ``` r
+
 eyedens <- density_by(eyetab,
                       groups = c("phase", "image", "participant"),
                       sigma = 50,
@@ -68,6 +71,7 @@ takes the density table and a condition variable (here `phase`) that
 defines the repeated viewings:
 
 ``` r
+
 rep_sim <- repetitive_similarity(eyedens,
                                  condition_var = "phase",
                                  method = "pearson")
@@ -99,6 +103,7 @@ The result contains two key columns:
 ## Interpreting the results
 
 ``` r
+
 ggplot(rep_sim, aes(x = image, y = repsim)) +
   geom_col(fill = "steelblue", alpha = 0.7) +
   labs(x = "Stimulus", y = "Repetitive Similarity",
@@ -116,6 +121,7 @@ participants fixated similar locations when viewing the same image
 across encoding and retrieval.
 
 ``` r
+
 ggplot(rep_sim, aes(x = image, y = othersim)) +
   geom_col(fill = "coral", alpha = 0.7) +
   labs(x = "Stimulus", y = "Other Similarity",

@@ -1,6 +1,7 @@
 # Latent Transforms for Template Similarity
 
 ``` r
+
 library(eyesim)
 library(dplyr)
 library(ggplot2)
@@ -34,6 +35,7 @@ method, so we will use
 as the running example:
 
 ``` r
+
 set.seed(901)
 
 make_gaussian_density <- function(mean = c(0, 0), cov = diag(c(0.2, 0.2)),
@@ -63,6 +65,7 @@ Now create a source set whose densities are shifted and expanded so that
 the best alignment is a global contraction plus translation:
 
 ``` r
+
 ref_tab <- tibble(
   id = seq_along(ref_means),
   density = lapply(ref_means, function(mu) {
@@ -84,6 +87,7 @@ source_tab <- tibble(
 Without any transform, the contraction distortion reduces similarity:
 
 ``` r
+
 raw <- template_similarity(ref_tab, source_tab,
                            match_on = "id",
                            permutations = 0,
@@ -99,6 +103,7 @@ Now fit
 on the same matched rows and compare the in-sample result:
 
 ``` r
+
 contract_res <- template_similarity(
   ref_tab, source_tab,
   match_on = "id",
@@ -144,6 +149,7 @@ of the flattened density vector. That is exactly the kind of covariance
 mismatch that CORAL is designed to correct.
 
 ``` r
+
 make_density_vec <- function(vec) {
   structure(
     list(
@@ -173,6 +179,7 @@ coral_source_tab <- tibble(
 ```
 
 ``` r
+
 raw_coral <- template_similarity(
   coral_ref_tab,
   coral_source_tab,
@@ -251,6 +258,7 @@ The held-out API mirrors
 but it cross-fits the transform internally:
 
 ``` r
+
 contract_cv <- template_similarity_cv(
   ref_tab,
   source_tab,
@@ -301,6 +309,7 @@ fitting and evaluation. For example, fit on positive-control `scene`
 rows and evaluate on `delay` rows:
 
 ``` r
+
 template_similarity_cv(
   ref_tab,
   source_tab,
@@ -319,19 +328,20 @@ are trying to rescue.
 
 ## Available transforms
 
-| Transform                                                                                         | Supervised?               | Best for                                                 |
-|:--------------------------------------------------------------------------------------------------|:--------------------------|:---------------------------------------------------------|
-| [`latent_pca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md) | No                        | Dimensionality reduction, mild noise smoothing           |
-| [`contract_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)   | Yes (matched pairs)       | Global contraction/expansion with translation            |
-| [`affine_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)     | Yes (matched pairs)       | Linear geometric distortion, shear, anisotropic scaling  |
-| [`coral_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)      | No                        | Device/participant shifts (covariance-level differences) |
-| [`cca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)        | Yes (needs matched pairs) | Item-level alignment when pairings are reliable          |
+| Transform | Supervised? | Best for |
+|:---|:---|:---|
+| [`latent_pca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md) | No | Dimensionality reduction, mild noise smoothing |
+| [`contract_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md) | Yes (matched pairs) | Global contraction/expansion with translation |
+| [`affine_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md) | Yes (matched pairs) | Linear geometric distortion, shear, anisotropic scaling |
+| [`coral_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md) | No | Device/participant shifts (covariance-level differences) |
+| [`cca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md) | Yes (needs matched pairs) | Item-level alignment when pairings are reliable |
 
 All are passed to
 [`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
 via the `similarity_transform` argument:
 
 ``` r
+
 template_similarity(
   ref_tab, source_tab,
   match_on = "id",

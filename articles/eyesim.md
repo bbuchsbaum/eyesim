@@ -1,6 +1,7 @@
 # Comparing Eye-Movement Patterns
 
 ``` r
+
 library(eyesim)
 library(dplyr)
 library(ggplot2)
@@ -24,6 +25,7 @@ screen position, an onset time (when the fixation began), and a duration
 (how long the eye stayed there). You can create one directly:
 
 ``` r
+
 fg <- fixation_group(
   x = c(-100, 0, 100),
   y = c(0, 100, 0),
@@ -45,6 +47,7 @@ occurred: yellow for early fixations, red for later ones.
 Here is a more realistic group with 25 randomly placed fixations:
 
 ``` r
+
 set.seed(42)
 fg <- fixation_group(
   x = runif(25, 0, 100),
@@ -67,6 +70,7 @@ fixations cluster. The
 several display styles:
 
 ``` r
+
 p1 <- plot(fg, typ = "contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
 p2 <- plot(fg, typ = "raster", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
 p3 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
@@ -82,6 +86,7 @@ The `bandwidth` parameter controls the smoothing level. Higher values
 blur out fine detail and emphasize broad patterns:
 
 ``` r
+
 p1 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 20)
 p2 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 60)
 p3 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 100)
@@ -102,6 +107,7 @@ Here we create two patterns that share roughly half their fixation
 locations:
 
 ``` r
+
 set.seed(123)
 x_shared <- runif(12, 0, 100)
 y_shared <- runif(12, 0, 100)
@@ -129,6 +135,7 @@ Two fixation patterns sharing roughly half their locations.
 Now convert to density maps and compute their similarity:
 
 ``` r
+
 ed1 <- eye_density(fg1, sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
 ed2 <- eye_density(fg2, sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
 similarity(ed1, ed2)
@@ -139,6 +146,7 @@ The default metric is the Pearson correlation. Several alternatives are
 available:
 
 ``` r
+
 methods <- c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")
 results <- sapply(methods, function(m) similarity(ed1, ed2, method = m))
 data.frame(method = methods, similarity = round(unlist(results), 4))
@@ -162,6 +170,7 @@ Let’s simulate a small experiment: 3 participants, 20 images, encoding +
 retrieval.
 
 ``` r
+
 head(df)
 #>          x        y     onset duration image    phase participant
 #> 1 11.37817 50.54517  62.07862 197.0510  img1 encoding          s1
@@ -180,6 +189,7 @@ Wrap the raw data in an `eye_table`, which groups fixations by the
 variables that define your experimental design:
 
 ``` r
+
 eyetab <- eye_table("x", "y", "duration", "onset",
                     groupvar = c("participant", "phase", "image"),
                     data = df)
@@ -208,6 +218,7 @@ eyetab
 computes a density map for every combination of your grouping variables:
 
 ``` r
+
 eyedens <- density_by(eyetab,
                       groups = c("phase", "image", "participant"),
                       sigma = 100,
@@ -220,6 +231,7 @@ experiment.](eyesim_files/figure-html/plot-densities-1.png)
 Four density maps from the simulated experiment.
 
 ``` r
+
 eyedens
 #> # A tibble: 120 × 5
 #>    phase    image participant fixgroup            density       
@@ -245,6 +257,7 @@ It estimates a baseline by permuting image labels and reports the
 corrected difference:
 
 ``` r
+
 set.seed(1234)
 enc_dens <- eyedens %>% filter(phase == "encoding")
 ret_dens <- eyedens %>% filter(phase == "retrieval")
@@ -264,6 +277,7 @@ The result includes three key columns:
 Since our data is random, there should be no true reinstatement:
 
 ``` r
+
 t.test(simres$eye_sim_diff)
 #> 
 #>  One Sample t-test
@@ -300,6 +314,7 @@ Choosing a single bandwidth is somewhat arbitrary. You can compute
 density at multiple scales by passing a vector of sigma values:
 
 ``` r
+
 eyedens_multi <- density_by(eyetab,
                             groups = c("phase", "image", "participant"),
                             sigma = c(25, 50, 100),
@@ -331,6 +346,7 @@ samples the encoding density at retrieval fixation locations at each
 time point:
 
 ``` r
+
 ret_eyetab <- eyetab %>% filter(phase == "retrieval")
 
 enc_dens <- enc_dens %>%
@@ -350,6 +366,7 @@ temporal <- sample_density_time(
 ```
 
 ``` r
+
 temporal %>%
   select(participant, image, bin_1, bin_2,
          perm_bin_1, perm_bin_2, diff_bin_1, diff_bin_2) %>%

@@ -1,6 +1,7 @@
 # Comparing Scanpaths with MultiMatch
 
 ``` r
+
 library(eyesim)
 library(dplyr)
 library(ggplot2)
@@ -33,6 +34,7 @@ Start by creating two `fixation_group` objects, convert them to
 [`multi_match()`](https://bbuchsbaum.github.io/eyesim/reference/multi_match.md):
 
 ``` r
+
 set.seed(1)
 
 simulate_linear <- function(n) {
@@ -54,6 +56,7 @@ processes.](Multimatch_files/figure-html/plot-linear-1.png)
 Two scanpaths generated from similar linear processes.
 
 ``` r
+
 sp1 <- scanpath(fg1)
 sp2 <- scanpath(fg2)
 multi_match(sp1, sp2, screensize = c(500, 500))
@@ -71,6 +74,7 @@ scanpaths.
 Let’s compare a linear scanpath against a zigzag pattern:
 
 ``` r
+
 fg_zigzag <- fixation_group(
   x = cumsum(rep(50, 10)),
   y = cumsum(c(50, -50, 50, -50, 50, -50, 50, -50, 50, -50)),
@@ -130,6 +134,7 @@ question.
 ### Identity (perfect match)
 
 ``` r
+
 set.seed(7)
 fg <- fixation_group(runif(10) * 500, runif(10) * 500,
                      round(runif(10) * 10) + 1, 1:10)
@@ -148,6 +153,7 @@ Scaling the coordinates by 0.5 preserves **direction** (relative angles
 are unchanged) but reduces **position** (absolute locations differ):
 
 ``` r
+
 fg_scaled <- fg
 fg_scaled$x <- fg_scaled$x * 0.5
 fg_scaled$y <- fg_scaled$y * 0.5
@@ -159,6 +165,7 @@ scanpath.](Multimatch_files/figure-html/plot-scale-1.png)
 Original (left) vs. scaled (right) scanpath.
 
 ``` r
+
 multi_match(scanpath(fg), scanpath(fg_scaled), c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.8831983       1.0000000       0.7663966       0.7237247       1.0000000 
@@ -174,6 +181,7 @@ Keeping the same fixation locations but scrambling their order preserves
 **position** (and the EMD) while disrupting **direction**:
 
 ``` r
+
 set.seed(3)
 fg_shuffled <- fg
 ord <- sample(nrow(fg_shuffled))
@@ -189,6 +197,7 @@ Original (left) vs. order-shuffled (right) scanpath. Same locations,
 different sequence.
 
 ``` r
+
 multi_match(scanpath(fg), scanpath(fg_shuffled), c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.8565614       0.7687388       0.7836460       0.7816592       0.6363636 
