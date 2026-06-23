@@ -115,6 +115,13 @@ test_that("scanpath_similarity expands multimatch permutation summaries", {
   expect_false(any(vapply(res[c(expected_cols, perm_cols, diff_cols)], is.list, logical(1))))
   expect_true(all(vapply(res[c(expected_cols, perm_cols, diff_cols)], is.numeric, logical(1))))
   expect_true(all(res$mm_vector > 0.999))
+
+  # The expanded multimatch path also carries a single per-row permutation count.
+  expect_true("n_perm" %in% names(res))
+  expect_type(res$n_perm, "integer")
+  expect_length(res$n_perm, nrow(res))
+  # 3 trials, no permute_on, permutations = 2 -> 1 or 2 realized comparisons per row.
+  expect_true(all(res$n_perm %in% c(1L, 2L)))
 })
 
 test_that("multi_match returns all six metrics for short scanpaths", {

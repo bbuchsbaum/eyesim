@@ -339,3 +339,128 @@ test_that("compute density with variable name other than 'fixgroup'", {
   expect_true(!is.null(dens$fg))
 
 })
+
+context("perm_sim n_perm")
+
+# Shared 2x2 density constructor used by the n_perm tests below.
+make_np_density <- function(vals) {
+  structure(
+    list(z = matrix(vals, nrow = 2, ncol = 2, byrow = TRUE), x = 1:2, y = 1:2, sigma = 50),
+    class = c("density", "eye_density")
+  )
+}
+
+# Six images across two subjects (3 each); source mirrors reference one-to-one.
+make_np_tables <- function() {
+  ref_tab <- tibble(
+    image = 1:6,
+    subject = rep(1:2, each = 3),
+    density = list(
+      make_np_density(c(1, 2, 3, 4)),
+      make_np_density(c(2, 3, 4, 5)),
+      make_np_density(c(3, 4, 5, 6)),
+      make_np_density(c(6, 5, 4, 3)),
+      make_np_density(c(5, 4, 3, 2)),
+      make_np_density(c(4, 3, 2, 1))
+    )
+  )
+  source_tab <- tibble(
+    row_id = 1:6,
+    image = 1:6,
+    subject = rep(1:2, each = 3),
+    density = list(
+      make_np_density(c(1.1, 2.1, 3.1, 4.1)),
+      make_np_density(c(2.1, 3.1, 4.1, 5.1)),
+      make_np_density(c(3.1, 4.1, 5.1, 6.1)),
+      make_np_density(c(6.1, 5.1, 4.1, 3.1)),
+      make_np_density(c(5.1, 4.1, 3.1, 2.1)),
+      make_np_density(c(4.1, 3.1, 2.1, 1.1))
+    )
+  )
+  list(ref = ref_tab, source = source_tab)
+}
+
+test_that("n_perm reports the exhaustive within-stratum baseline count (fast cosine path)", {
+  tabs <- make_np_tables()
+
+  # permute_on = subject: 3 images per stratum, minus the true match => 2 candidates.
+  res <- template_similarity(
+    tabs$ref, tabs$source, match_on = "image", permute_on = "subject",
+    method = "cosine", permutations = 99
+  )
+
+  expect_true("n_perm" %in% names(res))
+  expect_type(res$n_perm, "integer")
+  expect_equal(res$n_perm, rep(2L, 6))
+
+  # No permute_on: all 6 references are candidates, minus the true match => 5.
+  res_all <- template_similarity(
+    tabs$ref, tabs$source, match_on = "image",
+    method = "cosine", permutations = 99
+  )
+  expect_equal(res_all$n_perm, rep(5L, 6))
+})
+
+test_that("n_perm reports the exhaustive within-stratum baseline count (general path)", {
+  options(future.rng.onMisuse = "ignore")
+  tabs <- make_np_tables()
+
+  # method = "pearson" bypasses the fast cosine shortcut and exercises the furrr path.
+  res <- template_similarity(
+    tabs$ref, tabs$source, match_on = "image", permute_on = "subject",
+    method = "pearson", permutations = 99
+  )
+
+  expect_true("n_perm" %in% names(res))
+  expect_type(res$n_perm, "integer")
+  expect_equal(res$n_perm, rep(2L, 6))
+})
+
+test_that("n_perm is 0 (and perm_sim NA) when a stratum has no non-matching candidates", {
+  tabs <- make_np_tables()
+  # Give image 1 its own singleton subject so it has no within-stratum baseline.
+  ref_tab <- tabs$ref
+  source_tab <- tabs$source
+  ref_tab$subject[1] <- 99
+  source_tab$subject[1] <- 99
+
+  res <- template_similarity(
+    ref_tab, source_tab, match_on = "image", permute_on = "subject",
+    method = "cosine", permutations = 99
+  )
+  res <- res[order(res$row_id), ]
+
+  expect_equal(res$n_perm[res$image == 1], 0L)
+  expect_true(is.na(res$perm_sim[res$image == 1]))
+  # The remaining subject still has its full two-candidate baseline.
+  expect_true(all(res$n_perm[res$image != 1] >= 1L))
+})
+
+test_that("n_perm scales down when fewer candidates than requested are available", {
+  tabs <- make_np_tables()
+
+  # permutations = 1 forces sampling 1 candidate per stratum; after removing the
+  # match the realized count is 0 or 1, and never the nominal request.
+  set.seed(123)
+  res <- template_similarity(
+    tabs$ref, tabs$source, match_on = "image", permute_on = "subject",
+    method = "cosine", permutations = 1
+  )
+
+  expect_true(all(res$n_perm %in% c(0L, 1L)))
+  # Rows with a zero baseline must carry NA perm_sim, matching the documented contract.
+  expect_true(all(is.na(res$perm_sim[res$n_perm == 0L])))
+  expect_true(all(!is.na(res$perm_sim[res$n_perm > 0L])))
+})
+
+test_that("n_perm column is absent when no permutations are requested", {
+  tabs <- make_np_tables()
+
+  res <- template_similarity(
+    tabs$ref, tabs$source, match_on = "image",
+    method = "cosine", permutations = 0
+  )
+
+  expect_false("n_perm" %in% names(res))
+  expect_false("perm_sim" %in% names(res))
+})

@@ -49,7 +49,7 @@ Permutation handling and units follow \code{template_similarity}:
 \itemize{
   \item Candidate sets are defined by \code{permute_on}; sampling is without replacement when \code{permutations} is smaller than the number of candidates.
   \item When \code{permutations} is greater than or equal to the available non-matching candidates, all candidates are used (exhaustive baseline).
-  \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), and \code{eye_sim_diff = eye_sim - perm_sim}, all on the scale of \code{method}. If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
+  \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), \code{eye_sim_diff = eye_sim - perm_sim} (all on the scale of \code{method}), and \code{n_perm} (the number of permuted comparisons that contributed to \code{perm_sim} for that row; \code{0} when no baseline could be computed). If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
 }
 }
 \examples{

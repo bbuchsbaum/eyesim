@@ -42,8 +42,9 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     out
   }
 
-  format_similarity_result <- function(sim, perm_sim = NULL, expand_vector = FALSE) {
+  format_similarity_result <- function(sim, perm_sim = NULL, n_perm = NULL, expand_vector = FALSE) {
     sim_flat <- flatten_similarity_output(sim)
+    n_perm <- if (is.null(n_perm)) NA_integer_ else as.integer(n_perm)
 
     if (length(sim_flat) == 1) {
       if (is.null(perm_sim)) {
@@ -56,7 +57,8 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       return(tibble::tibble(
         eye_sim = sim_flat,
         perm_sim = perm_val,
-        eye_sim_diff = sim_flat - perm_val
+        eye_sim_diff = sim_flat - perm_val,
+        n_perm = n_perm
       ))
     }
 
@@ -82,7 +84,8 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       return(tibble::tibble(
         eye_sim = list(sim_flat),
         perm_sim = list(perm_flat),
-        eye_sim_diff = list(sim_flat - perm_flat)
+        eye_sim_diff = list(sim_flat - perm_flat),
+        n_perm = n_perm
       ))
     }
 
@@ -111,7 +114,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     perm_tbl <- tibble::as_tibble_row(as.list(stats::setNames(unname(perm_flat), paste0(sim_names, "_perm"))))
     diff_tbl <- tibble::as_tibble_row(as.list(stats::setNames(unname(diff_flat), paste0(sim_names, "_diff"))))
 
-    dplyr::bind_cols(sim_tbl, perm_tbl, diff_tbl)
+    dplyr::bind_cols(sim_tbl, perm_tbl, diff_tbl, tibble::tibble(n_perm = n_perm))
   }
 
   # Match indices between source and reference tables
@@ -167,7 +170,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     if (!is_valid_similarity_obj(d1) || !is_valid_similarity_obj(d2)) {
       warning("Invalid or NULL similarity input encountered in run_similarity_analysis(). Returning NA for this comparison.")
       return(if (permutations > 0) {
-        tibble::tibble(eye_sim = NA_real_, perm_sim = NA_real_, eye_sim_diff = NA_real_)
+        tibble::tibble(eye_sim = NA_real_, perm_sim = NA_real_, eye_sim_diff = NA_real_, n_perm = 0L)
       } else {
         tibble::tibble(eye_sim = NA_real_)
       })
@@ -209,7 +212,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
 
       if (length(mind) == 0) {
         warning("no matching candidate indices for permutation test. Skipping.")
-        return(format_similarity_result(sim, NA_real_, expand_vector = expand_vector_output))
+        return(format_similarity_result(sim, NA_real_, n_perm = 0L, expand_vector = expand_vector_output))
       }
 
       # Calculate permuted similarities for each remaining index in mind
@@ -226,7 +229,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       }
       perm_sim_mean[is.nan(perm_sim_mean)] <- NA_real_
 
-      format_similarity_result(sim, perm_sim_mean, expand_vector = expand_vector_output)
+      format_similarity_result(sim, perm_sim_mean, n_perm = length(mind), expand_vector = expand_vector_output)
     } else {
       # If no permutation tests, return the observed similarity in scalar or expanded-vector form.
       format_similarity_result(sim, expand_vector = expand_vector_output)
@@ -260,7 +263,9 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
     return(tibble::tibble(eye_sim = obs_sim))
   }
 
-  perm_sim <- vapply(seq_len(nrow(source_tab)), function(i) {
+  # Returns c(mean_permuted_similarity, n_perm) per source row so the count of
+  # baseline comparisons that actually contributed is preserved alongside the mean.
+  perm_stats <- vapply(seq_len(nrow(source_tab)), function(i) {
     candidates <- if (!is.null(permute_on)) {
       match_split[[as.character(source_tab[[permute_on]][i])]]
     } else {
@@ -268,7 +273,7 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
     }
 
     if (is.null(candidates) || length(candidates) == 0L) {
-      return(NA_real_)
+      return(c(NA_real_, 0))
     }
 
     if (permutations < length(candidates)) {
@@ -281,17 +286,20 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
     }
 
     if (length(candidates) == 0L) {
-      return(NA_real_)
+      return(c(NA_real_, 0))
     }
 
-    mean(sim_mat[i, candidates], na.rm = TRUE)
-  }, numeric(1))
+    c(mean(sim_mat[i, candidates], na.rm = TRUE), length(candidates))
+  }, numeric(2))
 
+  perm_sim <- perm_stats[1, ]
+  n_perm <- as.integer(perm_stats[2, ])
   perm_sim[is.nan(perm_sim)] <- NA_real_
   tibble::tibble(
     eye_sim = obs_sim,
     perm_sim = perm_sim,
-    eye_sim_diff = obs_sim - perm_sim
+    eye_sim_diff = obs_sim - perm_sim,
+    n_perm = n_perm
   )
 }
 
@@ -373,7 +381,7 @@ cosine_similarity_matrix <- function(x, y) {
 #' \itemize{
 #'   \item Candidate sets are defined by \code{permute_on}; sampling is without replacement when \code{permutations} is smaller than the number of candidates.
 #'   \item When \code{permutations} is greater than or equal to the available non-matching candidates, all candidates are used (exhaustive baseline).
-#'   \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), and \code{eye_sim_diff = eye_sim - perm_sim}, all on the scale of \code{method}. If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
+#'   \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), \code{eye_sim_diff = eye_sim - perm_sim} (all on the scale of \code{method}), and \code{n_perm} (the number of permuted comparisons that contributed to \code{perm_sim} for that row; \code{0} when no baseline could be computed). If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
 #' }
 #'
 #' @examples
@@ -457,6 +465,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #'   \item \code{eye_sim}: the observed similarity for the matched pair, on the scale of \code{method}.
 #'   \item \code{perm_sim}: the mean similarity across permuted non-matching pairs (same scale as \code{eye_sim}).
 #'   \item \code{eye_sim_diff}: \code{eye_sim - perm_sim}. Units match \code{method}.
+#'   \item \code{n_perm}: the number of permuted non-matching comparisons that contributed to \code{perm_sim} for that row. This varies across rows (e.g., small \code{permute_on} strata, or fewer candidates than requested) and is \code{0} when no baseline could be computed (\code{perm_sim = NA}). Use it to drop rows with too few permutations, e.g. \code{dplyr::filter(res, n_perm >= k)}.
 #' }
 #'
 #' Notes on \code{method} and interpretation:

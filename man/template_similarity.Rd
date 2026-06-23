@@ -64,6 +64,7 @@ Returned columns and units:
   \item \code{eye_sim}: the observed similarity for the matched pair, on the scale of \code{method}.
   \item \code{perm_sim}: the mean similarity across permuted non-matching pairs (same scale as \code{eye_sim}).
   \item \code{eye_sim_diff}: \code{eye_sim - perm_sim}. Units match \code{method}.
+  \item \code{n_perm}: the number of permuted non-matching comparisons that contributed to \code{perm_sim} for that row. This varies across rows (e.g., small \code{permute_on} strata, or fewer candidates than requested) and is \code{0} when no baseline could be computed (\code{perm_sim = NA}). Use it to drop rows with too few permutations, e.g. \code{dplyr::filter(res, n_perm >= k)}.
 }
 
 Notes on \code{method} and interpretation:
