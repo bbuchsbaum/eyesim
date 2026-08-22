@@ -45,6 +45,32 @@ reference:
   - sample_density_time
   - repetitive_similarity
   - install_multimatch
+- title: GazeWeave
+  desc: Cross-fitted probabilistic replay and registered temporal transport.
+  contents:
+  - gaze_weave_cv
+  - gaze_replay_cv
+  - gaze_replay_spec
+  - fit_gaze_replay_model
+  - gaze_replay_align
+  - gaze_transport_cv
+  - gaze_transport_spec
+  - gaze_transport_prepare
+  - gaze_transport_align
+  - gaze_transport_align_batch
+  - gaze_transport_result
+  - gaze_gaussian_mixture
+  - gaze_local_order
+  - gaze_order_neighbours
+  - gaze_warp_none
+  - gaze_warp_contraction
+  - gaze_screen
+  - tidy.gaze_replay_fit
+  - tidy.gaze_transport_fit
+  - autoplot.gaze_replay_alignment
+  - autoplot.gaze_replay_fit
+  - autoplot.gaze_transport_alignment
+  - autoplot.gaze_transport_fit
 - title: Latent transforms
   desc: Domain-adaptation transforms for use with template_similarity().
   contents:

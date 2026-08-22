@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "protocol": {
+    "id": "gazeweave-transport-v3",
+    "version": "3.0.2",
+    "status": "frozen_after_response_blind_implementation_corrections",
+    "frozen_date": "2026-08-20",
+    "mote_gate": "bd-01M0H43RT37FKQ2TF2TF36A8QH",
+    "retrieval_outcomes": "sealed_until_gw_18_10"
+  },
+  "estimand": {
+    "primary_endpoint": "gaze_info_bits",
+    "formula": "log2(p_true/prior_true)",
+    "directionality": "symmetric",
+    "score_semantics": "coverage_integrated_negative_scientific_energy",
+    "coupling_semantics": "optimized_correspondence_not_posterior",
+    "separate_fields": [
+      "coverage_m",
+      "normalized_correspondence_gamma",
+      "selected_reference_mass",
+      "selected_source_mass",
+      "conditional_spatial_residual",
+      "conditional_chronology_residual",
+      "correspondence_smoothing",
+      "warp_penalty"
+    ]
+  },
+  "representation": {
+    "coordinate_unit": "degrees_visual_angle",
+    "screen_degrees": [24, 18],
+    "duration_mass": "positive_duration_normalized_within_episode",
+    "zero_duration": "discard",
+    "adjacent_exact_colocation": "coalesce",
+    "order_clock": "ordinal",
+    "local_forward_neighbours": 2,
+    "zero_edge_residual": 0,
+    "one_sided_zero_edge_residual": 1
+  },
+  "objective": {
+    "spatial_scales_degrees": [0.75, 1.5],
+    "spatial_scale_weights": [0.7, 0.3],
+    "lambda_chronology": 2.0,
+    "lambda_reference_selection": 0.5,
+    "lambda_source_selection": 0.5,
+    "lambda_warp": 1.0,
+    "selection_divergence": "jensen_shannon_nats",
+    "correspondence_smoothing": "mutual_information_excluded_from_scientific_energy",
+    "chronology_residual": "directed_edge_conditioned_dice"
+  },
+  "coverage": {
+    "prior": "beta",
+    "prior_shape": [2, 2],
+    "quadrature": "gauss_legendre",
+    "default_nodes": 12,
+    "refinement_nodes": 24,
+    "default_node_values": [
+      0.0092196829,
+      0.0479413718,
+      0.1150486629,
+      0.2063410229,
+      0.3160842505,
+      0.4373832957,
+      0.5626167043,
+      0.6839157495,
+      0.7936589771,
+      0.8849513371,
+      0.9520586282,
+      0.9907803171
+    ],
+    "zero_boundary": "neutral_candidate_fit_conditional_residuals_na"
+  },
+  "episodes": {
+    "target_count": 4,
+    "combination": "equal_prior_likelihood_mixture_after_common_temperature",
+    "concatenation": false,
+    "missing_rule": "equal_weights_over_intersection_of_valid_presentation_indices_across_candidate_pool",
+    "empty_intersection": "missing_row_counted_as_failure"
+  },
+  "registration": {
+    "default": "outer_trained_isotropic_contraction_about_screen_centre_plus_participant_session_translation",
+    "candidate_invariant": true,
+    "pair_specific": false,
+    "affine": "sensitivity_only"
+  },
+  "evaluation": {
+    "candidate_pool": "exhaustive_permitted_within_participant_or_frozen_equivalent_panels",
+    "candidate_priors": "actual_design_priors",
+    "outer_unit": "participant_item_cell",
+    "inner_group": "item_within_outer_training",
+    "temperature_bounds": [0.05, 20],
+    "temperature_log_prior_sd": 1,
+    "reliability_boundary": "temperature_only_rho_1",
+    "retrieval_blinding_fields": [
+      "response",
+      "correctness",
+      "confidence",
+      "saliency",
+      "old_lure_status",
+      "retrieval_subgroup"
+    ]
+  },
+  "baselines": [
+    "transport_v2",
+    "stabilized_replay",
+    "registered_multiscale_density",
+    "density_sigma_80_pixels",
+    "density_sigma_160_pixels",
+    "raw_multimatch_dimensions",
+    "nested_ridge_multimatch_composite"
+  ],
+  "seeds": {
+    "golden_v2": 20260820,
+    "synthetic_court": 20260821,
+    "calibration_null": 20260822,
+    "study_bootstrap": 20260823,
+    "performance_order": 20260824,
+    "retrieval_bootstrap": 20260825,
+    "parallel_rng": "LEcuyer-CMRG"
+  },
+  "solver": {
+    "entropic_max_iterations": 1000,
+    "feasibility_tolerance": 1e-8,
+    "relative_scientific_energy_tolerance": 5e-5,
+    "polish_max_iterations": 200,
+    "polish_gap_tolerance": 1e-7,
+    "polish_relative_energy_tolerance": 1e-8
+  },
+  "thresholds": {
+    "identical_order_residual_max": 1e-10,
+    "complete_reversal_residual_min": 0.95,
+    "reversal_length_absolute_band_max": 0.05,
+    "ordinal_dilation_difference_max": 1e-10,
+    "split_merge_difference_max": 1e-8,
+    "unit_conversion_difference_max": 1e-6,
+    "coverage_refinement_energy_max": 1e-3,
+    "coverage_refinement_information_bits_max": 0.01,
+    "native_reference_energy_max": 1e-8,
+    "native_reference_mass_max": 1e-10,
+    "native_reference_barycentric_rmse_degrees_max": 1e-6,
+    "native_reference_warp_max": 1e-10,
+    "pair_median_seconds_max": 0.015,
+    "pair_speedup_min": 4,
+    "fold_speedup_min": 2,
+    "null_mean_information_abs_max": 0.02,
+    "null_top1_prior_difference_max": 0.02,
+    "heldout_ece_max": 0.10,
+    "matched_false_positive_rate_max": 0.075,
+    "finite_converged_rate_min": 0.99,
+    "reliability_logloss_worsening_max": 1e-10
+  },
+  "study_advance_rule": {
+    "intact_mean_information_positive": true,
+    "intact_minus_mean_reversal_shuffle_positive": true,
+    "at_least_one_crossed_95_interval_lower_bound_positive": true,
+    "failure_action": "keep_retrieval_sealed_and_record_bounded_no_go"
+  },
+  "response_blind_addenda": [
+    {
+      "id": "coverage_resolution_1",
+      "trigger": "public_8_vs_16_pair_energy_difference_0.00117",
+      "action": "increase_default_and_refinement_nodes_to_12_and_24",
+      "verification_max_pair_energy_difference": 0.0000257,
+      "threshold_changed": false,
+      "outcomes_examined": false
+    },
+    {
+      "id": "continuation_ceiling_1",
+      "trigger": "one_of_315_public_performance_candidates_hit_500_high_entropy_iterations",
+      "action": "increase_entropic_max_iterations_to_1000",
+      "verification_converged": 315,
+      "verification_total": 315,
+      "verification_elapsed_seconds": 13.955,
+      "gw14_elapsed_seconds": 830.849,
+      "gw14_speedup": 59.53773,
+      "serialized_result_bytes": 120869488,
+      "tolerance_changed": false,
+      "outcomes_examined": false
+    }
+  ],
+  "golden_fixture": {
+    "generator": "gaze-weave-transport-v3-golden.R",
+    "directory": "gaze-weave-transport-v3-golden",
+    "hash_manifest": "gaze-weave-transport-v3-golden/manifest-md5.csv",
+    "numeric_tolerance": 1e-8,
+    "private_data": false
+  }
+}

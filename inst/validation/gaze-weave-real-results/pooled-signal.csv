@@ -1,0 +1,6 @@
+"method","mean_log_loss","top1_credit"
+"density_ridge_registered",1.21329061819621,0.4296875
+"elastic_ridge_registered",1.39415570654281,0.34375
+"multimatch_ridge_registered",1.35333626822938,0.3828125
+"replay",1.56765209762776,0.484375
+"transport_v2",1.2793003342863,0.4609375

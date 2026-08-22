@@ -1,0 +1,2 @@
+"task","condition","method","n","mean_info_bits","mean_log_loss","mean_brier","mean_rank","top1_credit","ece_5","window"
+"blank_screen_imagery","signal","replay",64,-0.0815304437303156,1.44280695832136,0.771656205247063,2.484375,0.265625,0.0313588180439635,"all_deposited_posttest_fixations"

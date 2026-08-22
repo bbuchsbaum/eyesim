@@ -6,3 +6,24 @@ inst/doc
 docs
 /doc/
 /Meta/
+/src/*.o
+/src/*.so
+.omc/
+# Mote's durable op log is versioned; per-session actor state is not.
+.mote/local/
+# Restricted Wynn probe-delay fixation exports: keep local, never publish.
+test_data/wynn_probe_delay/study_fix_input_new.csv
+test_data/wynn_probe_delay/testdelay_fix_input_matched.csv
+# Keep all provisional participant-level court outputs local as well.
+inst/validation/gaze-weave-probe-delay-results/
+# Secondary recognition-sensitivity outputs also contain trial-linked scores.
+inst/validation/gaze-weave-recognition-sensitivity-results/
+# Maximal-cohort court checkpoints and participant-linked scores stay local.
+inst/validation/gaze-weave-recognition-full-cohort-results/
+# Full-cohort repetition and phase follow-up contains participant-linked scores.
+inst/validation/gaze-weave-followup-full-cohort-results/
+# Transport-v3 repeated-viewing checkpoints contain participant-linked scores.
+inst/validation/gaze-weave-transport-v3-repeated-viewing-results/
+# Frozen Transport-v3 retrieval scores and behavior merges are restricted.
+inst/validation/gaze-weave-transport-v3-retrieval-results/
+inst/validation/gaze-weave-pcmri-catalog-replication-results/

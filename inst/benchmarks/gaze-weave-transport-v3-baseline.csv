@@ -1,0 +1,4 @@
+"scope","evaluations","reference_median_seconds","optimized_median_seconds","speedup","repetitions","date","platform"
+"pair_15x15",1,0.047,0.008,5.875,5,"2026-08-20","macOS-arm64-R-4.5.1"
+"representative_fold",4,5.798,0.041,141.41463414634,3,"2026-08-20","macOS-arm64-R-4.5.1"
+"gw14_scale_fold",315,830.849,13.955,59.5377284127553,1,"2026-08-20","macOS-arm64-R-4.5.1"

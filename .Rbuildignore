@@ -17,6 +17,14 @@ test_data
 ^CLAUDE\.md$
 ^\.claude$
 ^\.omc$
+^\.mote$
 ^Rplots\.pdf$
 ^\.rcmdcheck_result\.rds$
+^inst/validation/gaze-weave-recognition-full-cohort-results$
+^inst/validation/gaze-weave-followup-full-cohort-results$
+^inst/validation/gaze-weave-pcmri-catalog-replication-results$
+^inst/validation/gaze-weave-probe-delay-results$
+^inst/validation/gaze-weave-recognition-sensitivity-results$
+^inst/validation/gaze-weave-transport-v3-repeated-viewing-results$
+^inst/validation/gaze-weave-transport-v3-retrieval-results$
 vignettes/Overview\.html$

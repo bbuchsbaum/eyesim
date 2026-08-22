@@ -1,0 +1,4 @@
+"method","elapsed_seconds","gc_used_mb","gc_high_water_mb","fit_size_mb"
+"transport_v2",391.913,221.3,353.2,5.72494506835938
+"replay",1.85299999999995,223.4,366.8,3.94966125488281
+"baselines",18.773,236.5,365.7,66.3316879272461

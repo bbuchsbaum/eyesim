@@ -1,0 +1,8 @@
+"check","value","tolerance","passed"
+"split_merge",0,1e-08,TRUE
+"time_dilation",0,1e-08,TRUE
+"unit_conversion",0,1e-08,TRUE
+"candidate_order",0,1e-10,TRUE
+"batch_size",0,1e-10,TRUE
+"coverage_refinement_energy",0.000965118951995692,0.001,TRUE
+"coverage_refinement_information",0.000459930392907426,0.01,TRUE

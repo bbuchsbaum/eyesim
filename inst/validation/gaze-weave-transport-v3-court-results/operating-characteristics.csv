@@ -1,0 +1,14 @@
+"method","threshold_bits","false_positive_rate","power"
+"density_ridge_registered",0.536649623088332,0.0625,1
+"density_sigma_160_raw_calibrated",1.20715055717027,0.0625,0
+"density_sigma_80_raw_calibrated",0.0536266243951294,0.0625,0
+"multimatch_mm_direction_raw_calibrated",2.59941200729087,0.0625,1
+"multimatch_mm_duration_raw_calibrated",0,0.5,1
+"multimatch_mm_length_raw_calibrated",0,0.5,1
+"multimatch_mm_position_emd_raw_calibrated",2.54214897045897,0.0625,0.375
+"multimatch_mm_position_raw_calibrated",1.81618258205114,0.0625,0.75
+"multimatch_mm_vector_raw_calibrated",2.56274120305193e-15,0.375,1
+"multimatch_ridge_registered",1.10820068400298,0.0625,1
+"replay",2.50404642734264e-07,0.0625,1
+"transport_v2",0.0495703220254102,0.0625,1
+"transport_v3",0.0369825421816619,0.0625,1

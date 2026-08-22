@@ -1,0 +1,4 @@
+"first","second","metric","estimate","lower_95","upper_95","draws"
+"replay","density_ridge_registered","delta_info",-0.511235549057976,-1.47751159528228,0.123111464799132,1000
+"replay","density_ridge_registered","delta_log_loss",-0.354361479431551,-0.981212756974597,0.102462158672488,1000
+"replay","density_ridge_registered","delta_top1",0.0546875,-0.09375,0.2109375,1000

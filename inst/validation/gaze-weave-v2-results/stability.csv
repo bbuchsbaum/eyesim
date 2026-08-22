@@ -1,0 +1,9 @@
+"check","value","comparator","tolerance"
+"transport_start_scientific_spread",0.000128093344708619,"le",0.02
+"transport_barycentric_start_rmse",3.41928873618007e-08,"le",0.25
+"transport_candidate_order",0,"le",1e-08
+"transport_stationarity_finite",1,"eq",1
+"replay_candidate_order",0,"le",1e-10
+"replay_posterior_normalization",2.22044604925031e-16,"le",1e-10
+"replay_resolution_per_bin",0.00701972317091526,"le",0.15
+"replay_resolution_rank",1,"eq",1

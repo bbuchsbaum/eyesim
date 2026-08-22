@@ -1,0 +1,17 @@
+"task","condition","method","n","mean_compatibility_bits","mean_rank","top1_credit"
+"blank_screen_imagery","generic_gaze","density_raw",64,-0.0136692345543023,2.5,0.25
+"repeated_viewing","generic_gaze","density_raw",64,-0.0028304038169425,2.5,0.25
+"blank_screen_imagery","shuffled_order","density_raw",64,0.0283454745478849,2.25,0.359375
+"repeated_viewing","shuffled_order","density_raw",64,0.141289578532973,1.703125,0.578125
+"blank_screen_imagery","signal","density_raw",64,0.0283454745478849,2.25,0.359375
+"repeated_viewing","signal","density_raw",64,0.141289578532973,1.703125,0.578125
+"blank_screen_imagery","wrong_item","density_raw",64,-0.0249648686305019,2.578125,0.234375
+"repeated_viewing","wrong_item","density_raw",64,-0.0809164932477116,2.828125,0.140625
+"blank_screen_imagery","generic_gaze","density_registered",64,-0.00776184317909969,2.5,0.25
+"repeated_viewing","generic_gaze","density_registered",64,-0.00301313472658188,2.5,0.25
+"blank_screen_imagery","shuffled_order","density_registered",64,0.0343900119400468,2.25,0.328125
+"repeated_viewing","shuffled_order","density_registered",64,0.122102656295977,1.765625,0.578125
+"blank_screen_imagery","signal","density_registered",64,0.0343900119400468,2.25,0.328125
+"repeated_viewing","signal","density_registered",64,0.122102656295977,1.765625,0.578125
+"blank_screen_imagery","wrong_item","density_registered",64,-0.014725124460305,2.625,0.265625
+"repeated_viewing","wrong_item","density_registered",64,-0.0744822416826849,2.890625,0.09375

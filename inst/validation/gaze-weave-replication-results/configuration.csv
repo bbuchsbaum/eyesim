@@ -1,0 +1,2 @@
+"protocol_version","seed","smoke","participants","items","excluded_participants","excluded_items","replay_score_scale","advance","provisional_default","strongest_baseline","superiority_supported"
+2,20260818,FALSE,"111;130;18;300;302;316;325;9","4;11;24;62;63;80;92;101","104;121;124;128;315;317;319;327","5;18;69;73;81;82;88;105","mean_log_likelihood_per_duration_bin",FALSE,"no_real_data_default","density_ridge_registered",FALSE

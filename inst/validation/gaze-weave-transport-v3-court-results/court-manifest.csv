@@ -1,0 +1,2 @@
+"protocol_version","seed","smoke","n_items","candidate_policy","prior_policy","outer_folds","bootstrap_seed","bootstrap_replicates","retrieval_fields_read","private_data_read","passed"
+"3.0.2",20260822,FALSE,8,"shared_exhaustive","shared_actual_uniform_design",2,20260822,500,FALSE,FALSE,TRUE

@@ -42,7 +42,9 @@ This function creates an animated visualization of a fixation scanpath using gga
 # Create a fixation group
 fg <- fixation_group(x=c(.1,.5,1), y=c(1,.5,1), onset=1:3, duration=rep(1,3))
 # Animate the scanpath for the fixation group
-anim_sp <- anim_scanpath(fg)
+if (requireNamespace("gganimate", quietly = TRUE)) {
+  anim_sp <- anim_scanpath(fg)
+}
 }
 \seealso{
 Other visualization: 

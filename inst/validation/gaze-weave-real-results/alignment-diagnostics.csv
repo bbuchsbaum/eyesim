@@ -1,0 +1,5 @@
+"task","method","n","mean_replay_coverage","mean_background_coverage","mean_spatial_rmse_px","mean_local_order_error","mean_expected_restarts","convergence_rate"
+"blank_screen_imagery","replay",64,0.835732060022038,0.164267939977962,122.827011571286,NA,1.4478391862864,1
+"repeated_viewing","replay",64,0.829223434904409,0.170776565095591,71.8512074931407,NA,1.94161334497536,1
+"blank_screen_imagery","transport_v2",64,0.688766576714155,NA,105.324712957619,0.131725220864417,NA,1
+"repeated_viewing","transport_v2",64,0.671311834789947,NA,73.0958393468139,0.12212840563835,NA,1

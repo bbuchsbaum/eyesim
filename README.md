@@ -1,50 +1,61 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+
 
 # eyesim
 
 <!-- badges: start -->
-
-[![Codecov test
-coverage](https://codecov.io/gh/bbuchsbaum/eyesim/branch/master/graph/badge.svg)](https://app.codecov.io/gh/bbuchsbaum/eyesim?branch=master)
+[![Codecov test coverage](https://codecov.io/gh/bbuchsbaum/eyesim/branch/master/graph/badge.svg)](https://app.codecov.io/gh/bbuchsbaum/eyesim?branch=master)
 <!-- badges: end -->
 
 ## Installation
 
-You can install development version from [GitHub](https://github.com/)
-with:
+You can install development version from [GitHub](https://github.com/) with:
 
-    #install.packages("remotes")
-    remotes::install_github("bbuchsbaum/eyesim")
+```
+#install.packages("remotes")
+remotes::install_github("bbuchsbaum/eyesim")
+```
 
 ## Overview
 
-Are two eye-movement fixation patterns similar? The goal of the `eyesim`
-package is to provide methods for answering this question.
+Are two eye-movement fixation patterns similar? The goal of the `eyesim` package is to provide methods for answering this question.
 
-For example, in studies of recognition memory, we might ask whether the
-eye-movement fixation pattern during the first presentation of an image
-(“encoding”) is similar to the eye-movement fixation pattern during the
-second presentation of the same image (“recognition”). Furthermore, we
-can ask whether fixation similarity varies as a function of conditions
-in the experimental design or the behavioral responses (e.g. correct
-recognition or miss).
+For example, in studies of recognition memory, we might ask whether the eye-movement fixation pattern during the first presentation of an image ("encoding") is similar to the eye-movement fixation pattern during the second presentation of the same image ("recognition"). Furthermore, we can ask whether fixation similarity varies as a function of conditions in the experimental design or the behavioral responses (e.g. correct recognition or miss).
+
+The experimental GazeWeave workflow asks whether a held-out gaze path
+identifies its correct template among permitted nonmatches. Directional Replay
+is designed for encoding-to-recall studies. Edge-normalized Transport is
+the symmetric explanatory alignment engine for local order and partial
+coverage; its dedicated `gaze_transport_cv()` interface accepts one or
+several separate study presentations. Every engine returns one primary endpoint,
+`gaze_info_bits = log2(p_true / prior_true)`, using candidate calibration and
+warp estimation learned only from outer-training trials. Posterior Replay
+coverage and Transport's optimized correspondence, coverage, chronology,
+spatial residuals, and contraction remain explanatory diagnostics rather than
+additional outcomes.
+
+Transport passed its frozen invariant, simulation, runtime, and full-cohort
+repeated-viewing gates. In the sealed 0--3000 ms court it had the largest
+response-blind retrieval point estimate, but the interval included zero and it
+did not improve held-out old-item response prediction. The package therefore
+makes no retrieval-prediction or general-superiority claim; Replay, registered
+density, and MultiMatch remain visible comparators. Earlier Transport v1/v2/v3
+labels were internal development names: the edge-normalized estimator is now
+the sole public `gaze_transport_*` method. Version labels survive only in
+internal and frozen validation provenance; they are not selectable methods. See the
+[GazeWeave vignette](vignettes/GazeWeave.Rmd)
+for the executable Transport example, episode normalization, plot semantics,
+validation evidence, and failure modes.
 
 ## Vignettes
 
-See examples of use of `eyesim` in the
-[vignettes](https://bbuchsbaum.github.io/eyesim/articles/index.html).
+See examples of use of `eyesim` in the [vignettes](https://bbuchsbaum.github.io/eyesim/articles/index.html).
 
-With some luck you might be able to make a cool image like the one
-below!
+With some luck you might be able to make a cool image like the one below!
 
 ![](phelps.gif)
-
-
-## Albers theme
-This package uses the albersdown theme. Vignettes are styled with `vignettes/albers.css` and a local `vignettes/albers.js`; the palette family is provided via `params$family` (default 'red'). The pkgdown site uses `template: { package: albersdown }`.
-
-<!-- albersdown:theme-note:start -->
-## Albers theme
-This package uses the albersdown theme. Existing vignette theme hooks are replaced so `albers.css` and local `albers.js` render consistently on CRAN and GitHub Pages. The palette family is provided via `params$family` (default 'violet'). The pkgdown site uses `template: { package: albersdown }`.
-<!-- albersdown:theme-note:end -->

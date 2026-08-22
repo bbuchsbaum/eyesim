@@ -1,0 +1,11 @@
+"task","method","threshold_bits","null_error","power","null_n","signal_n"
+"blank_screen_imagery","density_ridge_registered",0.152520524944377,0.05078125,0.0625,128,64
+"repeated_viewing","density_ridge_registered",0.886804467796134,0.05078125,0.328125,128,64
+"blank_screen_imagery","elastic_ridge_registered",0.447488344911918,0.05078125,0,128,64
+"repeated_viewing","elastic_ridge_registered",0.434633530306652,0.05078125,0.046875,128,64
+"blank_screen_imagery","multimatch_ridge_registered",0.24391853689741,0.05078125,0.046875,128,64
+"repeated_viewing","multimatch_ridge_registered",1.44610161231099,0.05078125,0.0625,128,64
+"blank_screen_imagery","replay",0.565309320688642,0.05078125,0.0625,128,64
+"repeated_viewing","replay",1.00377584438085,0.05078125,0.25,128,64
+"blank_screen_imagery","transport_v2",0.379604731866138,0.05078125,0.09375,128,64
+"repeated_viewing","transport_v2",0.860710908815433,0.05078125,0.28125,128,64

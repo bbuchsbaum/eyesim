@@ -1,0 +1,3 @@
+"fold","train_items","eval_items","overlap_item_n","candidate_count","candidate_prior_sum","v3_inner_overlap_max","baseline_inner_overlap_max"
+1,"3;4;5;7","1;2;6;8",0,8,1,0,0
+2,"1;2;6;8","3;4;5;7",0,8,1,0,0

@@ -1,0 +1,8 @@
+"gate","passed"
+"representation_and_stability",TRUE
+"null_error",TRUE
+"predictive_signal",TRUE
+"fixed_density_order",TRUE
+"contraction_recovery",TRUE
+"null_registration",TRUE
+"engine_convergence",TRUE

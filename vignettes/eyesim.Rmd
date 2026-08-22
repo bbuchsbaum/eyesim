@@ -152,7 +152,10 @@ The default metric is the Pearson correlation. Several alternatives are
 available:
 
 ```{r similarity-methods}
-methods <- c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")
+methods <- c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard")
+if (requireNamespace("energy", quietly = TRUE)) {
+  methods <- c(methods, "dcov")
+}
 results <- sapply(methods, function(m) similarity(ed1, ed2, method = m))
 data.frame(method = methods, similarity = round(unlist(results), 4))
 ```

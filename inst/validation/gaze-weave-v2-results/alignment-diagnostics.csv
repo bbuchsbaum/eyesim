@@ -1,0 +1,3 @@
+"method","mean_replay_coverage","mean_background_coverage","mean_spatial_rmse"
+"transport_v2",0.788114003115791,NA,1.00663818158333
+"replay",0.972944903612191,0.027055096387809,0.438910040692886

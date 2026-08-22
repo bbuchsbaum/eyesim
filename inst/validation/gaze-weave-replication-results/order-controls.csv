@@ -1,0 +1,15 @@
+"task","method","calibrated","mean_signal_minus_shuffled","max_absolute_pair_difference"
+"repeated_viewing","transport_v2",TRUE,0.0140607209822049,0.257047104514769
+"repeated_viewing","replay",TRUE,0.00590723879140322,0.742871098191356
+"repeated_viewing","multimatch_ridge_registered",TRUE,-0.207681678866486,15.5405900005301
+"repeated_viewing","density_ridge_registered",TRUE,4.24465150528075e-17,1.33226762955019e-15
+"repeated_viewing","elastic_ridge_registered",TRUE,8.57877086561524e-16,2.43485787088105e-14
+"repeated_viewing","density_raw",FALSE,-5.17706537361828e-18,6.38378239159465e-16
+"repeated_viewing","density_registered",FALSE,2.99781900692242e-17,6.38378239159465e-16
+"blank_screen_imagery","transport_v2",TRUE,-0.00327554577642926,0.0916588216689406
+"blank_screen_imagery","replay",TRUE,-0.0173588252222707,0.345388685985489
+"blank_screen_imagery","multimatch_ridge_registered",TRUE,-0.0470031615188125,0.780667580076199
+"blank_screen_imagery","density_ridge_registered",TRUE,1.49416611895659e-17,9.99200722162641e-16
+"blank_screen_imagery","elastic_ridge_registered",TRUE,-9.06175964005148e-17,4.2188474935756e-15
+"blank_screen_imagery","density_raw",FALSE,-3.90312782094782e-18,6.66133814775094e-16
+"blank_screen_imagery","density_registered",FALSE,1.95156391047391e-18,6.38378239159465e-16

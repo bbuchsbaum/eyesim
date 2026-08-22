@@ -1,0 +1,9 @@
+"check","absolute_difference","tolerance"
+"transport_split_merge",0,1e-08
+"replay_split_merge",0,1e-08
+"transport_time_dilation",0,1e-08
+"replay_time_dilation",0,1e-08
+"transport_detector_variant",0,0.15
+"replay_detector_variant",0,0.15
+"transport_unit_conversion",0,1e-06
+"replay_unit_conversion",0,1e-06
