@@ -1,0 +1,1 @@
+{"actor":"codex-gazeweave-planner","entity":"bd-01M03RQQ9303317V1GVKEBNK4P","kind":"note","note_kind":"progress","op":"20260815T224748.430081Z-p96971-c0003-r92be-h318376","text":"Implementing stable candidate probabilities, information/odds bits, nested temperature fitting, and leakage/tie/calibration tests.","ts":"2026-08-15T22:47:48.430081Z","v":1}

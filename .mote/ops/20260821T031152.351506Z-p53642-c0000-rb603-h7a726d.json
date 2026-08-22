@@ -1,0 +1,1 @@
+{"actor":"codex-gazeweave-planner","entity":"bd-01M0H43S6EQ7G9ZSW7RFM5PZ0P","kind":"reserve_open","mode":"exclusive","op":"20260821T031152.351506Z-p53642-c0000-rb603-h7a726d","paths":["R/gaze_weave_transport_v3.R","tests/testthat/test_gaze_weave_transport_v3.R"],"reservation_id":"rv-01M0H4VCGZBSRWVVD4N7EWD40A","ts":"2026-08-21T03:11:52.351506Z","ttl_s":3600,"v":1}

@@ -1,0 +1,1 @@
+{"actor":"codex-gazeweave-planner","entity":"bd-01M03RQQ315R5V0KND0ZR624J9","kind":"note","note_kind":"progress","op":"20260815T225406.198455Z-p1137-c0003-rc5ec-hac4be2","text":"Implementing normalized duration-grid Replay HMM, training-only background/parameter fitting, forward-backward posterior diagnostics, and directional CV scoring.","ts":"2026-08-15T22:54:06.198455Z","v":1}

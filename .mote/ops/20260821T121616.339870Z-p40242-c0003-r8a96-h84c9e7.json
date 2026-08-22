@@ -1,0 +1,1 @@
+{"actor":"codex-gazeweave-planner","entity":"bd-01M0J3ZXGKTMC2AVJ04J8JRYYM","kind":"note","note_kind":"progress","op":"20260821T121616.339870Z-p40242-c0003-r8a96-h84c9e7","text":"Canonicalizing the frozen v3 estimator as the sole unversioned Transport API; removing development-only v1/v2 code and public documentation.","ts":"2026-08-21T12:16:16.339870Z","v":1}
