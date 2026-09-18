@@ -232,3 +232,24 @@ test_that("fisherz gives the same clamped value for every pair of identical maps
   expect_equal(similarity(constant, constant, method = "pearson"), 1)
   expect_equal(similarity(constant, constant, method = "spearman"), 1)
 })
+
+# Audit item 10 --------------------------------------------------------------
+test_that("density maps on different lattices are refused", {
+  z <- matrix(c(1, 2, 3, 4), 2)
+  a <- gen_density(x = 1:2, y = 1:2, z = z)
+  b <- gen_density(x = c(10, 20), y = c(10, 20), z = z)
+  for (method in c("pearson", "cosine", "fisherz", "l1")) {
+    expect_error(similarity(a, b, method = method), "different lattices", info = method)
+  }
+  expect_equal(similarity(a, gen_density(x = 1:2, y = 1:2, z = z), method = "pearson"), 1)
+  expect_error(similarity(a, 1:5, method = "pearson"), "grid cells")
+
+  # template_similarity refuses on both the fast cosine and the general path.
+  ref <- tibble::tibble(key = c("k1", "k2"), density = list(a, a))
+  src <- tibble::tibble(key = c("k1", "k2"), density = list(b, b))
+  for (method in c("cosine", "pearson")) {
+    expect_error(suppressMessages(template_similarity(ref, src, "key", method = method,
+                                                      permutations = 0)),
+                 "different lattices", info = method)
+  }
+})

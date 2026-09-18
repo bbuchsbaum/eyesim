@@ -251,6 +251,10 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
   if (is.null(ref_mat) || is.null(src_mat) || nrow(source_tab) == 0L) {
     return(NULL)
   }
+  # Mixed lattices fall back to the general path, which refuses the comparison.
+  if (!fast_cosine_lattices_agree(c(ref_tab[[refvar]], source_tab[[sourcevar]]))) {
+    return(NULL)
+  }
 
   sim_mat <- cosine_similarity_matrix(src_mat, ref_mat)
   obs_sim <- sim_mat[cbind(seq_len(nrow(source_tab)), matchind)]
@@ -320,6 +324,15 @@ vectorize_fast_cosine_tab <- function(x, expected_len = NULL) {
     return(NULL)
   }
   mat
+}
+
+fast_cosine_lattices_agree <- function(objs) {
+  dens <- Filter(function(obj) inherits(obj, c("density", "eye_density")), objs)
+  if (length(dens) < 2L) {
+    return(TRUE)
+  }
+  first <- dens[[1]]
+  all(vapply(dens[-1], function(obj) density_lattices_equal(first, obj), logical(1)))
 }
 
 vectorize_fast_cosine_obj <- function(obj) {
@@ -1663,6 +1676,12 @@ similarity.density <- function(x, y,
                                            "dcov", "emd"),
                                saliency_map = NULL, ...) {
   method <- match.arg(method)
+  if (inherits(y, "density")) {
+    check_same_density_lattice(x, y)
+  } else if (is.numeric(y) && length(y) != length(x$z)) {
+    stop("similarity(): `y` has ", length(y), " values but the density map `x` has ",
+         length(x$z), " grid cells.")
+  }
   if (method == "emd") {
     compute_similarity(x, y, method = method, saliency_map = saliency_map)
   } else {
@@ -1671,6 +1690,25 @@ similarity.density <- function(x, y,
     }
     compute_similarity(x$z, as.vector(y), method)
   }
+}
+
+# Two density maps are comparable cell by cell only when they share a lattice.
+density_lattices_equal <- function(x, y) {
+  gx <- as.numeric(x$x)
+  gy <- as.numeric(x$y)
+  hx <- as.numeric(y$x)
+  hy <- as.numeric(y$y)
+  length(gx) == length(hx) && length(gy) == length(hy) &&
+    isTRUE(all.equal(gx, hx)) && isTRUE(all.equal(gy, hy)) &&
+    identical(dim(x$z), dim(y$z))
+}
+
+check_same_density_lattice <- function(x, y) {
+  if (!density_lattices_equal(x, y)) {
+    stop("similarity(): density maps are on different lattices. Both maps must ",
+         "have the same x and y grid coordinates (same bounds and outdim).")
+  }
+  invisible(TRUE)
 }
 
 #' @export

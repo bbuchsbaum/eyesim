@@ -21,6 +21,12 @@ A numeric value representing the similarity between the two input objects.
 \description{
 This function computes the similarity between two objects using a specified similarity metric.
 }
+\details{
+Density maps are compared cell by cell, so two maps must share a
+lattice: the same \code{x} and \code{y} grid coordinates, as produced by the
+same bounds and \code{outdim}. Comparing maps on different lattices is an
+error. A plain numeric \code{y} must have one value per grid cell of \code{x}.
+}
 \examples{
 \dontrun{
 # Example usage of the similarity function

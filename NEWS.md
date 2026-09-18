@@ -120,3 +120,9 @@
   (about 18.37) for identical constant maps, the same value it already
   returned for identical non-constant maps. It previously returned 1. The
   clamp is documented in `?template_similarity`.
+
+* `similarity()` on two density maps now refuses maps whose lattices (x and y
+  grid coordinates) differ, instead of comparing the `z` matrices cell by cell
+  as if they were aligned. A numeric `y` must have one value per grid cell.
+  `template_similarity()` and related wrappers raise the same error on both
+  the fast cosine and the general path.
