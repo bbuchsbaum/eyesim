@@ -183,3 +183,8 @@
   `suggest_sigma()` cannot estimate a bandwidth from one point. It previously
   failed with "missing values present in assertion". `eye_density()` now
   reports an `NA` or non-finite `sigma` with a clear message.
+
+* `fixation_entropy()` now rejects maps with negative values, such as the
+  difference of two densities, with a clear error. Previously an exact
+  difference map (total zero) gave `NA` while a signed map with a positive
+  total gave a meaningless number. Maps with zero total mass still give `NA`.

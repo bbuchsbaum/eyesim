@@ -396,3 +396,17 @@ test_that("a single fixation gives a defined entropy instead of an error", {
   expect_error(eye_density(audit_fg(), sigma = NA_real_), "positive, finite")
   expect_error(eye_density(audit_fg(), sigma = suggest_sigma(one)), "positive, finite")
 })
+
+# Audit item 23 --------------------------------------------------------------
+test_that("fixation_entropy rejects signed maps", {
+  fg <- audit_fg()
+  d1 <- audit_density(fg)
+  d2 <- audit_density(fg, weights = c(4, 2, 1))
+  expect_error(fixation_entropy(d1 - d2), "non-negative mass")
+
+  signed <- gen_density(x = 1:2, y = 1:2, z = matrix(c(2, -1, 1, 0.5), 2))
+  expect_error(fixation_entropy(signed), "non-negative mass")
+
+  # Zero mass is still undefined rather than an error.
+  expect_true(is.na(fixation_entropy(d1 - d1)))
+})

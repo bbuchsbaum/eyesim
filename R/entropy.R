@@ -5,6 +5,10 @@
 #' normalized density surface. For fixation groups, entropy can be computed from
 #' either a derived density map or a discrete occupancy grid.
 #'
+#' Entropy is defined only for non-negative mass. A map with any negative value,
+#' such as the difference of two densities, is an error. A map whose total mass
+#' is zero gives \code{NA}.
+#'
 #' @param x The input object.
 #' @param normalize Logical; if `TRUE` (default), divide entropy by the maximum
 #'   possible entropy for the number of valid bins so results lie in `[0, 1]`.
@@ -153,6 +157,13 @@ entropy_from_mass <- function(mass, normalize = TRUE, base = exp(1)) {
 
   if (length(vals) == 0L) {
     return(NA_real_)
+  }
+
+  # Shannon entropy needs a probability mass; a signed map (for example a
+  # difference of two densities) has none, whatever its total.
+  if (any(vals < 0)) {
+    stop("fixation_entropy() requires non-negative mass, but the map has negative ",
+         "values (for example a difference of two densities).")
   }
 
   total <- sum(vals)
