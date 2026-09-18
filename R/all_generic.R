@@ -93,6 +93,11 @@ rescale <- function(x, sx, sy) {
 #' It can be useful when working with fixation data that needs to be resampled or when
 #' creating fixation sequences with consistent temporal spacing.
 #'
+#' For fixation groups, each fixation is repeated
+#' \code{floor(duration * resolution)} times, and at least once. The floor
+#' tolerates floating-point error, so a duration of 0.29 at resolution 100 gives
+#' 29 copies rather than 28.
+#'
 #' @param x An object representing a fixation sequence.
 #' @param resolution A numeric value representing the temporal resolution of the replicated fixations.
 #'

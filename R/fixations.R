@@ -50,8 +50,11 @@ fixation_group <- function(x, y, duration, onset, group=0) {
 #' @rdname rep_fixations
 #' @export
 rep_fixations.fixation_group <- function(x, resolution=100) {
-  nreps <- as.integer(x$duration/ (1/resolution))
-  nreps[nreps < 1] <- 1
+  # floor(duration * resolution) with a relative tolerance, so products such as
+  # 0.29 * 100 = 28.999999999999996 count as 29 rather than 28.
+  counts <- x$duration * resolution
+  nreps <- as.integer(floor(counts + sqrt(.Machine$double.eps) * pmax(1, abs(counts))))
+  nreps[nreps < 1] <- 1L
   x <- x[rep(1:nrow(x), nreps),]
   x
 }

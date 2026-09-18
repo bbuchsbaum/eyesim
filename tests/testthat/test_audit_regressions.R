@@ -300,3 +300,12 @@ test_that("sample_fixations holds the last fixation on both paths", {
                              times = c(0, 50, 100, 150, 200))
   expect_equal(res$sampled[[1]]$z, c(0.1, 0.1, 0.4, 0.4, 0.4))
 })
+
+# Audit item 14 --------------------------------------------------------------
+test_that("rep_fixations counts replicates without floating-point loss", {
+  fg <- fixation_group(x = c(1, 2, 3, 4), y = rep(1, 4), onset = c(0, 1, 2, 3),
+                       duration = c(0.29, 0.57, 0.295, 0.001))
+  reps <- rep_fixations(fg, 100)
+  expect_equal(as.vector(table(reps$index)), c(29L, 57L, 29L, 1L))
+  expect_equal(nrow(rep_fixations(fixation_group(x = 5.5, y = 1, onset = 0, duration = 0.29), 100)), 29L)
+})

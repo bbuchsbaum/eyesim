@@ -144,3 +144,8 @@
   `sample_density_time()`, `template_sample()` with `time`, and
   `fixation_overlap()` now score time points after the last onset instead of
   treating them as missing.
+
+* `rep_fixations()` now counts `floor(duration * resolution)` replicates with a
+  floating-point tolerance. A duration of 0.29 at resolution 100 previously
+  gave 28 copies because `0.29 / 0.01` evaluates to 28.999999999999996; it now
+  gives 29.
