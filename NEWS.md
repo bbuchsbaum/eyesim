@@ -116,10 +116,13 @@
   documentation now states that permutation controls come only from the
   held-out fold.
 
-* `similarity(method = "fisherz")` now returns `atanh(1 - .Machine$double.eps)`
-  (about 18.37) for identical constant maps, the same value it already
-  returned for identical non-constant maps. It previously returned 1. The
-  clamp is documented in `?template_similarity`.
+* `similarity(method = "fisherz")` now returns exactly
+  `atanh(1 - .Machine$double.eps)` (about 18.37) for every pair of identical
+  maps, and for any correlation within `64 * .Machine$double.eps` of 1, such as
+  a rescaled copy of a map; correlations that close to -1 give its negative.
+  Identical constant maps previously returned 1, and identical non-constant
+  maps returned values between about 17.3 and 18.37, depending on rounding
+  error in `cor()`. The clamp is documented in `?template_similarity`.
 
 * `similarity()` on two density maps now refuses maps whose lattices (x and y
   grid coordinates) differ, instead of comparing the `z` matrices cell by cell

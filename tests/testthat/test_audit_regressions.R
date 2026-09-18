@@ -228,6 +228,16 @@ test_that("fisherz gives the same clamped value for every pair of identical maps
   flat <- gen_density(x = 1:2, y = 1:2, z = matrix(constant, 2))
   expect_equal(similarity(flat, flat, method = "fisherz"), z_max)
 
+  # cor(v, v) is often 1 - k * eps for random vectors; identical and rescaled
+  # copies must still give exactly the clamped value, and r = -1 its negative.
+  set.seed(7)
+  for (i in 1:200) {
+    v <- runif(10)
+    expect_identical(similarity(v, v, method = "fisherz"), z_max)
+    expect_identical(similarity(v, 3 * v + 1, method = "fisherz"), z_max)
+    expect_identical(similarity(v, -v, method = "fisherz"), -z_max)
+  }
+
   # Correlation-scale methods still report r = 1 for identical constant maps.
   expect_equal(similarity(constant, constant, method = "pearson"), 1)
   expect_equal(similarity(constant, constant, method = "spearman"), 1)
