@@ -53,7 +53,10 @@ to `match_on`.}
 
 \item{n_folds}{Number of folds. Defaults to `min(5, n_unique_groups)`.}
 
-\item{seed}{Random seed used for fold assignment.}
+\item{seed}{Random seed for fold assignment and for the permutation draws that
+follow it, so results are reproducible from \code{seed} alone. The caller's
+random number state is restored on exit, so the call does not change the
+session RNG stream.}
 
 \item{fit_source_filter}{Optional logical vector or function selecting which
 source rows are eligible for transform fitting. Functions receive
@@ -86,4 +89,11 @@ or `cca_transform`. For each fold, it:
   matched reference rows, and
   \item computes similarity only on the held-out rows.
 }
+
+Permutation controls are drawn only from the reference rows matched by the
+same held-out fold (and, if \code{permute_on} is given, the same stratum),
+not from the full reference table. Each row therefore has roughly
+\code{1/n_folds} as many candidates as in \code{template_similarity()}, and
+\code{n_perm} is correspondingly smaller. This holds with or without a
+\code{similarity_transform}.
 }

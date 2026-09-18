@@ -109,3 +109,9 @@
   sampling uses a "fixed future seed". Sampling uses the session RNG, so
   `set.seed()` before the call makes the baseline reproducible. No behaviour
   change.
+
+* `template_similarity_cv()` no longer resets the caller's random number
+  stream. Fold assignment and permutation draws still run under `seed`, so its
+  results are unchanged, but the session RNG state is restored on exit. The
+  documentation now states that permutation controls come only from the
+  held-out fold.

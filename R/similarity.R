@@ -519,12 +519,22 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 #'   \item computes similarity only on the held-out rows.
 #' }
 #'
+#' Permutation controls are drawn only from the reference rows matched by the
+#' same held-out fold (and, if \code{permute_on} is given, the same stratum),
+#' not from the full reference table. Each row therefore has roughly
+#' \code{1/n_folds} as many candidates as in \code{template_similarity()}, and
+#' \code{n_perm} is correspondingly smaller. This holds with or without a
+#' \code{similarity_transform}.
+#'
 #' @inheritParams template_similarity
 #' @param split_on Character vector of source-table columns used to assign folds.
 #'   All rows sharing the same `split_on` values are held out together. Defaults
 #'   to `match_on`.
 #' @param n_folds Number of folds. Defaults to `min(5, n_unique_groups)`.
-#' @param seed Random seed used for fold assignment.
+#' @param seed Random seed for fold assignment and for the permutation draws that
+#'   follow it, so results are reproducible from \code{seed} alone. The caller's
+#'   random number state is restored on exit, so the call does not change the
+#'   session RNG stream.
 #' @param fit_source_filter Optional logical vector or function selecting which
 #'   source rows are eligible for transform fitting. Functions receive
 #'   `source_tab` and must return a logical vector with one value per row.
@@ -545,6 +555,12 @@ template_similarity_cv <- function(ref_tab, source_tab, match_on, permute_on = N
                                    fit_source_filter = NULL, eval_source_filter = NULL, ...) {
 
   method <- match.arg(method)
+
+  # Fold assignment and permutation draws run under `seed`; the caller's RNG
+  # state is restored on exit so the call leaves the session stream untouched.
+  restore_session_rng <- snapshot_session_rng()
+  on.exit(restore_session_rng(), add = TRUE)
+
   source_tab <- dplyr::ungroup(source_tab)
   source_tab[["..cv_row_id"]] <- seq_len(nrow(source_tab))
 
@@ -666,6 +682,22 @@ resolve_similarity_cv_filter <- function(source_tab, filter_spec, label) {
     stop(label, " must be NULL, a logical vector of length nrow(source_tab), or a function returning one.")
   }
   vals
+}
+
+# Capture the session RNG state and return a function that restores it,
+# removing .Random.seed again if it did not exist beforehand.
+snapshot_session_rng <- function() {
+  genv <- globalenv()
+  had_seed <- exists(".Random.seed", envir = genv, inherits = FALSE)
+  old_seed <- if (had_seed) get(".Random.seed", envir = genv, inherits = FALSE) else NULL
+  function() {
+    if (had_seed) {
+      assign(".Random.seed", old_seed, envir = genv)
+    } else if (exists(".Random.seed", envir = genv, inherits = FALSE)) {
+      rm(".Random.seed", envir = genv)
+    }
+    invisible(NULL)
+  }
 }
 
 make_similarity_cv_folds <- function(source_tab, split_on, n_folds = NULL, seed = 1) {

@@ -182,3 +182,37 @@ test_that("permutation baselines follow the session RNG", {
     expect_gt(length(unique(draws)), 1L)
   }
 })
+
+# Audit item 24 --------------------------------------------------------------
+test_that("template_similarity_cv leaves the caller's RNG stream untouched", {
+  mk <- function(i) gen_density(x = 1:2, y = 1:2, z = matrix(c(i, 7 - i, (i %% 3) + 1, 2), 2))
+  ref <- tibble::tibble(key = letters[1:6], participant = "p", density = lapply(1:6, mk))
+  cv <- function(...) {
+    suppressMessages(template_similarity_cv(ref, ref, "key", permute_on = "participant",
+                                            method = "pearson", n_folds = 2, seed = 1, ...))
+  }
+
+  set.seed(42)
+  expected <- runif(3)
+  set.seed(42)
+  res1 <- cv(permutations = 1)
+  expect_identical(runif(3), expected)
+
+  # Results depend on `seed` only, not on the caller's RNG state.
+  set.seed(7)
+  res2 <- cv(permutations = 1)
+  expect_identical(res2$perm_sim, res1$perm_sim)
+
+  # Without a prior .Random.seed, none is left behind.
+  if (exists(".Random.seed", envir = globalenv())) {
+    saved <- get(".Random.seed", envir = globalenv())
+    on.exit(assign(".Random.seed", saved, envir = globalenv()), add = TRUE)
+    rm(".Random.seed", envir = globalenv())
+  }
+  cv(permutations = 0)
+  expect_false(exists(".Random.seed", envir = globalenv()))
+
+  # Controls come from the held-out fold only: 3 keys per fold, so 2 controls.
+  full <- cv(permutations = 100)
+  expect_equal(full$n_perm, rep(2L, 6))
+})
