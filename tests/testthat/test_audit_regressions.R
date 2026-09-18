@@ -59,6 +59,10 @@ test_that("eye_density forwards extra arguments to ks::kde", {
   expect_error(audit_density(fg, eval.points = cbind(10, 20)), "Unsupported ks::kde")
   expect_error(audit_density(fg, kde_pkg = "MASS", binned = FALSE),
                "not supported when kde_pkg")
+
+  # A mistyped backend is refused instead of silently falling back to MASS.
+  expect_error(audit_density(fg, kde_pkg = "ks "), "must be \"ks\" or \"MASS\"")
+  expect_error(audit_density(fg, kde_pkg = c("ks", "MASS")), "must be \"ks\" or \"MASS\"")
 })
 
 # Audit item 3 ---------------------------------------------------------------
@@ -255,9 +259,14 @@ test_that("fisherz gives the same clamped value for every pair of identical maps
   flat <- gen_density(x = 1:2, y = 1:2, z = matrix(constant, 2))
   expect_equal(similarity(flat, flat, method = "fisherz"), z_max)
 
+  # The reviewer's case: cor(v, v) is 1 - 3.3e-16 here, which gave z = 18.166.
+  set.seed(7)
+  v7 <- runif(10)
+  expect_identical(similarity(v7, v7, method = "fisherz"), z_max)
+
   # cor(v, v) is often 1 - k * eps for random vectors; identical and rescaled
   # copies must still give exactly the clamped value, and r = -1 its negative.
-  set.seed(7)
+  set.seed(8)
   for (i in 1:200) {
     v <- runif(10)
     expect_identical(similarity(v, v, method = "fisherz"), z_max)

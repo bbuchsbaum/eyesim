@@ -1238,7 +1238,7 @@ summary.eye_density <- function(object, ...) {
 #'   If fewer fixations are present after optional filtering, the function returns NULL.
 #'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
-#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".
+#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS"; any other value is an error. Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".
 #' @param ... Additional named arguments passed to \code{\link[ks]{kde}}, for example
 #'   \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
 #'   \code{xmin}, \code{xmax}, \code{w}, and the evaluation grid (\code{eval.points})
@@ -1248,9 +1248,11 @@ summary.eye_density <- function(object, ...) {
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 #'
 #' After optional normalization, each map is passed through
-#' \code{zapsmall(z, digits = 7)}: values are rounded to 7 significant digits
-#' relative to the map maximum, so values below about \code{max(z) * 5e-8} become
-#' zero. The precision is fixed and does not depend on \code{options(digits)}.
+#' \code{zapsmall(z, digits = 7)}. The precision is fixed and does not depend on
+#' \code{options(digits)}. In R 4.5.1, where this was verified, \code{zapsmall()}
+#' computes \code{round(z, max(0, 7 - log10(max(abs(z)))))}: values are rounded
+#' to 7 significant digits relative to the map maximum, so values below roughly
+#' \code{max(z) * 5e-8} become zero.
 #'
 #' @return An object of class `eye_density` (inheriting from `density` and `list`) if
 #'   `sigma` is a single value, or an object of class `eye_density_multiscale` (a
@@ -1277,6 +1279,10 @@ eye_density.fixation_group <- function(x, sigma = 50,
   assert_that(is.numeric(sigma) && length(sigma) > 0 &&
                 all(!is.na(sigma) & is.finite(sigma) & sigma > 0),
               msg = "sigma must be a positive, finite numeric value or vector")
+  # Any value other than "ks" used to fall through silently to MASS.
+  assert_that(is.character(kde_pkg) && length(kde_pkg) == 1L &&
+                !is.na(kde_pkg) && kde_pkg %in% c("ks", "MASS"),
+              msg = "kde_pkg must be \"ks\" or \"MASS\".")
 
   # Explicit per-fixation weights take precedence over duration weighting.
   if (!is.null(weights)) {
