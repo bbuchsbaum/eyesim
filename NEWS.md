@@ -104,3 +104,8 @@
   now removed from each such row's permutation candidates. Previously one copy
   remained, so a row could be compared with its own template in the baseline.
   This matches `sample_density_time()`.
+
+* Documentation: `?template_similarity` no longer claims that permutation
+  sampling uses a "fixed future seed". Sampling uses the session RNG, so
+  `set.seed()` before the call makes the baseline reproducible. No behaviour
+  change.

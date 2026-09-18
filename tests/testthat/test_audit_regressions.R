@@ -159,3 +159,26 @@ test_that("duplicated focal keys never enter their own permutation baseline", {
     expect_equal(res$n_perm[a_rows], rep(2L, 2), info = method)
   }
 })
+
+# Audit item 7 (documentation) -----------------------------------------------
+# The documented behaviour: sampling uses the session RNG, so set.seed() makes
+# the baseline reproducible and different seeds can select different controls.
+test_that("permutation baselines follow the session RNG", {
+  mk <- function(i) {
+    z <- rep(0, 4)
+    z[i] <- 1
+    z[(i %% 4) + 1] <- 0.5
+    gen_density(x = 1:2, y = 1:2, z = matrix(z, 2))
+  }
+  ref <- tibble::tibble(key = letters[1:4], participant = "p", density = lapply(1:4, mk))
+  run <- function(method, seed) {
+    set.seed(seed)
+    suppressMessages(template_similarity(ref, ref, "key", permute_on = "participant",
+                                         method = method, permutations = 1))$perm_sim
+  }
+  for (method in c("cosine", "pearson")) {
+    expect_identical(run(method, 1), run(method, 1), info = method)
+    draws <- lapply(1:10, function(s) run(method, s))
+    expect_gt(length(unique(draws)), 1L)
+  }
+})
