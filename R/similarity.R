@@ -468,7 +468,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #'   \item The set of permutation candidates is determined by \code{permute_on}. Candidates are the distinct reference rows matched by at least one source row, within the same \code{permute_on} stratum if given (e.g., within-participant). Each candidate counts once, however many source rows match it, so \code{n_perm} counts distinct templates. A reference row that no source row matches is never a candidate.
 #'   \item The true match is removed from the candidate set before any sampling. If several source rows share the same \code{match_on} key, every copy of that key is removed, so a row is never compared with its own template in the baseline.
 #'   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial.
-#'   \item Sampling uses the session random number generator; there is no internal fixed seed. Call \code{set.seed()} immediately before the call to make the baseline reproducible. The call advances the session RNG. With \code{method = "cosine"} and no \code{window}, extra arguments, or multiscale aggregation, a vectorized path samples with \code{sample()} directly; other methods draw per-row streams through \code{furrr::furrr_options(seed = TRUE)}, which are derived from the session RNG. The same seed can therefore select different controls for different methods.
+#'   \item Sampling uses the session random number generator; there is no internal fixed seed. Call \code{set.seed()} immediately before the call to make the baseline reproducible. The call advances the session RNG. With \code{method = "cosine"}, the default \code{multiscale_aggregation = "mean"}, no \code{window} or extra arguments, and every reference and source map on one lattice, a vectorized path samples with \code{sample()} directly; other methods draw per-row streams through \code{furrr::furrr_options(seed = TRUE)}, which are derived from the session RNG. The same seed can therefore select different controls for different methods.
 #'   \item If \code{permutations} is greater than or equal to the number of available non-matching candidates, the procedure uses all candidates (excluding the true match). In other words, the permutation baseline is exhaustive when possible.
 #'   \item For small-N designs, you can set \code{permutations} to a large number to trigger exhaustive behavior. For example, with 3 images per participant and \code{permute_on = participant}, there are only 2 non-matching candidates per trial; any \code{permutations >= 2} will result in using both.
 #' }
@@ -1342,23 +1342,13 @@ eye_density.fixation_group <- function(x, sigma = 50,
     rep(1, nrow(x_filtered))
   }
 
-  # Decide on weights processing based on kde_pkg
+  # Weights can sum to zero after the window drops every positively weighted
+  # fixation, or when all durations are zero. No density exists then; both
+  # backends return NULL (ks::kde would otherwise yield NaN and fail later).
   processed_weights <- current_weights
-  if (weighted && !(requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks")) {
-      # If using custom kde2d_weighted, it might expect specific weight normalization.
-      # The example implementation used sum(w) in denominator.
-      # Let's ensure weights are positive sum if using this path.
-      if (sum(processed_weights) <= 0) {
-          warning("Sum of weights is zero or negative, cannot compute weighted density with non-ks method. Returning NULL.")
-          return(NULL)
-      }
-      # Normalization like w/sum(w) * N might be needed depending on kde2d_weighted implementation.
-      # Keeping raw weights for now, assuming kde2d_weighted handles it.
-  } else if (weighted && requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks") {
-      # ks::kde handles raw weights (counts, proportions, etc.)
-      if (sum(processed_weights) <= 0) {
-          warning("Sum of weights is zero or negative for ks::kde. Result might be zero density. Proceeding.")
-      }
+  if (weighted && sum(processed_weights) <= 0) {
+    warning("Sum of weights is zero among the fixations used. Returning NULL.")
+    return(NULL)
   }
 
 
@@ -1425,15 +1415,10 @@ eye_density.fixation_group <- function(x, sigma = 50,
     sum_w <- sum(final_weights)
     n_obs <- nrow(data_matrix)
 
+    # eye_density() has already returned NULL for a zero weight sum.
     if (sum_w > .Machine$double.eps) {
       scale_factor <- n_obs / sum_w
       scaled_final_weights <- final_weights * scale_factor
-    } # else: weights are zero/negative sum, ks::kde handles/warns
-
-    # Check if weights became zero or negative after scaling (unlikely but possible)
-    if (sum(scaled_final_weights) <= 0 && n_obs > 0) {
-        warning("Sum of weights is zero or negative even after scaling for ks::kde. Result might be zero density. Sigma: ", current_sigma)
-        # Proceed, ks::kde might handle this
     }
 
 
@@ -1743,8 +1728,17 @@ density_lattices_equal <- function(x, y) {
 
 check_same_density_lattice <- function(x, y) {
   if (!density_lattices_equal(x, y)) {
-    stop("similarity(): density maps are on different lattices. Both maps must ",
-         "have the same x and y grid coordinates (same bounds and outdim).")
+    # Classed so callers that turn per-pair errors into NA can let it through.
+    stop(structure(
+      class = c("eyesim_lattice_mismatch", "error", "condition"),
+      list(
+        message = paste0(
+          "similarity(): density maps are on different lattices. Both maps must ",
+          "have the same x and y grid coordinates (same bounds and outdim)."
+        ),
+        call = NULL
+      )
+    ))
   }
   invisible(TRUE)
 }

@@ -17,7 +17,7 @@ repetitive_similarity(
 \arguments{
 \item{tab}{A data frame or tibble containing the density maps and condition identifiers.}
 
-\item{density_var}{A character string specifying the name of the column containing the density maps (must be of class "density" or compatible). Default is "density".}
+\item{density_var}{A character string specifying the name of the column containing the density maps (must be of class "density" or compatible). All maps must share one lattice (same bounds and \code{outdim}); otherwise the call is refused. Default is "density".}
 
 \item{condition_var}{A character string specifying the name of the column identifying the condition for each trial.}
 
@@ -47,20 +47,25 @@ to all maps from different conditions (`othersim`).
 \examples{
 \donttest{
   # Generate a small synthetic dataset of density maps across two conditions.
-  # Each "density_map" is created from normally-distributed random samples.
+  # Fixations in condition A cluster at (30, 30), those in B at (70, 70).
   set.seed(123)
   n_trials   <- 20
   conditions <- rep(c("A", "B"), each = n_trials / 2)
 
+  make_map <- function(condition) {
+    centre <- if (condition == "A") 30 else 70
+    fg <- fixation_group(x = rnorm(15, centre, 10), y = rnorm(15, centre, 10),
+                         duration = rep(200, 15), onset = seq(0, by = 250, length.out = 15))
+    # Common bounds and outdim put every map on the same lattice, which
+    # similarity() requires.
+    eye_density(fg, sigma = 10, xbounds = c(0, 100), ybounds = c(0, 100),
+                outdim = c(40, 40))
+  }
+
   my_data <- tibble::tibble(
     subject         = rep(1:4, length.out = n_trials),
     trial_condition = conditions,
-    density_map     = purrr::map(seq_len(n_trials), function(i) {
-      x <- rnorm(100,
-                 mean = ifelse(conditions[i] == "A", 0, 2),
-                 sd   = 1)
-      stats::density(x)
-    })
+    density_map     = lapply(conditions, make_map)
   )
 
   # Compute within- and between-condition similarity.

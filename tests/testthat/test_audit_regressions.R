@@ -36,6 +36,19 @@ test_that("eye_density honours explicit fixation weights", {
   expect_error(audit_density(fg, weights = c(1, 2)), "one value per fixation")
   expect_error(audit_density(fg, weights = c(1, -1, 2)), "non-negative")
   expect_error(audit_density(fg, weights = c(0, 0, 0)), "not all be zero")
+
+  # Weights that sum to zero only after the window give NULL under both backends.
+  for (pkg in c("ks", "MASS")) {
+    expect_warning(
+      res <- audit_density(fg, weights = c(1, 0, 0), window = c(50, 300), kde_pkg = pkg),
+      "Sum of weights is zero", info = pkg
+    )
+    expect_null(res)
+  }
+  fg0 <- fixation_group(x = c(10, 30, 80), y = c(10, 20, 40),
+                        onset = c(0, 100, 200), duration = c(0, 0, 0))
+  expect_warning(res <- audit_density(fg0, duration_weighted = TRUE), "Sum of weights is zero")
+  expect_null(res)
 })
 
 # Audit item 2 ---------------------------------------------------------------
@@ -312,6 +325,11 @@ test_that("density maps on different lattices are refused", {
                  "different lattices", info = method)
   }
   expect_equal(similarity(ms_a, ms_a, method = "pearson"), 1)
+
+  # repetitive_similarity() refuses too, instead of returning NaN per pair.
+  rep_tab <- tibble::tibble(cond = c("c1", "c1", "c2", "c2"), density = list(a, b, a, b))
+  expect_error(repetitive_similarity(rep_tab, condition_var = "cond", method = "pearson"),
+               class = "eyesim_lattice_mismatch")
 })
 
 # Audit item 11 --------------------------------------------------------------
@@ -420,7 +438,7 @@ test_that("mm_position_emd compares every fixation, including the last", {
 # Audit item 18 --------------------------------------------------------------
 test_that("template_multireg defaults to lm", {
   m <- tibble::tibble(
-    response = list(list(z = matrix(c(1, 2, 3, 4, 5, 7), 3))),
+    response = list(list(z = matrix(c(1, 2, 4, 3, 5, 7), 3))),
     a = list(list(z = matrix(c(1, 0, 1, 2, 1, 1), 3))),
     b = list(list(z = matrix(c(0, 1, 1, 1, 2, 3), 3)))
   )

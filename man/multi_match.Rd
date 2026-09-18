@@ -21,7 +21,7 @@ A named numeric vector with the following elements:
   \item{mm_length}{Similarity based on the length of saccades between fixations.}
   \item{mm_position}{Similarity based on the spatial position of fixations.}
   \item{mm_duration}{Similarity based on the duration of fixations.}
-  \item{mm_position_emd}{Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.}
+  \item{mm_position_emd}{Order-insensitive similarity based on the duration-weighted Earth Mover's Distance (EMD) between the spatial positions of all fixations.}
 }
 }
 \description{

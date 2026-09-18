@@ -73,7 +73,11 @@
   ignored, so the map was always unweighted unless `duration_weighted = TRUE`.
   Weights must be finite, non-negative, not all zero, and supplied one per
   fixation; they are subset along with `window`, and they take precedence over
-  `duration_weighted`.
+  `duration_weighted`. If the weights of the fixations left after `window`
+  sum to zero, or `duration_weighted = TRUE` and every duration is zero,
+  `eye_density()` now warns and returns `NULL` under both backends. The ks
+  path previously failed with "missing value where TRUE/FALSE needed", or,
+  with `normalize = FALSE`, returned a map of `NaN`.
 
 * `eye_density()` now forwards extra named arguments in `...` to `ks::kde()`,
   as documented. Previously any extra argument failed with "unused argument".
@@ -144,6 +148,11 @@
   `template_similarity()` and related wrappers raise the same error on both
   the fast cosine and the general path, and for multiscale maps, where the
   per-scale error handling previously would have turned it into `NA`.
+  `repetitive_similarity()` also raises it rather than returning `NaN` with a
+  warning per pair. Because `eye_density()` defaults `xbounds` and `ybounds`
+  to each group's own data range, maps built with default bounds generally
+  lie on different lattices and are now refused; pass common `xbounds`,
+  `ybounds`, and `outdim` to every map that will be compared.
 
 * `similarity()` for fixation groups with `method = "overlap"`, and therefore
   `fixation_similarity(method = "overlap")`, now defaults to `dthresh = 60`,

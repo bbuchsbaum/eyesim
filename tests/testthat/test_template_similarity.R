@@ -91,9 +91,10 @@ test_that("template_similarity cosine permutations match manual baseline computa
       d2 <- source_tab$density[[i]]
       eye_sim <- similarity(d1, d2, method = "cosine")
 
-      # The true match is excluded before sampling from the other candidates.
+      # The true match is excluded before sampling from the other candidates,
+      # and each distinct template counts once.
       candidates <- match_split[[as.character(source_tab$subject[[i]])]]
-      candidates <- candidates[candidates != matchind[[i]]]
+      candidates <- unique(candidates[candidates != matchind[[i]]])
       if (permutations < length(candidates)) {
         candidates <- sample(candidates, permutations)
       }
