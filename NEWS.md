@@ -106,6 +106,15 @@
   remained, so a row could be compared with its own template in the baseline.
   This matches `sample_density_time()`.
 
+* Permutation candidates are now distinct templates. A template matched by
+  several source rows previously appeared once per matching row, so it could
+  be drawn twice and was counted twice in `perm_sim` and `n_perm`. This
+  applies to `template_similarity()`, `template_similarity_cv()`,
+  `fixation_similarity()`, `scanpath_similarity()`, and
+  `sample_density_time()`, and changes their permutation columns whenever
+  keys repeat within a stratum. Reference rows that no source row matches
+  remain outside the candidate set, as before; the documentation now says so.
+
 * Documentation: `?template_similarity` no longer claims that permutation
   sampling uses a "fixed future seed". Sampling uses the session RNG, so
   `set.seed()` before the call makes the baseline reproducible. No behaviour

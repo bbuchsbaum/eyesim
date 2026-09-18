@@ -162,6 +162,31 @@ test_that("duplicated focal keys never enter their own permutation baseline", {
   }
 })
 
+test_that("each non-matching template enters the permutation baseline once", {
+  mk <- function(v) gen_density(x = 1:2, y = 1:2, z = matrix(v, 2))
+  ref <- tibble::tibble(key = c("a", "b", "c"), participant = "p",
+                        density = list(mk(c(1, 0, 0, 0)), mk(c(0, 1, 0, 0)), mk(c(0, 1, 1, 0))))
+  src <- tibble::tibble(key = c("a", "a", "b", "c"), participant = "p",
+                        density = ref$density[c(1, 1, 2, 3)])
+  for (method in c("cosine", "pearson")) {
+    res <- suppressMessages(template_similarity(ref, src, "key", permute_on = "participant",
+                                                method = method, permutations = 100))
+    # Row "b": template "a" is matched by two source rows but counts once.
+    b_row <- which(res$key == "b")
+    expect_equal(res$n_perm[b_row], 2L, info = method)
+    expected <- mean(c(similarity(ref$density[[1]], ref$density[[2]], method = method),
+                       similarity(ref$density[[3]], ref$density[[2]], method = method)))
+    expect_equal(res$perm_sim[b_row], expected, info = method)
+  }
+
+  # sample_density_time() draws from the same distinct candidates. At (1, 1),
+  # template "a" has z = 1 and template "c" has z = 0, so row "b" averages to 0.5.
+  fg <- fixation_group(x = 1, y = 1, onset = 0, duration = 100)
+  st <- tibble::tibble(key = c("a", "a", "b", "c"), fixgroup = list(fg, fg, fg, fg))
+  res_t <- sample_density_time(ref, st, "key", times = 0, permutations = 100)
+  expect_equal(res_t$perm_sampled[[3]]$z, 0.5)
+})
+
 # Audit item 7 (documentation) -----------------------------------------------
 # The documented behaviour: sampling uses the session RNG, so set.seed() makes
 # the baseline reproducible and different seeds can select different controls.

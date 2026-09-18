@@ -200,8 +200,9 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       }
 
       # Remove every copy of the true match first (several source rows can
-      # share a key), then sample from the non-matching candidates only.
-      mind <- mind[mind != .$matchind]
+      # share a key), keep each other template once, then sample from the
+      # distinct non-matching candidates only.
+      mind <- unique(mind[mind != .$matchind])
       if (permutations < length(mind)) {
         mind <- sample(mind, permutations)
       }
@@ -276,8 +277,9 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
       return(c(NA_real_, 0))
     }
 
-    # Remove every copy of the true match first, then sample from the rest.
-    candidates <- candidates[candidates != matchind[[i]]]
+    # Remove every copy of the true match first, keep each other template
+    # once, then sample from the distinct candidates.
+    candidates <- unique(candidates[candidates != matchind[[i]]])
     if (permutations < length(candidates)) {
       candidates <- sample(candidates, permutations)
     }
@@ -463,7 +465,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @details
 #' Permutation baseline and exhaustive behavior:
 #' \itemize{
-#'   \item The set of permutation candidates is determined by \code{permute_on}. Candidates are the reference rows matched by source rows, one entry per matching source row, within the same \code{permute_on} stratum if given (e.g., within-participant). A reference row that no source row matches is never a candidate, and a reference row matched by several source rows appears once per matching row, so it can be drawn, and counted in \code{n_perm}, more than once.
+#'   \item The set of permutation candidates is determined by \code{permute_on}. Candidates are the distinct reference rows matched by at least one source row, within the same \code{permute_on} stratum if given (e.g., within-participant). Each candidate counts once, however many source rows match it, so \code{n_perm} counts distinct templates. A reference row that no source row matches is never a candidate.
 #'   \item The true match is removed from the candidate set before any sampling. If several source rows share the same \code{match_on} key, every copy of that key is removed, so a row is never compared with its own template in the baseline.
 #'   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial.
 #'   \item Sampling uses the session random number generator; there is no internal fixed seed. Call \code{set.seed()} immediately before the call to make the baseline reproducible. The call advances the session RNG. With \code{method = "cosine"} and no \code{window}, extra arguments, or multiscale aggregation, a vectorized path samples with \code{sample()} directly; other methods draw per-row streams through \code{furrr::furrr_options(seed = TRUE)}, which are derived from the session RNG. The same seed can therefore select different controls for different methods.
@@ -881,7 +883,11 @@ sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "
 #' \code{bin_2}, etc.
 #'
 #' If \code{permutations > 0}, a baseline is computed by sampling from non-matching
-#' density maps. The result includes \code{perm_sampled} (mean permuted trajectory)
+#' density maps. As in \code{\link{template_similarity}}, the candidates are the
+#' distinct templates matched by other source rows (within the \code{permute_on}
+#' stratum, if given); every copy of the true match is excluded, each other
+#' template counts once, and up to \code{permutations} of them are drawn without
+#' replacement. The result includes \code{perm_sampled} (mean permuted trajectory)
 #' and bin-specific permutation columns if binning is used.
 #'
 #' @return A tibble containing:
@@ -1037,9 +1043,10 @@ sample_density_time <- function(template_tab,
         mind <- matchind
       }
 
-      # Remove the current match from candidates
+      # Remove every copy of the current match and keep each other template
+      # once, as in template_similarity()
       current_match <- matchind[i]
-      mind <- mind[mind != current_match]
+      mind <- unique(mind[mind != current_match])
 
       if (length(mind) == 0) {
         # No candidates for permutation
