@@ -24,6 +24,7 @@
 #' @importFrom stats lm glm as.formula coef
 #' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
+  method <- match.arg(method)
   rows <- lapply(seq_len(nrow(source_tab)), function(i) {
     row <- source_tab[i, ]
     y <- as.vector(row[[response]][[1]]$z/sum(row[[response]][[1]]$z))
@@ -77,7 +78,9 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #' @param source_tab A data frame containing the source maps.
 #' @param match_on A character string specifying the column name to be used for matching between the
 #'   reference and source tables.
-#' @param baseline_tab A data frame containing the baseline maps.
+#' @param baseline_tab A data frame containing the baseline maps. Each
+#'   \code{baseline_key} value used by \code{source_tab} must appear in exactly one
+#'   row; duplicated keys are an error.
 #' @param baseline_key A character string specifying the column name to be used for matching between the
 #'   baseline table and the source table.
 #' @param method A character vector of available regression methods. Default is c("lm", "rlm", "rank").
@@ -105,6 +108,15 @@ template_regression <- function(ref_tab, source_tab, match_on,
     matchind <- matchind[!is.na(matchind)]
   }
 
+  # Each baseline key used by a source row must identify exactly one map.
+  baseline_keys <- baseline_tab[[baseline_key]]
+  used_keys <- unique(source_tab[[baseline_key]])
+  dup_keys <- used_keys[used_keys %in% baseline_keys[duplicated(baseline_keys)]]
+  if (length(dup_keys) > 0L) {
+    stop("template_regression(): baseline_tab has more than one row for ",
+         baseline_key, " = ", paste(dup_keys, collapse = ", "),
+         ". Each baseline key must identify exactly one baseline map.")
+  }
 
   rows <- lapply(seq_len(nrow(source_tab)), function(i) {
     row <- source_tab[i, ]
@@ -151,6 +163,9 @@ template_regression <- function(ref_tab, source_tab, match_on,
 #' @param fixgroup the name of the fixation group supplying the spatiotemporal coordinates used to sample the template
 #' @param time the time points used to extract coordinates from the `fixation_group`
 #' @param outcol the name of the output variable
+#' @return \code{source_tab} with a list column \code{outcol} of sampled values.
+#'   Rows whose template or fixation group is \code{NULL} cannot be sampled and are
+#'   removed, with a warning.
 #' @export
 #' @importFrom purrr pmap
 #' @importFrom tibble add_column
@@ -159,8 +174,16 @@ template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL
   x1 <- rlang::sym(template)
   x2 <- rlang::sym(fixgroup)
 
-  ## filters out NULLs
-  ret <- source_tab %>% select(a=!!x1, b=!!x2) %>% filter(!(is.null(a) | is.null(b))) %>% pmap(function(a,b) {
+  ## filters out rows whose template or fixation group is NULL
+  is_null_cell <- function(col) vapply(col, is.null, logical(1))
+  drop <- is_null_cell(source_tab[[template]]) | is_null_cell(source_tab[[fixgroup]])
+  if (any(drop)) {
+    warning("template_sample(): removing ", sum(drop),
+            " row(s) with a NULL template or fixation group.")
+    source_tab <- source_tab[!drop, , drop = FALSE]
+  }
+
+  ret <- source_tab %>% select(a=!!x1, b=!!x2) %>% pmap(function(a,b) {
     sample_density(a,b, time)
   })
 

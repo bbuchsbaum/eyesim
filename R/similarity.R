@@ -199,15 +199,12 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
         matchind
       }
 
-      # Randomly sample a subset of matching indices if the number of permutations is less than the length of mind
+      # Remove every copy of the true match first (several source rows can
+      # share a key), keep each other template once, then sample from the
+      # distinct non-matching candidates only.
+      mind <- unique(mind[mind != .$matchind])
       if (permutations < length(mind)) {
         mind <- sample(mind, permutations)
-      }
-
-      # Remove the current element from the list of matching indices
-      elnum <- match(.$matchind, mind)
-      if (!is.na(elnum) && length(elnum) > 0) {
-        mind <- mind[-elnum]
       }
 
       if (length(mind) == 0) {
@@ -255,6 +252,10 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
   if (is.null(ref_mat) || is.null(src_mat) || nrow(source_tab) == 0L) {
     return(NULL)
   }
+  # Mixed lattices fall back to the general path, which refuses the comparison.
+  if (!fast_cosine_lattices_agree(c(ref_tab[[refvar]], source_tab[[sourcevar]]))) {
+    return(NULL)
+  }
 
   sim_mat <- cosine_similarity_matrix(src_mat, ref_mat)
   obs_sim <- sim_mat[cbind(seq_len(nrow(source_tab)), matchind)]
@@ -276,13 +277,11 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
       return(c(NA_real_, 0))
     }
 
+    # Remove every copy of the true match first, keep each other template
+    # once, then sample from the distinct candidates.
+    candidates <- unique(candidates[candidates != matchind[[i]]])
     if (permutations < length(candidates)) {
       candidates <- sample(candidates, permutations)
-    }
-
-    match_pos <- match(matchind[[i]], candidates)
-    if (!is.na(match_pos) && length(match_pos) > 0L) {
-      candidates <- candidates[-match_pos]
     }
 
     if (length(candidates) == 0L) {
@@ -327,6 +326,15 @@ vectorize_fast_cosine_tab <- function(x, expected_len = NULL) {
     return(NULL)
   }
   mat
+}
+
+fast_cosine_lattices_agree <- function(objs) {
+  dens <- Filter(function(obj) inherits(obj, c("density", "eye_density")), objs)
+  if (length(dens) < 2L) {
+    return(TRUE)
+  }
+  first <- dens[[1]]
+  all(vapply(dens[-1], function(obj) density_lattices_equal(first, obj), logical(1)))
 }
 
 vectorize_fast_cosine_obj <- function(obj) {
@@ -379,10 +387,13 @@ cosine_similarity_matrix <- function(x, y) {
 #' @details
 #' Permutation handling and units follow \code{template_similarity}:
 #' \itemize{
-#'   \item Candidate sets are defined by \code{permute_on}; sampling is without replacement when \code{permutations} is smaller than the number of candidates.
+#'   \item Candidate sets are defined by \code{permute_on}. Every copy of the true match is removed first; sampling is then without replacement when \code{permutations} is smaller than the number of remaining candidates.
 #'   \item When \code{permutations} is greater than or equal to the available non-matching candidates, all candidates are used (exhaustive baseline).
 #'   \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), \code{eye_sim_diff = eye_sim - perm_sim} (all on the scale of \code{method}), and \code{n_perm} (the number of permuted comparisons that contributed to \code{perm_sim} for that row; \code{0} when no baseline could be computed). If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
 #' }
+#'
+#' For \code{method = "overlap"}, pass \code{time_samples} through \code{...}; the
+#' distance threshold \code{dthresh} defaults to 60, as in \code{\link{fixation_overlap}}.
 #'
 #' @examples
 #' \dontrun{
@@ -454,8 +465,10 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' @details
 #' Permutation baseline and exhaustive behavior:
 #' \itemize{
-#'   \item The set of permutation candidates is determined by \code{permute_on}. If \code{permute_on} is provided, candidates are restricted within that stratum (e.g., within-participant); otherwise all reference items are candidates.
-#'   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial. Internally, sampling is performed with a fixed future seed to aid reproducibility.
+#'   \item The set of permutation candidates is determined by \code{permute_on}. Candidates are the distinct reference rows matched by at least one source row, within the same \code{permute_on} stratum if given (e.g., within-participant). Each candidate counts once, however many source rows match it, so \code{n_perm} counts distinct templates. A reference row that no source row matches is never a candidate.
+#'   \item The true match is removed from the candidate set before any sampling. If several source rows share the same \code{match_on} key, every copy of that key is removed, so a row is never compared with its own template in the baseline.
+#'   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial.
+#'   \item Sampling uses the session random number generator; there is no internal fixed seed. Call \code{set.seed()} immediately before the call to make the baseline reproducible. The call advances the session RNG. With \code{method = "cosine"}, the default \code{multiscale_aggregation = "mean"}, no \code{window} or extra arguments, and every reference and source map on one lattice, a vectorized path samples with \code{sample()} directly; other methods draw per-row streams through \code{furrr::furrr_options(seed = TRUE)}, which are derived from the session RNG. The same seed can therefore select different controls for different methods.
 #'   \item If \code{permutations} is greater than or equal to the number of available non-matching candidates, the procedure uses all candidates (excluding the true match). In other words, the permutation baseline is exhaustive when possible.
 #'   \item For small-N designs, you can set \code{permutations} to a large number to trigger exhaustive behavior. For example, with 3 images per participant and \code{permute_on = participant}, there are only 2 non-matching candidates per trial; any \code{permutations >= 2} will result in using both.
 #' }
@@ -470,7 +483,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #'
 #' Notes on \code{method} and interpretation:
 #' \itemize{
-#'   \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale.
+#'   \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale. To keep z finite, \emph{r} is clamped to \code{[-1 + .Machine$double.eps, 1 - .Machine$double.eps]}. Identical maps, whether constant or not, and any \emph{r} within \code{64 * .Machine$double.eps} of 1 (for example a rescaled copy of a map) are treated as \emph{r} = 1 and give \code{atanh(1 - .Machine$double.eps)} (about 18.37) rather than \code{Inf}; \emph{r} near -1 is handled symmetrically.
 #'   \item If \code{method = "pearson"} or \code{"spearman"}, values are correlations (roughly in \code{[-1, 1]}).
 #'   \item Other methods (e.g., \code{"emd"}, \code{"cosine"}) produce scores on their respective scales.
 #' }
@@ -524,12 +537,22 @@ template_similarity <- function(ref_tab, source_tab, match_on, permute_on = NULL
 #'   \item computes similarity only on the held-out rows.
 #' }
 #'
+#' Permutation controls are drawn only from the reference rows matched by the
+#' same held-out fold (and, if \code{permute_on} is given, the same stratum),
+#' not from the full reference table. Each row therefore has roughly
+#' \code{1/n_folds} as many candidates as in \code{template_similarity()}, and
+#' \code{n_perm} is correspondingly smaller. This holds with or without a
+#' \code{similarity_transform}.
+#'
 #' @inheritParams template_similarity
 #' @param split_on Character vector of source-table columns used to assign folds.
 #'   All rows sharing the same `split_on` values are held out together. Defaults
 #'   to `match_on`.
 #' @param n_folds Number of folds. Defaults to `min(5, n_unique_groups)`.
-#' @param seed Random seed used for fold assignment.
+#' @param seed Random seed for fold assignment and for the permutation draws that
+#'   follow it, so results are reproducible from \code{seed} alone. The caller's
+#'   random number state is restored on exit, so the call does not change the
+#'   session RNG stream.
 #' @param fit_source_filter Optional logical vector or function selecting which
 #'   source rows are eligible for transform fitting. Functions receive
 #'   `source_tab` and must return a logical vector with one value per row.
@@ -550,6 +573,12 @@ template_similarity_cv <- function(ref_tab, source_tab, match_on, permute_on = N
                                    fit_source_filter = NULL, eval_source_filter = NULL, ...) {
 
   method <- match.arg(method)
+
+  # Fold assignment and permutation draws run under `seed`; the caller's RNG
+  # state is restored on exit so the call leaves the session stream untouched.
+  restore_session_rng <- snapshot_session_rng()
+  on.exit(restore_session_rng(), add = TRUE)
+
   source_tab <- dplyr::ungroup(source_tab)
   source_tab[["..cv_row_id"]] <- seq_len(nrow(source_tab))
 
@@ -673,6 +702,22 @@ resolve_similarity_cv_filter <- function(source_tab, filter_spec, label) {
   vals
 }
 
+# Capture the session RNG state and return a function that restores it,
+# removing .Random.seed again if it did not exist beforehand.
+snapshot_session_rng <- function() {
+  genv <- globalenv()
+  had_seed <- exists(".Random.seed", envir = genv, inherits = FALSE)
+  old_seed <- if (had_seed) get(".Random.seed", envir = genv, inherits = FALSE) else NULL
+  function() {
+    if (had_seed) {
+      assign(".Random.seed", old_seed, envir = genv)
+    } else if (exists(".Random.seed", envir = genv, inherits = FALSE)) {
+      rm(".Random.seed", envir = genv)
+    }
+    invisible(NULL)
+  }
+}
+
 make_similarity_cv_folds <- function(source_tab, split_on, n_folds = NULL, seed = 1) {
   if (length(split_on) == 0L || !all(split_on %in% names(source_tab))) {
     stop("split_on must name one or more columns in source_tab.")
@@ -723,7 +768,15 @@ transform_name <- function(similarity_transform) {
 #' @param times A vector of numeric values representing the time points at which the density map should be sampled (default is NULL).
 #' 
 #' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
-#' 
+#'
+#' Each point is looked up at the nearest lattice point, separately in x and y;
+#' there is no interpolation. The nearest index is found with \code{round()}, so a
+#' coordinate exactly midway between two grid points is resolved half to even on
+#' the index scale (on the grid 0, 25, 50, 75, 100, the value 12.5 maps to 25 and
+#' 37.5 also maps to 25). Coordinates outside the lattice are clamped to the
+#' nearest edge point, so an off-grid fixation takes the edge value rather than
+#' \code{NA}.
+#'
 #' @param normalize A character string specifying how to normalize the density
 #'   map before sampling. One of:
 #'   \describe{
@@ -794,7 +847,9 @@ sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "
 #'   density. Default is \code{seq(0, 3000, by = 50)}.
 #' @param time_bins An optional numeric vector specifying bin boundaries for
 #'   aggregating samples. For example, \code{c(0, 1000, 2000, 3000)} creates
-#'   3 bins: [0-1000), [1000-2000), [2000-3000). Default is NULL (no binning).
+#'   3 bins: [0-1000), [1000-2000), [2000-3000). Every bin is half-open,
+#'   including the last, so a time point equal to the final break (3000 here)
+#'   is not assigned to any bin. Default is NULL (no binning).
 #' @param template_var A character string specifying the name of the density
 #'   column in \code{template_tab}. Default is "density".
 #' @param source_var A character string specifying the name of the fixation
@@ -828,7 +883,11 @@ sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "
 #' \code{bin_2}, etc.
 #'
 #' If \code{permutations > 0}, a baseline is computed by sampling from non-matching
-#' density maps. The result includes \code{perm_sampled} (mean permuted trajectory)
+#' density maps. As in \code{\link{template_similarity}}, the candidates are the
+#' distinct templates matched by other source rows (within the \code{permute_on}
+#' stratum, if given); every copy of the true match is excluded, each other
+#' template counts once, and up to \code{permutations} of them are drawn without
+#' replacement. The result includes \code{perm_sampled} (mean permuted trajectory)
 #' and bin-specific permutation columns if binning is used.
 #'
 #' @return A tibble containing:
@@ -934,10 +993,12 @@ sample_density_time <- function(template_tab,
     if (is.null(sampled_df) || nrow(sampled_df) == 0) {
       return(rep(NA_real_, length(time_bins) - 1))
     }
+    # Every bin is half-open, [lower, upper), including the last one, so a time
+    # equal to the final break falls outside all bins (label NA).
     bin_labels <- cut(sampled_df$time, breaks = time_bins, right = FALSE,
-                      labels = FALSE, include.lowest = TRUE)
+                      labels = FALSE)
     vapply(seq_len(length(time_bins) - 1), function(b) {
-      vals <- sampled_df$z[bin_labels == b]
+      vals <- sampled_df$z[which(bin_labels == b)]
       if (length(vals) == 0 || all(is.na(vals))) NA_real_ else aggregate_fun(vals, na.rm = TRUE)
     }, numeric(1))
   }
@@ -982,9 +1043,10 @@ sample_density_time <- function(template_tab,
         mind <- matchind
       }
 
-      # Remove the current match from candidates
+      # Remove every copy of the current match and keep each other template
+      # once, as in template_similarity()
       current_match <- matchind[i]
-      mind <- mind[mind != current_match]
+      mind <- unique(mind[mind != current_match])
 
       if (length(mind) == 0) {
         # No candidates for permutation
@@ -1157,10 +1219,18 @@ summary.eye_density <- function(object, ...) {
 #'
 #' @param x A fixation_group object.
 #' @param sigma The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.
+#'   With \code{kde_pkg = "ks"}, \code{sigma} is the standard deviation of the
+#'   isotropic Gaussian kernel. With \code{kde_pkg = "MASS"}, \code{sigma} is passed
+#'   as the bandwidth \code{h} of \code{\link[MASS]{kde2d}}, whose kernel standard
+#'   deviation is \code{h / 4}; the same \code{sigma} therefore gives a kernel four
+#'   times narrower. Use \code{4 * sigma} under MASS to approximate the ks map.
 #' @param xbounds The x-axis bounds. Default is the range of x values in the fixation group.
 #' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
 #' @param outdim The output dimensions of the density map. Default is c(100, 100).
-#' @param weights Optional numeric vector of fixation weights. If NULL and duration_weighted is TRUE, uses fixation durations as weights. Default is NULL.
+#' @param weights Optional numeric vector of non-negative fixation weights, one per
+#'   row of \code{x} (before any \code{window} filtering). Explicit weights take precedence
+#'   over \code{duration_weighted}. If NULL and duration_weighted is TRUE, uses fixation
+#'   durations as weights. Default is NULL.
 #' @param normalize Whether to normalize the output map. Default is TRUE.
 #' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
 #' @param window The temporal window over which to compute the density map. Default is NULL.
@@ -1168,10 +1238,21 @@ summary.eye_density <- function(object, ...) {
 #'   If fewer fixations are present after optional filtering, the function returns NULL.
 #'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
-#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.
-#' @param ... Additional arguments passed to the underlying KDE function.
+#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS"; any other value is an error. Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".
+#' @param ... Additional named arguments passed to \code{\link[ks]{kde}}, for example
+#'   \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
+#'   \code{xmin}, \code{xmax}, \code{w}, and the evaluation grid (\code{eval.points})
+#'   itself, so these cannot be supplied. Extra
+#'   arguments are an error when \code{kde_pkg = "MASS"}.
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
+#'
+#' After optional normalization, each map is passed through
+#' \code{zapsmall(z, digits = 7)}. The precision is fixed and does not depend on
+#' \code{options(digits)}. In R 4.5.1, where this was verified, \code{zapsmall()}
+#' computes \code{round(z, max(0, 7 - log10(max(abs(z)))))}: values are rounded
+#' to 7 significant digits relative to the map maximum, so values below roughly
+#' \code{max(z) * 5e-8} become zero.
 #'
 #' @return An object of class `eye_density` (inheriting from `density` and `list`) if
 #'   `sigma` is a single value, or an object of class `eye_density_multiscale` (a
@@ -1193,8 +1274,24 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        kde_pkg = "ks",
                                        ...) {
 
-  assert_that(is.numeric(sigma) && all(sigma > 0),
-              msg = "sigma must be a positive numeric value or vector")
+  # NA-safe: an NA sigma (e.g. suggest_sigma() on a single fixation) gets this
+  # message rather than assert_that()'s "missing values present in assertion".
+  assert_that(is.numeric(sigma) && length(sigma) > 0 &&
+                all(!is.na(sigma) & is.finite(sigma) & sigma > 0),
+              msg = "sigma must be a positive, finite numeric value or vector")
+  # Any value other than "ks" used to fall through silently to MASS.
+  assert_that(is.character(kde_pkg) && length(kde_pkg) == 1L &&
+                !is.na(kde_pkg) && kde_pkg %in% c("ks", "MASS"),
+              msg = "kde_pkg must be \"ks\" or \"MASS\".")
+
+  # Explicit per-fixation weights take precedence over duration weighting.
+  if (!is.null(weights)) {
+    assert_that(is.numeric(weights) && length(weights) == nrow(x),
+                msg = "weights must be a numeric vector with one value per fixation.")
+    assert_that(all(is.finite(weights)) && all(weights >= 0),
+                msg = "weights must be finite and non-negative.")
+    assert_that(any(weights > 0), msg = "weights must not all be zero.")
+  }
 
   # Filter by window if specified
   x_filtered <- x # Use a new variable for the potentially filtered data
@@ -1206,6 +1303,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
     assert_that("onset" %in% colnames(x_filtered),
                 msg = "The data frame must contain an 'onset' column.")
 
+    if (!is.null(weights)) {
+      weights <- weights[which(x_filtered$onset >= window[1] & x_filtered$onset < window[2])]
+    }
     x_filtered <- dplyr::filter(x_filtered, onset >= window[1] & onset < window[2])
     if (nrow(x_filtered) == 0) {
          warning("No fixations remain after applying the window filter. Returning NULL.")
@@ -1226,7 +1326,10 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
   # Prepare data and weights (original logic, using x_filtered)
   data_matrix <- as.matrix(x_filtered[, c("x", "y")])
-  current_weights <- if (duration_weighted) {
+  weighted <- !is.null(weights) || duration_weighted
+  current_weights <- if (!is.null(weights)) {
+    weights
+  } else if (duration_weighted) {
     assert_that("duration" %in% colnames(x_filtered),
                 msg = "The data frame must contain a 'duration' column.")
     assert_that(is.numeric(x_filtered$duration),
@@ -1239,23 +1342,13 @@ eye_density.fixation_group <- function(x, sigma = 50,
     rep(1, nrow(x_filtered))
   }
 
-  # Decide on weights processing based on kde_pkg
+  # Weights can sum to zero after the window drops every positively weighted
+  # fixation, or when all durations are zero. No density exists then; both
+  # backends return NULL (ks::kde would otherwise yield NaN and fail later).
   processed_weights <- current_weights
-  if (duration_weighted && !(requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks")) {
-      # If using custom kde2d_weighted, it might expect specific weight normalization.
-      # The example implementation used sum(w) in denominator.
-      # Let's ensure weights are positive sum if using this path.
-      if (sum(processed_weights) <= 0) {
-          warning("Sum of weights is zero or negative, cannot compute weighted density with non-ks method. Returning NULL.")
-          return(NULL)
-      }
-      # Normalization like w/sum(w) * N might be needed depending on kde2d_weighted implementation.
-      # Keeping raw weights for now, assuming kde2d_weighted handles it.
-  } else if (duration_weighted && requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks") {
-      # ks::kde handles raw weights (counts, proportions, etc.)
-      if (sum(processed_weights) <= 0) {
-          warning("Sum of weights is zero or negative for ks::kde. Result might be zero density. Proceeding.")
-      }
+  if (weighted && sum(processed_weights) <= 0) {
+    warning("Sum of weights is zero among the fixations used. Returning NULL.")
+    return(NULL)
   }
 
 
@@ -1264,7 +1357,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
     all_eye_densities <- lapply(sigma, function(s_val) {
       .compute_single_eye_density(
         x_data = x_filtered, sigma_val = s_val, xbounds = xbounds, ybounds = ybounds,
-        outdim = outdim, normalize = normalize, duration_weighted = duration_weighted,
+        outdim = outdim, normalize = normalize, weighted = weighted,
         weights = processed_weights, data_matrix = data_matrix, kde_pkg = kde_pkg, ...
       )
     })
@@ -1285,7 +1378,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
     # Single scale request (delegates to the helper too for consistency)
     return(.compute_single_eye_density(
       x_data = x_filtered, sigma_val = sigma, xbounds = xbounds, ybounds = ybounds,
-      outdim = outdim, normalize = normalize, duration_weighted = duration_weighted,
+      outdim = outdim, normalize = normalize, weighted = weighted,
       weights = processed_weights, data_matrix = data_matrix, kde_pkg = kde_pkg, ...
     ))
   }
@@ -1293,15 +1386,16 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
 # Internal function, not exported
 .compute_single_eye_density <- function(x_data, sigma_val, xbounds, ybounds, outdim,
-                                       normalize, duration_weighted, weights, data_matrix,
-                                       kde_pkg = "ks") { # Added kde_pkg, default to ks if available, else MASS
+                                       normalize, weighted, weights, data_matrix,
+                                       kde_pkg = "ks", ...) { # Added kde_pkg, default to ks if available, else MASS
 
   current_sigma <- sigma_val # Use the specific sigma for this scale
   gridsize <- outdim
+  kde_args <- list(...)
 
-  # Determine the weights to use based on duration_weighted flag
-  final_weights <- if (duration_weighted) {
-    # Use the pre-calculated (potentially duration-based) weights passed in
+  # Determine the weights to use: explicit or duration weights when requested
+  final_weights <- if (weighted) {
+    # Use the pre-calculated (explicit or duration-based) weights passed in
     weights
   } else {
     # For unweighted case, create uniform weights
@@ -1321,26 +1415,38 @@ eye_density.fixation_group <- function(x, sigma = 50,
     sum_w <- sum(final_weights)
     n_obs <- nrow(data_matrix)
 
+    # eye_density() has already returned NULL for a zero weight sum.
     if (sum_w > .Machine$double.eps) {
       scale_factor <- n_obs / sum_w
       scaled_final_weights <- final_weights * scale_factor
-    } # else: weights are zero/negative sum, ks::kde handles/warns
-
-    # Check if weights became zero or negative after scaling (unlikely but possible)
-    if (sum(scaled_final_weights) <= 0 && n_obs > 0) {
-        warning("Sum of weights is zero or negative even after scaling for ks::kde. Result might be zero density. Sigma: ", current_sigma)
-        # Proceed, ks::kde might handle this
     }
 
 
+    # Extra arguments are forwarded to ks::kde(); the arguments eye_density()
+    # derives itself cannot be overridden.
+    ks_args <- list(x = data_matrix,
+                    H = H_mat,
+                    gridsize = gridsize,
+                    xmin = c(xbounds[1], ybounds[1]),
+                    xmax = c(xbounds[2], ybounds[2]),
+                    w = scaled_final_weights, # Pass scaled weights
+                    compute.cont = FALSE)
+    if (length(kde_args) > 0L) {
+      arg_names <- names(kde_args)
+      if (is.null(arg_names) || any(arg_names == "")) {
+        stop("Additional arguments to eye_density() must be named ks::kde() arguments.")
+      }
+      managed <- c("x", "H", "h", "gridsize", "xmin", "xmax", "w", "eval.points")
+      bad <- setdiff(arg_names, setdiff(names(formals(ks::kde)), managed))
+      if (length(bad) > 0L) {
+        stop("Unsupported ks::kde() argument(s) in `...`: ", paste(bad, collapse = ", "),
+             ". eye_density() sets x, H, gridsize, xmin, xmax, w, and eval.points itself.")
+      }
+      ks_args[arg_names] <- kde_args
+    }
+
     kde_result <- tryCatch({
-        ks::kde(x = data_matrix,
-                H = H_mat,
-                gridsize = gridsize,
-                xmin = c(xbounds[1], ybounds[1]),
-                xmax = c(xbounds[2], ybounds[2]),
-                w = scaled_final_weights, # Pass scaled weights
-                compute.cont = FALSE)
+        do.call(ks::kde, ks_args)
       }, error = function(e) {
          warning("ks::kde failed for sigma=", current_sigma, ". Error: ", e$message)
          NULL
@@ -1353,6 +1459,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
   } else {
     # --- Fallback to MASS or custom ---
+    if (length(kde_args) > 0L) {
+      stop("Additional arguments in `...` are passed to ks::kde() and are not supported when kde_pkg = \"MASS\".")
+    }
     message("ks package not found or not selected. Using MASS::kde2d (or custom kde2d_weighted if applicable).")
 
     # Check if weights are non-uniform (relevant if duration_weighted was TRUE)
@@ -1395,7 +1504,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
         warning("Sum of density matrix is near zero, cannot normalize. Sigma: ", current_sigma)
     }
   }
-  density_matrix_val <- zapsmall(density_matrix_val)
+  # Round to 7 significant digits relative to the map maximum (R's default
+  # print precision), fixed here so results do not depend on options(digits).
+  density_matrix_val <- zapsmall(density_matrix_val, digits = 7L)
 
   out_list <- list(x = eval_points_val[[1]],
                    y = eval_points_val[[2]],
@@ -1524,7 +1635,7 @@ similarity.scanpath <- function(x, y, method=c("multimatch"),
 similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap"),
                                       window=NULL,
                                 xdenom=1000, ydenom=1000, tdenom=3000,
-                                tweight=.8,  lambda=.1, dthresh=40,
+                                tweight=.8,  lambda=.1, dthresh=60,
                                 time_samples=NULL, screensize=NULL,...) {
   method <- match.arg(method)
 
@@ -1588,6 +1699,12 @@ similarity.density <- function(x, y,
                                            "dcov", "emd"),
                                saliency_map = NULL, ...) {
   method <- match.arg(method)
+  if (inherits(y, "density")) {
+    check_same_density_lattice(x, y)
+  } else if (is.numeric(y) && length(y) != length(x$z)) {
+    stop("similarity(): `y` has ", length(y), " values but the density map `x` has ",
+         length(x$z), " grid cells.")
+  }
   if (method == "emd") {
     compute_similarity(x, y, method = method, saliency_map = saliency_map)
   } else {
@@ -1596,6 +1713,34 @@ similarity.density <- function(x, y,
     }
     compute_similarity(x$z, as.vector(y), method)
   }
+}
+
+# Two density maps are comparable cell by cell only when they share a lattice.
+density_lattices_equal <- function(x, y) {
+  gx <- as.numeric(x$x)
+  gy <- as.numeric(x$y)
+  hx <- as.numeric(y$x)
+  hy <- as.numeric(y$y)
+  length(gx) == length(hx) && length(gy) == length(hy) &&
+    isTRUE(all.equal(gx, hx)) && isTRUE(all.equal(gy, hy)) &&
+    identical(dim(x$z), dim(y$z))
+}
+
+check_same_density_lattice <- function(x, y) {
+  if (!density_lattices_equal(x, y)) {
+    # Classed so callers that turn per-pair errors into NA can let it through.
+    stop(structure(
+      class = c("eyesim_lattice_mismatch", "error", "condition"),
+      list(
+        message = paste0(
+          "similarity(): density maps are on different lattices. Both maps must ",
+          "have the same x and y grid coordinates (same bounds and outdim)."
+        ),
+        call = NULL
+      )
+    ))
+  }
+  invisible(TRUE)
 }
 
 #' @export
@@ -1661,7 +1806,9 @@ compute_similarity <- function(x, y,
       # Check if vectors are identical despite zero variance
       # Use a tolerance for floating point comparisons
       if (is_zero_var_x && is_zero_var_y && all(abs(vx_common - vy_common) < sqrt(.Machine$double.eps))) {
-         return(1.0) # Perfect correlation for identical vectors
+         # Perfect correlation for identical vectors. Fisher z uses the same
+         # clamp as non-constant identical maps below, so r = 1 maps to one value.
+         return(if (method == "fisherz") atanh(1 - .Machine$double.eps) else 1.0)
       } else {
          # If only one has zero variance, or they have zero variance but are different (e.g. one is all 0, other is all 1), correlation is undefined/NA
          warning(paste("Method", method, "requires variance in both inputs, or identical inputs if variance is zero. One or both have near-zero variance and are not identical."))
@@ -1674,7 +1821,13 @@ compute_similarity <- function(x, y,
   if (method=="pearson" || method == "spearman") {
     stats::cor(vx_common, vy_common, method=method)
   } else if (method == "fisherz") {
-    cor_val <- stats::cor(vx_common, vy_common, method="pearson")
+    # Identical maps have r = 1 exactly; cor() can return 1 - k * eps for them.
+    cor_val <- if (identical(vx_common, vy_common)) 1 else stats::cor(vx_common, vy_common, method="pearson")
+    # Treat r within rounding error of +/-1 (e.g. a rescaled copy of a map) as
+    # exactly +/-1, so every perfect correlation maps to the same z below.
+    snap <- 64 * .Machine$double.eps
+    if (cor_val > 1 - snap) cor_val <- 1
+    if (cor_val < -1 + snap) cor_val <- -1
     # Ensure cor_val is within (-1, 1) for atanh
     cor_val <- max(min(cor_val, 1 - .Machine$double.eps), -1 + .Machine$double.eps)
     atanh(cor_val)
@@ -1731,8 +1884,11 @@ kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
   nx <- length(x)
   if (length(y) != nx)
     stop("data vectors must be the same length")
+  if (missing(w))
+    w <- numeric(nx) + 1
   if (length(w) != nx & length(w) != 1)
     stop("weight vectors must be 1 or length of data")
+  w <- rep(w, length.out = nx)
   n <- rep(n, length.out = 2L)
   gx <- seq(lims[1], lims[2], length = n[1])
   gy <- seq(lims[3], lims[4], length = n[2])
@@ -1741,14 +1897,13 @@ kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
   else rep(h, length.out = 2L)
   if (any(h <= 0))
     stop("bandwidths must be strictly positive")
-  if (missing(w))
-    w <- numeric(nx) + 1
   h <- h/4
   ax <- outer(gx, x, "-")/h[1]
   ay <- outer(gy, y, "-")/h[2]
-  z <- (matrix(rep(w, n), nrow = n, ncol = nx, byrow = TRUE) *
-          matrix(dnorm(ax), n, nx)) %*% t(matrix(dnorm(ay), n,
-                                                 nx))/(sum(w) * h[1] * h[2])
+  # Rows of the x-kernel matrix are grid points (n[1]) and columns are
+  # fixations, so the weights are applied column-wise.
+  wkx <- matrix(dnorm(ax), n[1], nx) * matrix(w, n[1], nx, byrow = TRUE)
+  z <- wkx %*% t(matrix(dnorm(ay), n[2], nx)) / (sum(w) * h[1] * h[2])
   return(list(x = gx, y = gy, z = z))
 }
 
@@ -1800,6 +1955,11 @@ similarity.eye_density_multiscale <- function(x, y, method = c("pearson", "spear
   matched_pairs_x <- x[match(common_sigmas, sigmas_x)]
   matched_pairs_y <- y[match(common_sigmas, sigmas_y)]
 
+  # Mismatched lattices are an input error, not a per-scale numerical failure,
+  # so check them before the per-scale tryCatch() below can turn them into NA.
+  for (k in seq_along(matched_pairs_x)) {
+    check_same_density_lattice(matched_pairs_x[[k]], matched_pairs_y[[k]])
+  }
 
   per_scale_similarities <- mapply(function(scale_x, scale_y) {
     # Each scale_x, scale_y is an 'eye_density' object

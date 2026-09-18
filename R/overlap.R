@@ -10,7 +10,7 @@
 #' @param x A `fixation_group` object representing the first fixation group.
 #' @param y A `fixation_group` object representing the second fixation group.
 #' @param dthresh A numeric value specifying the distance threshold to determine when two fixations overlap (default is 60).
-#' @param time_samples A numeric vector of points in time at which to evaluate the overlapping fixations (default is `seq(0, max(x$onset), by = 20)`).
+#' @param time_samples A numeric vector of points in time at which to evaluate the overlapping fixations (default is `seq(0, max(c(x$onset, y$onset)), by = 20)`, built from both groups so that the measure is symmetric in `x` and `y`).
 #' @param dist_method A character string specifying the distance metric to use for measuring the distance between fixations. Options are "euclidean" and "manhattan" (default is "euclidean").
 #'
 #' @return A list containing the following elements:
@@ -34,7 +34,7 @@
 #' @keywords internal
 #' @importFrom proxy dist
 #' @export
-fixation_overlap <- function(x, y, dthresh=60, time_samples=seq(0,max(x$onset), by=20),
+fixation_overlap <- function(x, y, dthresh=60, time_samples=seq(0, max(c(x$onset, y$onset)), by=20),
                              dist_method=c("euclidean", "manhattan")) {
   method <- match.arg(dist_method)
 

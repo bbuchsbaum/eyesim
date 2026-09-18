@@ -5,6 +5,10 @@
 #' normalized density surface. For fixation groups, entropy can be computed from
 #' either a derived density map or a discrete occupancy grid.
 #'
+#' Entropy is defined only for non-negative mass. A map with any negative value,
+#' such as the difference of two densities, is an error. A map whose total mass
+#' is zero gives \code{NA}.
+#'
 #' @param x The input object.
 #' @param normalize Logical; if `TRUE` (default), divide entropy by the maximum
 #'   possible entropy for the number of valid bins so results lie in `[0, 1]`.
@@ -13,9 +17,15 @@
 #' @param method For `fixation_group` objects, one of `"density"` (default) or
 #'   `"grid"`.
 #' @param sigma Optional bandwidth for density-based entropy on fixation groups.
-#'   If `NULL`, `suggest_sigma()` is used.
+#'   If `NULL`, `suggest_sigma()` is used. A group with fewer than two fixations
+#'   has no suggested bandwidth, so its density entropy is \code{NA}; with an
+#'   explicit \code{sigma} it is \code{NA} too unless \code{min_fixations} is
+#'   lowered through \code{...}. The \code{"grid"} method returns 0 for a single
+#'   fixation.
 #' @param xbounds,ybounds Optional display bounds for fixation groups. If not
-#'   supplied, the observed fixation ranges are used with a small padding.
+#'   supplied, the observed fixation ranges are used with a small padding. With
+#'   \code{method = "grid"}, a fixation outside the bounds is counted in the
+#'   nearest edge cell rather than dropped.
 #' @param outdim Grid dimensions for density-based entropy from fixation groups.
 #' @param grid Grid dimensions for occupancy-grid entropy from fixation groups.
 #' @param duration_weighted Logical; if `TRUE`, duration-weighted KDE is used
@@ -83,6 +93,11 @@ fixation_entropy.fixation_group <- function(x, normalize = TRUE, base = exp(1),
     bounds <- resolve_fixation_entropy_bounds(x, xbounds = xbounds, ybounds = ybounds)
     if (is.null(sigma)) {
       sigma <- suggest_sigma(x, xbounds = bounds$xbounds, ybounds = bounds$ybounds)
+      # suggest_sigma() needs at least two fixations; without a bandwidth the
+      # density entropy is undefined.
+      if (!is.finite(sigma)) {
+        return(NA_real_)
+      }
     }
     dens <- eye_density(
       x,
@@ -144,6 +159,13 @@ entropy_from_mass <- function(mass, normalize = TRUE, base = exp(1)) {
 
   if (length(vals) == 0L) {
     return(NA_real_)
+  }
+
+  # Shannon entropy needs a probability mass; a signed map (for example a
+  # difference of two densities) has none, whatever its total.
+  if (any(vals < 0)) {
+    stop("fixation_entropy() requires non-negative mass, but the map has negative ",
+         "values (for example a difference of two densities).")
   }
 
   total <- sum(vals)

@@ -1,0 +1,535 @@
+# Regression tests for defects found while auditing eyesim against the eyes4s
+# parity baseline. Each block names the audit item it covers.
+
+audit_fg <- function() {
+  fixation_group(x = c(10, 30, 80), y = c(10, 20, 40),
+                 onset = c(0, 100, 200), duration = c(1, 2, 4))
+}
+
+audit_density <- function(fg, ...) {
+  suppressMessages(eye_density(fg, sigma = 10, xbounds = c(0, 100), ybounds = c(0, 50),
+                               outdim = c(5, 3), ...))
+}
+
+# Audit item 1 ---------------------------------------------------------------
+test_that("eye_density honours explicit fixation weights", {
+  fg <- audit_fg()
+  d0 <- audit_density(fg)
+  dw <- audit_density(fg, weights = c(4, 2, 1))
+  expect_false(isTRUE(all.equal(d0$z, dw$z)))
+
+  # Explicit weights equal to the durations reproduce duration weighting.
+  expect_equal(audit_density(fg, weights = c(1, 2, 4))$z,
+               audit_density(fg, duration_weighted = TRUE)$z)
+
+  # Explicit weights take precedence over duration weighting.
+  expect_equal(audit_density(fg, weights = c(4, 2, 1), duration_weighted = TRUE)$z, dw$z)
+
+  # A zero weight removes a fixation: the map equals one built without it.
+  expect_equal(audit_density(fg, weights = c(1, 1, 0))$z,
+               audit_density(fg[1:2, ])$z)
+
+  # Weights are aligned with the rows that survive the window filter.
+  expect_equal(audit_density(fg, weights = c(4, 2, 1), window = c(50, 300))$z,
+               audit_density(fg[2:3, ], weights = c(2, 1))$z)
+
+  expect_error(audit_density(fg, weights = c(1, 2)), "one value per fixation")
+  expect_error(audit_density(fg, weights = c(1, -1, 2)), "non-negative")
+  expect_error(audit_density(fg, weights = c(0, 0, 0)), "not all be zero")
+
+  # Weights that sum to zero only after the window give NULL under both backends.
+  for (pkg in c("ks", "MASS")) {
+    expect_warning(
+      res <- audit_density(fg, weights = c(1, 0, 0), window = c(50, 300), kde_pkg = pkg),
+      "Sum of weights is zero", info = pkg
+    )
+    expect_null(res)
+  }
+  fg0 <- fixation_group(x = c(10, 30, 80), y = c(10, 20, 40),
+                        onset = c(0, 100, 200), duration = c(0, 0, 0))
+  expect_warning(res <- audit_density(fg0, duration_weighted = TRUE), "Sum of weights is zero")
+  expect_null(res)
+})
+
+# Audit item 2 ---------------------------------------------------------------
+test_that("eye_density forwards extra arguments to ks::kde", {
+  fg <- audit_fg()
+  dens <- audit_density(fg, binned = FALSE)
+  expect_s3_class(dens, "eye_density")
+
+  ref <- ks::kde(cbind(fg$x, fg$y), H = diag(c(100, 100)), gridsize = c(5, 3),
+                 xmin = c(0, 0), xmax = c(100, 50), binned = FALSE,
+                 compute.cont = FALSE)$estimate
+  expect_equal(dens$z, ref / sum(ref), tolerance = 1e-6)
+
+  ms <- eye_density(fg, sigma = c(5, 10), xbounds = c(0, 100), ybounds = c(0, 50),
+                    outdim = c(5, 3), binned = FALSE)
+  expect_s3_class(ms, "eye_density_multiscale")
+  expect_equal(ms[[2]]$z, dens$z)
+
+  expect_error(audit_density(fg, not_a_kde_argument = 1), "Unsupported ks::kde")
+  expect_error(audit_density(fg, gridsize = c(2, 2)), "Unsupported ks::kde")
+  expect_error(audit_density(fg, eval.points = cbind(10, 20)), "Unsupported ks::kde")
+  expect_error(audit_density(fg, kde_pkg = "MASS", binned = FALSE),
+               "not supported when kde_pkg")
+
+  # A mistyped backend is refused instead of silently falling back to MASS.
+  expect_error(audit_density(fg, kde_pkg = "ks "), "must be \"ks\" or \"MASS\"")
+  expect_error(audit_density(fg, kde_pkg = c("ks", "MASS")), "must be \"ks\" or \"MASS\"")
+})
+
+# Audit item 3 ---------------------------------------------------------------
+test_that("weighted MASS densities are computed on non-square grids", {
+  fg <- audit_fg()
+  mass_density <- function(fg, ...) {
+    suppressMessages(eye_density(fg, sigma = 40, xbounds = c(0, 100), ybounds = c(0, 50),
+                                 outdim = c(5, 3), kde_pkg = "MASS", ...))
+  }
+
+  dw <- expect_no_warning(mass_density(fg, duration_weighted = TRUE))
+  expect_s3_class(dw, "eye_density")
+  expect_equal(dim(dw$z), c(5L, 3L))
+  expect_false(isTRUE(all.equal(dw$z, mass_density(fg)$z)))
+
+  # With uniform weights, the weighted kernel reproduces MASS::kde2d exactly.
+  uw <- kde2d_weighted(fg$x, fg$y, h = 40, n = c(5, 3), lims = c(0, 100, 0, 50),
+                       w = c(2, 2, 2))
+  ref <- MASS::kde2d(fg$x, fg$y, h = 40, n = c(5, 3), lims = c(0, 100, 0, 50))
+  expect_equal(uw$z, ref$z)
+
+  # A zero weight removes a fixation from the weighted MASS map.
+  expect_equal(mass_density(fg, weights = c(1, 1, 0))$z, mass_density(fg[1:2, ])$z)
+})
+
+# Audit item 5 ---------------------------------------------------------------
+test_that("density maps do not depend on options(digits)", {
+  fg <- audit_fg()
+  old <- options(digits = 7)
+  on.exit(options(old), add = TRUE)
+  d7 <- audit_density(fg)$z
+  options(digits = 17)
+  d17 <- audit_density(fg)$z
+  options(digits = 3)
+  d3 <- audit_density(fg)$z
+  expect_identical(d17, d7)
+  expect_identical(d3, d7)
+
+  # The geometric warp used by the affine and contract transforms is rounded
+  # with the same fixed precision.
+  dens <- audit_density(fg)
+  A <- matrix(c(1.1, 0.05, 0, 0.9), 2)
+  options(digits = 7)
+  w7 <- warp_density_object(dens, A = A, t = c(1, -2))$z
+  options(digits = 17)
+  w17 <- warp_density_object(dens, A = A, t = c(1, -2))$z
+  expect_identical(w17, w7)
+})
+
+# Audit items 6 and 8 --------------------------------------------------------
+audit_unit_map <- function(i) {
+  z <- rep(0, 4)
+  z[i] <- 1
+  gen_density(x = 1:2, y = 1:2, z = matrix(z, 2))
+}
+
+audit_perm_tables <- function(keys) {
+  ref <- tibble::tibble(key = c("a", "b", "c"), participant = "p",
+                        density = lapply(1:3, audit_unit_map))
+  src <- tibble::tibble(key = keys, participant = "p",
+                        density = lapply(match(keys, ref$key), audit_unit_map))
+  list(ref = ref, src = src)
+}
+
+test_that("the true match is excluded before permutation candidates are sampled", {
+  tabs <- audit_perm_tables(c("a", "b", "c"))
+  for (method in c("cosine", "pearson")) {
+    for (seed in 1:15) {
+      set.seed(seed)
+      res <- suppressMessages(template_similarity(
+        tabs$ref, tabs$src, "key", permute_on = "participant",
+        method = method, permutations = 2
+      ))
+      # Two non-matching candidates per row, so permutations = 2 is exhaustive.
+      expect_equal(res$n_perm, rep(2L, 3), info = paste(method, seed))
+
+      set.seed(seed)
+      res1 <- suppressMessages(template_similarity(
+        tabs$ref, tabs$src, "key", permute_on = "participant",
+        method = method, permutations = 1
+      ))
+      expect_equal(res1$n_perm, rep(1L, 3), info = paste(method, seed))
+      # The unit maps are orthogonal: a control is never the true match.
+      control <- if (method == "cosine") 0 else -1 / 3
+      expect_equal(res1$perm_sim, rep(control, 3), info = paste(method, seed))
+    }
+  }
+})
+
+test_that("duplicated focal keys never enter their own permutation baseline", {
+  tabs <- audit_perm_tables(c("a", "a", "b", "c"))
+  for (method in c("cosine", "pearson")) {
+    res <- suppressMessages(template_similarity(
+      tabs$ref, tabs$src, "key", permute_on = "participant",
+      method = method, permutations = 100
+    ))
+    a_rows <- res$key == "a"
+    control <- if (method == "cosine") 0 else -1 / 3
+    expect_equal(res$perm_sim[a_rows], rep(control, 2), info = method)
+    expect_equal(res$n_perm[a_rows], rep(2L, 2), info = method)
+  }
+})
+
+test_that("each non-matching template enters the permutation baseline once", {
+  mk <- function(v) gen_density(x = 1:2, y = 1:2, z = matrix(v, 2))
+  ref <- tibble::tibble(key = c("a", "b", "c"), participant = "p",
+                        density = list(mk(c(1, 0, 0, 0)), mk(c(0, 1, 0, 0)), mk(c(0, 1, 1, 0))))
+  src <- tibble::tibble(key = c("a", "a", "b", "c"), participant = "p",
+                        density = ref$density[c(1, 1, 2, 3)])
+  for (method in c("cosine", "pearson")) {
+    res <- suppressMessages(template_similarity(ref, src, "key", permute_on = "participant",
+                                                method = method, permutations = 100))
+    # Row "b": template "a" is matched by two source rows but counts once.
+    b_row <- which(res$key == "b")
+    expect_equal(res$n_perm[b_row], 2L, info = method)
+    expected <- mean(c(similarity(ref$density[[1]], ref$density[[2]], method = method),
+                       similarity(ref$density[[3]], ref$density[[2]], method = method)))
+    expect_equal(res$perm_sim[b_row], expected, info = method)
+  }
+
+  # sample_density_time() draws from the same distinct candidates. At (1, 1),
+  # template "a" has z = 1 and template "c" has z = 0, so row "b" averages to 0.5.
+  fg <- fixation_group(x = 1, y = 1, onset = 0, duration = 100)
+  st <- tibble::tibble(key = c("a", "a", "b", "c"), fixgroup = list(fg, fg, fg, fg))
+  res_t <- sample_density_time(ref, st, "key", times = 0, permutations = 100)
+  expect_equal(res_t$perm_sampled[[3]]$z, 0.5)
+})
+
+# Audit item 7 (documentation) -----------------------------------------------
+# The documented behaviour: sampling uses the session RNG, so set.seed() makes
+# the baseline reproducible and different seeds can select different controls.
+test_that("permutation baselines follow the session RNG", {
+  mk <- function(i) {
+    z <- rep(0, 4)
+    z[i] <- 1
+    z[(i %% 4) + 1] <- 0.5
+    gen_density(x = 1:2, y = 1:2, z = matrix(z, 2))
+  }
+  ref <- tibble::tibble(key = letters[1:4], participant = "p", density = lapply(1:4, mk))
+  run <- function(method, seed) {
+    set.seed(seed)
+    suppressMessages(template_similarity(ref, ref, "key", permute_on = "participant",
+                                         method = method, permutations = 1))$perm_sim
+  }
+  for (method in c("cosine", "pearson")) {
+    expect_identical(run(method, 1), run(method, 1), info = method)
+    draws <- lapply(1:10, function(s) run(method, s))
+    expect_gt(length(unique(draws)), 1L)
+  }
+})
+
+# Audit item 24 --------------------------------------------------------------
+test_that("template_similarity_cv leaves the caller's RNG stream untouched", {
+  mk <- function(i) gen_density(x = 1:2, y = 1:2, z = matrix(c(i, 7 - i, (i %% 3) + 1, 2), 2))
+  ref <- tibble::tibble(key = letters[1:6], participant = "p", density = lapply(1:6, mk))
+  cv <- function(...) {
+    suppressMessages(template_similarity_cv(ref, ref, "key", permute_on = "participant",
+                                            method = "pearson", n_folds = 2, seed = 1, ...))
+  }
+
+  set.seed(42)
+  expected <- runif(3)
+  set.seed(42)
+  res1 <- cv(permutations = 1)
+  expect_identical(runif(3), expected)
+
+  # Results depend on `seed` only, not on the caller's RNG state.
+  set.seed(7)
+  res2 <- cv(permutations = 1)
+  expect_identical(res2$perm_sim, res1$perm_sim)
+
+  # Without a prior .Random.seed, none is left behind.
+  if (exists(".Random.seed", envir = globalenv())) {
+    saved <- get(".Random.seed", envir = globalenv())
+    on.exit(assign(".Random.seed", saved, envir = globalenv()), add = TRUE)
+    rm(".Random.seed", envir = globalenv())
+  }
+  cv(permutations = 0)
+  expect_false(exists(".Random.seed", envir = globalenv()))
+
+  # Controls come from the held-out fold only: 3 keys per fold, so 2 controls.
+  full <- cv(permutations = 100)
+  expect_equal(full$n_perm, rep(2L, 6))
+})
+
+# Audit item 9 ---------------------------------------------------------------
+test_that("fisherz gives the same clamped value for every pair of identical maps", {
+  z_max <- atanh(1 - .Machine$double.eps)
+  constant <- rep(0.25, 4)
+  varying <- c(0.1, 0.2, 0.3, 0.4)
+  expect_equal(similarity(constant, constant, method = "fisherz"), z_max)
+  expect_equal(similarity(varying, varying, method = "fisherz"), z_max)
+
+  flat <- gen_density(x = 1:2, y = 1:2, z = matrix(constant, 2))
+  expect_equal(similarity(flat, flat, method = "fisherz"), z_max)
+
+  # The reviewer's case: cor(v, v) is 1 - 3.3e-16 here, which gave z = 18.166.
+  set.seed(7)
+  v7 <- runif(10)
+  expect_identical(similarity(v7, v7, method = "fisherz"), z_max)
+
+  # cor(v, v) is often 1 - k * eps for random vectors; identical and rescaled
+  # copies must still give exactly the clamped value, and r = -1 its negative.
+  set.seed(8)
+  for (i in 1:200) {
+    v <- runif(10)
+    expect_identical(similarity(v, v, method = "fisherz"), z_max)
+    expect_identical(similarity(v, 3 * v + 1, method = "fisherz"), z_max)
+    expect_identical(similarity(v, -v, method = "fisherz"), -z_max)
+  }
+
+  # Correlation-scale methods still report r = 1 for identical constant maps.
+  expect_equal(similarity(constant, constant, method = "pearson"), 1)
+  expect_equal(similarity(constant, constant, method = "spearman"), 1)
+})
+
+# Audit item 10 --------------------------------------------------------------
+test_that("density maps on different lattices are refused", {
+  z <- matrix(c(1, 2, 3, 4), 2)
+  a <- gen_density(x = 1:2, y = 1:2, z = z)
+  b <- gen_density(x = c(10, 20), y = c(10, 20), z = z)
+  for (method in c("pearson", "cosine", "fisherz", "l1")) {
+    expect_error(similarity(a, b, method = method), "different lattices", info = method)
+  }
+  expect_equal(similarity(a, gen_density(x = 1:2, y = 1:2, z = z), method = "pearson"), 1)
+  expect_error(similarity(a, 1:5, method = "pearson"), "grid cells")
+
+  # template_similarity refuses on both the fast cosine and the general path.
+  ref <- tibble::tibble(key = c("k1", "k2"), density = list(a, a))
+  src <- tibble::tibble(key = c("k1", "k2"), density = list(b, b))
+  for (method in c("cosine", "pearson")) {
+    expect_error(suppressMessages(template_similarity(ref, src, "key", method = method,
+                                                      permutations = 0)),
+                 "different lattices", info = method)
+  }
+
+  # Multiscale maps are refused too, not turned into NA per scale.
+  fg <- audit_fg()
+  ms_a <- eye_density(fg, sigma = c(5, 10), xbounds = c(0, 100), ybounds = c(0, 50), outdim = c(5, 3))
+  ms_b <- eye_density(fg, sigma = c(5, 10), xbounds = c(0, 200), ybounds = c(0, 50), outdim = c(5, 3))
+  expect_error(similarity(ms_a, ms_b, method = "pearson"), "different lattices")
+  ms_ref <- tibble::tibble(key = c("k1", "k2"), density = list(ms_a, ms_a))
+  ms_src <- tibble::tibble(key = c("k1", "k2"), density = list(ms_b, ms_b))
+  for (method in c("cosine", "pearson")) {
+    expect_error(suppressMessages(template_similarity(ms_ref, ms_src, "key", method = method,
+                                                      permutations = 0)),
+                 "different lattices", info = method)
+  }
+  expect_equal(similarity(ms_a, ms_a, method = "pearson"), 1)
+
+  # repetitive_similarity() refuses too, instead of returning NaN per pair.
+  rep_tab <- tibble::tibble(cond = c("c1", "c1", "c2", "c2"), density = list(a, b, a, b))
+  expect_error(repetitive_similarity(rep_tab, condition_var = "cond", method = "pearson"),
+               class = "eyesim_lattice_mismatch")
+})
+
+# Audit item 11 --------------------------------------------------------------
+test_that("similarity() and fixation_overlap() share the overlap threshold", {
+  expect_identical(formals(eyesim:::similarity.fixation_group)$dthresh,
+                   formals(fixation_overlap)$dthresh)
+
+  # Fixations 50 units apart overlap under the documented default of 60.
+  a <- fixation_group(x = c(0, 100), y = c(0, 0), onset = c(0, 100), duration = c(100, 100))
+  b <- fixation_group(x = c(50, 150), y = c(0, 0), onset = c(0, 100), duration = c(100, 100))
+  times <- c(0, 50, 100)
+  expect_equal(similarity(a, b, method = "overlap", time_samples = times), 1)
+  expect_equal(similarity(a, b, method = "overlap", time_samples = times),
+               fixation_overlap(a, b, time_samples = times)$perc)
+})
+
+# Audit item 12 --------------------------------------------------------------
+test_that("the default overlap time grid spans both fixation groups", {
+  a <- fixation_group(x = c(0, 0), y = c(0, 0), onset = c(0, 1000), duration = c(1000, 1000))
+  b <- fixation_group(x = c(0, 500), y = c(0, 0), onset = c(0, 100), duration = c(100, 100))
+  expect_equal(fixation_overlap(a, b)$perc, fixation_overlap(b, a)$perc)
+  expect_equal(fixation_overlap(a, b)$perc,
+               fixation_overlap(a, b, time_samples = seq(0, 1000, by = 20))$perc)
+})
+
+# Audit item 13 --------------------------------------------------------------
+test_that("sample_fixations holds the last fixation on both paths", {
+  fg <- fixation_group(x = c(0, 1), y = c(0, 1), onset = c(0, 100), duration = c(100, 100))
+  times <- c(-10, 0, 50, 100, 150, 200)
+  fast <- sample_fixations(fg, times)
+  slow <- sample_fixations(fg, times, fast = FALSE)
+  expect_equal(fast$x, c(NA, 0, 0, 1, 1, 1))
+  expect_equal(fast$y, c(NA, 0, 0, 1, 1, 1))
+  expect_equal(fast$x, slow$x)
+  expect_equal(fast$y, slow$y)
+
+  # A single fixation no longer fails on the fast path.
+  one <- fixation_group(x = 5, y = 6, onset = 10, duration = 100)
+  expect_equal(sample_fixations(one, c(0, 10, 500))$x, c(NA, 5, 5))
+  expect_equal(sample_fixations(one, c(0, 10, 500), fast = FALSE)$x, c(NA, 5, 5))
+
+  # Both paths order by onset, take the last of tied onsets, and return NA for
+  # a fixation with missing coordinates.
+  both <- function(g, t) {
+    list(fast = sample_fixations(g, t)$x, slow = sample_fixations(g, t, fast = FALSE)$x)
+  }
+  unsorted <- fixation_group(x = c(3, 1, 2), y = c(3, 1, 2), onset = c(200, 0, 100),
+                             duration = rep(50, 3))
+  expect_equal(both(unsorted, c(-5, 0, 50, 150, 250)),
+               list(fast = c(NA, 1, 1, 2, 3), slow = c(NA, 1, 1, 2, 3)))
+  tied <- fixation_group(x = c(1, 2, 3, 9), y = c(1, 2, 3, 9), onset = c(0, 100, 100, 200),
+                         duration = rep(50, 4))
+  expect_equal(both(tied, c(50, 100, 150, 250)),
+               list(fast = c(1, 3, 3, 9), slow = c(1, 3, 3, 9)))
+  missing_xy <- fixation_group(x = c(1, NA, 3), y = c(1, NA, 3), onset = c(0, 100, 200),
+                               duration = rep(50, 3))
+  expect_equal(both(missing_xy, c(50, 100, 150, 250)),
+               list(fast = c(1, NA, NA, 3), slow = c(1, NA, NA, 3)))
+
+  # Density sampling over time follows the same rule.
+  tmpl <- gen_density(x = c(0, 1), y = c(0, 1), z = matrix(c(0.1, 0.2, 0.3, 0.4), 2))
+  res <- sample_density_time(tibble::tibble(k = "a", density = list(tmpl)),
+                             tibble::tibble(k = "a", fixgroup = list(fg)), "k",
+                             times = c(0, 50, 100, 150, 200))
+  expect_equal(res$sampled[[1]]$z, c(0.1, 0.1, 0.4, 0.4, 0.4))
+})
+
+# Audit item 14 --------------------------------------------------------------
+test_that("rep_fixations counts replicates without floating-point loss", {
+  fg <- fixation_group(x = c(1, 2, 3, 4), y = rep(1, 4), onset = c(0, 1, 2, 3),
+                       duration = c(0.29, 0.57, 0.295, 0.001))
+  reps <- rep_fixations(fg, 100)
+  expect_equal(as.vector(table(reps$index)), c(29L, 57L, 29L, 1L))
+  expect_equal(nrow(rep_fixations(fixation_group(x = 5.5, y = 1, onset = 0, duration = 0.29), 100)), 29L)
+})
+
+# Audit item 16 --------------------------------------------------------------
+test_that("sample_density_time bins are half-open, including the last", {
+  tmpl <- gen_density(x = c(0, 1), y = c(0, 1), z = matrix(c(0.1, 0.2, 0.3, 0.4), 2))
+  # Fixation at (0, 0) until t = 200, then at (1, 1).
+  fg <- fixation_group(x = c(0, 1), y = c(0, 1), onset = c(0, 200), duration = c(200, 100))
+  res <- sample_density_time(tibble::tibble(k = "a", density = list(tmpl)),
+                             tibble::tibble(k = "a", fixgroup = list(fg)), "k",
+                             times = c(0, 100, 200), time_bins = c(0, 100, 200),
+                             aggregate_fun = function(v, na.rm) length(v))
+  # t = 0 falls in [0, 100), t = 100 in [100, 200), and t = 200 in no bin.
+  expect_equal(c(res$bin_1, res$bin_2), c(1, 1))
+})
+
+# Audit item 17 --------------------------------------------------------------
+test_that("mm_position_emd compares every fixation, including the last", {
+  skip_if_not_installed("igraph")
+  skip_if_not_installed("emdist")
+  p1 <- scanpath(fixation_group(x = c(10, 40, 80), y = c(10, 20, 40),
+                                onset = c(0, 100, 250), duration = c(80, 120, 100)))
+  p2 <- scanpath(fixation_group(x = c(10, 40, 5), y = c(10, 20, 45),
+                                onset = c(0, 100, 250), duration = c(80, 120, 100)))
+  mm <- multi_match(p1, p2, screensize = c(100, 50))
+  expect_lt(mm[["mm_position_emd"]], 1)
+
+  emd <- emdist::emdw(cbind(p1$x, p1$y), p1$duration, cbind(p2$x, p2$y), p2$duration)
+  expect_equal(mm[["mm_position_emd"]], 1 - emd / sqrt(100^2 + 50^2))
+  expect_equal(multi_match(p1, p1, screensize = c(100, 50))[["mm_position_emd"]], 1)
+})
+
+# Audit item 18 --------------------------------------------------------------
+test_that("template_multireg defaults to lm", {
+  m <- tibble::tibble(
+    response = list(list(z = matrix(c(1, 2, 4, 3, 5, 7), 3))),
+    a = list(list(z = matrix(c(1, 0, 1, 2, 1, 1), 3))),
+    b = list(list(z = matrix(c(0, 1, 1, 1, 2, 3), 3)))
+  )
+  default <- template_multireg(m, "response", c("a", "b"))
+  explicit <- template_multireg(m, "response", c("a", "b"), method = "lm")
+  expect_equal(default$multireg, explicit$multireg)
+  expect_error(template_multireg(m, "response", c("a", "b"), method = "ols"), "should be one of")
+})
+
+# Audit item 19 --------------------------------------------------------------
+test_that("template_regression refuses a duplicated baseline key", {
+  mk <- function(v) gen_density(x = 1:2, y = 1:2, z = matrix(v, 2))
+  ref <- tibble::tibble(key = c("a", "b"), density = list(mk(c(1, 2, 3, 4)), mk(c(4, 3, 2, 1))))
+  src <- tibble::tibble(key = c("a", "b"), base = "x",
+                        density = list(mk(c(1, 2, 3, 5)), mk(c(4, 3, 2, 2))))
+  dup <- tibble::tibble(base = c("x", "x"), density = list(mk(c(1, 1, 2, 2)), mk(c(2, 2, 1, 1))))
+  expect_error(template_regression(ref, src, "key", dup, "base"),
+               "more than one row for base = x")
+
+  # An unused duplicate does not block the rows that have a unique baseline.
+  ok <- tibble::tibble(base = c("x", "y", "y"),
+                       density = list(mk(c(1, 1, 2, 3)), mk(c(2, 2, 1, 1)), mk(c(2, 2, 1, 1))))
+  res <- template_regression(ref, src, "key", ok, "base")
+  expect_equal(nrow(res), 2L)
+  expect_true(all(is.finite(res$beta_source)))
+})
+
+# Audit item 20 --------------------------------------------------------------
+test_that("template_sample drops rows with a NULL template or fixation group", {
+  mk <- function(v) gen_density(x = 1:2, y = 1:2, z = matrix(v, 2))
+  fg <- fixation_group(x = 1, y = 1, onset = 0, duration = 1)
+  tt <- tibble::tibble(id = 1:3,
+                       tmpl = list(mk(c(1, 2, 3, 4)), NULL, mk(c(4, 3, 2, 1))),
+                       fixgroup = list(fg, fg, NULL))
+  res <- expect_warning(template_sample(tt, "tmpl"), "removing 2 row")
+  expect_equal(res$id, 1L)
+  expect_equal(res$sample_out[[1]]$z, 1)
+
+  clean <- tt[1, ]
+  expect_no_warning(template_sample(clean, "tmpl"))
+})
+
+# Audit item 21 --------------------------------------------------------------
+test_that("a single fixation gives a defined entropy instead of an error", {
+  one <- fixation_group(x = 10, y = 10, onset = 0, duration = 100)
+  expect_true(is.na(fixation_entropy(one)))
+  expect_true(is.na(fixation_entropy(one, method = "density")))
+  expect_equal(fixation_entropy(one, method = "grid", xbounds = c(0, 100), ybounds = c(0, 100)), 0)
+
+  # An NA bandwidth is reported clearly by eye_density().
+  expect_error(eye_density(audit_fg(), sigma = NA_real_), "positive, finite")
+  expect_error(eye_density(audit_fg(), sigma = suggest_sigma(one)), "positive, finite")
+})
+
+# Audit item 23 --------------------------------------------------------------
+test_that("fixation_entropy rejects signed maps", {
+  fg <- audit_fg()
+  d1 <- audit_density(fg)
+  d2 <- audit_density(fg, weights = c(4, 2, 1))
+  expect_error(fixation_entropy(d1 - d2), "non-negative mass")
+
+  signed <- gen_density(x = 1:2, y = 1:2, z = matrix(c(2, -1, 1, 0.5), 2))
+  expect_error(fixation_entropy(signed), "non-negative mass")
+
+  # Zero mass is still undefined rather than an error.
+  expect_true(is.na(fixation_entropy(d1 - d1)))
+})
+
+# Audit items 4, 15, and 22 (documentation) ----------------------------------
+# These pin documented behaviour that did not change.
+test_that("under MASS, sigma acts as a bandwidth four times the kernel SD", {
+  fg <- audit_fg()
+  ks_map <- audit_density(fg)$z
+  mass_map <- function(s) {
+    suppressMessages(eye_density(fg, sigma = s, xbounds = c(0, 100), ybounds = c(0, 50),
+                                 outdim = c(5, 3), kde_pkg = "MASS"))$z
+  }
+  expect_lt(max(abs(mass_map(40) - ks_map)), 1e-3)
+  expect_gt(max(abs(mass_map(10) - ks_map)), 1e-2)
+})
+
+test_that("sample_density rounds half to even and clamps off-lattice points", {
+  lat <- gen_density(x = c(0, 25, 50, 75, 100), y = c(0, 25, 50), z = matrix(1:15, 5, 3))
+  q <- data.frame(x = c(12.5, 37.5, 62.5, 87.5, -1, 101), y = c(0, 0, 0, 0, 25, 25), onset = 0)
+  expect_equal(sample_density(lat, q)$z, c(2, 2, 4, 4, 6, 10))
+})
+
+test_that("grid entropy counts off-bounds fixations in the edge cell", {
+  fg <- fixation_group(x = c(10, -1000), y = c(10, 10), onset = c(0, 100), duration = c(1, 1))
+  counts <- grid_fixation_counts(fg, grid = c(2, 2), xbounds = c(0, 100), ybounds = c(0, 50))
+  expect_equal(counts[1, 1], 2)
+  expect_equal(fixation_entropy(fg, method = "grid", grid = c(2, 2), xbounds = c(0, 100),
+                                ybounds = c(0, 50), normalize = FALSE), 0)
+})

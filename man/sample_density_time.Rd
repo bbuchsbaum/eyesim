@@ -33,7 +33,9 @@ density. Default is \code{seq(0, 3000, by = 50)}.}
 
 \item{time_bins}{An optional numeric vector specifying bin boundaries for
 aggregating samples. For example, \code{c(0, 1000, 2000, 3000)} creates
-3 bins: [0-1000), [1000-2000), [2000-3000). Default is NULL (no binning).}
+3 bins: [0-1000), [1000-2000), [2000-3000). Every bin is half-open,
+including the last, so a time point equal to the final break (3000 here)
+is not assigned to any bin. Default is NULL (no binning).}
 
 \item{template_var}{A character string specifying the name of the density
 column in \code{template_tab}. Default is "density".}
@@ -90,7 +92,11 @@ bin using \code{aggregate_fun}. The result includes columns named \code{bin_1},
 \code{bin_2}, etc.
 
 If \code{permutations > 0}, a baseline is computed by sampling from non-matching
-density maps. The result includes \code{perm_sampled} (mean permuted trajectory)
+density maps. As in \code{\link{template_similarity}}, the candidates are the
+distinct templates matched by other source rows (within the \code{permute_on}
+stratum, if given); every copy of the true match is excluded, each other
+template counts once, and up to \code{permutations} of them are drawn without
+replacement. The result includes \code{perm_sampled} (mean permuted trajectory)
 and bin-specific permutation columns if binning is used.
 }
 \examples{

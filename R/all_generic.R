@@ -93,6 +93,11 @@ rescale <- function(x, sx, sy) {
 #' It can be useful when working with fixation data that needs to be resampled or when
 #' creating fixation sequences with consistent temporal spacing.
 #'
+#' For fixation groups, each fixation is repeated
+#' \code{floor(duration * resolution)} times, and at least once. The floor
+#' tolerates floating-point error, so a duration of 0.29 at resolution 100 gives
+#' 29 copies rather than 28.
+#'
 #' @param x An object representing a fixation sequence.
 #' @param resolution A numeric value representing the temporal resolution of the replicated fixations.
 #'
@@ -104,6 +109,13 @@ rep_fixations <- function(x, resolution) {
 }
 
 #' sample_fixations
+#'
+#' Sample fixation coordinates at arbitrary time points.
+#'
+#' Each time point takes the coordinates of the most recent fixation whose onset
+#' is at or before it. Fixation durations are not used: gaze during a saccade is
+#' attributed to the preceding fixation, and the last fixation is held for all
+#' later time points. Time points before the first onset give \code{NA}.
 #'
 #' @param x the fixation group
 #' @param time the continuous time points to sample
@@ -121,6 +133,11 @@ sample_fixations <- function(x, time, ...) {
 #' @param y The second object to compare.
 #' @param method A character string specifying the similarity metric to be used.
 #' @param ... Additional arguments passed to the similarity computation method.
+#'
+#' @details Density maps are compared cell by cell, so two maps must share a
+#' lattice: the same \code{x} and \code{y} grid coordinates, as produced by the
+#' same bounds and \code{outdim}. Comparing maps on different lattices is an
+#' error. A plain numeric \code{y} must have one value per grid cell of \code{x}.
 #'
 #' @return A numeric value representing the similarity between the two input objects.
 #'

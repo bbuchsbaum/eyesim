@@ -55,10 +55,16 @@ or `"none"`.}
 `"grid"`.}
 
 \item{sigma}{Optional bandwidth for density-based entropy on fixation groups.
-If `NULL`, `suggest_sigma()` is used.}
+If `NULL`, `suggest_sigma()` is used. A group with fewer than two fixations
+has no suggested bandwidth, so its density entropy is \code{NA}; with an
+explicit \code{sigma} it is \code{NA} too unless \code{min_fixations} is
+lowered through \code{...}. The \code{"grid"} method returns 0 for a single
+fixation.}
 
 \item{xbounds, ybounds}{Optional display bounds for fixation groups. If not
-supplied, the observed fixation ranges are used with a small padding.}
+supplied, the observed fixation ranges are used with a small padding. With
+\code{method = "grid"}, a fixation outside the bounds is counted in the
+nearest edge cell rather than dropped.}
 
 \item{outdim}{Grid dimensions for density-based entropy from fixation groups.}
 
@@ -77,4 +83,9 @@ These methods quantify how concentrated or diffuse a fixation pattern is
 using Shannon entropy. For density maps, entropy is computed from the
 normalized density surface. For fixation groups, entropy can be computed from
 either a derived density map or a discrete occupancy grid.
+}
+\details{
+Entropy is defined only for non-negative mass. A map with any negative value,
+such as the difference of two densities, is an error. A map whose total mass
+is zero gives \code{NA}.
 }

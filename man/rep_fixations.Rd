@@ -24,6 +24,11 @@ Replicate a fixation sequence.
 This function replicates a fixation sequence with a specified temporal resolution.
 It can be useful when working with fixation data that needs to be resampled or when
 creating fixation sequences with consistent temporal spacing.
+
+For fixation groups, each fixation is repeated
+\code{floor(duration * resolution)} times, and at least once. The floor
+tolerates floating-point error, so a duration of 0.29 at resolution 100 gives
+29 copies rather than 28.
 }
 \seealso{
 \code{\link{rep_fixations.fixation_group}} for an example of a specific method implementation for this generic.

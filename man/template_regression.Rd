@@ -21,7 +21,9 @@ template_regression(
 \item{match_on}{A character string specifying the column name to be used for matching between the
 reference and source tables.}
 
-\item{baseline_tab}{A data frame containing the baseline maps.}
+\item{baseline_tab}{A data frame containing the baseline maps. Each
+\code{baseline_key} value used by \code{source_tab} must appear in exactly one
+row; duplicated keys are an error.}
 
 \item{baseline_key}{A character string specifying the column name to be used for matching between the
 baseline table and the source table.}

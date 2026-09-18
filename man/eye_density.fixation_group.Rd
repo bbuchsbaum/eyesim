@@ -23,7 +23,12 @@
 \arguments{
 \item{x}{A fixation_group object.}
 
-\item{sigma}{The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.}
+\item{sigma}{The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.
+With \code{kde_pkg = "ks"}, \code{sigma} is the standard deviation of the
+isotropic Gaussian kernel. With \code{kde_pkg = "MASS"}, \code{sigma} is passed
+as the bandwidth \code{h} of \code{\link[MASS]{kde2d}}, whose kernel standard
+deviation is \code{h / 4}; the same \code{sigma} therefore gives a kernel four
+times narrower. Use \code{4 * sigma} under MASS to approximate the ks map.}
 
 \item{xbounds}{The x-axis bounds. Default is the range of x values in the fixation group.}
 
@@ -31,7 +36,10 @@
 
 \item{outdim}{The output dimensions of the density map. Default is c(100, 100).}
 
-\item{weights}{Optional numeric vector of fixation weights. If NULL and duration_weighted is TRUE, uses fixation durations as weights. Default is NULL.}
+\item{weights}{Optional numeric vector of non-negative fixation weights, one per
+row of \code{x} (before any \code{window} filtering). Explicit weights take precedence
+over \code{duration_weighted}. If NULL and duration_weighted is TRUE, uses fixation
+durations as weights. Default is NULL.}
 
 \item{normalize}{Whether to normalize the output map. Default is TRUE.}
 
@@ -45,9 +53,13 @@ Default is 2.}
 
 \item{origin}{The origin of the coordinate system. Default is c(0,0).}
 
-\item{kde_pkg}{A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.}
+\item{kde_pkg}{A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS"; any other value is an error. Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".}
 
-\item{...}{Additional arguments passed to the underlying KDE function.}
+\item{...}{Additional named arguments passed to \code{\link[ks]{kde}}, for example
+\code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
+\code{xmin}, \code{xmax}, \code{w}, and the evaluation grid (\code{eval.points})
+itself, so these cannot be supplied. Extra
+arguments are an error when \code{kde_pkg = "MASS"}.}
 }
 \value{
 An object of class `eye_density` (inheriting from `density` and `list`) if
@@ -61,4 +73,11 @@ This function computes a density map for a given fixation group using kernel den
 }
 \details{
 The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
+
+After optional normalization, each map is passed through
+\code{zapsmall(z, digits = 7)}. The precision is fixed and does not depend on
+\code{options(digits)}. In R 4.5.1, where this was verified, \code{zapsmall()}
+computes \code{round(z, max(0, 7 - log10(max(abs(z)))))}: values are rounded
+to 7 significant digits relative to the map maximum, so values below roughly
+\code{max(z) * 5e-8} become zero.
 }

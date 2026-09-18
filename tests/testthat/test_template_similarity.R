@@ -91,13 +91,12 @@ test_that("template_similarity cosine permutations match manual baseline computa
       d2 <- source_tab$density[[i]]
       eye_sim <- similarity(d1, d2, method = "cosine")
 
+      # The true match is excluded before sampling from the other candidates,
+      # and each distinct template counts once.
       candidates <- match_split[[as.character(source_tab$subject[[i]])]]
+      candidates <- unique(candidates[candidates != matchind[[i]]])
       if (permutations < length(candidates)) {
         candidates <- sample(candidates, permutations)
-      }
-      match_pos <- match(matchind[[i]], candidates)
-      if (!is.na(match_pos)) {
-        candidates <- candidates[-match_pos]
       }
 
       perm_vals <- vapply(candidates, function(j) {
@@ -436,21 +435,19 @@ test_that("n_perm is 0 (and perm_sim NA) when a stratum has no non-matching cand
   expect_true(all(res$n_perm[res$image != 1] >= 1L))
 })
 
-test_that("n_perm scales down when fewer candidates than requested are available", {
+test_that("n_perm equals the request when enough non-matching candidates remain", {
   tabs <- make_np_tables()
 
-  # permutations = 1 forces sampling 1 candidate per stratum; after removing the
-  # match the realized count is 0 or 1, and never the nominal request.
+  # permutations = 1 with two non-matching candidates per stratum: the true
+  # match is removed before sampling, so every row gets exactly one control.
   set.seed(123)
   res <- template_similarity(
     tabs$ref, tabs$source, match_on = "image", permute_on = "subject",
     method = "cosine", permutations = 1
   )
 
-  expect_true(all(res$n_perm %in% c(0L, 1L)))
-  # Rows with a zero baseline must carry NA perm_sim, matching the documented contract.
-  expect_true(all(is.na(res$perm_sim[res$n_perm == 0L])))
-  expect_true(all(!is.na(res$perm_sim[res$n_perm > 0L])))
+  expect_equal(res$n_perm, rep(1L, nrow(res)))
+  expect_true(all(!is.na(res$perm_sim)))
 })
 
 test_that("n_perm column is absent when no permutations are requested", {
