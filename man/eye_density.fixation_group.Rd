@@ -32,8 +32,8 @@
 \item{outdim}{The output dimensions of the density map. Default is c(100, 100).}
 
 \item{weights}{Optional numeric vector of non-negative fixation weights, one per
-row of `x` (before any `window` filtering). Explicit weights take precedence
-over `duration_weighted`. If NULL and duration_weighted is TRUE, uses fixation
+row of \code{x} (before any \code{window} filtering). Explicit weights take precedence
+over \code{duration_weighted}. If NULL and duration_weighted is TRUE, uses fixation
 durations as weights. Default is NULL.}
 
 \item{normalize}{Whether to normalize the output map. Default is TRUE.}
@@ -50,7 +50,10 @@ Default is 2.}
 
 \item{kde_pkg}{A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.}
 
-\item{...}{Additional arguments passed to the underlying KDE function.}
+\item{...}{Additional named arguments passed to \code{\link[ks]{kde}}, for example
+\code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
+\code{xmin}, \code{xmax}, and \code{w} itself, so these cannot be supplied. Extra
+arguments are an error when \code{kde_pkg = "MASS"}.}
 }
 \value{
 An object of class `eye_density` (inheriting from `density` and `list`) if

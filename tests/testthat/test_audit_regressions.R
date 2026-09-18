@@ -36,3 +36,25 @@ test_that("eye_density honours explicit fixation weights", {
   expect_error(audit_density(fg, weights = c(1, 2)), "one value per fixation")
   expect_error(audit_density(fg, weights = c(1, -1, 2)), "non-negative")
 })
+
+# Audit item 2 ---------------------------------------------------------------
+test_that("eye_density forwards extra arguments to ks::kde", {
+  fg <- audit_fg()
+  dens <- audit_density(fg, binned = FALSE)
+  expect_s3_class(dens, "eye_density")
+
+  ref <- ks::kde(cbind(fg$x, fg$y), H = diag(c(100, 100)), gridsize = c(5, 3),
+                 xmin = c(0, 0), xmax = c(100, 50), binned = FALSE,
+                 compute.cont = FALSE)$estimate
+  expect_equal(dens$z, ref / sum(ref), tolerance = 1e-6)
+
+  ms <- eye_density(fg, sigma = c(5, 10), xbounds = c(0, 100), ybounds = c(0, 50),
+                    outdim = c(5, 3), binned = FALSE)
+  expect_s3_class(ms, "eye_density_multiscale")
+  expect_equal(ms[[2]]$z, dens$z)
+
+  expect_error(audit_density(fg, not_a_kde_argument = 1), "Unsupported ks::kde")
+  expect_error(audit_density(fg, gridsize = c(2, 2)), "Unsupported ks::kde")
+  expect_error(audit_density(fg, kde_pkg = "MASS", binned = FALSE),
+               "not supported when kde_pkg")
+})

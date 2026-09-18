@@ -74,3 +74,8 @@
   Weights must be finite, non-negative, and supplied one per fixation; they are
   subset along with `window`, and they take precedence over
   `duration_weighted`.
+
+* `eye_density()` now forwards extra named arguments in `...` to `ks::kde()`,
+  as documented. Previously any extra argument failed with "unused argument".
+  Arguments that `eye_density()` sets itself, and unknown names, are rejected
+  with a clear error, as are extra arguments under `kde_pkg = "MASS"`.

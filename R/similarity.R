@@ -1161,8 +1161,8 @@ summary.eye_density <- function(object, ...) {
 #' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
 #' @param outdim The output dimensions of the density map. Default is c(100, 100).
 #' @param weights Optional numeric vector of non-negative fixation weights, one per
-#'   row of `x` (before any `window` filtering). Explicit weights take precedence
-#'   over `duration_weighted`. If NULL and duration_weighted is TRUE, uses fixation
+#'   row of \code{x} (before any \code{window} filtering). Explicit weights take precedence
+#'   over \code{duration_weighted}. If NULL and duration_weighted is TRUE, uses fixation
 #'   durations as weights. Default is NULL.
 #' @param normalize Whether to normalize the output map. Default is TRUE.
 #' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
@@ -1172,7 +1172,10 @@ summary.eye_density <- function(object, ...) {
 #'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
 #' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.
-#' @param ... Additional arguments passed to the underlying KDE function.
+#' @param ... Additional named arguments passed to \code{\link[ks]{kde}}, for example
+#'   \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
+#'   \code{xmin}, \code{xmax}, and \code{w} itself, so these cannot be supplied. Extra
+#'   arguments are an error when \code{kde_pkg = "MASS"}.
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 #'
@@ -1311,10 +1314,11 @@ eye_density.fixation_group <- function(x, sigma = 50,
 # Internal function, not exported
 .compute_single_eye_density <- function(x_data, sigma_val, xbounds, ybounds, outdim,
                                        normalize, weighted, weights, data_matrix,
-                                       kde_pkg = "ks") { # Added kde_pkg, default to ks if available, else MASS
+                                       kde_pkg = "ks", ...) { # Added kde_pkg, default to ks if available, else MASS
 
   current_sigma <- sigma_val # Use the specific sigma for this scale
   gridsize <- outdim
+  kde_args <- list(...)
 
   # Determine the weights to use: explicit or duration weights when requested
   final_weights <- if (weighted) {
@@ -1350,14 +1354,31 @@ eye_density.fixation_group <- function(x, sigma = 50,
     }
 
 
+    # Extra arguments are forwarded to ks::kde(); the arguments eye_density()
+    # derives itself cannot be overridden.
+    ks_args <- list(x = data_matrix,
+                    H = H_mat,
+                    gridsize = gridsize,
+                    xmin = c(xbounds[1], ybounds[1]),
+                    xmax = c(xbounds[2], ybounds[2]),
+                    w = scaled_final_weights, # Pass scaled weights
+                    compute.cont = FALSE)
+    if (length(kde_args) > 0L) {
+      arg_names <- names(kde_args)
+      if (is.null(arg_names) || any(arg_names == "")) {
+        stop("Additional arguments to eye_density() must be named ks::kde() arguments.")
+      }
+      managed <- c("x", "H", "h", "gridsize", "xmin", "xmax", "w")
+      bad <- setdiff(arg_names, setdiff(names(formals(ks::kde)), managed))
+      if (length(bad) > 0L) {
+        stop("Unsupported ks::kde() argument(s) in `...`: ", paste(bad, collapse = ", "),
+             ". eye_density() sets x, H, gridsize, xmin, xmax, and w itself.")
+      }
+      ks_args[arg_names] <- kde_args
+    }
+
     kde_result <- tryCatch({
-        ks::kde(x = data_matrix,
-                H = H_mat,
-                gridsize = gridsize,
-                xmin = c(xbounds[1], ybounds[1]),
-                xmax = c(xbounds[2], ybounds[2]),
-                w = scaled_final_weights, # Pass scaled weights
-                compute.cont = FALSE)
+        do.call(ks::kde, ks_args)
       }, error = function(e) {
          warning("ks::kde failed for sigma=", current_sigma, ". Error: ", e$message)
          NULL
@@ -1370,6 +1391,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
   } else {
     # --- Fallback to MASS or custom ---
+    if (length(kde_args) > 0L) {
+      stop("Additional arguments in `...` are passed to ks::kde() and are not supported when kde_pkg = \"MASS\".")
+    }
     message("ks package not found or not selected. Using MASS::kde2d (or custom kde2d_weighted if applicable).")
 
     # Check if weights are non-uniform (relevant if duration_weighted was TRUE)
