@@ -351,3 +351,21 @@ test_that("template_multireg defaults to lm", {
   expect_equal(default$multireg, explicit$multireg)
   expect_error(template_multireg(m, "response", c("a", "b"), method = "ols"), "should be one of")
 })
+
+# Audit item 19 --------------------------------------------------------------
+test_that("template_regression refuses a duplicated baseline key", {
+  mk <- function(v) gen_density(x = 1:2, y = 1:2, z = matrix(v, 2))
+  ref <- tibble::tibble(key = c("a", "b"), density = list(mk(c(1, 2, 3, 4)), mk(c(4, 3, 2, 1))))
+  src <- tibble::tibble(key = c("a", "b"), base = "x",
+                        density = list(mk(c(1, 2, 3, 5)), mk(c(4, 3, 2, 2))))
+  dup <- tibble::tibble(base = c("x", "x"), density = list(mk(c(1, 1, 2, 2)), mk(c(2, 2, 1, 1))))
+  expect_error(template_regression(ref, src, "key", dup, "base"),
+               "more than one row for base = x")
+
+  # An unused duplicate does not block the rows that have a unique baseline.
+  ok <- tibble::tibble(base = c("x", "y", "y"),
+                       density = list(mk(c(1, 1, 2, 3)), mk(c(2, 2, 1, 1)), mk(c(2, 2, 1, 1))))
+  res <- template_regression(ref, src, "key", ok, "base")
+  expect_equal(nrow(res), 2L)
+  expect_true(all(is.finite(res$beta_source)))
+})

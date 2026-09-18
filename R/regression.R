@@ -78,7 +78,9 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #' @param source_tab A data frame containing the source maps.
 #' @param match_on A character string specifying the column name to be used for matching between the
 #'   reference and source tables.
-#' @param baseline_tab A data frame containing the baseline maps.
+#' @param baseline_tab A data frame containing the baseline maps. Each
+#'   \code{baseline_key} value used by \code{source_tab} must appear in exactly one
+#'   row; duplicated keys are an error.
 #' @param baseline_key A character string specifying the column name to be used for matching between the
 #'   baseline table and the source table.
 #' @param method A character vector of available regression methods. Default is c("lm", "rlm", "rank").
@@ -106,6 +108,15 @@ template_regression <- function(ref_tab, source_tab, match_on,
     matchind <- matchind[!is.na(matchind)]
   }
 
+  # Each baseline key used by a source row must identify exactly one map.
+  baseline_keys <- baseline_tab[[baseline_key]]
+  used_keys <- unique(source_tab[[baseline_key]])
+  dup_keys <- used_keys[used_keys %in% baseline_keys[duplicated(baseline_keys)]]
+  if (length(dup_keys) > 0L) {
+    stop("template_regression(): baseline_tab has more than one row for ",
+         baseline_key, " = ", paste(dup_keys, collapse = ", "),
+         ". Each baseline key must identify exactly one baseline map.")
+  }
 
   rows <- lapply(seq_len(nrow(source_tab)), function(i) {
     row <- source_tab[i, ]

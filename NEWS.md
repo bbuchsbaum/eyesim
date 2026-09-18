@@ -167,3 +167,8 @@
 * `template_multireg()` now defaults to `method = "lm"`, as documented.
   Omitting `method` previously failed with "the condition has length > 1".
   Unknown methods are rejected by `match.arg()`.
+
+* `template_regression()` now stops with a clear message when a
+  `baseline_key` value used by `source_tab` appears in more than one row of
+  `baseline_tab`. It previously failed with "$ operator is invalid for atomic
+  vectors".
