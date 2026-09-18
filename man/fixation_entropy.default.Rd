@@ -55,7 +55,11 @@ or `"none"`.}
 `"grid"`.}
 
 \item{sigma}{Optional bandwidth for density-based entropy on fixation groups.
-If `NULL`, `suggest_sigma()` is used.}
+If `NULL`, `suggest_sigma()` is used. A group with fewer than two fixations
+has no suggested bandwidth, so its density entropy is \code{NA}; with an
+explicit \code{sigma} it is \code{NA} too unless \code{min_fixations} is
+lowered through \code{...}. The \code{"grid"} method returns 0 for a single
+fixation.}
 
 \item{xbounds, ybounds}{Optional display bounds for fixation groups. If not
 supplied, the observed fixation ranges are used with a small padding.}

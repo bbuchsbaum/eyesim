@@ -384,3 +384,15 @@ test_that("template_sample drops rows with a NULL template or fixation group", {
   clean <- tt[1, ]
   expect_no_warning(template_sample(clean, "tmpl"))
 })
+
+# Audit item 21 --------------------------------------------------------------
+test_that("a single fixation gives a defined entropy instead of an error", {
+  one <- fixation_group(x = 10, y = 10, onset = 0, duration = 100)
+  expect_true(is.na(fixation_entropy(one)))
+  expect_true(is.na(fixation_entropy(one, method = "density")))
+  expect_equal(fixation_entropy(one, method = "grid", xbounds = c(0, 100), ybounds = c(0, 100)), 0)
+
+  # An NA bandwidth is reported clearly by eye_density().
+  expect_error(eye_density(audit_fg(), sigma = NA_real_), "positive, finite")
+  expect_error(eye_density(audit_fg(), sigma = suggest_sigma(one)), "positive, finite")
+})

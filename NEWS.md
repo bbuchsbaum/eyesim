@@ -177,3 +177,9 @@
   `NULL`, with a warning, as its code comment intended. The `is.null()` filter
   on list columns was a no-op, so a single `NULL` template made the whole call
   fail.
+
+* `fixation_entropy()` on a fixation group with a single fixation now returns
+  `NA` for `method = "density"` when `sigma` is not supplied, because
+  `suggest_sigma()` cannot estimate a bandwidth from one point. It previously
+  failed with "missing values present in assertion". `eye_density()` now
+  reports an `NA` or non-finite `sigma` with a clear message.

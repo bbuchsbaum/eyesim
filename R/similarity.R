@@ -1251,8 +1251,11 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        kde_pkg = "ks",
                                        ...) {
 
-  assert_that(is.numeric(sigma) && all(sigma > 0),
-              msg = "sigma must be a positive numeric value or vector")
+  # NA-safe: an NA sigma (e.g. suggest_sigma() on a single fixation) gets this
+  # message rather than assert_that()'s "missing values present in assertion".
+  assert_that(is.numeric(sigma) && length(sigma) > 0 &&
+                all(!is.na(sigma) & is.finite(sigma) & sigma > 0),
+              msg = "sigma must be a positive, finite numeric value or vector")
 
   # Explicit per-fixation weights take precedence over duration weighting.
   if (!is.null(weights)) {
