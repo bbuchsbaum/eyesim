@@ -1234,7 +1234,8 @@ summary.eye_density <- function(object, ...) {
 #' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".
 #' @param ... Additional named arguments passed to \code{\link[ks]{kde}}, for example
 #'   \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
-#'   \code{xmin}, \code{xmax}, and \code{w} itself, so these cannot be supplied. Extra
+#'   \code{xmin}, \code{xmax}, \code{w}, and the evaluation grid (\code{eval.points})
+#'   itself, so these cannot be supplied. Extra
 #'   arguments are an error when \code{kde_pkg = "MASS"}.
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
@@ -1276,6 +1277,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
                 msg = "weights must be a numeric vector with one value per fixation.")
     assert_that(all(is.finite(weights)) && all(weights >= 0),
                 msg = "weights must be finite and non-negative.")
+    assert_that(any(weights > 0), msg = "weights must not all be zero.")
   }
 
   # Filter by window if specified
@@ -1436,11 +1438,11 @@ eye_density.fixation_group <- function(x, sigma = 50,
       if (is.null(arg_names) || any(arg_names == "")) {
         stop("Additional arguments to eye_density() must be named ks::kde() arguments.")
       }
-      managed <- c("x", "H", "h", "gridsize", "xmin", "xmax", "w")
+      managed <- c("x", "H", "h", "gridsize", "xmin", "xmax", "w", "eval.points")
       bad <- setdiff(arg_names, setdiff(names(formals(ks::kde)), managed))
       if (length(bad) > 0L) {
         stop("Unsupported ks::kde() argument(s) in `...`: ", paste(bad, collapse = ", "),
-             ". eye_density() sets x, H, gridsize, xmin, xmax, and w itself.")
+             ". eye_density() sets x, H, gridsize, xmin, xmax, w, and eval.points itself.")
       }
       ks_args[arg_names] <- kde_args
     }

@@ -57,7 +57,8 @@ Default is 2.}
 
 \item{...}{Additional named arguments passed to \code{\link[ks]{kde}}, for example
 \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
-\code{xmin}, \code{xmax}, and \code{w} itself, so these cannot be supplied. Extra
+\code{xmin}, \code{xmax}, \code{w}, and the evaluation grid (\code{eval.points})
+itself, so these cannot be supplied. Extra
 arguments are an error when \code{kde_pkg = "MASS"}.}
 }
 \value{

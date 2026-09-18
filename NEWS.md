@@ -71,14 +71,15 @@
 
 * `eye_density()` now honours an explicit `weights` vector. It was previously
   ignored, so the map was always unweighted unless `duration_weighted = TRUE`.
-  Weights must be finite, non-negative, and supplied one per fixation; they are
-  subset along with `window`, and they take precedence over
+  Weights must be finite, non-negative, not all zero, and supplied one per
+  fixation; they are subset along with `window`, and they take precedence over
   `duration_weighted`.
 
 * `eye_density()` now forwards extra named arguments in `...` to `ks::kde()`,
   as documented. Previously any extra argument failed with "unused argument".
-  Arguments that `eye_density()` sets itself, and unknown names, are rejected
-  with a clear error, as are extra arguments under `kde_pkg = "MASS"`.
+  Arguments that `eye_density()` sets itself (including `eval.points`), and
+  unknown names, are rejected with a clear error, as are extra arguments under
+  `kde_pkg = "MASS"`.
 
 * Weighted densities under `kde_pkg = "MASS"` (explicit `weights` or
   `duration_weighted = TRUE`) now work. The internal weighted kernel failed
