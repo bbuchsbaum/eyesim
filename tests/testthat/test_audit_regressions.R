@@ -105,3 +105,57 @@ test_that("density maps do not depend on options(digits)", {
   w17 <- warp_density_object(dens, A = A, t = c(1, -2))$z
   expect_identical(w17, w7)
 })
+
+# Audit items 6 and 8 --------------------------------------------------------
+audit_unit_map <- function(i) {
+  z <- rep(0, 4)
+  z[i] <- 1
+  gen_density(x = 1:2, y = 1:2, z = matrix(z, 2))
+}
+
+audit_perm_tables <- function(keys) {
+  ref <- tibble::tibble(key = c("a", "b", "c"), participant = "p",
+                        density = lapply(1:3, audit_unit_map))
+  src <- tibble::tibble(key = keys, participant = "p",
+                        density = lapply(match(keys, ref$key), audit_unit_map))
+  list(ref = ref, src = src)
+}
+
+test_that("the true match is excluded before permutation candidates are sampled", {
+  tabs <- audit_perm_tables(c("a", "b", "c"))
+  for (method in c("cosine", "pearson")) {
+    for (seed in 1:15) {
+      set.seed(seed)
+      res <- suppressMessages(template_similarity(
+        tabs$ref, tabs$src, "key", permute_on = "participant",
+        method = method, permutations = 2
+      ))
+      # Two non-matching candidates per row, so permutations = 2 is exhaustive.
+      expect_equal(res$n_perm, rep(2L, 3), info = paste(method, seed))
+
+      set.seed(seed)
+      res1 <- suppressMessages(template_similarity(
+        tabs$ref, tabs$src, "key", permute_on = "participant",
+        method = method, permutations = 1
+      ))
+      expect_equal(res1$n_perm, rep(1L, 3), info = paste(method, seed))
+      # The unit maps are orthogonal: a control is never the true match.
+      control <- if (method == "cosine") 0 else -1 / 3
+      expect_equal(res1$perm_sim, rep(control, 3), info = paste(method, seed))
+    }
+  }
+})
+
+test_that("duplicated focal keys never enter their own permutation baseline", {
+  tabs <- audit_perm_tables(c("a", "a", "b", "c"))
+  for (method in c("cosine", "pearson")) {
+    res <- suppressMessages(template_similarity(
+      tabs$ref, tabs$src, "key", permute_on = "participant",
+      method = method, permutations = 100
+    ))
+    a_rows <- res$key == "a"
+    control <- if (method == "cosine") 0 else -1 / 3
+    expect_equal(res$perm_sim[a_rows], rep(control, 2), info = method)
+    expect_equal(res$n_perm[a_rows], rep(2L, 2), info = method)
+  }
+})

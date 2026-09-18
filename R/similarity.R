@@ -199,15 +199,11 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
         matchind
       }
 
-      # Randomly sample a subset of matching indices if the number of permutations is less than the length of mind
+      # Remove every copy of the true match first (several source rows can
+      # share a key), then sample from the non-matching candidates only.
+      mind <- mind[mind != .$matchind]
       if (permutations < length(mind)) {
         mind <- sample(mind, permutations)
-      }
-
-      # Remove the current element from the list of matching indices
-      elnum <- match(.$matchind, mind)
-      if (!is.na(elnum) && length(elnum) > 0) {
-        mind <- mind[-elnum]
       }
 
       if (length(mind) == 0) {
@@ -276,13 +272,10 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
       return(c(NA_real_, 0))
     }
 
+    # Remove every copy of the true match first, then sample from the rest.
+    candidates <- candidates[candidates != matchind[[i]]]
     if (permutations < length(candidates)) {
       candidates <- sample(candidates, permutations)
-    }
-
-    match_pos <- match(matchind[[i]], candidates)
-    if (!is.na(match_pos) && length(match_pos) > 0L) {
-      candidates <- candidates[-match_pos]
     }
 
     if (length(candidates) == 0L) {
@@ -379,7 +372,7 @@ cosine_similarity_matrix <- function(x, y) {
 #' @details
 #' Permutation handling and units follow \code{template_similarity}:
 #' \itemize{
-#'   \item Candidate sets are defined by \code{permute_on}; sampling is without replacement when \code{permutations} is smaller than the number of candidates.
+#'   \item Candidate sets are defined by \code{permute_on}. Every copy of the true match is removed first; sampling is then without replacement when \code{permutations} is smaller than the number of remaining candidates.
 #'   \item When \code{permutations} is greater than or equal to the available non-matching candidates, all candidates are used (exhaustive baseline).
 #'   \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), \code{eye_sim_diff = eye_sim - perm_sim} (all on the scale of \code{method}), and \code{n_perm} (the number of permuted comparisons that contributed to \code{perm_sim} for that row; \code{0} when no baseline could be computed). If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
 #' }
@@ -455,6 +448,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #' Permutation baseline and exhaustive behavior:
 #' \itemize{
 #'   \item The set of permutation candidates is determined by \code{permute_on}. If \code{permute_on} is provided, candidates are restricted within that stratum (e.g., within-participant); otherwise all reference items are candidates.
+#'   \item The true match is removed from the candidate set before any sampling. If several source rows share the same \code{match_on} key, every copy of that key is removed, so a row is never compared with its own template in the baseline.
 #'   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial. Internally, sampling is performed with a fixed future seed to aid reproducibility.
 #'   \item If \code{permutations} is greater than or equal to the number of available non-matching candidates, the procedure uses all candidates (excluding the true match). In other words, the permutation baseline is exhaustive when possible.
 #'   \item For small-N designs, you can set \code{permutations} to a large number to trigger exhaustive behavior. For example, with 3 images per participant and \code{permute_on = participant}, there are only 2 non-matching candidates per trial; any \code{permutations >= 2} will result in using both.

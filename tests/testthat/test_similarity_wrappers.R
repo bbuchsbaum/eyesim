@@ -120,8 +120,9 @@ test_that("scanpath_similarity expands multimatch permutation summaries", {
   expect_true("n_perm" %in% names(res))
   expect_type(res$n_perm, "integer")
   expect_length(res$n_perm, nrow(res))
-  # 3 trials, no permute_on, permutations = 2 -> 1 or 2 realized comparisons per row.
-  expect_true(all(res$n_perm %in% c(1L, 2L)))
+  # 3 trials, no permute_on, permutations = 2: the true match is removed before
+  # sampling, so both remaining trials are used for every row.
+  expect_equal(res$n_perm, rep(2L, nrow(res)))
 })
 
 test_that("multi_match returns all six metrics for short scanpaths", {

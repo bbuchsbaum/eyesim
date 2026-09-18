@@ -89,3 +89,18 @@
   They previously used `getOption("digits")`, so the same call returned maps
   differing by up to about 5e-9 when a session changed `options(digits)`.
   Results under the default `digits = 7` are unchanged.
+
+* The permutation baseline in `template_similarity()`,
+  `template_similarity_cv()`, `fixation_similarity()`, and
+  `scanpath_similarity()` now removes the true match before sampling
+  candidates. It previously sampled first and then dropped the match, so with
+  three candidates and `permutations = 2` most rows received one control
+  instead of the documented two. `n_perm` is now `min(permutations, available
+  non-matching candidates)`. Whenever `permutations` is smaller than the
+  candidate pool, the sampled controls, and hence `perm_sim` and
+  `eye_sim_diff`, differ from earlier versions for the same seed.
+
+* When several source rows share a `match_on` key, every copy of that key is
+  now removed from each such row's permutation candidates. Previously one copy
+  remained, so a row could be compared with its own template in the baseline.
+  This matches `sample_density_time()`.

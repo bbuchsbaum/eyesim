@@ -54,6 +54,7 @@ Compute similarity between each density map in a \code{source_tab} with a matchi
 Permutation baseline and exhaustive behavior:
 \itemize{
   \item The set of permutation candidates is determined by \code{permute_on}. If \code{permute_on} is provided, candidates are restricted within that stratum (e.g., within-participant); otherwise all reference items are candidates.
+  \item The true match is removed from the candidate set before any sampling. If several source rows share the same \code{match_on} key, every copy of that key is removed, so a row is never compared with its own template in the baseline.
   \item If \code{permutations} is less than the number of available non-matching candidates, a random subset of that size is drawn (without replacement) for each trial. Internally, sampling is performed with a fixed future seed to aid reproducibility.
   \item If \code{permutations} is greater than or equal to the number of available non-matching candidates, the procedure uses all candidates (excluding the true match). In other words, the permutation baseline is exhaustive when possible.
   \item For small-N designs, you can set \code{permutations} to a large number to trigger exhaustive behavior. For example, with 3 images per participant and \code{permute_on = participant}, there are only 2 non-matching candidates per trial; any \code{permutations >= 2} will result in using both.
