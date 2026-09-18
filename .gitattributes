@@ -1,0 +1,5 @@
+# Frozen validation outputs are pinned byte for byte by their manifest-md5.csv.
+# Keep git from rewriting whitespace or line endings in them (e.g. through
+# `git apply --whitespace=fix`); R's sessionInfo() output has trailing spaces.
+inst/validation/*-results/** -whitespace -text
+inst/validation/gaze-weave-transport-v3-golden/** -whitespace -text
