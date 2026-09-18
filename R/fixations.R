@@ -61,7 +61,10 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 
 #' @rdname sample_fixations
 #' @param fast Logical. If TRUE (default), uses a vectorized lookup; if FALSE,
-#'   evaluates each time point in turn. Both return the same coordinates.
+#'   evaluates each time point in turn. For onsets in non-decreasing order, the
+#'   usual case, both return the same coordinates, including the last of tied
+#'   onsets. The fast path orders fixations by onset first; the element-wise path
+#'   assumes they are already ordered.
 #' @importFrom purrr map_dfr
 #' @export
 sample_fixations.fixation_group <- function(x, time, fast=TRUE, ...) {

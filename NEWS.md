@@ -147,7 +147,11 @@
   single fixation. Downstream, `sample_density()` with `times`,
   `sample_density_time()`, `template_sample()` with `time`, and
   `fixation_overlap()` now score time points after the last onset instead of
-  treating them as missing.
+  treating them as missing. Two smaller changes on the fast path: fixations
+  with tied onsets previously had their coordinates averaged
+  (`approx(ties = mean)`) and now yield the last tied fixation, as
+  `fast = FALSE` does; and a fixation with `NA` coordinates was previously
+  skipped, carrying the preceding fixation forward, and now yields `NA`.
 
 * `rep_fixations()` now counts `floor(duration * resolution)` replicates with a
   floating-point tolerance. A duration of 0.29 at resolution 100 previously
