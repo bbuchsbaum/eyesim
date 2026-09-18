@@ -161,7 +161,10 @@
   with tied onsets previously had their coordinates averaged
   (`approx(ties = mean)`) and now yield the last tied fixation, as
   `fast = FALSE` does; and a fixation with `NA` coordinates was previously
-  skipped, carrying the preceding fixation forward, and now yields `NA`.
+  skipped, carrying the preceding fixation forward, and now yields `NA`. The
+  `fast = FALSE` path now orders fixations by onset first, as the fast path
+  does; for groups whose onsets were not in increasing order it previously
+  returned coordinates by row position rather than by onset.
 
 * `rep_fixations()` now counts `floor(duration * resolution)` replicates with a
   floating-point tolerance. A duration of 0.29 at resolution 100 previously

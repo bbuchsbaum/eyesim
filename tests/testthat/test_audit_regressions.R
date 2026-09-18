@@ -344,6 +344,24 @@ test_that("sample_fixations holds the last fixation on both paths", {
   expect_equal(sample_fixations(one, c(0, 10, 500))$x, c(NA, 5, 5))
   expect_equal(sample_fixations(one, c(0, 10, 500), fast = FALSE)$x, c(NA, 5, 5))
 
+  # Both paths order by onset, take the last of tied onsets, and return NA for
+  # a fixation with missing coordinates.
+  both <- function(g, t) {
+    list(fast = sample_fixations(g, t)$x, slow = sample_fixations(g, t, fast = FALSE)$x)
+  }
+  unsorted <- fixation_group(x = c(3, 1, 2), y = c(3, 1, 2), onset = c(200, 0, 100),
+                             duration = rep(50, 3))
+  expect_equal(both(unsorted, c(-5, 0, 50, 150, 250)),
+               list(fast = c(NA, 1, 1, 2, 3), slow = c(NA, 1, 1, 2, 3)))
+  tied <- fixation_group(x = c(1, 2, 3, 9), y = c(1, 2, 3, 9), onset = c(0, 100, 100, 200),
+                         duration = rep(50, 4))
+  expect_equal(both(tied, c(50, 100, 150, 250)),
+               list(fast = c(1, 3, 3, 9), slow = c(1, 3, 3, 9)))
+  missing_xy <- fixation_group(x = c(1, NA, 3), y = c(1, NA, 3), onset = c(0, 100, 200),
+                               duration = rep(50, 3))
+  expect_equal(both(missing_xy, c(50, 100, 150, 250)),
+               list(fast = c(1, NA, NA, 3), slow = c(1, NA, NA, 3)))
+
   # Density sampling over time follows the same rule.
   tmpl <- gen_density(x = c(0, 1), y = c(0, 1), z = matrix(c(0.1, 0.2, 0.3, 0.4), 2))
   res <- sample_density_time(tibble::tibble(k = "a", density = list(tmpl)),

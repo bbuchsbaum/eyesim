@@ -61,40 +61,36 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 
 #' @rdname sample_fixations
 #' @param fast Logical. If TRUE (default), uses a vectorized lookup; if FALSE,
-#'   evaluates each time point in turn. For onsets in non-decreasing order, the
-#'   usual case, both return the same coordinates, including the last of tied
-#'   onsets. The fast path orders fixations by onset first; the element-wise path
-#'   assumes they are already ordered.
+#'   evaluates each time point in turn. Both paths first order the fixations by
+#'   onset (keeping the input order among tied onsets) and drop fixations with a
+#'   missing onset, so they return the same coordinates for any input order; of
+#'   tied onsets, the last one is used.
 #' @importFrom purrr map_dfr
 #' @export
 sample_fixations.fixation_group <- function(x, time, fast=TRUE, ...) {
 
+  # Both paths apply the documented rule to onset-ordered fixations: the most
+  # recent fixation with onset at or before each time point, NA before the
+  # first onset. Stable ordering keeps the last of tied onsets.
+  keep <- !is.na(x$onset)
+  ord <- order(x$onset[keep])
+  onsets <- x$onset[keep][ord]
+  xs <- x$x[keep][ord]
+  ys <- x$y[keep][ord]
 
   ret <- if (fast) {
-    # Most recent fixation with onset at or before each time point, NA before
-    # the first onset: the same rule as the element-wise path below. Stable
-    # ordering keeps the last of tied onsets, as that path does.
-    keep <- !is.na(x$onset)
-    ord <- order(x$onset[keep])
-    onsets <- x$onset[keep][ord]
     idx <- findInterval(time, onsets)
     idx[idx == 0L] <- NA_integer_
-    data.frame(x = x$x[keep][ord][idx], y = x$y[keep][ord][idx],
+    data.frame(x = xs[idx], y = ys[idx],
                onset = time, duration = rep(1, length(time)))
 
   } else {
     purrr::map(time, function(t) {
-      if (t < x$onset[1]) {
+      len <- sum(onsets <= t)
+      if (len == 0) {
         c(x=NA,y=NA, onset=t, duration=NA)
       } else {
-        delta <- t - x$onset
-        valid <- which(delta >= 0)
-        len <- length(valid)
-        if (len == 0) {
-          c(x=NA,y=NA, onset=t, duration=NA)
-        } else {
-          c(x=x$x[len], y=x$y[len], onset=t, duration=0)
-        }
+        c(x=xs[len], y=ys[len], onset=t, duration=0)
       }
     }) %>% map_dfr(bind_rows)
   }

@@ -17,10 +17,10 @@ sample_fixations(x, time, ...)
 \item{...}{Additional arguments passed to methods.}
 
 \item{fast}{Logical. If TRUE (default), uses a vectorized lookup; if FALSE,
-evaluates each time point in turn. For onsets in non-decreasing order, the
-usual case, both return the same coordinates, including the last of tied
-onsets. The fast path orders fixations by onset first; the element-wise path
-assumes they are already ordered.}
+evaluates each time point in turn. Both paths first order the fixations by
+onset (keeping the input order among tied onsets) and drop fixations with a
+missing onset, so they return the same coordinates for any input order; of
+tied onsets, the last one is used.}
 }
 \description{
 Sample fixation coordinates at arbitrary time points.
