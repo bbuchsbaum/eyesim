@@ -66,3 +66,11 @@
   (`perm_sim = NA`). Use it to exclude rows with too thin a permutation baseline,
   e.g. `dplyr::filter(res, n_perm >= k)`. The column is additive: output for
   `permutations = 0` is unchanged.
+
+## Correctness fixes from the eyes4s parity audit
+
+* `eye_density()` now honours an explicit `weights` vector. It was previously
+  ignored, so the map was always unweighted unless `duration_weighted = TRUE`.
+  Weights must be finite, non-negative, and supplied one per fixation; they are
+  subset along with `window`, and they take precedence over
+  `duration_weighted`.

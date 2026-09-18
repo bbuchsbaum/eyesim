@@ -31,7 +31,10 @@
 
 \item{outdim}{The output dimensions of the density map. Default is c(100, 100).}
 
-\item{weights}{Optional numeric vector of fixation weights. If NULL and duration_weighted is TRUE, uses fixation durations as weights. Default is NULL.}
+\item{weights}{Optional numeric vector of non-negative fixation weights, one per
+row of `x` (before any `window` filtering). Explicit weights take precedence
+over `duration_weighted`. If NULL and duration_weighted is TRUE, uses fixation
+durations as weights. Default is NULL.}
 
 \item{normalize}{Whether to normalize the output map. Default is TRUE.}
 

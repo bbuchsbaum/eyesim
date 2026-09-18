@@ -1160,7 +1160,10 @@ summary.eye_density <- function(object, ...) {
 #' @param xbounds The x-axis bounds. Default is the range of x values in the fixation group.
 #' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
 #' @param outdim The output dimensions of the density map. Default is c(100, 100).
-#' @param weights Optional numeric vector of fixation weights. If NULL and duration_weighted is TRUE, uses fixation durations as weights. Default is NULL.
+#' @param weights Optional numeric vector of non-negative fixation weights, one per
+#'   row of `x` (before any `window` filtering). Explicit weights take precedence
+#'   over `duration_weighted`. If NULL and duration_weighted is TRUE, uses fixation
+#'   durations as weights. Default is NULL.
 #' @param normalize Whether to normalize the output map. Default is TRUE.
 #' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
 #' @param window The temporal window over which to compute the density map. Default is NULL.
@@ -1196,6 +1199,14 @@ eye_density.fixation_group <- function(x, sigma = 50,
   assert_that(is.numeric(sigma) && all(sigma > 0),
               msg = "sigma must be a positive numeric value or vector")
 
+  # Explicit per-fixation weights take precedence over duration weighting.
+  if (!is.null(weights)) {
+    assert_that(is.numeric(weights) && length(weights) == nrow(x),
+                msg = "weights must be a numeric vector with one value per fixation.")
+    assert_that(all(is.finite(weights)) && all(weights >= 0),
+                msg = "weights must be finite and non-negative.")
+  }
+
   # Filter by window if specified
   x_filtered <- x # Use a new variable for the potentially filtered data
   if (!is.null(window)) {
@@ -1206,6 +1217,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
     assert_that("onset" %in% colnames(x_filtered),
                 msg = "The data frame must contain an 'onset' column.")
 
+    if (!is.null(weights)) {
+      weights <- weights[which(x_filtered$onset >= window[1] & x_filtered$onset < window[2])]
+    }
     x_filtered <- dplyr::filter(x_filtered, onset >= window[1] & onset < window[2])
     if (nrow(x_filtered) == 0) {
          warning("No fixations remain after applying the window filter. Returning NULL.")
@@ -1226,7 +1240,10 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
   # Prepare data and weights (original logic, using x_filtered)
   data_matrix <- as.matrix(x_filtered[, c("x", "y")])
-  current_weights <- if (duration_weighted) {
+  weighted <- !is.null(weights) || duration_weighted
+  current_weights <- if (!is.null(weights)) {
+    weights
+  } else if (duration_weighted) {
     assert_that("duration" %in% colnames(x_filtered),
                 msg = "The data frame must contain a 'duration' column.")
     assert_that(is.numeric(x_filtered$duration),
@@ -1241,7 +1258,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
   # Decide on weights processing based on kde_pkg
   processed_weights <- current_weights
-  if (duration_weighted && !(requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks")) {
+  if (weighted && !(requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks")) {
       # If using custom kde2d_weighted, it might expect specific weight normalization.
       # The example implementation used sum(w) in denominator.
       # Let's ensure weights are positive sum if using this path.
@@ -1251,7 +1268,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
       }
       # Normalization like w/sum(w) * N might be needed depending on kde2d_weighted implementation.
       # Keeping raw weights for now, assuming kde2d_weighted handles it.
-  } else if (duration_weighted && requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks") {
+  } else if (weighted && requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks") {
       # ks::kde handles raw weights (counts, proportions, etc.)
       if (sum(processed_weights) <= 0) {
           warning("Sum of weights is zero or negative for ks::kde. Result might be zero density. Proceeding.")
@@ -1264,7 +1281,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
     all_eye_densities <- lapply(sigma, function(s_val) {
       .compute_single_eye_density(
         x_data = x_filtered, sigma_val = s_val, xbounds = xbounds, ybounds = ybounds,
-        outdim = outdim, normalize = normalize, duration_weighted = duration_weighted,
+        outdim = outdim, normalize = normalize, weighted = weighted,
         weights = processed_weights, data_matrix = data_matrix, kde_pkg = kde_pkg, ...
       )
     })
@@ -1285,7 +1302,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
     # Single scale request (delegates to the helper too for consistency)
     return(.compute_single_eye_density(
       x_data = x_filtered, sigma_val = sigma, xbounds = xbounds, ybounds = ybounds,
-      outdim = outdim, normalize = normalize, duration_weighted = duration_weighted,
+      outdim = outdim, normalize = normalize, weighted = weighted,
       weights = processed_weights, data_matrix = data_matrix, kde_pkg = kde_pkg, ...
     ))
   }
@@ -1293,15 +1310,15 @@ eye_density.fixation_group <- function(x, sigma = 50,
 
 # Internal function, not exported
 .compute_single_eye_density <- function(x_data, sigma_val, xbounds, ybounds, outdim,
-                                       normalize, duration_weighted, weights, data_matrix,
+                                       normalize, weighted, weights, data_matrix,
                                        kde_pkg = "ks") { # Added kde_pkg, default to ks if available, else MASS
 
   current_sigma <- sigma_val # Use the specific sigma for this scale
   gridsize <- outdim
 
-  # Determine the weights to use based on duration_weighted flag
-  final_weights <- if (duration_weighted) {
-    # Use the pre-calculated (potentially duration-based) weights passed in
+  # Determine the weights to use: explicit or duration weights when requested
+  final_weights <- if (weighted) {
+    # Use the pre-calculated (explicit or duration-based) weights passed in
     weights
   } else {
     # For unweighted case, create uniform weights
