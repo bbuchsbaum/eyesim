@@ -188,3 +188,13 @@
   difference of two densities, with a clear error. Previously an exact
   difference map (total zero) gave `NA` while a signed map with a positive
   total gave a meaningless number. Maps with zero total mass still give `NA`.
+
+* Documentation only, no behaviour change:
+  - `?eye_density.fixation_group` now states that `sigma` is the kernel
+    standard deviation under `kde_pkg = "ks"` but the `MASS::kde2d()`
+    bandwidth under `"MASS"`, whose kernel standard deviation is `sigma / 4`.
+  - `?sample_density` now states that points are looked up at the nearest
+    lattice point with `round()`, so exact midpoints resolve half to even on
+    the index scale, and that off-lattice points are clamped to the edge.
+  - `?fixation_entropy.default` now states that the grid method counts
+    fixations outside `xbounds`/`ybounds` in the nearest edge cell.

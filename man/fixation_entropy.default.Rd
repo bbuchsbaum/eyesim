@@ -62,7 +62,9 @@ lowered through \code{...}. The \code{"grid"} method returns 0 for a single
 fixation.}
 
 \item{xbounds, ybounds}{Optional display bounds for fixation groups. If not
-supplied, the observed fixation ranges are used with a small padding.}
+supplied, the observed fixation ranges are used with a small padding. With
+\code{method = "grid"}, a fixation outside the bounds is counted in the
+nearest edge cell rather than dropped.}
 
 \item{outdim}{Grid dimensions for density-based entropy from fixation groups.}
 

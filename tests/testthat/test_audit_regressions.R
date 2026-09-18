@@ -410,3 +410,30 @@ test_that("fixation_entropy rejects signed maps", {
   # Zero mass is still undefined rather than an error.
   expect_true(is.na(fixation_entropy(d1 - d1)))
 })
+
+# Audit items 4, 15, and 22 (documentation) ----------------------------------
+# These pin documented behaviour that did not change.
+test_that("under MASS, sigma acts as a bandwidth four times the kernel SD", {
+  fg <- audit_fg()
+  ks_map <- audit_density(fg)$z
+  mass_map <- function(s) {
+    suppressMessages(eye_density(fg, sigma = s, xbounds = c(0, 100), ybounds = c(0, 50),
+                                 outdim = c(5, 3), kde_pkg = "MASS"))$z
+  }
+  expect_lt(max(abs(mass_map(40) - ks_map)), 1e-3)
+  expect_gt(max(abs(mass_map(10) - ks_map)), 1e-2)
+})
+
+test_that("sample_density rounds half to even and clamps off-lattice points", {
+  lat <- gen_density(x = c(0, 25, 50, 75, 100), y = c(0, 25, 50), z = matrix(1:15, 5, 3))
+  q <- data.frame(x = c(12.5, 37.5, 62.5, 87.5, -1, 101), y = c(0, 0, 0, 0, 25, 25), onset = 0)
+  expect_equal(sample_density(lat, q)$z, c(2, 2, 4, 4, 6, 10))
+})
+
+test_that("grid entropy counts off-bounds fixations in the edge cell", {
+  fg <- fixation_group(x = c(10, -1000), y = c(10, 10), onset = c(0, 100), duration = c(1, 1))
+  counts <- grid_fixation_counts(fg, grid = c(2, 2), xbounds = c(0, 100), ybounds = c(0, 50))
+  expect_equal(counts[1, 1], 2)
+  expect_equal(fixation_entropy(fg, method = "grid", grid = c(2, 2), xbounds = c(0, 100),
+                                ybounds = c(0, 50), normalize = FALSE), 0)
+})

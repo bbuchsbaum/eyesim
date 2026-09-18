@@ -52,6 +52,14 @@ This function samples a given smooth fixation density map with a set of discrete
 to estimate the density at the locations of those fixations.
 
 The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
+
+Each point is looked up at the nearest lattice point, separately in x and y;
+there is no interpolation. The nearest index is found with \code{round()}, so a
+coordinate exactly midway between two grid points is resolved half to even on
+the index scale (on the grid 0, 25, 50, 75, 100, the value 12.5 maps to 25 and
+37.5 also maps to 25). Coordinates outside the lattice are clamped to the
+nearest edge point, so an off-grid fixation takes the edge value rather than
+\code{NA}.
 }
 \seealso{
 \code{\link{sample_density.density}} for an example of a specific method implementation for this generic.

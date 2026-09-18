@@ -766,7 +766,15 @@ transform_name <- function(similarity_transform) {
 #' @param times A vector of numeric values representing the time points at which the density map should be sampled (default is NULL).
 #' 
 #' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
-#' 
+#'
+#' Each point is looked up at the nearest lattice point, separately in x and y;
+#' there is no interpolation. The nearest index is found with \code{round()}, so a
+#' coordinate exactly midway between two grid points is resolved half to even on
+#' the index scale (on the grid 0, 25, 50, 75, 100, the value 12.5 maps to 25 and
+#' 37.5 also maps to 25). Coordinates outside the lattice are clamped to the
+#' nearest edge point, so an off-grid fixation takes the edge value rather than
+#' \code{NA}.
+#'
 #' @param normalize A character string specifying how to normalize the density
 #'   map before sampling. One of:
 #'   \describe{
@@ -1204,6 +1212,11 @@ summary.eye_density <- function(object, ...) {
 #'
 #' @param x A fixation_group object.
 #' @param sigma The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.
+#'   With \code{kde_pkg = "ks"}, \code{sigma} is the standard deviation of the
+#'   isotropic Gaussian kernel. With \code{kde_pkg = "MASS"}, \code{sigma} is passed
+#'   as the bandwidth \code{h} of \code{\link[MASS]{kde2d}}, whose kernel standard
+#'   deviation is \code{h / 4}; the same \code{sigma} therefore gives a kernel four
+#'   times narrower. Use \code{4 * sigma} under MASS to approximate the ks map.
 #' @param xbounds The x-axis bounds. Default is the range of x values in the fixation group.
 #' @param ybounds The y-axis bounds. Default is the range of y values in the fixation group.
 #' @param outdim The output dimensions of the density map. Default is c(100, 100).
@@ -1218,7 +1231,7 @@ summary.eye_density <- function(object, ...) {
 #'   If fewer fixations are present after optional filtering, the function returns NULL.
 #'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
-#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.
+#' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".
 #' @param ... Additional named arguments passed to \code{\link[ks]{kde}}, for example
 #'   \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
 #'   \code{xmin}, \code{xmax}, and \code{w} itself, so these cannot be supplied. Extra

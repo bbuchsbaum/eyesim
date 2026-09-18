@@ -23,7 +23,12 @@
 \arguments{
 \item{x}{A fixation_group object.}
 
-\item{sigma}{The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.}
+\item{sigma}{The standard deviation(s) of the kernel. Can be a single numeric value or a numeric vector. If a vector is provided, a multiscale density object (`eye_density_multiscale`) will be created. Default is 50.
+With \code{kde_pkg = "ks"}, \code{sigma} is the standard deviation of the
+isotropic Gaussian kernel. With \code{kde_pkg = "MASS"}, \code{sigma} is passed
+as the bandwidth \code{h} of \code{\link[MASS]{kde2d}}, whose kernel standard
+deviation is \code{h / 4}; the same \code{sigma} therefore gives a kernel four
+times narrower. Use \code{4 * sigma} under MASS to approximate the ks map.}
 
 \item{xbounds}{The x-axis bounds. Default is the range of x values in the fixation group.}
 
@@ -48,7 +53,7 @@ Default is 2.}
 
 \item{origin}{The origin of the coordinate system. Default is c(0,0).}
 
-\item{kde_pkg}{A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". The "ks" package supports weighted density estimation.}
+\item{kde_pkg}{A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS". Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".}
 
 \item{...}{Additional named arguments passed to \code{\link[ks]{kde}}, for example
 \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
