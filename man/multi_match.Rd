@@ -35,7 +35,7 @@ The function computes six different similarity metrics between the scanpaths \co
   \item \code{mm_length}: Similarity based on the length of saccades between fixations.
   \item \code{mm_position}: Similarity based on the spatial position of fixations.
   \item \code{mm_duration}: Similarity based on the duration of fixations.
-  \item \code{mm_position_emd}: Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.
+  \item \code{mm_position_emd}: Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of all fixations, weighted by duration, as \code{1 - EMD / sqrt(width^2 + height^2)}.
 }
 
 The function ensures that both scanpaths have strictly increasing onset times and contain at least three fixations. It also normalizes the similarity scores to lie between 0 and 1, with higher values indicating greater similarity.

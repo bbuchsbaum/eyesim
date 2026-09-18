@@ -322,3 +322,19 @@ test_that("sample_density_time bins are half-open, including the last", {
   # t = 0 falls in [0, 100), t = 100 in [100, 200), and t = 200 in no bin.
   expect_equal(c(res$bin_1, res$bin_2), c(1, 1))
 })
+
+# Audit item 17 --------------------------------------------------------------
+test_that("mm_position_emd compares every fixation, including the last", {
+  skip_if_not_installed("igraph")
+  skip_if_not_installed("emdist")
+  p1 <- scanpath(fixation_group(x = c(10, 40, 80), y = c(10, 20, 40),
+                                onset = c(0, 100, 250), duration = c(80, 120, 100)))
+  p2 <- scanpath(fixation_group(x = c(10, 40, 5), y = c(10, 20, 45),
+                                onset = c(0, 100, 250), duration = c(80, 120, 100)))
+  mm <- multi_match(p1, p2, screensize = c(100, 50))
+  expect_lt(mm[["mm_position_emd"]], 1)
+
+  emd <- emdist::emdw(cbind(p1$x, p1$y), p1$duration, cbind(p2$x, p2$y), p2$duration)
+  expect_equal(mm[["mm_position_emd"]], 1 - emd / sqrt(100^2 + 50^2))
+  expect_equal(multi_match(p1, p1, screensize = c(100, 50))[["mm_position_emd"]], 1)
+})

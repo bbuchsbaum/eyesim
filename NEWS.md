@@ -157,3 +157,9 @@
   into the last bin. It now falls outside all bins, which changes the last
   `bin_*`, `perm_bin_*`, and `diff_bin_*` values whenever a sample lies on the
   final break.
+
+* `multi_match()` now computes `mm_position_emd` over all fixations. It
+  previously used the saccade table, which omits the final fixation, so two
+  three-fixation paths differing only in their last fixation scored 1. Every
+  `mm_position_emd` value changes, including the `_perm` and `_diff` columns
+  from `scanpath_similarity()`.

@@ -190,7 +190,7 @@ na_multimatch_metrics <- function() {
 #'   \item \code{mm_length}: Similarity based on the length of saccades between fixations.
 #'   \item \code{mm_position}: Similarity based on the spatial position of fixations.
 #'   \item \code{mm_duration}: Similarity based on the duration of fixations.
-#'   \item \code{mm_position_emd}: Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of fixations.
+#'   \item \code{mm_position_emd}: Order-insensitive similarity based on the Earth Mover's Distance (EMD) between the spatial positions of all fixations, weighted by duration, as \code{1 - EMD / sqrt(width^2 + height^2)}.
 #' }
 #'
 #' The function ensures that both scanpaths have strictly increasing onset times and contain at least three fixations. It also normalizes the similarity scores to lie between 0 and 1, with higher values indicating greater similarity.
@@ -272,7 +272,9 @@ multi_match <- function(x,y, screensize) {
   position_d <- vector_diff_2d(sacx, sacy, "x", "y", cds)
   position_sim <- 1 - (median(position_d)) / (sqrt(screensize[1]^2 + (screensize[2]^2)))
 
-  emd_position_sim <- emd_position_similarity(sacx, sacy, screensize)
+  # The order-insensitive EMD compares all fixations (weighted by duration),
+  # not the saccade rows, which drop the final fixation.
+  emd_position_sim <- emd_position_similarity(x, y, screensize)
 
   c(mm_vector=vector_sim, mm_direction=direction_sim,
     mm_length=length_sim, mm_position=position_sim,
