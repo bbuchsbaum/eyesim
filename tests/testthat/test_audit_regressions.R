@@ -369,3 +369,18 @@ test_that("template_regression refuses a duplicated baseline key", {
   expect_equal(nrow(res), 2L)
   expect_true(all(is.finite(res$beta_source)))
 })
+
+# Audit item 20 --------------------------------------------------------------
+test_that("template_sample drops rows with a NULL template or fixation group", {
+  mk <- function(v) gen_density(x = 1:2, y = 1:2, z = matrix(v, 2))
+  fg <- fixation_group(x = 1, y = 1, onset = 0, duration = 1)
+  tt <- tibble::tibble(id = 1:3,
+                       tmpl = list(mk(c(1, 2, 3, 4)), NULL, mk(c(4, 3, 2, 1))),
+                       fixgroup = list(fg, fg, NULL))
+  res <- expect_warning(template_sample(tt, "tmpl"), "removing 2 row")
+  expect_equal(res$id, 1L)
+  expect_equal(res$sample_out[[1]]$z, 1)
+
+  clean <- tt[1, ]
+  expect_no_warning(template_sample(clean, "tmpl"))
+})

@@ -172,3 +172,8 @@
   `baseline_key` value used by `source_tab` appears in more than one row of
   `baseline_tab`. It previously failed with "$ operator is invalid for atomic
   vectors".
+
+* `template_sample()` now drops rows whose template or fixation group is
+  `NULL`, with a warning, as its code comment intended. The `is.null()` filter
+  on list columns was a no-op, so a single `NULL` template made the whole call
+  fail.

@@ -23,6 +23,11 @@ template_sample(
 
 \item{outcol}{the name of the output variable}
 }
+\value{
+\code{source_tab} with a list column \code{outcol} of sampled values.
+  Rows whose template or fixation group is \code{NULL} cannot be sampled and are
+  removed, with a warning.
+}
 \description{
 this function extracts the density for any arbitrary time point in a trial. It simply extracts the value of the density map
 for the fixation at time t. The fixations are taken from the `fixgroup` variable and may be associated, for example,

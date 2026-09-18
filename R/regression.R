@@ -163,6 +163,9 @@ template_regression <- function(ref_tab, source_tab, match_on,
 #' @param fixgroup the name of the fixation group supplying the spatiotemporal coordinates used to sample the template
 #' @param time the time points used to extract coordinates from the `fixation_group`
 #' @param outcol the name of the output variable
+#' @return \code{source_tab} with a list column \code{outcol} of sampled values.
+#'   Rows whose template or fixation group is \code{NULL} cannot be sampled and are
+#'   removed, with a warning.
 #' @export
 #' @importFrom purrr pmap
 #' @importFrom tibble add_column
@@ -171,8 +174,16 @@ template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL
   x1 <- rlang::sym(template)
   x2 <- rlang::sym(fixgroup)
 
-  ## filters out NULLs
-  ret <- source_tab %>% select(a=!!x1, b=!!x2) %>% filter(!(is.null(a) | is.null(b))) %>% pmap(function(a,b) {
+  ## filters out rows whose template or fixation group is NULL
+  is_null_cell <- function(col) vapply(col, is.null, logical(1))
+  drop <- is_null_cell(source_tab[[template]]) | is_null_cell(source_tab[[fixgroup]])
+  if (any(drop)) {
+    warning("template_sample(): removing ", sum(drop),
+            " row(s) with a NULL template or fixation group.")
+    source_tab <- source_tab[!drop, , drop = FALSE]
+  }
+
+  ret <- source_tab %>% select(a=!!x1, b=!!x2) %>% pmap(function(a,b) {
     sample_density(a,b, time)
   })
 
