@@ -837,7 +837,9 @@ sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "
 #'   density. Default is \code{seq(0, 3000, by = 50)}.
 #' @param time_bins An optional numeric vector specifying bin boundaries for
 #'   aggregating samples. For example, \code{c(0, 1000, 2000, 3000)} creates
-#'   3 bins: [0-1000), [1000-2000), [2000-3000). Default is NULL (no binning).
+#'   3 bins: [0-1000), [1000-2000), [2000-3000). Every bin is half-open,
+#'   including the last, so a time point equal to the final break (3000 here)
+#'   is not assigned to any bin. Default is NULL (no binning).
 #' @param template_var A character string specifying the name of the density
 #'   column in \code{template_tab}. Default is "density".
 #' @param source_var A character string specifying the name of the fixation
@@ -977,10 +979,12 @@ sample_density_time <- function(template_tab,
     if (is.null(sampled_df) || nrow(sampled_df) == 0) {
       return(rep(NA_real_, length(time_bins) - 1))
     }
+    # Every bin is half-open, [lower, upper), including the last one, so a time
+    # equal to the final break falls outside all bins (label NA).
     bin_labels <- cut(sampled_df$time, breaks = time_bins, right = FALSE,
-                      labels = FALSE, include.lowest = TRUE)
+                      labels = FALSE)
     vapply(seq_len(length(time_bins) - 1), function(b) {
-      vals <- sampled_df$z[bin_labels == b]
+      vals <- sampled_df$z[which(bin_labels == b)]
       if (length(vals) == 0 || all(is.na(vals))) NA_real_ else aggregate_fun(vals, na.rm = TRUE)
     }, numeric(1))
   }

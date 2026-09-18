@@ -309,3 +309,16 @@ test_that("rep_fixations counts replicates without floating-point loss", {
   expect_equal(as.vector(table(reps$index)), c(29L, 57L, 29L, 1L))
   expect_equal(nrow(rep_fixations(fixation_group(x = 5.5, y = 1, onset = 0, duration = 0.29), 100)), 29L)
 })
+
+# Audit item 16 --------------------------------------------------------------
+test_that("sample_density_time bins are half-open, including the last", {
+  tmpl <- gen_density(x = c(0, 1), y = c(0, 1), z = matrix(c(0.1, 0.2, 0.3, 0.4), 2))
+  # Fixation at (0, 0) until t = 200, then at (1, 1).
+  fg <- fixation_group(x = c(0, 1), y = c(0, 1), onset = c(0, 200), duration = c(200, 100))
+  res <- sample_density_time(tibble::tibble(k = "a", density = list(tmpl)),
+                             tibble::tibble(k = "a", fixgroup = list(fg)), "k",
+                             times = c(0, 100, 200), time_bins = c(0, 100, 200),
+                             aggregate_fun = function(v, na.rm) length(v))
+  # t = 0 falls in [0, 100), t = 100 in [100, 200), and t = 200 in no bin.
+  expect_equal(c(res$bin_1, res$bin_2), c(1, 1))
+})

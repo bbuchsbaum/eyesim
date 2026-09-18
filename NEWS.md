@@ -149,3 +149,11 @@
   floating-point tolerance. A duration of 0.29 at resolution 100 previously
   gave 28 copies because `0.29 / 0.01` evaluates to 28.999999999999996; it now
   gives 29.
+
+* `sample_density_time()` now treats every `time_bins` interval as half-open,
+  `[lower, upper)`, including the last, as documented. The final bin was
+  previously closed, so a time point equal to the last break (for example
+  t = 3000 with the default `times` and bins ending at 3000) was averaged
+  into the last bin. It now falls outside all bins, which changes the last
+  `bin_*`, `perm_bin_*`, and `diff_bin_*` values whenever a sample lies on the
+  final break.
