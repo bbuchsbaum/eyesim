@@ -16,8 +16,15 @@ sample_fixations(x, time, ...)
 
 \item{...}{Additional arguments passed to methods.}
 
-\item{fast}{Logical. If TRUE (default), uses faster approximation method.}
+\item{fast}{Logical. If TRUE (default), uses a vectorized lookup; if FALSE,
+evaluates each time point in turn. Both return the same coordinates.}
 }
 \description{
-sample_fixations
+Sample fixation coordinates at arbitrary time points.
+}
+\details{
+Each time point takes the coordinates of the most recent fixation whose onset
+is at or before it. Fixation durations are not used: gaze during a saccade is
+attributed to the preceding fixation, and the last fixation is held for all
+later time points. Time points before the first onset give \code{NA}.
 }

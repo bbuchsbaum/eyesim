@@ -276,3 +276,27 @@ test_that("the default overlap time grid spans both fixation groups", {
   expect_equal(fixation_overlap(a, b)$perc,
                fixation_overlap(a, b, time_samples = seq(0, 1000, by = 20))$perc)
 })
+
+# Audit item 13 --------------------------------------------------------------
+test_that("sample_fixations holds the last fixation on both paths", {
+  fg <- fixation_group(x = c(0, 1), y = c(0, 1), onset = c(0, 100), duration = c(100, 100))
+  times <- c(-10, 0, 50, 100, 150, 200)
+  fast <- sample_fixations(fg, times)
+  slow <- sample_fixations(fg, times, fast = FALSE)
+  expect_equal(fast$x, c(NA, 0, 0, 1, 1, 1))
+  expect_equal(fast$y, c(NA, 0, 0, 1, 1, 1))
+  expect_equal(fast$x, slow$x)
+  expect_equal(fast$y, slow$y)
+
+  # A single fixation no longer fails on the fast path.
+  one <- fixation_group(x = 5, y = 6, onset = 10, duration = 100)
+  expect_equal(sample_fixations(one, c(0, 10, 500))$x, c(NA, 5, 5))
+  expect_equal(sample_fixations(one, c(0, 10, 500), fast = FALSE)$x, c(NA, 5, 5))
+
+  # Density sampling over time follows the same rule.
+  tmpl <- gen_density(x = c(0, 1), y = c(0, 1), z = matrix(c(0.1, 0.2, 0.3, 0.4), 2))
+  res <- sample_density_time(tibble::tibble(k = "a", density = list(tmpl)),
+                             tibble::tibble(k = "a", fixgroup = list(fg)), "k",
+                             times = c(0, 50, 100, 150, 200))
+  expect_equal(res$sampled[[1]]$z, c(0.1, 0.1, 0.4, 0.4, 0.4))
+})

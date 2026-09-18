@@ -105,6 +105,13 @@ rep_fixations <- function(x, resolution) {
 
 #' sample_fixations
 #'
+#' Sample fixation coordinates at arbitrary time points.
+#'
+#' Each time point takes the coordinates of the most recent fixation whose onset
+#' is at or before it. Fixation durations are not used: gaze during a saccade is
+#' attributed to the preceding fixation, and the last fixation is held for all
+#' later time points. Time points before the first onset give \code{NA}.
+#'
 #' @param x the fixation group
 #' @param time the continuous time points to sample
 #' @param ... Additional arguments passed to methods.

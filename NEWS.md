@@ -136,3 +136,11 @@
   onsets of both fixation groups, `seq(0, max(c(x$onset, y$onset)), by = 20)`.
   It previously used `x` only, so swapping the arguments could change the
   result substantially (0.098 versus 0.833 in one case).
+
+* `sample_fixations()` with the default `fast = TRUE` now holds the last
+  fixation for time points after its onset, as `fast = FALSE` always did. It
+  previously returned `NA` there. It also no longer fails for a group with a
+  single fixation. Downstream, `sample_density()` with `times`,
+  `sample_density_time()`, `template_sample()` with `time`, and
+  `fixation_overlap()` now score time points after the last onset instead of
+  treating them as missing.
