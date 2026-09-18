@@ -338,3 +338,16 @@ test_that("mm_position_emd compares every fixation, including the last", {
   expect_equal(mm[["mm_position_emd"]], 1 - emd / sqrt(100^2 + 50^2))
   expect_equal(multi_match(p1, p1, screensize = c(100, 50))[["mm_position_emd"]], 1)
 })
+
+# Audit item 18 --------------------------------------------------------------
+test_that("template_multireg defaults to lm", {
+  m <- tibble::tibble(
+    response = list(list(z = matrix(c(1, 2, 3, 4, 5, 7), 3))),
+    a = list(list(z = matrix(c(1, 0, 1, 2, 1, 1), 3))),
+    b = list(list(z = matrix(c(0, 1, 1, 1, 2, 3), 3)))
+  )
+  default <- template_multireg(m, "response", c("a", "b"))
+  explicit <- template_multireg(m, "response", c("a", "b"), method = "lm")
+  expect_equal(default$multireg, explicit$multireg)
+  expect_error(template_multireg(m, "response", c("a", "b"), method = "ols"), "should be one of")
+})

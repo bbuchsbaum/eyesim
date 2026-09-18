@@ -163,3 +163,7 @@
   three-fixation paths differing only in their last fixation scored 1. Every
   `mm_position_emd` value changes, including the `_perm` and `_diff` columns
   from `scanpath_similarity()`.
+
+* `template_multireg()` now defaults to `method = "lm"`, as documented.
+  Omitting `method` previously failed with "the condition has length > 1".
+  Unknown methods are rejected by `match.arg()`.

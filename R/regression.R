@@ -24,6 +24,7 @@
 #' @importFrom stats lm glm as.formula coef
 #' @export
 template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm", "nnls", "logistic"), intercept=TRUE) {
+  method <- match.arg(method)
   rows <- lapply(seq_len(nrow(source_tab)), function(i) {
     row <- source_tab[i, ]
     y <- as.vector(row[[response]][[1]]$z/sum(row[[response]][[1]]$z))
