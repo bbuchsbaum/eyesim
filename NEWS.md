@@ -128,7 +128,8 @@
   grid coordinates) differ, instead of comparing the `z` matrices cell by cell
   as if they were aligned. A numeric `y` must have one value per grid cell.
   `template_similarity()` and related wrappers raise the same error on both
-  the fast cosine and the general path.
+  the fast cosine and the general path, and for multiscale maps, where the
+  per-scale error handling previously would have turned it into `NA`.
 
 * `similarity()` for fixation groups with `method = "overlap"`, and therefore
   `fixation_similarity(method = "overlap")`, now defaults to `dthresh = 60`,

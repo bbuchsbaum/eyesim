@@ -262,6 +262,20 @@ test_that("density maps on different lattices are refused", {
                                                       permutations = 0)),
                  "different lattices", info = method)
   }
+
+  # Multiscale maps are refused too, not turned into NA per scale.
+  fg <- audit_fg()
+  ms_a <- eye_density(fg, sigma = c(5, 10), xbounds = c(0, 100), ybounds = c(0, 50), outdim = c(5, 3))
+  ms_b <- eye_density(fg, sigma = c(5, 10), xbounds = c(0, 200), ybounds = c(0, 50), outdim = c(5, 3))
+  expect_error(similarity(ms_a, ms_b, method = "pearson"), "different lattices")
+  ms_ref <- tibble::tibble(key = c("k1", "k2"), density = list(ms_a, ms_a))
+  ms_src <- tibble::tibble(key = c("k1", "k2"), density = list(ms_b, ms_b))
+  for (method in c("cosine", "pearson")) {
+    expect_error(suppressMessages(template_similarity(ms_ref, ms_src, "key", method = method,
+                                                      permutations = 0)),
+                 "different lattices", info = method)
+  }
+  expect_equal(similarity(ms_a, ms_a, method = "pearson"), 1)
 })
 
 # Audit item 11 --------------------------------------------------------------

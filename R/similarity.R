@@ -1946,6 +1946,11 @@ similarity.eye_density_multiscale <- function(x, y, method = c("pearson", "spear
   matched_pairs_x <- x[match(common_sigmas, sigmas_x)]
   matched_pairs_y <- y[match(common_sigmas, sigmas_y)]
 
+  # Mismatched lattices are an input error, not a per-scale numerical failure,
+  # so check them before the per-scale tryCatch() below can turn them into NA.
+  for (k in seq_along(matched_pairs_x)) {
+    check_same_density_lattice(matched_pairs_x[[k]], matched_pairs_y[[k]])
+  }
 
   per_scale_similarities <- mapply(function(scale_x, scale_y) {
     # Each scale_x, scale_y is an 'eye_density' object
