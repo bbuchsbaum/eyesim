@@ -1239,11 +1239,10 @@ summary.eye_density <- function(object, ...) {
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 #'
-#' After optional normalization, each map is rounded to 7 significant digits
-#' relative to its maximum, \code{round(z, max(0, 7 - log10(max(abs(z)))))}, so
-#' values below roughly \code{max(z) * 5e-8} become zero. This is the rule of
-#' \code{zapsmall(z, digits = 7)} in R 4.4 and later; eyesim applies it itself, so
-#' the result depends neither on \code{options(digits)} nor on the R version.
+#' After optional normalization, each map is passed through
+#' \code{zapsmall(z, digits = 7)}: values are rounded to 7 significant digits
+#' relative to the map maximum, so values below about \code{max(z) * 5e-8} become
+#' zero. The precision is fixed and does not depend on \code{options(digits)}.
 #'
 #' @return An object of class `eye_density` (inheriting from `density` and `list`) if
 #'   `sigma` is a single value, or an object of class `eye_density_multiscale` (a
@@ -1380,19 +1379,6 @@ eye_density.fixation_group <- function(x, sigma = 50,
   }
 }
 
-# Round values to `digits` significant digits relative to the largest absolute
-# value: round(z, max(0, digits - log10(max|z|))). This is the rule of
-# zapsmall(z, digits) in R >= 4.4 (earlier versions used ceiling(log10())),
-# written out so results depend neither on options(digits) nor on the R version.
-round_density_values <- function(z, digits = 7L) {
-  ok <- !is.na(z)
-  if (!any(ok)) {
-    return(z)
-  }
-  mx <- max(abs(z[ok]))
-  round(z, digits = if (mx > 0) max(0L, digits - log10(mx)) else digits)
-}
-
 # Internal function, not exported
 .compute_single_eye_density <- function(x_data, sigma_val, xbounds, ybounds, outdim,
                                        normalize, weighted, weights, data_matrix,
@@ -1518,9 +1504,9 @@ round_density_values <- function(z, digits = 7L) {
         warning("Sum of density matrix is near zero, cannot normalize. Sigma: ", current_sigma)
     }
   }
-  # Round to 7 significant digits relative to the map maximum, independent of
-  # options(digits) and of the R version's zapsmall().
-  density_matrix_val <- round_density_values(density_matrix_val)
+  # Round to 7 significant digits relative to the map maximum (R's default
+  # print precision), fixed here so results do not depend on options(digits).
+  density_matrix_val <- zapsmall(density_matrix_val, digits = 7L)
 
   out_list <- list(x = eval_points_val[[1]],
                    y = eval_points_val[[2]],

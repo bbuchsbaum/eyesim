@@ -104,19 +104,6 @@ test_that("density maps do not depend on options(digits)", {
   options(digits = 17)
   w17 <- warp_density_object(dens, A = A, t = c(1, -2))$z
   expect_identical(w17, w7)
-
-  # The rounding rule is eyesim's own; on R >= 4.4 it equals zapsmall(digits = 7).
-  set.seed(5)
-  maps <- lapply(1:50, function(i) matrix(rexp(30) * 10^runif(1, -6, 2), 5, 6))
-  options(digits = 3)
-  rounded <- lapply(maps, round_density_values)
-  options(digits = 7)
-  expect_identical(lapply(maps, round_density_values), rounded)
-  if (getRversion() >= "4.4.0") {
-    expect_identical(rounded, lapply(maps, zapsmall, digits = 7))
-  }
-  expect_identical(round_density_values(c(NA_real_, NA_real_)), c(NA_real_, NA_real_))
-  expect_identical(round_density_values(c(0, 0)), c(0, 0))
 })
 
 # Audit items 6 and 8 --------------------------------------------------------

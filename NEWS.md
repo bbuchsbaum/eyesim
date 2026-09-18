@@ -85,14 +85,10 @@
   with "invalid 'times' argument" and `eye_density()` returned `NULL`.
 
 * `eye_density()` and the geometric warp behind `affine_transform()` and
-  `contract_transform()` now round maps to 7 significant digits relative to
-  the map maximum with eyesim's own rule, `round(z, max(0, 7 - log10(max|z|)))`.
-  They previously called `zapsmall()` with `getOption("digits")`, so the same
-  call returned maps differing by up to about 5e-9 when a session changed
-  `options(digits)`, and `zapsmall()` itself changed its rule in R 4.4. The
-  new rule equals `zapsmall(digits = 7)` in R 4.4 and later, so results under
-  default options on those versions are unchanged; on R before 4.4 the last
-  retained digit can differ from earlier eyesim output.
+  `contract_transform()` now round maps with a fixed `zapsmall(digits = 7)`.
+  They previously used `getOption("digits")`, so the same call returned maps
+  differing by up to about 5e-9 when a session changed `options(digits)`.
+  Results under the default `digits = 7` are unchanged.
 
 * The permutation baseline in `template_similarity()`,
   `template_similarity_cv()`, `fixation_similarity()`, and
