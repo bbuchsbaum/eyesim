@@ -1179,6 +1179,11 @@ summary.eye_density <- function(object, ...) {
 #'
 #' @details The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 #'
+#' After optional normalization, each map is passed through
+#' \code{zapsmall(z, digits = 7)}: values are rounded to 7 significant digits
+#' relative to the map maximum, so values below about \code{max(z) * 5e-8} become
+#' zero. The precision is fixed and does not depend on \code{options(digits)}.
+#'
 #' @return An object of class `eye_density` (inheriting from `density` and `list`) if
 #'   `sigma` is a single value, or an object of class `eye_density_multiscale` (a
 #'   list of `eye_density` objects) if `sigma` is a vector. Returns `NULL` if
@@ -1436,7 +1441,9 @@ eye_density.fixation_group <- function(x, sigma = 50,
         warning("Sum of density matrix is near zero, cannot normalize. Sigma: ", current_sigma)
     }
   }
-  density_matrix_val <- zapsmall(density_matrix_val)
+  # Round to 7 significant digits relative to the map maximum (R's default
+  # print precision), fixed here so results do not depend on options(digits).
+  density_matrix_val <- zapsmall(density_matrix_val, digits = 7L)
 
   out_list <- list(x = eval_points_val[[1]],
                    y = eval_points_val[[2]],

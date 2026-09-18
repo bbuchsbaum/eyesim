@@ -81,3 +81,27 @@ test_that("weighted MASS densities are computed on non-square grids", {
   # A zero weight removes a fixation from the weighted MASS map.
   expect_equal(mass_density(fg, weights = c(1, 1, 0))$z, mass_density(fg[1:2, ])$z)
 })
+
+# Audit item 5 ---------------------------------------------------------------
+test_that("density maps do not depend on options(digits)", {
+  fg <- audit_fg()
+  old <- options(digits = 7)
+  on.exit(options(old), add = TRUE)
+  d7 <- audit_density(fg)$z
+  options(digits = 17)
+  d17 <- audit_density(fg)$z
+  options(digits = 3)
+  d3 <- audit_density(fg)$z
+  expect_identical(d17, d7)
+  expect_identical(d3, d7)
+
+  # The geometric warp used by the affine and contract transforms is rounded
+  # with the same fixed precision.
+  dens <- audit_density(fg)
+  A <- matrix(c(1.1, 0.05, 0, 0.9), 2)
+  options(digits = 7)
+  w7 <- warp_density_object(dens, A = A, t = c(1, -2))$z
+  options(digits = 17)
+  w17 <- warp_density_object(dens, A = A, t = c(1, -2))$z
+  expect_identical(w17, w7)
+})

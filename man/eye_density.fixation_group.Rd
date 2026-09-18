@@ -67,4 +67,9 @@ This function computes a density map for a given fixation group using kernel den
 }
 \details{
 The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
+
+After optional normalization, each map is passed through
+\code{zapsmall(z, digits = 7)}: values are rounded to 7 significant digits
+relative to the map maximum, so values below about \code{max(z) * 5e-8} become
+zero. The precision is fixed and does not depend on \code{options(digits)}.
 }

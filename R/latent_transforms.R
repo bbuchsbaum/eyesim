@@ -857,7 +857,8 @@ warp_density_object <- function(obj, A, t) {
     z_new <- z_new / sum_z
   }
 
-  dens$z <- zapsmall(z_new)
+  # Fixed precision so results do not depend on options(digits).
+  dens$z <- zapsmall(z_new, digits = 7L)
   dens
 }
 

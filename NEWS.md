@@ -83,3 +83,9 @@
 * Weighted densities under `kde_pkg = "MASS"` (explicit `weights` or
   `duration_weighted = TRUE`) now work. The internal weighted kernel failed
   with "invalid 'times' argument" and `eye_density()` returned `NULL`.
+
+* `eye_density()` and the geometric warp behind `affine_transform()` and
+  `contract_transform()` now round maps with a fixed `zapsmall(digits = 7)`.
+  They previously used `getOption("digits")`, so the same call returned maps
+  differing by up to about 5e-9 when a session changed `options(digits)`.
+  Results under the default `digits = 7` are unchanged.
