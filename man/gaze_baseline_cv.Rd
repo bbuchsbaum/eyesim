@@ -35,7 +35,9 @@ gaze_baseline_cv(
 
 \item{n_folds}{Number of cross-fitting folds.}
 
-\item{seed}{Fold-assignment seed. `NULL` uses the engine-specific default.}
+\item{seed}{Fold-assignment seed. `NULL` uses the engine-specific default.
+Folds depend on `seed` alone; the caller's random number stream is left
+unchanged.}
 
 \item{fit_source_filter, eval_source_filter}{Optional logical vectors or
 functions evaluated on `source_tab`. They permit a model to be trained on

@@ -134,6 +134,12 @@
   documentation now states that permutation controls come only from the
   held-out fold.
 
+* `gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`, and
+  `gaze_baseline_cv()` likewise no longer reset the caller's random number
+  stream, and no longer create `.Random.seed` in a session that had none.
+  Fold assignment still runs under `seed`, so folds and results are
+  unchanged.
+
 * `similarity(method = "fisherz")` now returns exactly
   `atanh(1 - .Machine$double.eps)` (about 18.37) for every pair of identical
   maps, and for any correlation within `64 * .Machine$double.eps` of 1, such as

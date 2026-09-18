@@ -49,6 +49,41 @@ test_that("the common entry point infers Replay from its specification", {
   )
 })
 
+test_that("the common entry point leaves the caller's RNG stream untouched", {
+  tabs <- make_gaze_weave_cv_tables()
+  cv <- function() {
+    gaze_weave_cv(
+      tabs$ref_tab,
+      tabs$source_tab,
+      match_on = c("participant", "image_id"),
+      contrast_on = "participant",
+      n_folds = 2,
+      spec = make_small_gaze_replay_spec(),
+      seed = 29
+    )
+  }
+
+  set.seed(42)
+  expected <- runif(3)
+  set.seed(42)
+  fit1 <- cv()
+  expect_identical(runif(3), expected)
+
+  # Folds depend on `seed` only, not on the caller's RNG state.
+  set.seed(7)
+  fit2 <- cv()
+  expect_identical(broom::tidy(fit2), broom::tidy(fit1))
+
+  # Without a prior .Random.seed, none is left behind.
+  if (exists(".Random.seed", envir = globalenv())) {
+    saved <- get(".Random.seed", envir = globalenv())
+    on.exit(assign(".Random.seed", saved, envir = globalenv()), add = TRUE)
+    rm(".Random.seed", envir = globalenv())
+  }
+  cv()
+  expect_false(exists(".Random.seed", envir = globalenv()))
+})
+
 test_that("an engine specification is required when the engine is omitted", {
   expect_error(
     gaze_weave_cv(

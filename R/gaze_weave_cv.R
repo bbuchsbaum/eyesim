@@ -52,6 +52,10 @@ make_gaze_weave_folds <- function(source_tab, split_on, contrast_on = NULL,
     )
   }
 
+  # Fold assignment is the only random draw in GazeWeave. Run it under `seed`
+  # and then restore the caller's random number stream.
+  restore_session_rng <- snapshot_session_rng()
+  on.exit(restore_session_rng(), add = TRUE)
   set.seed(seed)
   group_map$fold <- NA_integer_
   for (stratum in sort(unique(group_map$stratum_key))) {
@@ -99,6 +103,8 @@ make_gaze_weave_folds <- function(source_tab, split_on, contrast_on = NULL,
 #' @param split_on Columns defining the held-out unit. Defaults to `match_on`.
 #' @param n_folds Number of cross-fitting folds.
 #' @param seed Fold-assignment seed. `NULL` uses the engine-specific default.
+#'   Folds depend on `seed` alone; the caller's random number stream is left
+#'   unchanged.
 #' @param fit_source_filter,eval_source_filter Optional logical vectors or
 #'   functions selecting fitting and evaluation source rows.
 #' @param episode_on Optional reference columns identifying separate study

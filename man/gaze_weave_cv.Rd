@@ -40,7 +40,9 @@ inferred from `spec`.}
 
 \item{n_folds}{Number of cross-fitting folds.}
 
-\item{seed}{Fold-assignment seed. `NULL` uses the engine-specific default.}
+\item{seed}{Fold-assignment seed. `NULL` uses the engine-specific default.
+Folds depend on `seed` alone; the caller's random number stream is left
+unchanged.}
 
 \item{fit_source_filter, eval_source_filter}{Optional logical vectors or
 functions selecting fitting and evaluation source rows.}
