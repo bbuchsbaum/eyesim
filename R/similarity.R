@@ -390,6 +390,9 @@ cosine_similarity_matrix <- function(x, y) {
 #'   \item When permutations are requested, the result includes \code{eye_sim}, \code{perm_sim} (mean permuted similarity), \code{eye_sim_diff = eye_sim - perm_sim} (all on the scale of \code{method}), and \code{n_perm} (the number of permuted comparisons that contributed to \code{perm_sim} for that row; \code{0} when no baseline could be computed). If \code{method = "fisherz"}, convert to correlations via \code{tanh()} if desired.
 #' }
 #'
+#' For \code{method = "overlap"}, pass \code{time_samples} through \code{...}; the
+#' distance threshold \code{dthresh} defaults to 60, as in \code{\link{fixation_overlap}}.
+#'
 #' @examples
 #' \dontrun{
 #' # Example usage of the fixation_similarity function
@@ -1612,7 +1615,7 @@ similarity.scanpath <- function(x, y, method=c("multimatch"),
 similarity.fixation_group <- function(x, y, method=c("sinkhorn", "overlap"),
                                       window=NULL,
                                 xdenom=1000, ydenom=1000, tdenom=3000,
-                                tweight=.8,  lambda=.1, dthresh=40,
+                                tweight=.8,  lambda=.1, dthresh=60,
                                 time_samples=NULL, screensize=NULL,...) {
   method <- match.arg(method)
 

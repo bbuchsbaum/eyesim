@@ -126,3 +126,8 @@
   as if they were aligned. A numeric `y` must have one value per grid cell.
   `template_similarity()` and related wrappers raise the same error on both
   the fast cosine and the general path.
+
+* `similarity()` for fixation groups with `method = "overlap"`, and therefore
+  `fixation_similarity(method = "overlap")`, now defaults to `dthresh = 60`,
+  the value documented for `fixation_overlap()`. It previously defaulted to 40,
+  so the same pair scored differently through the two entry points.

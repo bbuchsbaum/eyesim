@@ -253,3 +253,17 @@ test_that("density maps on different lattices are refused", {
                  "different lattices", info = method)
   }
 })
+
+# Audit item 11 --------------------------------------------------------------
+test_that("similarity() and fixation_overlap() share the overlap threshold", {
+  expect_identical(formals(eyesim:::similarity.fixation_group)$dthresh,
+                   formals(fixation_overlap)$dthresh)
+
+  # Fixations 50 units apart overlap under the documented default of 60.
+  a <- fixation_group(x = c(0, 100), y = c(0, 0), onset = c(0, 100), duration = c(100, 100))
+  b <- fixation_group(x = c(50, 150), y = c(0, 0), onset = c(0, 100), duration = c(100, 100))
+  times <- c(0, 50, 100)
+  expect_equal(similarity(a, b, method = "overlap", time_samples = times), 1)
+  expect_equal(similarity(a, b, method = "overlap", time_samples = times),
+               fixation_overlap(a, b, time_samples = times)$perc)
+})
