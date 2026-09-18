@@ -131,3 +131,8 @@
   `fixation_similarity(method = "overlap")`, now defaults to `dthresh = 60`,
   the value documented for `fixation_overlap()`. It previously defaulted to 40,
   so the same pair scored differently through the two entry points.
+
+* `fixation_overlap()` now builds its default `time_samples` grid from the
+  onsets of both fixation groups, `seq(0, max(c(x$onset, y$onset)), by = 20)`.
+  It previously used `x` only, so swapping the arguments could change the
+  result substantially (0.098 versus 0.833 in one case).

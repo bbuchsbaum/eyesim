@@ -267,3 +267,12 @@ test_that("similarity() and fixation_overlap() share the overlap threshold", {
   expect_equal(similarity(a, b, method = "overlap", time_samples = times),
                fixation_overlap(a, b, time_samples = times)$perc)
 })
+
+# Audit item 12 --------------------------------------------------------------
+test_that("the default overlap time grid spans both fixation groups", {
+  a <- fixation_group(x = c(0, 0), y = c(0, 0), onset = c(0, 1000), duration = c(1000, 1000))
+  b <- fixation_group(x = c(0, 500), y = c(0, 0), onset = c(0, 100), duration = c(100, 100))
+  expect_equal(fixation_overlap(a, b)$perc, fixation_overlap(b, a)$perc)
+  expect_equal(fixation_overlap(a, b)$perc,
+               fixation_overlap(a, b, time_samples = seq(0, 1000, by = 20))$perc)
+})
