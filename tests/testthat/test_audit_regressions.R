@@ -58,3 +58,26 @@ test_that("eye_density forwards extra arguments to ks::kde", {
   expect_error(audit_density(fg, kde_pkg = "MASS", binned = FALSE),
                "not supported when kde_pkg")
 })
+
+# Audit item 3 ---------------------------------------------------------------
+test_that("weighted MASS densities are computed on non-square grids", {
+  fg <- audit_fg()
+  mass_density <- function(fg, ...) {
+    suppressMessages(eye_density(fg, sigma = 40, xbounds = c(0, 100), ybounds = c(0, 50),
+                                 outdim = c(5, 3), kde_pkg = "MASS", ...))
+  }
+
+  dw <- expect_no_warning(mass_density(fg, duration_weighted = TRUE))
+  expect_s3_class(dw, "eye_density")
+  expect_equal(dim(dw$z), c(5L, 3L))
+  expect_false(isTRUE(all.equal(dw$z, mass_density(fg)$z)))
+
+  # With uniform weights, the weighted kernel reproduces MASS::kde2d exactly.
+  uw <- kde2d_weighted(fg$x, fg$y, h = 40, n = c(5, 3), lims = c(0, 100, 0, 50),
+                       w = c(2, 2, 2))
+  ref <- MASS::kde2d(fg$x, fg$y, h = 40, n = c(5, 3), lims = c(0, 100, 0, 50))
+  expect_equal(uw$z, ref$z)
+
+  # A zero weight removes a fixation from the weighted MASS map.
+  expect_equal(mass_density(fg, weights = c(1, 1, 0))$z, mass_density(fg[1:2, ])$z)
+})

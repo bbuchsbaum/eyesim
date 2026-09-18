@@ -79,3 +79,7 @@
   as documented. Previously any extra argument failed with "unused argument".
   Arguments that `eye_density()` sets itself, and unknown names, are rejected
   with a clear error, as are extra arguments under `kde_pkg = "MASS"`.
+
+* Weighted densities under `kde_pkg = "MASS"` (explicit `weights` or
+  `duration_weighted = TRUE`) now work. The internal weighted kernel failed
+  with "invalid 'times' argument" and `eye_density()` returned `NULL`.

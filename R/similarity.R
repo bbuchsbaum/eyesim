@@ -1772,8 +1772,11 @@ kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
   nx <- length(x)
   if (length(y) != nx)
     stop("data vectors must be the same length")
+  if (missing(w))
+    w <- numeric(nx) + 1
   if (length(w) != nx & length(w) != 1)
     stop("weight vectors must be 1 or length of data")
+  w <- rep(w, length.out = nx)
   n <- rep(n, length.out = 2L)
   gx <- seq(lims[1], lims[2], length = n[1])
   gy <- seq(lims[3], lims[4], length = n[2])
@@ -1782,14 +1785,13 @@ kde2d_weighted <- function (x, y, h, n = 25, lims = c(range(x), range(y)), w)
   else rep(h, length.out = 2L)
   if (any(h <= 0))
     stop("bandwidths must be strictly positive")
-  if (missing(w))
-    w <- numeric(nx) + 1
   h <- h/4
   ax <- outer(gx, x, "-")/h[1]
   ay <- outer(gy, y, "-")/h[2]
-  z <- (matrix(rep(w, n), nrow = n, ncol = nx, byrow = TRUE) *
-          matrix(dnorm(ax), n, nx)) %*% t(matrix(dnorm(ay), n,
-                                                 nx))/(sum(w) * h[1] * h[2])
+  # Rows of the x-kernel matrix are grid points (n[1]) and columns are
+  # fixations, so the weights are applied column-wise.
+  wkx <- matrix(dnorm(ax), n[1], nx) * matrix(w, n[1], nx, byrow = TRUE)
+  z <- wkx %*% t(matrix(dnorm(ay), n[2], nx)) / (sum(w) * h[1] * h[2])
   return(list(x = gx, y = gy, z = z))
 }
 
