@@ -71,7 +71,7 @@ Returned columns and units:
 
 Notes on \code{method} and interpretation:
 \itemize{
-  \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale.
+  \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale. To keep z finite, \emph{r} is clamped to \code{[-1 + .Machine$double.eps, 1 - .Machine$double.eps]}, so identical maps, whether constant or not, give \code{atanh(1 - .Machine$double.eps)} (about 18.37) rather than \code{Inf}.
   \item If \code{method = "pearson"} or \code{"spearman"}, values are correlations (roughly in \code{[-1, 1]}).
   \item Other methods (e.g., \code{"emd"}, \code{"cosine"}) produce scores on their respective scales.
 }

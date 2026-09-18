@@ -216,3 +216,19 @@ test_that("template_similarity_cv leaves the caller's RNG stream untouched", {
   full <- cv(permutations = 100)
   expect_equal(full$n_perm, rep(2L, 6))
 })
+
+# Audit item 9 ---------------------------------------------------------------
+test_that("fisherz gives the same clamped value for every pair of identical maps", {
+  z_max <- atanh(1 - .Machine$double.eps)
+  constant <- rep(0.25, 4)
+  varying <- c(0.1, 0.2, 0.3, 0.4)
+  expect_equal(similarity(constant, constant, method = "fisherz"), z_max)
+  expect_equal(similarity(varying, varying, method = "fisherz"), z_max)
+
+  flat <- gen_density(x = 1:2, y = 1:2, z = matrix(constant, 2))
+  expect_equal(similarity(flat, flat, method = "fisherz"), z_max)
+
+  # Correlation-scale methods still report r = 1 for identical constant maps.
+  expect_equal(similarity(constant, constant, method = "pearson"), 1)
+  expect_equal(similarity(constant, constant, method = "spearman"), 1)
+})

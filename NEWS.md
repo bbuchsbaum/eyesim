@@ -115,3 +115,8 @@
   results are unchanged, but the session RNG state is restored on exit. The
   documentation now states that permutation controls come only from the
   held-out fold.
+
+* `similarity(method = "fisherz")` now returns `atanh(1 - .Machine$double.eps)`
+  (about 18.37) for identical constant maps, the same value it already
+  returned for identical non-constant maps. It previously returned 1. The
+  clamp is documented in `?template_similarity`.

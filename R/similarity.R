@@ -465,7 +465,7 @@ scanpath_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
 #'
 #' Notes on \code{method} and interpretation:
 #' \itemize{
-#'   \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale.
+#'   \item If \code{method = "fisherz"}, values are Fisher z (atanh of Pearson \emph{r}). Convert back to \emph{r} via \code{tanh(z)} for reporting on the correlation scale. To keep z finite, \emph{r} is clamped to \code{[-1 + .Machine$double.eps, 1 - .Machine$double.eps]}, so identical maps, whether constant or not, give \code{atanh(1 - .Machine$double.eps)} (about 18.37) rather than \code{Inf}.
 #'   \item If \code{method = "pearson"} or \code{"spearman"}, values are correlations (roughly in \code{[-1, 1]}).
 #'   \item Other methods (e.g., \code{"emd"}, \code{"cosine"}) produce scores on their respective scales.
 #' }
@@ -1736,7 +1736,9 @@ compute_similarity <- function(x, y,
       # Check if vectors are identical despite zero variance
       # Use a tolerance for floating point comparisons
       if (is_zero_var_x && is_zero_var_y && all(abs(vx_common - vy_common) < sqrt(.Machine$double.eps))) {
-         return(1.0) # Perfect correlation for identical vectors
+         # Perfect correlation for identical vectors. Fisher z uses the same
+         # clamp as non-constant identical maps below, so r = 1 maps to one value.
+         return(if (method == "fisherz") atanh(1 - .Machine$double.eps) else 1.0)
       } else {
          # If only one has zero variance, or they have zero variance but are different (e.g. one is all 0, other is all 1), correlation is undefined/NA
          warning(paste("Method", method, "requires variance in both inputs, or identical inputs if variance is zero. One or both have near-zero variance and are not identical."))
