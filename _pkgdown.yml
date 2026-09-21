@@ -53,6 +53,11 @@ reference:
   - gaze_replay_spec
   - fit_gaze_replay_model
   - gaze_replay_align
+  - gaze_replay_align_episode
+  - gaze_baseline_spec
+  - gaze_baseline_availability
+  - gaze_baseline_cv
+  - elastic_consensus_align
   - gaze_transport_cv
   - gaze_transport_spec
   - gaze_transport_prepare
@@ -67,6 +72,7 @@ reference:
   - gaze_screen
   - tidy.gaze_replay_fit
   - tidy.gaze_transport_fit
+  - tidy.gaze_baseline_fit
   - autoplot.gaze_replay_alignment
   - autoplot.gaze_replay_fit
   - autoplot.gaze_transport_alignment
