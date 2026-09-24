@@ -15,7 +15,9 @@ gaze_replay_spec(
   reliability = c("none", "effective_fixations"),
   reliability_kappa_bounds = c(0, 100),
   warp = gaze_warp_none(),
-  screen = NULL
+  screen = NULL,
+  revision = c("2026.10", "2026.08"),
+  background_by = NULL
 )
 }
 \arguments{
@@ -45,7 +47,26 @@ half-saturation parameter. The lower bound must be zero.}
 
 \item{warp}{Cross-fitted warp specification.}
 
-\item{screen}{Optional screen geometry.}
+\item{screen}{Optional screen geometry. Under revision `"2026.10"` every
+emission density is truncated to and normalised over this rectangle;
+when it is `NULL` the rectangle is the padded extent of the training
+coordinates.}
+
+\item{revision}{Model revision. `"2026.10"` (default) uses
+screen-truncated Student replay emissions, a participant-level
+screen-truncated kernel density for the background state (fitted on
+training recalls only, excluding the target item), and Baum-Welch (EM)
+estimation of the replay scale and all transition probabilities, with
+`transition_grid` medians used only as EM starting values. `"2026.08"`
+reproduces the frozen behaviour: untruncated emissions, a single
+Student background at the training recall mean, a median
+nearest-neighbour replay scale, and grid search over `transition_grid`.}
+
+\item{background_by}{Optional source-table columns (for example the
+participant identifier) defining the level at which the background
+density is estimated under revision `"2026.10"`. `NULL` pools all
+training recalls. Levels with fewer than three other training trials fall
+back to the pooled density.}
 }
 \value{
 A frozen `gaze_replay_spec`.

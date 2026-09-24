@@ -1,4 +1,5 @@
-make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L) {
+make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L,
+                                  revision = "2026.10") {
   gaze_replay_spec(
     grid_size = grid_size,
     max_skip = 2L,
@@ -10,7 +11,8 @@ make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L) {
       advance = 0.45,
       background_stay = 0.9
     ),
-    warp = warp
+    warp = warp,
+    revision = revision
   )
 }
 
@@ -234,7 +236,7 @@ test_that("Replay uses an explicit identity fallback for tiny calibration sets",
     reference, source,
     match_on = c("participant", "item"),
     contrast_on = "participant",
-    spec = make_replay_test_spec()
+    spec = make_replay_test_spec(revision = "2026.08")
   )
   results <- list(
     gaze_replay_align(first, first, model, "a"),
@@ -314,7 +316,7 @@ test_that("cross-fitted Replay uses disjoint item keys and normalized candidates
   expect_equal(scales, rep(tabs$scale, length(scales)), tolerance = 1e-5)
 })
 
-test_that("ordered training selects the lower restart candidate", {
+test_that("ordered training selects the lower restart candidate (2026.08 grid)", {
   path <- make_gaze_fixations(rbind(
     c(0, 0), c(1, 0.8), c(2, 0.1), c(3, 1), c(4, 0.2)
   ))
@@ -327,7 +329,8 @@ test_that("ordered training selects the lower restart candidate", {
       restart = c(0.01, 0.4),
       advance = 0.5,
       background_stay = 0.9
-    )
+    ),
+    revision = "2026.08"
   )
   model <- fit_gaze_replay_model(
     tibble::tibble(image_id = 1L, fixgroup = list(path)),

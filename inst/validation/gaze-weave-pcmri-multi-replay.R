@@ -348,7 +348,8 @@ multi_replay_specs <- function(smoke = FALSE) {
       background_stay = c(0.85, 0.95)
     ),
     warp = warp,
-    screen = screen
+    screen = screen,
+    revision = "2026.08"
   )
   list(
     screen = screen,

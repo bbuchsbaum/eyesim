@@ -1,5 +1,37 @@
 # eyesim 0.1.0.9000
 
+* GazeWeave Replay gains `gaze_replay_spec(revision = c("2026.10",
+  "2026.08"))`. The new default, `"2026.10"`, changes Replay as follows:
+  - When a `screen` is declared, each replay emission is a Student density
+    truncated to the screen and normalised by its on-screen mass. Under
+    `"2026.08"` the on-screen mass was 0.99 at the centre and 0.35 near a
+    corner. Encoding fixations recorded off the screen are projected onto it.
+    Without a screen, the support is the whole plane.
+  - The background state is a screen-truncated, duration-weighted kernel
+    density of training recalls, estimated at the `background_by` level
+    (e.g. participant) when that level has at least three other training
+    trials, otherwise pooled. It is estimated without the target item, and
+    during fitting without the trial being fitted. `"2026.08"` used a single
+    Student density at the training recall mean.
+  - The replay scale and all four transition probabilities are fitted by
+    Baum–Welch EM on training rows only. `transition_grid` now supplies only
+    the starting values. The background probabilities may approach one, so a
+    fully null recall can be represented.
+  - On simulated Replay data, EM recovers the replay scale to within 2% and
+    the background share to within 0.02. `"2026.08"` inflated the scale by
+    60%. With the validation-court transition grid, it also could not
+    exceed a stationary background share of 0.67 under a full null.
+  - Duration-grid bins are still treated as conditionally independent
+    emissions. Repeated bins within one long fixation therefore still favour
+    sharp replay states on realistic recalls: the fitted background share
+    under a simulated full null is 0.63 with 48 bins and 0.81 with 16 bins.
+    A semi-Markov Replay is planned.
+  - Fitted models record `revision`, EM diagnostics (`training$em`), and the
+    background model. Their `version` is 5.
+  - `gaze_replay_align()` and `gaze_replay_align_episode()` gain
+    `background_key`. Revision `"2026.08"` reproduces the earlier fits and
+    scores bit for bit. The frozen validation court scripts pin it.
+
 * Canonicalized edge-normalized Transport as the sole public Transport method.
   The API is now `gaze_transport_spec()`, `gaze_transport_align()`,
   `gaze_transport_cv()`, and related unversioned helpers; `gaze_weave_cv()`

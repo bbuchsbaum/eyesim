@@ -43,7 +43,24 @@ validate_replay_probability_grid <- function(grid) {
 #' @param reliability_kappa_bounds Non-negative bounds for the reliability
 #'   half-saturation parameter. The lower bound must be zero.
 #' @param warp Cross-fitted warp specification.
-#' @param screen Optional screen geometry.
+#' @param screen Optional screen geometry. Under revision `"2026.10"` every
+#'   emission density is truncated to and normalised over this rectangle;
+#'   when it is `NULL` the rectangle is the padded extent of the training
+#'   coordinates.
+#' @param revision Model revision. `"2026.10"` (default) uses
+#'   screen-truncated Student replay emissions, a participant-level
+#'   screen-truncated kernel density for the background state (fitted on
+#'   training recalls only, excluding the target item), and Baum-Welch (EM)
+#'   estimation of the replay scale and all transition probabilities, with
+#'   `transition_grid` medians used only as EM starting values. `"2026.08"`
+#'   reproduces the frozen behaviour: untruncated emissions, a single
+#'   Student background at the training recall mean, a median
+#'   nearest-neighbour replay scale, and grid search over `transition_grid`.
+#' @param background_by Optional source-table columns (for example the
+#'   participant identifier) defining the level at which the background
+#'   density is estimated under revision `"2026.10"`. `NULL` pools all
+#'   training recalls. Levels with fewer than three other training trials fall
+#'   back to the pooled density.
 #'
 #' @return A frozen `gaze_replay_spec`.
 #' @export
@@ -62,7 +79,19 @@ gaze_replay_spec <- function(
     reliability = c("none", "effective_fixations"),
     reliability_kappa_bounds = c(0, 100),
     warp = gaze_warp_none(),
-    screen = NULL) {
+    screen = NULL,
+    revision = c("2026.10", "2026.08"),
+    background_by = NULL) {
+  revision <- match.arg(revision)
+  if (!is.null(background_by)) {
+    if (identical(revision, "2026.08")) {
+      stop("background_by requires revision = \"2026.10\".")
+    }
+    if (!is.character(background_by) || length(background_by) < 1L ||
+        anyNA(background_by)) {
+      stop("background_by must be NULL or a character vector of column names.")
+    }
+  }
   grid_size <- as.integer(grid_size)
   max_skip <- as.integer(max_skip)
   if (length(grid_size) != 1L || is.na(grid_size) || grid_size < 4L) {
@@ -122,7 +151,9 @@ gaze_replay_spec <- function(
         log_temperature_prior_sd = 1,
         log1p_kappa_prior_sd = 1
       ),
-      version = 3L
+      version = if (identical(revision, "2026.08")) 3L else 4L,
+      revision = revision,
+      background_by = background_by
     ),
     class = c("gaze_replay_spec", "list")
   )
@@ -445,6 +476,11 @@ gaze_replay_transition <- function(reference_mass, parameters, max_skip) {
 }
 
 gaze_replay_emissions <- function(reference, grid, emission_model, degrees) {
+  if (identical(emission_model$revision, "2026.10")) {
+    return(gaze_replay_emissions_revision(
+      reference, grid, emission_model, degrees
+    ))
+  }
   n_reference <- nrow(reference$coords)
   log_emission <- matrix(NA_real_, nrow(grid$coords), n_reference + 1L)
   log_emission[, 1] <- gaze_bivariate_t_log_density(
@@ -838,37 +874,50 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
     })
   }), recursive = FALSE)
 
-  emission_models <- lapply(sort(unique(group_key)), function(group) {
-    fit_gaze_replay_emission(
-      pairs[vapply(pairs, `[[`, character(1), "group") == group],
-      spec$grid_size,
-      spec$scale_floor
-    )
-  })
-  names(emission_models) <- sort(unique(group_key))
+  legacy <- gaze_replay_is_legacy(spec)
+  revision_fit <- NULL
+  if (legacy) {
+    emission_models <- lapply(sort(unique(group_key)), function(group) {
+      fit_gaze_replay_emission(
+        pairs[vapply(pairs, `[[`, character(1), "group") == group],
+        spec$grid_size,
+        spec$scale_floor
+      )
+    })
+    names(emission_models) <- sort(unique(group_key))
 
-  candidates <- expand.grid(
-    spec$transition_grid,
-    KEEP.OUT.ATTRS = FALSE,
-    stringsAsFactors = FALSE
-  )
-  candidate_log_likelihood <- vapply(seq_len(nrow(candidates)), function(index) {
-    parameters <- as.list(candidates[index, , drop = FALSE])
-    sum(vapply(episodes, function(episode) {
-      component_score <- vapply(episode$references, function(reference) {
-        gaze_replay_pair_alignment(
-          reference,
-          episode$source,
-          emission_models[[episode$group]],
-          parameters,
-          spec
-        )$mean_log_score
-      }, numeric(1))
-      gaze_replay_log_mixture(component_score)$log_score
-    }, numeric(1)))
-  }, numeric(1))
-  best <- which.max(candidate_log_likelihood)
-  parameters <- as.list(candidates[best, , drop = FALSE])
+    candidates <- expand.grid(
+      spec$transition_grid,
+      KEEP.OUT.ATTRS = FALSE,
+      stringsAsFactors = FALSE
+    )
+    candidate_log_likelihood <- vapply(seq_len(nrow(candidates)), function(index) {
+      parameters <- as.list(candidates[index, , drop = FALSE])
+      sum(vapply(episodes, function(episode) {
+        component_score <- vapply(episode$references, function(reference) {
+          gaze_replay_pair_alignment(
+            reference,
+            episode$source,
+            emission_models[[episode$group]],
+            parameters,
+            spec
+          )$mean_log_score
+        }, numeric(1))
+        gaze_replay_log_mixture(component_score)$log_score
+      }, numeric(1)))
+    }, numeric(1))
+    best <- which.max(candidate_log_likelihood)
+    parameters <- as.list(candidates[best, , drop = FALSE])
+  } else {
+    revision_fit <- fit_gaze_replay_revision(
+      episodes, source_tab, match_on, spec, group_key
+    )
+    emission_models <- revision_fit$emission_models
+    parameters <- revision_fit$parameters
+    candidates <- NULL
+    candidate_log_likelihood <- NULL
+    best <- NA_integer_
+  }
 
   calibration <- NULL
   temperature <- 1
@@ -1028,9 +1077,14 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
         transition_candidates = candidates,
         candidate_log_likelihood = candidate_log_likelihood,
         selected_candidate = best,
-        template_count = lengths(templates$source_rows)
+        template_count = lengths(templates$source_rows),
+        em = revision_fit$em,
+        background_level = revision_fit$background_level
       ),
-      version = if (is.null(template_on) &&
+      revision = if (legacy) "2026.08" else "2026.10",
+      background = revision_fit$background,
+      match_on = match_on,
+      version = if (!legacy) 5L else if (is.null(template_on) &&
                     identical(spec$reliability, "none")) 3L else 4L
     ),
     class = c("gaze_replay_model", "list")
@@ -1051,7 +1105,9 @@ resolve_gaze_replay_group <- function(model, warp_group = NULL) {
   warp_group
 }
 
-prepare_gaze_replay_source <- function(source, model, warp_group = NULL) {
+prepare_gaze_replay_source <- function(source, model, warp_group = NULL,
+                                       background_key = NULL,
+                                       exclude_key = NULL) {
   group <- resolve_gaze_replay_group(model, warp_group)
   source_measure <- as_gaze_measure(source, model$spec$chronology)
   group_warp <- if (identical(model$warp$type, "none")) {
@@ -1060,12 +1116,18 @@ prepare_gaze_replay_source <- function(source, model, warp_group = NULL) {
     subset_gaze_warp_model(model$warp, group)
   }
   registered_source <- apply_gaze_warp_model(source_measure, group_warp)
+  grid <- gaze_duration_grid(registered_source, model$spec$grid_size)
+  if (identical(model$revision, "2026.10")) {
+    grid <- gaze_replay_prepare_background(
+      grid, model, background_key, exclude_key
+    )
+  }
   list(
     group = group,
     source = source_measure,
     registered_source = registered_source,
     warp = group_warp,
-    grid = gaze_duration_grid(registered_source, model$spec$grid_size),
+    grid = grid,
     quality = gaze_replay_path_quality(source)
   )
 }
@@ -1128,19 +1190,27 @@ gaze_replay_align_prepared <- function(reference, prepared, model,
 #' @param model A training-only [fit_gaze_replay_model()] result.
 #' @param candidate_key Candidate identifier retained in the result.
 #' @param warp_group Required fitted group key for grouped models.
+#' @param background_key Optional values of the `background_by` columns (in
+#'   their declared order) for the recall path; revision `"2026.10"` models
+#'   fitted with `background_by` only. `NULL` uses the pooled training
+#'   background density.
 #'
 #' @return A `gaze_engine_result` containing mean log predictive density per
 #'   normalized duration bin and a `gaze_replay_alignment` posterior object.
 #'   The alignment retains the raw total HMM log likelihood as a diagnostic.
 #' @export
 gaze_replay_align <- function(reference, source, model,
-                              candidate_key = "candidate", warp_group = NULL) {
+                              candidate_key = "candidate", warp_group = NULL,
+                              background_key = NULL) {
   if (!inherits(model, "gaze_replay_model")) {
     stop("model must be created by fit_gaze_replay_model().")
   }
   gaze_replay_align_prepared(
     reference,
-    prepare_gaze_replay_source(source, model, warp_group),
+    prepare_gaze_replay_source(
+      source, model, warp_group,
+      encode_gaze_replay_background_key(model, background_key)
+    ),
     model,
     candidate_key
   )
@@ -1243,13 +1313,17 @@ gaze_replay_align_episode_prepared <- function(
 #' @param candidate_key Candidate identifier retained in the result.
 #' @param template_key Optional unique identifiers for `references`.
 #' @param warp_group Required fitted group key for grouped models.
+#' @param background_key Optional values of the `background_by` columns (in
+#'   their declared order) for the recall path; revision `"2026.10"` models
+#'   fitted with `background_by` only. `NULL` uses the pooled training
+#'   background density.
 #'
 #' @return A `gaze_engine_result` whose alignment inherits from
 #'   `gaze_replay_episode_alignment` and `gaze_replay_alignment`.
 #' @export
 gaze_replay_align_episode <- function(
     references, source, model, candidate_key = "candidate",
-    template_key = NULL, warp_group = NULL) {
+    template_key = NULL, warp_group = NULL, background_key = NULL) {
   if (!inherits(model, "gaze_replay_model")) {
     stop("model must be created by fit_gaze_replay_model().")
   }
@@ -1263,7 +1337,10 @@ gaze_replay_align_episode <- function(
   }
   gaze_replay_align_episode_prepared(
     references,
-    prepare_gaze_replay_source(source, model, warp_group),
+    prepare_gaze_replay_source(
+      source, model, warp_group,
+      encode_gaze_replay_background_key(model, background_key)
+    ),
     model,
     candidate_key,
     template_key
@@ -1289,8 +1366,21 @@ score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
   } else {
     gaze_key(source_row, model$spec$warp$fit_by, "warp fit_by")
   }
+  background_key <- NULL
+  exclude_key <- NULL
+  if (identical(model$revision, "2026.10")) {
+    if (!is.null(model$background$background_by)) {
+      background_key <- gaze_key(
+        source_row, model$background$background_by, "background_by"
+      )
+    }
+    exclude_key <- gaze_key(
+      source_row, model$background$exclude_on, "background exclusion"
+    )
+  }
   prepared <- prepare_gaze_replay_source(
-    source_row[[sourcevar]][[1]], model, warp_group
+    source_row[[sourcevar]][[1]], model, warp_group,
+    background_key, exclude_key
   )
   engine_results <- lapply(candidate_key, function(key) {
     rows <- candidate_rows[ref_match_key[candidate_rows] == key]
@@ -1416,7 +1506,8 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
     match_on, contrast_on, template_on, spec$warp$fit_by, refvar
   ))
   required_source <- unique(c(
-    match_on, contrast_on, split_on, spec$warp$fit_by, sourcevar
+    match_on, contrast_on, split_on, spec$warp$fit_by, spec$background_by,
+    sourcevar
   ))
   if (!all(required_ref %in% names(ref_tab)) ||
       !all(required_source %in% names(source_tab))) {
@@ -1538,6 +1629,7 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
         template_on = template_on,
         template_prior = if (is.null(template_on)) "single" else "equal",
         reliability = spec$reliability,
+        revision = if (is.null(spec$revision)) "2026.08" else spec$revision,
         seed = seed,
         n_folds = folds$n_folds
       )

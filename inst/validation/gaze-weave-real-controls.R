@@ -317,7 +317,8 @@ real_specs <- function(smoke = FALSE) {
       background = c(0.03, 0.10), restart = c(0.02, 0.10),
       advance = c(0.25, 0.55), background_stay = c(0.85, 0.95)
     ),
-    warp = warp, screen = screen
+    warp = warp, screen = screen,
+    revision = "2026.08"
   )
   baseline <- gaze_baseline_spec(
     screen = screen, density_sigmas = c(30, 60, 120),

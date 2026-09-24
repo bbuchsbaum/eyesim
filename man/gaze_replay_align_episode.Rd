@@ -10,7 +10,8 @@ gaze_replay_align_episode(
   model,
   candidate_key = "candidate",
   template_key = NULL,
-  warp_group = NULL
+  warp_group = NULL,
+  background_key = NULL
 )
 }
 \arguments{
@@ -25,6 +26,11 @@ gaze_replay_align_episode(
 \item{template_key}{Optional unique identifiers for `references`.}
 
 \item{warp_group}{Required fitted group key for grouped models.}
+
+\item{background_key}{Optional values of the `background_by` columns (in
+their declared order) for the recall path; revision `"2026.10"` models
+fitted with `background_by` only. `NULL` uses the pooled training
+background density.}
 }
 \value{
 A `gaze_engine_result` whose alignment inherits from

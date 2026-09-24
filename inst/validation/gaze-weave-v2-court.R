@@ -215,7 +215,8 @@ v2_court_specs <- function(smoke = FALSE) {
       advance = c(0.25, 0.55),
       background_stay = c(0.85, 0.95)
     ),
-    warp = warp, screen = screen
+    warp = warp, screen = screen,
+    revision = "2026.08"
   )
   baseline <- gaze_baseline_spec(
     screen = screen,
@@ -455,7 +456,8 @@ v2_invariance_court <- function(seed = 20260816L) {
     transition_grid = list(
       background = 0.03, restart = 0.03, advance = 0.4,
       background_stay = 0.9
-    )
+    ),
+    revision = "2026.08"
   )
   replay_model <- fit_gaze_replay_model(
     training_ref, training_source, "item", spec = replay_spec
@@ -603,7 +605,8 @@ v2_perturbation_court <- function(seed = 20260816L, smoke = FALSE) {
     transition_grid = list(
       background = c(0.03, 0.1), restart = c(0.02, 0.1),
       advance = c(0.25, 0.55), background_stay = 0.9
-    )
+    ),
+    revision = "2026.08"
   )
   replay_model <- fit_gaze_replay_model(
     training, training, "item", spec = replay_spec
@@ -717,7 +720,8 @@ v2_stability_court <- function(seed = 20260816L) {
       transition_grid = list(
         background = 0.03, restart = 0.03, advance = 0.4,
         background_stay = 0.9
-      )
+      ),
+      revision = "2026.08"
     )
     model <- fit_gaze_replay_model(training, training, "item", spec = spec)
     candidate <- lapply(seq_along(templates), function(i) {
