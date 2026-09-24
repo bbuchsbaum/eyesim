@@ -77,10 +77,10 @@ test_that("delta is near zero when gaze has no own contribution", {
   )
   folds <- court$density_delta_synthetic_folds(sim$trials, 3L)
   own <- court$density_delta_crossfit(
-    court$density_delta_synthetic_design(sim, config), folds
+    court$density_delta_synthetic_design(sim, folds, config), folds
   )
   pseudo <- court$density_delta_crossfit(
-    court$density_delta_synthetic_design(sim, config, "pseudo"), folds
+    court$density_delta_synthetic_design(sim, folds, config, "pseudo"), folds
   )
   expect_setequal(own$scores$trial, seq_len(nrow(sim$trials)))
   expect_lt(abs(mean(own$scores$delta)), config$null_delta_tolerance)
@@ -100,7 +100,7 @@ test_that("an injected own contribution yields a positive held-out delta", {
   )
   folds <- court$density_delta_synthetic_folds(sim$trials, 4L)
   own <- court$density_delta_crossfit(
-    court$density_delta_synthetic_design(sim, config), folds
+    court$density_delta_synthetic_design(sim, folds, config), folds
   )
   test <- court$density_delta_crossed_test(
     own$scores, own$scores$delta, "delta", draws = 199L, seed = 1L
@@ -122,7 +122,7 @@ test_that("fold fits use training rows only", {
                       sim$trials$item %in% fold$eval_items)
   train <- which(!sim$trials$participant %in% fold$eval_participants &
                    !sim$trials$item %in% fold$eval_items)
-  design <- court$density_delta_synthetic_design(sim, config)
+  design <- court$density_delta_synthetic_design(sim, folds, config)
   fit <- court$density_delta_fit(design, train)
 
   perturbed <- sim
@@ -132,7 +132,7 @@ test_that("fold fits use training rows only", {
     perturbed$y[[t]]$x <- stats::runif(n, 0, 800)
     perturbed$y[[t]]$y <- stats::runif(n, 0, 600)
   }
-  perturbed_design <- court$density_delta_synthetic_design(perturbed, config)
+  perturbed_design <- court$density_delta_synthetic_design(perturbed, folds, config)
   perturbed_fit <- court$density_delta_fit(perturbed_design, train)
 
   expect_identical(perturbed_fit, fit)
@@ -150,4 +150,45 @@ test_that("crossed inference leaves the caller's RNG untouched", {
   set.seed(42)
   court$density_delta_crossed_test(tab, value, "x", draws = 99L, seed = 7L)
   expect_identical(stats::runif(3), expected)
+})
+
+test_that("background support never shares the target's item fold", {
+  court <- density_delta_source()
+  folds <- list(
+    list(id = 1L, eval_participants = "a", eval_items = c(1L, 3L)),
+    list(id = 2L, eval_participants = "a", eval_items = c(2L, 4L)),
+    list(id = 3L, eval_participants = "b", eval_items = c(3L, 1L))
+  )
+  map <- court$density_delta_item_fold_map(folds)
+  expect_identical(unname(map[c("1", "2", "3", "4")]), c(1L, 2L, 1L, 2L))
+  support <- court$density_delta_background_support(c(1L, 2L, 3L, 4L, 9L), 1L, map)
+  expect_identical(support, c(FALSE, TRUE, FALSE, TRUE, FALSE))
+  expect_error(court$density_delta_background_support(1:2, 9L, map), "no item fold")
+
+  config <- court$density_delta_config()
+  sim <- court$density_delta_simulate(participants = 6L, items = 8L, seed = 8L)
+  sim_folds <- court$density_delta_synthetic_folds(sim$trials, 8L)
+  design <- court$density_delta_synthetic_design(sim, sim_folds, config)
+  sim_map <- court$density_delta_item_fold_map(sim_folds)
+  # Each background template contains exactly the participant's retrieval
+  # fixations on other-fold items.
+  t <- 1L
+  same <- sim$trials$participant == sim$trials$participant[[t]] &
+    sim_map[as.character(sim$trials$item)] != sim_map[as.character(sim$trials$item[[t]])]
+  expect_equal(length(design$templates$background[[t]]$x),
+               sum(vapply(sim$y[same], nrow, integer(1))))
+})
+
+test_that("fixation-sum aggregation weights every fixation equally", {
+  court <- density_delta_source()
+  config <- court$density_delta_config()
+  config$aggregation <- "fixation_sum"
+  sim <- court$density_delta_simulate(participants = 6L, items = 8L, seed = 9L)
+  folds <- court$density_delta_synthetic_folds(sim$trials, 9L)
+  design <- court$density_delta_synthetic_design(sim, folds, config)
+  expect_true(all(design$fix$a == 1))
+  config$aggregation <- "duration_mean"
+  design <- court$density_delta_synthetic_design(sim, folds, config)
+  expect_equal(as.numeric(tapply(design$fix$a, design$fix$trial, sum)),
+               rep(1, nrow(sim$trials)))
 })

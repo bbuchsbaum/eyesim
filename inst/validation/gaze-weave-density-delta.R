@@ -13,10 +13,15 @@
 #
 # Participant-linked outputs stay in the Git-ignored results directory.
 
-density_delta_protocol <- "density-delta/1.0.0"
+# Amendment 1 (1.1.0): explicit observation model, fold-disjoint background
+# support, fixation-sum aggregation sensitivity, and an FPR-based null rule.
+# Version 1.0.0 outputs remain at the top of the results directory.
+density_delta_protocol <- "density-delta/1.1.0"
+density_delta_version <- "1.1.0"
 density_delta_seed <- 20260924L
 density_delta_result_dir <- file.path(
-  "inst", "validation", "gaze-weave-density-delta-results"
+  "inst", "validation", "gaze-weave-density-delta-results",
+  paste0("v", density_delta_version)
 )
 density_delta_freeze_dir <- file.path(
   "inst", "validation", "gaze-weave-density-delta-freeze"
@@ -30,7 +35,9 @@ density_delta_protocol_file <- file.path(
 density_delta_script_file <- file.path(
   "inst", "validation", "gaze-weave-density-delta.R"
 )
-density_delta_marker <- "<!-- FROZEN-PROTOCOL-END -->"
+# The 1.1.0 frozen text runs through the amendment marker, so it contains the
+# unchanged 1.0.0 section plus Amendment 1.
+density_delta_marker <- "<!-- AMENDMENT-1-END -->"
 
 # Reuse the own-group court: importer, cohort, folds, candidate plan, donor
 # matching, and the crossed participant x item bootstrap helpers.
@@ -69,9 +76,15 @@ density_delta_config <- function() {
     bootstrap_draws = 2000L,
     simulation_bootstrap_draws = 499L,
     null_delta_tolerance = 0.01,
-    null1_replicates = 100L,
-    null1_fpr_tolerance = 0.05,
-    null1_mean_tolerance = 0.005,
+    # Trial aggregation: "duration_mean" (primary) or "fixation_sum"
+    # (sensitivity). Fitting and scoring always use the same aggregation.
+    aggregation = "duration_mean",
+    # Background support: the participant's retrieval trials on items of the
+    # other item fold only (never an evaluated item or candidate in the fold).
+    background_support = "other_item_fold",
+    null1_replicates = 200L,
+    # FPR tolerance = alpha + 2 Monte-Carlo SE at alpha for the replicate count.
+    null1_fpr_tolerance = 0.025 + 2 * sqrt(0.025 * 0.975 / 200),
     bandwidth_shifts = c(half = -2L, double = 2L),
     simulation_replicates = 100L,
     simulation_cells = density_delta_simulation_cells()
@@ -206,9 +219,20 @@ density_delta_design <- function(trials, y, own, group, background, config) {
     trial = rep(seq_len(n), vapply(y, nrow, integer(1))),
     x = unlist(lapply(y, `[[`, "x"), use.names = FALSE),
     y = unlist(lapply(y, `[[`, "y"), use.names = FALSE),
-    a = unlist(lapply(y, function(e) e$duration / sum(e$duration)),
-               use.names = FALSE)
+    # Observation weight of each fixation within its trial. duration_mean:
+    # d_j / D (trial score is the duration-weighted mean log density).
+    # fixation_sum: 1 (trial score is the summed fixation log density).
+    a = unlist(lapply(y, function(e) {
+      if (identical(config$aggregation, "fixation_sum")) {
+        rep(1, length(e$duration))
+      } else {
+        e$duration / sum(e$duration)
+      }
+    }), use.names = FALSE)
   )
+  if (!config$aggregation %in% c("duration_mean", "fixation_sum")) {
+    stop("Unknown trial aggregation.")
+  }
   screen <- config$screen
   if (any(fix$x < 0 | fix$x > screen[["width"]] |
           fix$y < 0 | fix$y > screen[["height"]])) {
@@ -532,7 +556,8 @@ density_delta_simulate <- function(
 # own_source = "pseudo" replaces each own template by one other participant's
 # four presentations of the same item and removes that donor from the group
 # template, mirroring the real-data pseudo-own control.
-density_delta_synthetic_design <- function(sim, config = density_delta_config(),
+density_delta_synthetic_design <- function(sim, folds,
+                                           config = density_delta_config(),
                                            own_source = c("own", "pseudo")) {
   own_source <- match.arg(own_source)
   trials <- sim$trials
@@ -556,13 +581,40 @@ density_delta_synthetic_design <- function(sim, config = density_delta_config(),
     d <- d[seq_len(min(length(d), sim$group_donors))]
     density_delta_pool_templates(study_templates[d])
   })
+  item_fold <- density_delta_item_fold_map(folds)
   by_participant <- split(seq_len(nrow(trials)), trials$participant)
   background <- lapply(seq_len(nrow(trials)), function(t) {
     others <- by_participant[[trials$participant[[t]]]]
-    others <- others[trials$item[others] != trials$item[[t]]]
-    density_delta_episode_template(sim$y[others])
+    support <- density_delta_background_support(
+      trials$item[others], trials$item[[t]], item_fold
+    )
+    density_delta_episode_template(sim$y[others[support]])
   })
   density_delta_design(trials, sim$y, own, group, background, config)
+}
+
+# Item -> item-fold label, derived from the outer folds (distinct eval-item
+# sets receive distinct labels).
+density_delta_item_fold_map <- function(folds) {
+  sets <- lapply(folds, function(f) sort(as.integer(f$eval_items)))
+  keys <- vapply(sets, paste, character(1), collapse = ",")
+  labels <- match(keys, unique(keys))
+  map <- integer(0)
+  for (k in seq_along(sets)) {
+    map[as.character(sets[[k]])] <- labels[[k]]
+  }
+  map
+}
+
+# Amendment 1: background support is the participant's retrieval trials on
+# items of the *other* item fold. No support trial is ever evaluated, or used
+# as a candidate or target, in the fold where the target is evaluated, and the
+# same rule applies to training, evaluation, null and simulated trials.
+density_delta_background_support <- function(items, target, item_fold) {
+  target_fold <- item_fold[as.character(target)]
+  fold <- item_fold[as.character(items)]
+  if (is.na(target_fold)) stop("The target item has no item fold.")
+  unname(!is.na(fold) & fold != target_fold)
 }
 
 density_delta_synthetic_folds <- function(trials, seed) {
@@ -592,9 +644,11 @@ density_delta_simulation_replicate <- function(cell, replicate, config) {
     heterogeneity = cell$heterogeneity, seed = seed, screen = config$screen
   )
   folds <- density_delta_synthetic_folds(sim$trials, seed)
-  own <- density_delta_crossfit(density_delta_synthetic_design(sim, config), folds)
+  own <- density_delta_crossfit(
+    density_delta_synthetic_design(sim, folds, config), folds
+  )
   pseudo <- density_delta_crossfit(
-    density_delta_synthetic_design(sim, config, "pseudo"), folds
+    density_delta_synthetic_design(sim, folds, config, "pseudo"), folds
   )
   if (!identical(own$scores$trial, pseudo$scores$trial)) {
     stop("Own and pseudo-own scores do not align.")
@@ -762,9 +816,9 @@ density_delta_background_templates <- function(context, window) {
   })
 }
 
-density_delta_background <- function(bg, participant, item) {
+density_delta_background <- function(bg, participant, item, item_fold) {
   part <- bg[[as.character(participant)]]
-  keep <- part$items != item
+  keep <- density_delta_background_support(part$items, item, item_fold)
   density_delta_episode_template(part$paths[keep])
 }
 
@@ -809,6 +863,10 @@ density_delta_real_design <- function(
   retrieval <- density_delta_retrieval_table(context, window)
   index <- density_delta_study_index(context$study)
   bg <- density_delta_background_templates(context, window)
+  item_fold <- stats::setNames(
+    as.integer(context$cohort$item_map$item_fold),
+    as.character(context$cohort$item_map$item)
+  )
   plan <- context$candidate_plan
   n <- nrow(trials)
   own <- group <- background <- vector("list", n)
@@ -819,7 +877,7 @@ density_delta_real_design <- function(
     p <- as.character(trials$participant[[t]])
     item <- as.integer(trials$item[[t]])
     y[[t]] <- density_delta_path_df(retrieval$fixgroup[[trials$row[[t]]]])
-    background[[t]] <- density_delta_background(bg, p, item)
+    background[[t]] <- density_delta_background(bg, p, item, item_fold)
     version <- if (family == "old_lure") {
       own_group_version_lookup(context$study, p)(item)
     } else {
@@ -893,10 +951,16 @@ density_delta_hashes <- function(config = density_delta_config()) {
   )
 }
 
+# Version 1.0.0 was frozen to freeze-record.csv; later versions are suffixed.
+density_delta_freeze_file <- function(version = density_delta_version) {
+  if (identical(version, "1.0.0")) "freeze-record.csv" else
+    paste0("freeze-record-", version, ".csv")
+}
+
 density_delta_freeze <- function(output_dir = density_delta_freeze_dir,
                                  config = density_delta_config(),
                                  data_dir = density_delta_data_dir()) {
-  path <- file.path(output_dir, "freeze-record.csv")
+  path <- file.path(output_dir, density_delta_freeze_file())
   if (file.exists(path)) stop("The density-delta court is already frozen.")
   hashes <- density_delta_hashes(config)
   manifest <- utils::read.csv(file.path(data_dir, "manifest.csv"),
@@ -912,14 +976,14 @@ density_delta_freeze <- function(output_dir = density_delta_freeze_dir,
   utils::write.csv(record, path, row.names = FALSE)
   writeLines(
     utils::capture.output(dput(config, control = c("keepNA", "keepInteger"))),
-    file.path(output_dir, "configuration.txt")
+    file.path(output_dir, paste0("configuration-", density_delta_version, ".txt"))
   )
   invisible(record)
 }
 
 density_delta_verify_freeze <- function(output_dir = density_delta_freeze_dir,
                                         config = density_delta_config()) {
-  path <- file.path(output_dir, "freeze-record.csv")
+  path <- file.path(output_dir, density_delta_freeze_file())
   if (!file.exists(path)) stop("Freeze the protocol before any real scoring.")
   record <- utils::read.csv(path, stringsAsFactors = FALSE)
   hashes <- density_delta_hashes(config)
@@ -1009,9 +1073,10 @@ run_density_delta_null1 <- function(
     mean_delta = mean(reps$estimate), sd_delta = stats::sd(reps$estimate),
     mean_own_weight = mean(reps$mean_own_weight),
     fpr_tolerance = config$null1_fpr_tolerance,
-    mean_tolerance = config$null1_mean_tolerance,
-    pass = mean(reps$reject) <= config$null1_fpr_tolerance &&
-      abs(mean(reps$estimate)) <= config$null1_mean_tolerance,
+    # Amendment 1: judged on the decision rule's FPR only. E[Delta] under
+    # this null is minus a KL divergence, not zero, so mean Delta is reported
+    # descriptively and is not a gate.
+    pass = mean(reps$reject) <= config$null1_fpr_tolerance,
     elapsed_seconds = proc.time()[["elapsed"]] - started,
     stringsAsFactors = FALSE
   )
@@ -1066,9 +1131,11 @@ density_delta_verdict <- function(summary, null1, config) {
     pass = c(
       isTRUE(primary$reject_one_sided),
       isTRUE(null1$pass),
-      isTRUE(row("null2_wrong_item")$upper_95 <= config$null_delta_tolerance),
+      isTRUE(row("null2_wrong_item")$upper_95 <= config$null_delta_tolerance) &&
+        !isTRUE(row("null2_wrong_item")$reject_one_sided),
       isTRUE(row("primary_minus_null2_paired")$reject_one_sided),
-      isTRUE(row("null3_pseudo_own_newtest")$upper_95 <= config$null_delta_tolerance),
+      isTRUE(row("null3_pseudo_own_newtest")$upper_95 <= config$null_delta_tolerance) &&
+        !isTRUE(row("null3_pseudo_own_newtest")$reject_one_sided),
       isTRUE(row("primary_minus_null3_unpaired")$reject_one_sided),
       isTRUE(row("attribution_own_minus_pseudo_paired")$reject_one_sided)
     ),
@@ -1099,7 +1166,9 @@ run_density_delta_court <- function(config = density_delta_config(),
     sensitivity_own_bandwidth_half = list(
       "old_lure", "primary", "combined", config$bandwidth_shifts[["half"]]),
     sensitivity_own_bandwidth_double = list(
-      "old_lure", "primary", "combined", config$bandwidth_shifts[["double"]])
+      "old_lure", "primary", "combined", config$bandwidth_shifts[["double"]]),
+    sensitivity_fixation_sum = list(
+      "old_lure", "primary", "combined", 0L, "fixation_sum")
   )
   if (!is.null(analyses)) plan <- plan[analyses]
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -1113,8 +1182,10 @@ run_density_delta_court <- function(config = density_delta_config(),
     }
     message("Density delta: ", label)
     started <- proc.time()[["elapsed"]]
+    analysis_config <- config
+    if (length(p) >= 5L) analysis_config$aggregation <- p[[5L]]
     results[[label]] <- density_delta_run_analysis(
-      context, label, p[[1L]], p[[2L]], p[[3L]], config, p[[4L]]
+      context, label, p[[1L]], p[[2L]], p[[3L]], analysis_config, p[[4L]]
     )
     results[[label]]$elapsed_seconds <- proc.time()[["elapsed"]] - started
     saveRDS(results[[label]], path, version = 3)

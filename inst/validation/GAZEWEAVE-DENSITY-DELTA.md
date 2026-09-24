@@ -275,6 +275,119 @@ the run must be re-frozen under a new protocol version.
 
 <!-- FROZEN-PROTOCOL-END -->
 
+## Amendment 1 (protocol `density-delta/1.1.0`, 2026-09-24)
+
+**Timing and reason, stated plainly.** An external plan review requested
+this amendment. It arrived **after** the 1.0.0 court had been frozen
+(commit `83442b0`), and after its null (1) and real-data analyses had been
+run and their outcomes viewed. The 1.0.0 results are reported unchanged under
+Results. The changes below respond to the review's points, not to the 1.0.0
+outcome, but 1.1.0 is not blind to that outcome. Treat 1.1.0 as a
+reviewer-mandated re-specification, not as an independent preregistration.
+The 1.0.0 synthetic sweep was stopped before completion and superseded; only
+the 1.1.0 sweep is reported. Everything above the `FROZEN-PROTOCOL-END`
+marker is byte-identical to 1.0.0. Where the amendment conflicts with that
+text, the amendment governs 1.1.0.
+
+### A1. Observation model: the duration-weighted spatial score
+
+- **Unit.** One observation is one retrieval fixation's screen position x_j.
+  Fixation count n and total dwell D are conditioned on, not modelled.
+  Durations enter only as within-trial weights. Fixation order and saccades
+  are ignored.
+- **Component choice.** The mixture component is latent **per fixation**:
+  each fixation independently comes from ε·U or from one of the free
+  components with probability w_k. It is not chosen per trial.
+- **Dependence.** Fixations are treated as conditionally independent given
+  the templates and weights. This is a working-independence device for
+  defining the score, not a belief. Dependence within trials, participants
+  and items is carried by the crossed participant × item bootstrap, which
+  resamples whole participants and items. The score is therefore a
+  **duration-weighted spatial score** (a weighted composite log density). It
+  is **not** a joint scanpath likelihood and is not described as one.
+- **Trial aggregation (primary).** ℓ_M(Y_si) = Σ_j (d_j/D)·log p_M(x_j), the
+  duration-weighted mean. Justification as in section 3: equal trial weight
+  in the crossed mean and invariance to how a dwell is segmented.
+- **Trial aggregation (sensitivity, a different estimand).**
+  ℓ^sum_M(Y_si) = Σ_j log p_M(x_j), the unweighted summed fixation log
+  density. This weights trials by fixation count and ignores duration. It is
+  run as `sensitivity_fixation_sum`, and fitting also uses the summed
+  objective, so fitting and scoring always share one aggregation.
+- **Nesting and equal nuisance.** M0 is M1 with w_own = 0. Both models use
+  the same background template and the same group template. They also share
+  the same (h_g, h_b), selected once by the M0 search over the same 49-pair
+  grid on the same training rows, and the same EM (ε = 0.01, tolerance 1e-10,
+  at most 5000 iterations). M1's only additional fitting is the own weight and
+  the own bandwidth, a 7-value search. Held-out scoring penalises any
+  overfitting that this adds.
+
+### A2. Background under participant holdout: declared support split
+
+Evaluation participants have no training rows, so B cannot come from the
+training set. 1.1.0 adopts option **(b), a declared support/evaluation split
+within each participant**. B_si is built from participant s's retrieval
+trials (all probe types, same window) on items in the **other item fold** from
+item i. Each trial is unit-normalised and trials are averaged. The 1.0.0
+rule, "all other items", is withdrawn.
+
+Consequences:
+
+- No support trial of B_si is evaluated in the outer fold where (s, i) is
+  evaluated.
+- No support trial involves the target item or any candidate item. Candidate
+  sets, and hence wrong-item templates, are drawn from the target's own item
+  fold.
+- The same rule applies to every row:
+  - training rows use their other-fold trials, which are never evaluation
+    rows of that fold;
+  - evaluation rows;
+  - nulls (2) and (3) and the attribution analysis;
+  - the null (1) generator and model;
+  - every synthetic replicate and test.
+- Perturbing any evaluation row of a fold changes neither that fold's fit nor
+  any other trial's background in that fold (unit-tested).
+
+### A3. Null decision rules
+
+The **decision rule** under test is the primary rule itself. The statistic is
+the mean trial Δ. Its 95% crossed-bootstrap percentile interval (2000 draws
+for real data, 499 in simulation) is computed, and H0 is rejected if the lower
+bound is > 0. This is one-sided at α = 0.025.
+
+- **Null (1).** R = **200** replicates. Each replicate reruns the whole
+  procedure on freshly simulated retrieval gaze: the full (h_g, h_b) and h_o
+  searches, EM weight fitting for every fold, scoring and the bootstrap
+  decision. The false-positive rate (FPR) is the proportion of replicates in
+  which the rule rejects.
+  - *Tolerance*: FPR ≤ α + 2·MCSE(α) = 0.025 + 2·√(0.025·0.975/200) ≈ 0.047.
+    Monte-Carlo uncertainty is reported as a Clopper–Pearson 95% interval.
+    The null fails if the observed FPR exceeds the tolerance.
+  - The 1.0.0 criterion |mean Δ| ≤ 0.005 is **withdrawn as a gate**. Under a
+    null generated from the group + background model, E[Δ] equals minus a KL
+    divergence (adding an unneeded component can only lose held-out
+    likelihood in expectation), not zero. Mean Δ is reported descriptively.
+- **Simulation sweep.** At strength 0 the FPR of each rule (raw Δ, pseudo Δ,
+  own − pseudo) comes from R = 100 full-procedure replicates per cell, with
+  Clopper–Pearson intervals (MCSE at α = 0.025 is about 0.016). Power cells
+  use the same replicates and rule.
+- **Nulls (2) and (3)** are single real datasets, so an FPR cannot be
+  estimated for them. They are judged on the decision rule. A null *fails* if:
+  - the primary rule rejects on the null Δ, or
+  - its 95% upper bound exceeds δ_tol = 0.01 nats, or
+  - the corresponding primary − null contrast (paired for null 2, unpaired
+    for null 3) fails to reject.
+
+  A null Δ below zero is expected (see the KL remark above) and is not a
+  failure.
+- **Attribution gate**: unchanged from 1.0.0 (paired own − pseudo, rule as
+  above).
+
+### A4. Verdict rule
+
+The verdict rule is unchanged from 1.0.0, with the gates as redefined in A3.
+
+<!-- AMENDMENT-1-END -->
+
 ## Results
 
 Pending.
