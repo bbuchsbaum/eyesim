@@ -1,0 +1,6 @@
+"component","sha256","protocol","frozen_at_utc"
+"protocol_section","ff0ca617584323243a8d5a4b6ab2f1ba534f9cb2aa8214fc37f664bef97dffff","density-delta/1.1.0","2026-09-24 23:49:59 UTC"
+"script","1628b56892bcd75692a3480da7f03b1635c89cee025dd675788e1bb3bee3fdec","density-delta/1.1.0","2026-09-24 23:49:59 UTC"
+"configuration","1a0c36613c11d6b6f22a058d0c84a9eac92cd2cac2664800fea650a2003070de","density-delta/1.1.0","2026-09-24 23:49:59 UTC"
+"input:study_fix_input_new.csv","ae4f889074a856376085e5020a4ce20444bd56ae6d471e9606bc404b1f9240a9","density-delta/1.1.0","2026-09-24 23:49:59 UTC"
+"input:testdelay_fix_input_matched.csv","32caac0a991972175f929aeb9f8b474442c60e9bfb04177d55c99239e8e0f244","density-delta/1.1.0","2026-09-24 23:49:59 UTC"
