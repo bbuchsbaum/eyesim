@@ -390,4 +390,109 @@ The verdict rule is unchanged from 1.0.0, with the gates as redefined in A3.
 
 ## Results
 
-Pending.
+All real-data statistics below are aggregates. Per-trial scores, fold fits
+and logs are in the Git-ignored results directory: the top level for 1.0.0
+and `v1.1.0/` for 1.1.0. Δ is in nats per unit of dwell. The interval is the
+95% crossed participant × item bootstrap interval.
+
+### Protocol 1.1.0 (governing)
+
+**Null (1)**, with 200 full-procedure replicates:
+
+- FPR = 0/200 (Clopper–Pearson 95% interval 0–0.018), against a tolerance of
+  0.047. **Pass.**
+- Mean Δ = −0.00028 (SD 0.00045). This is negative, as the KL argument
+  predicts.
+- Mean fitted own weight = 0.008.
+
+**Real court.** All four folds converged. Fitted M0 weights are
+background 0.88–0.95, group 0.05–0.12 and uniform ≈ 0. The M1 own weight is
+0.04–0.07.
+
+| Analysis | Trials | Δ | 95% interval | Rejects |
+|---|---|---|---|---|
+| **Primary, old + lure, 0–3000 ms** | 1295 | **0.0026** | **−0.0029, 0.0080** | **no** |
+| Old only | 640 | 0.0054 | −0.0012, 0.0132 | no |
+| Lure only | 655 | −0.0001 | −0.0074, 0.0076 | no |
+| Null 2, wrong-item own | 1295 | −0.0021 | −0.0036, −0.0008 | no |
+| Primary − null 2 (paired) | 1295 | 0.0047 | −0.0005, 0.0101 | no |
+| Null 3, pseudo-own on newtest | 959 | −0.0002 | −0.0017, 0.0012 | no |
+| Primary − null 3 (unpaired) | 2254 | 0.0028 | −0.0028, 0.0087 | no |
+| Attribution: pseudo-own on old + lure | 1295 | 0.0005 | −0.0013, 0.0025 | no |
+| Attribution: own − pseudo (paired) | 1295 | 0.0021 | −0.0035, 0.0080 | no |
+| Sensitivity: delay only, 500–3000 ms | 1295 | 0.0023 | −0.0040, 0.0090 | no |
+| Sensitivity: 4-episode donor support | 1295 | 0.0039 | −0.0027, 0.0107 | no |
+| Sensitivity: own bandwidth × 0.5 | 1295 | 0.0011 | −0.0021, 0.0047 | no |
+| Sensitivity: own bandwidth × 2 | 1295 | 0.0026 | −0.0018, 0.0083 | no |
+| Sensitivity: fixation-sum aggregation | 1295 | 0.0256 | −0.0070, 0.0631 | no |
+
+Gates:
+
+- Null (1): pass.
+- Nulls (2) and (3): within tolerance (neither rejects, and both upper bounds
+  are ≤ 0.01).
+- Primary rejects: fail.
+- Both primary − null contrasts: fail.
+- Attribution gate: fail.
+
+**Verdict: `not_detected_at_protocol_sensitivity`.** Every estimate is
+small and positive, and every interval includes zero. The sensitivity
+analyses agree in sign and overlap. The fixation-sum score is on a per-trial
+rather than a per-dwell scale, so it is roughly 5–10 times larger by
+construction.
+
+### Synthetic sweep (1.1.0 generator and rules)
+
+The sweep used 100 replicates per cell, 499 bootstrap draws and 56 min of
+wall time. It reports the rejection rate of the primary one-sided rule. FPR
+is at strength 0, and power is above that. Full tables are in
+`gaze-weave-density-delta-simulation/`.
+
+| Variant | Raw Δ FPR | own − pseudo FPR | own − pseudo power, s = 0.05 / 0.10 / 0.20 |
+|---|---|---|---|
+| Base (36 × 36, low overlap) | 0.90 | 0.00 | 1.00 / 1.00 / 1.00 |
+| High overlap | 0.65 | 0.00 | 0.11 / 0.63 / 1.00 |
+| Heterogeneous (τ = 1) | 0.97 | 0.00 | 0.98 / 1.00 / 1.00 |
+| 24 × 36 | 0.47 | 0.00 | 0.98 / 1.00 / 1.00 |
+| 12 × 24 | 0.05 | 0.01 | 0.50 / 0.97 / 1.00 |
+
+Raw Δ is **not** a valid test of participant-specific correspondence under
+this generator. With no own contribution at retrieval, raw Δ is about
++0.008 nats and rejects in up to 97% of replicates, because an own study
+template adds image information that a 9-donor group template lacks. The
+pseudo-own attribution contrast holds its FPR at 0–0.01.
+
+Mean own − pseudo Δ scales with strength:
+
+- low overlap: about 0.03 nats at s = 0.05 and 0.07 at s = 0.10;
+- high overlap: about 0.005 at s = 0.05 and 0.011 at s = 0.10.
+
+These are detection thresholds under this generator. With low overlap the
+design detects an own share of 5% of retrieval fixations. With high overlap
+(the own pattern is a reweighting of the image's own hotspots) it needs a
+share of about 10–20%. They are not ceilings on the real effect.
+
+**Reading the real result against the sweep.** The observed paired
+own − pseudo Δ is 0.0021 (upper bound 0.0080). That is below the mean
+contrast at s = 0.05 under low overlap, and comparable to high-overlap
+shares of about 0.05–0.10. So a distinct, low-overlap own pattern carrying
+≥ 5% of retrieval dwell is unlikely under this generator. An own pattern that
+reweights the same salient regions others fixate, at a share of about 10%,
+is not excluded. None of this is evidence of absent reactivation (section 10).
+Participant × image preference remains a named alternative for any future
+positive result.
+
+### Protocol 1.0.0 (superseded; reported for completeness)
+
+- 1.0.0 was frozen at `83442b0` and run in full.
+- Null (1), 100 replicates: FPR = 0 and mean Δ = −0.0003. It passed its
+  1.0.0 criteria.
+- Primary Δ = 0.0014 (interval −0.0036 to 0.0063), not rejected.
+- Null 2: Δ = −0.0012 (−0.0022, −0.0005).
+- Null 3: Δ = −0.0005 (−0.0019, 0.0007).
+- Attribution own − pseudo: 0.0014 (−0.0038, 0.0066).
+- All sensitivities included zero.
+- Verdict `not_detected_at_protocol_sensitivity`.
+- 1.0.0 differed from 1.1.0 mainly in its background (all other items rather
+  than other-fold items). The 1.0.0 synthetic sweep was stopped unfinished
+  when Amendment 1 arrived.
