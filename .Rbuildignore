@@ -28,3 +28,4 @@ test_data
 ^inst/validation/gaze-weave-transport-v3-repeated-viewing-results$
 ^inst/validation/gaze-weave-transport-v3-retrieval-results$
 vignettes/Overview\.html$
+^inst/validation/gaze-weave-density-delta-results$

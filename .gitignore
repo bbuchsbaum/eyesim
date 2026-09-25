@@ -27,3 +27,5 @@ inst/validation/gaze-weave-transport-v3-repeated-viewing-results/
 # Frozen Transport-v3 retrieval scores and behavior merges are restricted.
 inst/validation/gaze-weave-transport-v3-retrieval-results/
 inst/validation/gaze-weave-pcmri-catalog-replication-results/
+# Density-delta court: participant-linked scores and caches stay local.
+inst/validation/gaze-weave-density-delta-results/
