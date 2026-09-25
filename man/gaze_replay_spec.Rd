@@ -17,7 +17,8 @@ gaze_replay_spec(
   warp = gaze_warp_none(),
   screen = NULL,
   revision = c("2026.10", "2026.08"),
-  background_by = NULL
+  background_by = NULL,
+  background_support = c("training", "held_out")
 )
 }
 \arguments{
@@ -48,14 +49,15 @@ half-saturation parameter. The lower bound must be zero.}
 \item{warp}{Cross-fitted warp specification.}
 
 \item{screen}{Optional screen geometry. Under revision `"2026.10"` every
-emission density is truncated to and normalised over this rectangle;
-when it is `NULL` the rectangle is the padded extent of the training
-coordinates.}
+emission density is truncated to and normalised over this rectangle.
+When it is `NULL`, emissions are normalised over the whole plane (a
+one-time message says so).}
 
 \item{revision}{Model revision. `"2026.10"` (default) uses
 screen-truncated Student replay emissions, a participant-level
 screen-truncated kernel density for the background state (fitted on
-training recalls only, excluding the target item), and Baum-Welch (EM)
+training recalls only, excluding the target item, and mixed with a
+uniform screen floor whose weight is fitted), and Baum-Welch (EM)
 estimation of the replay scale and all transition probabilities, with
 `transition_grid` medians used only as EM starting values. `"2026.08"`
 reproduces the frozen behaviour: untruncated emissions, a single
@@ -66,7 +68,23 @@ nearest-neighbour replay scale, and grid search over `transition_grid`.}
 participant identifier) defining the level at which the background
 density is estimated under revision `"2026.10"`. `NULL` pools all
 training recalls. Levels with fewer than three other training trials fall
-back to the pooled density.}
+back to the pooled density; fitting reports this with a message and
+[gaze_replay_cv()] records the count in `provenance$background_fallback`.
+At scoring time the background excludes every item in the candidate
+pool, so it never depends on which candidate is true.}
+
+\item{background_support}{Background evaluation protocol under revision
+`"2026.10"`. `"training"` (default) estimates every background from
+training recalls only: the `background_by` level when it has at least
+three training trials outside the candidate pool, otherwise the
+population (pooled) density. Under participant holdout every evaluation
+participant is unseen, so the population density is used and
+[gaze_replay_cv()] says so. `"held_out"` (opt-in, requires
+`background_by`) instead uses the evaluation participant's own recalls
+of items outside the scored row's candidate pool, available in the same
+evaluation fold, falling back to the training protocol when fewer than
+three such trials exist. Training fits always use the other training
+trials of the same level, excluding the fitted item.}
 }
 \value{
 A frozen `gaze_replay_spec`.

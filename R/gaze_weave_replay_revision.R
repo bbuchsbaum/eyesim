@@ -4,8 +4,21 @@
 # densities, and Baum-Welch (EM) parameter fitting. Revision "2026.08" keeps
 # the frozen behaviour in gaze_weave_replay.R.
 
+# Objects saved before revisions existed carry no revision and are frozen
+# revision 2026.08; any other unknown revision is refused.
+gaze_replay_revision_of <- function(x) {
+  revision <- x$revision
+  if (is.null(revision)) return("2026.08")
+  if (!is.character(revision) || length(revision) != 1L ||
+      !revision %in% c("2026.08", "2026.10")) {
+    stop("Unknown Replay revision '", paste(revision, collapse = ", "),
+         "'; this eyesim supports \"2026.08\" and \"2026.10\".")
+  }
+  revision
+}
+
 gaze_replay_is_legacy <- function(spec) {
-  is.null(spec$revision) || identical(spec$revision, "2026.08")
+  identical(gaze_replay_revision_of(spec), "2026.08")
 }
 
 gaze_replay_em_control <- function() {
@@ -13,10 +26,35 @@ gaze_replay_em_control <- function() {
     max_iterations = 200L,
     tolerance = 1e-6,
     probability_bounds = c(1e-6, 1 - 1e-6),
-    background_floor = 0.01,
+    background_floor = 0.05,
+    background_floor_bounds = c(1e-3, 1 - 1e-6),
     background_min_trials = 3L,
-    quadrature_nodes = 40L
+    quadrature_nodes = 40L,
+    max_scale_fraction = 1 / 6
   )
+}
+
+# One-time notices ------------------------------------------------------------
+
+gaze_replay_notices <- new.env(parent = emptyenv())
+
+reset_gaze_replay_notices <- function() {
+  rm(list = ls(gaze_replay_notices), envir = gaze_replay_notices)
+  invisible(NULL)
+}
+
+note_gaze_replay_plane <- function(spec) {
+  if (gaze_replay_is_legacy(spec) || !is.null(spec$screen) ||
+      isTRUE(gaze_replay_notices$plane)) {
+    return(invisible(FALSE))
+  }
+  assign("plane", TRUE, envir = gaze_replay_notices)
+  message(
+    "Replay revision 2026.10: no screen declared, so emission densities are ",
+    "normalised over the whole plane. Declare gaze_screen() for ",
+    "screen-truncated emissions. (Shown once per session.)"
+  )
+  invisible(TRUE)
 }
 
 # Screen geometry ------------------------------------------------------------
@@ -133,11 +171,26 @@ gaze_replay_kde_bandwidth <- function(points, weights, n_points, floor) {
 }
 
 gaze_replay_background_subset <- function(background, background_key = NULL,
-                                          exclude_key = NULL, min_trials) {
+                                          exclude_key = NULL, min_trials,
+                                          support = NULL) {
+  if (!is.null(support) && nrow(support)) {
+    support <- support[!support$exclude_key %in% exclude_key, , drop = FALSE]
+    if (length(unique(support$trial)) >= min_trials) {
+      return(list(table = support, level = "held_out_support"))
+    }
+  }
   table <- background$table
   keep <- rep(TRUE, nrow(table))
-  if (!is.null(exclude_key)) keep <- keep & table$exclude_key != exclude_key
+  if (length(exclude_key)) keep <- keep & !table$exclude_key %in% exclude_key
   level <- "pooled"
+  if (length(exclude_key) &&
+      length(unique(table$trial[keep])) < min_trials) {
+    # Excluding the whole candidate pool left too little population data
+    # (e.g. every item is a candidate). Excluding nothing is equally
+    # independent of which candidate is true.
+    keep <- rep(TRUE, nrow(table))
+    level <- "pooled_all_items"
+  }
   if (!is.null(background_key)) {
     own <- keep & table$background_key == background_key
     if (length(unique(table$trial[own])) >= min_trials) {
@@ -150,7 +203,8 @@ gaze_replay_background_subset <- function(background, background_key = NULL,
 
 gaze_replay_background_log_density <- function(observed, background,
                                                background_key = NULL,
-                                               exclude_key = NULL) {
+                                               exclude_key = NULL,
+                                               support = NULL) {
   control <- background$control
   rect <- background$screen
   floor_log_density <- if (is.finite(rect$area)) {
@@ -163,12 +217,17 @@ gaze_replay_background_log_density <- function(observed, background,
     ))
   }
   subset <- gaze_replay_background_subset(
-    background, background_key, exclude_key, control$background_min_trials
+    background, background_key, exclude_key, control$background_min_trials,
+    support
   )
   table <- subset$table
+  floor_weight <- background$floor_weight
+  if (is.null(floor_weight)) floor_weight <- control$background_floor
   if (!nrow(table)) {
     return(list(
       log_density = floor_log_density,
+      log_kde = NULL,
+      log_floor = floor_log_density,
       level = "floor", bandwidth = NA_real_, trials = 0L
     ))
   }
@@ -192,13 +251,27 @@ gaze_replay_background_log_density <- function(observed, background,
   dx <- outer(observed[, 1], points[, 1], FUN = "-")
   dy <- outer(observed[, 2], points[, 2], FUN = "-")
   kde <- as.numeric(exp(-(dx^2 + dy^2) / (2 * bandwidth^2)) %*% scaled)
-  floor <- control$background_floor
+  log_kde <- log(pmax(kde, .Machine$double.xmin))
   list(
-    log_density = log((1 - floor) * kde + floor * exp(floor_log_density)),
+    log_density = gaze_replay_mix_background(
+      log_kde, floor_log_density, floor_weight
+    ),
+    log_kde = log_kde,
+    log_floor = floor_log_density,
     level = subset$level,
     bandwidth = bandwidth,
     trials = length(trials)
   )
+}
+
+# Background = (1 - floor_weight) * KDE + floor_weight * floor (uniform on the
+# screen, or a broad Gaussian on the plane). floor_weight is fitted by EM.
+gaze_replay_mix_background <- function(log_kde, log_floor, floor_weight) {
+  if (is.null(log_kde)) return(log_floor)
+  a <- log1p(-floor_weight) + log_kde
+  b <- log(floor_weight) + log_floor
+  top <- pmax(a, b)
+  top + log(exp(a - top) + exp(b - top))
 }
 
 # Revision emissions ----------------------------------------------------------
@@ -340,22 +413,27 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
     nearest <- unlist(lapply(pairs[member], function(pair) {
       sqrt(apply(pair$distance_sq, 1, min))
     }), use.names = FALSE)
-    max(stats::median(nearest), spec$scale_floor)
+    min(max(stats::median(nearest), spec$scale_floor), scale_upper)
   })
   names(scale) <- groups
+  floor_weight <- control$background_floor
   trace <- numeric()
   converged <- FALSE
+  decreased <- FALSE
   n_bins <- sum(vapply(split(seq_along(pairs), pair_episode), function(rows) {
     nrow(pairs[[rows[[1]]]]$grid)
   }, numeric(1)))
 
-  run_e_step <- function(parameters, scale) {
+  run_e_step <- function(parameters, scale, floor_weight) {
     lapply(pairs, function(pair) {
       transition <- gaze_replay_transition(
         pair$reference_mass, parameters, spec$max_skip
       )
+      log_background <- gaze_replay_mix_background(
+        pair$log_kde, pair$log_floor, floor_weight
+      )
       log_emission <- cbind(
-        pair$log_background,
+        log_background,
         gaze_replay_truncated_t_log_density(
           pair$grid, pair$centers, scale[[pair$group]], degrees, rect
         )
@@ -368,7 +446,7 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
     })
   }
 
-  e_step <- run_e_step(parameters, scale)
+  e_step <- run_e_step(parameters, scale, floor_weight)
   for (iteration in seq_len(control$max_iterations)) {
     pair_ll <- vapply(e_step, `[[`, numeric(1), "log_likelihood")
     episode_rows <- split(seq_along(pairs), pair_episode)
@@ -380,11 +458,15 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
       total <- total + mixture
     }
     trace <- c(trace, total)
-    if (length(trace) > 1L &&
-        abs(trace[[length(trace)]] - trace[[length(trace) - 1L]]) <=
-          control$tolerance * n_bins) {
-      converged <- TRUE
-      break
+    if (length(trace) > 1L) {
+      change <- trace[[length(trace)]] - trace[[length(trace) - 1L]]
+      # EM must not decrease the likelihood; a decrease beyond tolerance
+      # signals an inconsistent update and is never reported as convergence.
+      if (change < -control$tolerance * n_bins) decreased <- TRUE
+      if (abs(change) <= control$tolerance * n_bins) {
+        converged <- !decreased
+        break
+      }
     }
 
     stats <- list(bb = 0, b_replay = 0, replay_b = 0, replay_restart = 0,
@@ -404,6 +486,30 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
       stats$initial_n <- stats$initial_n + w
     }
     parameters <- gaze_replay_m_step_transitions(stats, parameters, bounds)
+    # Exact M-step for the floor weight: maximise the expected background
+    # emission log density sum_t gamma_t(bg) log((1 - w) kde_t + w floor_t),
+    # which is concave in w.
+    mixable <- which(!vapply(pairs, function(pair) is.null(pair$log_kde),
+                             logical(1)))
+    if (length(mixable)) {
+      gamma <- unlist(lapply(mixable, function(i) {
+        weights[[i]] * e_step[[i]]$stats$posterior[, 1]
+      }))
+      log_kde <- unlist(lapply(mixable, function(i) pairs[[i]]$log_kde))
+      log_floor <- unlist(lapply(mixable, function(i) pairs[[i]]$log_floor))
+      floor_objective <- function(w) {
+        sum(gamma * gaze_replay_mix_background(log_kde, log_floor, w))
+      }
+      if (sum(gamma) > 0) {
+        candidate <- stats::optimize(
+          floor_objective, control$background_floor_bounds, maximum = TRUE,
+          tol = 1e-8
+        )$maximum
+        if (floor_objective(candidate) >= floor_objective(floor_weight)) {
+          floor_weight <- candidate
+        }
+      }
+    }
     for (group in groups) {
       member <- which(vapply(pairs, `[[`, character(1), "group") == group)
       items <- lapply(member, function(i) list(
@@ -416,7 +522,7 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
         items, degrees, rect, spec$scale_floor, scale[[group]], scale_upper
       )
     }
-    e_step <- run_e_step(parameters, scale)
+    e_step <- run_e_step(parameters, scale, floor_weight)
   }
 
   posterior_background <- vapply(e_step, function(value) {
@@ -435,6 +541,8 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
     log_likelihood_trace = trace,
     iterations = length(trace),
     converged = converged,
+    monotone = !decreased,
+    floor_weight = floor_weight,
     background_fraction = sum(weights * posterior_background) /
       length(episode_rows),
     pair_background_coverage = posterior_background
@@ -444,6 +552,7 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
 fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
                                      group_key) {
   control <- gaze_replay_em_control()
+  note_gaze_replay_plane(spec)
   background_by <- spec$background_by
   if (!is.null(background_by) && !all(background_by %in% names(source_tab))) {
     stop("Replay background_by columns must exist in the source table.")
@@ -465,8 +574,18 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
   ))
   rect <- resolve_gaze_replay_screen(spec)
   all_coords <- gaze_replay_clamp_to_screen(all_coords, rect)
-  extent <- apply(all_coords, 2, function(v) diff(range(v)))
-  scale_upper <- max(2 * sqrt(sum(extent^2)), 10 * spec$scale_floor)
+  # A replay state is local: its scale may not exceed a fixed fraction of the
+  # shorter side of the screen (or of the training extent without a screen).
+  # Otherwise a near-uniform replay state is indistinguishable from the
+  # background and "no replay" is not identifiable.
+  extent <- if (is.finite(rect$area)) {
+    c(diff(rect$xlim), diff(rect$ylim))
+  } else {
+    apply(all_coords, 2, function(v) diff(range(v)))
+  }
+  scale_upper <- max(
+    control$max_scale_fraction * min(extent), 2 * spec$scale_floor
+  )
   source_coords <- gaze_replay_clamp_to_screen(do.call(rbind, lapply(
     episodes, function(episode) episode$source$coords
   )), rect)
@@ -488,7 +607,8 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
       na.rm = TRUE
     ),
     background_by = background_by,
-    exclude_on = exclude_on
+    exclude_on = exclude_on,
+    support = spec$background_support
   )
 
   pairs <- list()
@@ -503,14 +623,18 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
     )
     background_level[[i]] <- bg$level
     for (reference in episode$references) {
-      dx <- outer(coords[, 1], reference$coords[, 1], FUN = "-")
-      dy <- outer(coords[, 2], reference$coords[, 2], FUN = "-")
+      # The same on-screen centres used by the emissions (see
+      # gaze_replay_truncated_t_log_density) enter the scale M-step.
+      centers <- gaze_replay_clamp_to_screen(reference$coords, rect)
+      dx <- outer(coords[, 1], centers[, 1], FUN = "-")
+      dy <- outer(coords[, 2], centers[, 2], FUN = "-")
       pairs[[length(pairs) + 1L]] <- list(
         grid = coords,
-        centers = reference$coords,
+        centers = centers,
         reference_mass = reference$mass,
         distance_sq = dx^2 + dy^2,
-        log_background = bg$log_density,
+        log_kde = bg$log_kde,
+        log_floor = bg$log_floor,
         group = episode$group
       )
       pair_episode <- c(pair_episode, i)
@@ -529,6 +653,16 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
     )
   })
   names(emission_models) <- groups
+  background$floor_weight <- em$floor_weight
+  fallback_n <- sum(background_level != "participant")
+  if (!is.null(background_by) && fallback_n > 0L) {
+    message(
+      "Replay: ", fallback_n, " of ", length(background_level),
+      " training rows used the pooled background because their ",
+      "background_by level had fewer than ", control$background_min_trials,
+      " other training trials."
+    )
+  }
   list(
     emission_models = emission_models,
     parameters = em$parameters,
@@ -540,12 +674,13 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
 }
 
 gaze_replay_prepare_background <- function(grid, model, background_key = NULL,
-                                           exclude_key = NULL) {
+                                           exclude_key = NULL,
+                                           support = NULL) {
   rect <- model$background$screen
   grid$raw_coords <- grid$coords
   grid$coords <- gaze_replay_clamp_to_screen(grid$coords, rect)
   bg <- gaze_replay_background_log_density(
-    grid$coords, model$background, background_key, exclude_key
+    grid$coords, model$background, background_key, exclude_key, support
   )
   grid$log_background <- bg$log_density
   grid$background_level <- bg$level
@@ -572,4 +707,42 @@ encode_gaze_replay_background_key <- function(model, value) {
     stringsAsFactors = FALSE
   )
   gaze_key(tab, by, "background_key")
+}
+
+# Held-out support rows (background_support = "held_out"): recalls of the
+# scored row's own background_by level that are available at evaluation time,
+# restricted later to items outside the candidate pool. They are registered
+# with the fitted warp exactly like the scored recall.
+gaze_replay_support_table <- function(model, support_tab, sourcevar,
+                                      background_key) {
+  background <- model$background
+  if (!identical(background$support, "held_out") || is.null(support_tab) ||
+      is.null(background_key) || !nrow(support_tab)) {
+    return(NULL)
+  }
+  keys <- gaze_key(support_tab, background$background_by, "background_by")
+  rows <- which(keys == background_key)
+  if (!length(rows)) return(NULL)
+  exclude <- gaze_key(
+    support_tab[rows, , drop = FALSE], background$exclude_on,
+    "background exclusion"
+  )
+  measures <- lapply(rows, function(row) {
+    group <- if (is.null(model$spec$warp$fit_by)) {
+      names(model$emission_models)[[1]]
+    } else {
+      gaze_key(support_tab[row, , drop = FALSE], model$spec$warp$fit_by,
+               "warp fit_by")
+    }
+    prepared <- prepare_gaze_replay_source(
+      support_tab[[sourcevar]][[row]], model, group
+    )
+    measure <- prepared$registered_source
+    measure$coords <- gaze_replay_clamp_to_screen(
+      measure$coords, background$screen
+    )
+    measure
+  })
+  gaze_replay_background_table(measures, rep(background_key, length(rows)),
+                               exclude)
 }

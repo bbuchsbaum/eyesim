@@ -44,13 +44,14 @@ validate_replay_probability_grid <- function(grid) {
 #'   half-saturation parameter. The lower bound must be zero.
 #' @param warp Cross-fitted warp specification.
 #' @param screen Optional screen geometry. Under revision `"2026.10"` every
-#'   emission density is truncated to and normalised over this rectangle;
-#'   when it is `NULL` the rectangle is the padded extent of the training
-#'   coordinates.
+#'   emission density is truncated to and normalised over this rectangle.
+#'   When it is `NULL`, emissions are normalised over the whole plane (a
+#'   one-time message says so).
 #' @param revision Model revision. `"2026.10"` (default) uses
 #'   screen-truncated Student replay emissions, a participant-level
 #'   screen-truncated kernel density for the background state (fitted on
-#'   training recalls only, excluding the target item), and Baum-Welch (EM)
+#'   training recalls only, excluding the target item, and mixed with a
+#'   uniform screen floor whose weight is fitted), and Baum-Welch (EM)
 #'   estimation of the replay scale and all transition probabilities, with
 #'   `transition_grid` medians used only as EM starting values. `"2026.08"`
 #'   reproduces the frozen behaviour: untruncated emissions, a single
@@ -60,7 +61,22 @@ validate_replay_probability_grid <- function(grid) {
 #'   participant identifier) defining the level at which the background
 #'   density is estimated under revision `"2026.10"`. `NULL` pools all
 #'   training recalls. Levels with fewer than three other training trials fall
-#'   back to the pooled density.
+#'   back to the pooled density; fitting reports this with a message and
+#'   [gaze_replay_cv()] records the count in `provenance$background_fallback`.
+#'   At scoring time the background excludes every item in the candidate
+#'   pool, so it never depends on which candidate is true.
+#' @param background_support Background evaluation protocol under revision
+#'   `"2026.10"`. `"training"` (default) estimates every background from
+#'   training recalls only: the `background_by` level when it has at least
+#'   three training trials outside the candidate pool, otherwise the
+#'   population (pooled) density. Under participant holdout every evaluation
+#'   participant is unseen, so the population density is used and
+#'   [gaze_replay_cv()] says so. `"held_out"` (opt-in, requires
+#'   `background_by`) instead uses the evaluation participant's own recalls
+#'   of items outside the scored row's candidate pool, available in the same
+#'   evaluation fold, falling back to the training protocol when fewer than
+#'   three such trials exist. Training fits always use the other training
+#'   trials of the same level, excluding the fitted item.
 #'
 #' @return A frozen `gaze_replay_spec`.
 #' @export
@@ -81,8 +97,15 @@ gaze_replay_spec <- function(
     warp = gaze_warp_none(),
     screen = NULL,
     revision = c("2026.10", "2026.08"),
-    background_by = NULL) {
+    background_by = NULL,
+    background_support = c("training", "held_out")) {
   revision <- match.arg(revision)
+  background_support <- match.arg(background_support)
+  if (identical(background_support, "held_out") &&
+      (identical(revision, "2026.08") || is.null(background_by))) {
+    stop("background_support = \"held_out\" requires revision \"2026.10\" ",
+         "and background_by.")
+  }
   if (!is.null(background_by)) {
     if (identical(revision, "2026.08")) {
       stop("background_by requires revision = \"2026.10\".")
@@ -153,7 +176,9 @@ gaze_replay_spec <- function(
       ),
       version = if (identical(revision, "2026.08")) 3L else 4L,
       revision = revision,
-      background_by = background_by
+      background_by = background_by,
+      background_support = if (identical(revision, "2026.08")) NULL else
+        background_support
     ),
     class = c("gaze_replay_spec", "list")
   )
@@ -952,7 +977,7 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
         eval_keys <- unique(source_key[eval_rows])
         ref_train <- ref_tab[ref_key %in% train_keys, , drop = FALSE]
         ref_eval <- ref_tab[ref_key %in% eval_keys, , drop = FALSE]
-        inner_model <- fit_gaze_replay_model(
+        inner_model <- suppressMessages(fit_gaze_replay_model(
           ref_train,
           source_tab[train_rows, , drop = FALSE],
           match_on = match_on,
@@ -961,7 +986,7 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
           sourcevar = sourcevar,
           spec = spec,
           template_on = template_on
-        )
+        ))
         for (row in eval_rows) {
           scored <- score_gaze_replay_row(
             source_tab[row, , drop = FALSE],
@@ -970,7 +995,8 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
             contrast_on,
             refvar,
             sourcevar,
-            inner_model
+            inner_model,
+            support_tab = source_tab[eval_rows, , drop = FALSE]
           )
           score_sets[[row]] <- scored$candidates$log_score
           true_index[[row]] <- which(scored$candidates$is_true)
@@ -1107,7 +1133,12 @@ resolve_gaze_replay_group <- function(model, warp_group = NULL) {
 
 prepare_gaze_replay_source <- function(source, model, warp_group = NULL,
                                        background_key = NULL,
-                                       exclude_key = NULL) {
+                                       exclude_key = NULL,
+                                       support = NULL) {
+  model_revision <- gaze_replay_revision_of(model)
+  if (!identical(model_revision, gaze_replay_revision_of(model$spec))) {
+    stop("Replay model and spec revisions disagree.")
+  }
   group <- resolve_gaze_replay_group(model, warp_group)
   source_measure <- as_gaze_measure(source, model$spec$chronology)
   group_warp <- if (identical(model$warp$type, "none")) {
@@ -1119,7 +1150,7 @@ prepare_gaze_replay_source <- function(source, model, warp_group = NULL,
   grid <- gaze_duration_grid(registered_source, model$spec$grid_size)
   if (identical(model$revision, "2026.10")) {
     grid <- gaze_replay_prepare_background(
-      grid, model, background_key, exclude_key
+      grid, model, background_key, exclude_key, support
     )
   }
   list(
@@ -1348,7 +1379,8 @@ gaze_replay_align_episode <- function(
 }
 
 score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
-                                  refvar, sourcevar, model) {
+                                  refvar, sourcevar, model,
+                                  support_tab = NULL) {
   source_match_key <- gaze_key(source_row, match_on, "match_on")
   ref_match_key <- gaze_key(ref_eval, match_on, "match_on")
   source_contrast_key <- if (is.null(contrast_on)) "all" else
@@ -1374,13 +1406,21 @@ score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
         source_row, model$background$background_by, "background_by"
       )
     }
-    exclude_key <- gaze_key(
-      source_row, model$background$exclude_on, "background exclusion"
-    )
+    # Exclude every candidate item, never only the true one: otherwise the
+    # shared background would dip at the true item's locations.
+    exclude_key <- unique(gaze_key(
+      ref_eval[candidate_rows, , drop = FALSE],
+      model$background$exclude_on, "background exclusion"
+    ))
+  }
+  support <- if (identical(model$revision, "2026.10")) {
+    gaze_replay_support_table(model, support_tab, sourcevar, background_key)
+  } else {
+    NULL
   }
   prepared <- prepare_gaze_replay_source(
     source_row[[sourcevar]][[1]], model, warp_group,
-    background_key, exclude_key
+    background_key, exclude_key, support
   )
   engine_results <- lapply(candidate_key, function(key) {
     rows <- candidate_rows[ref_match_key[candidate_rows] == key]
@@ -1471,6 +1511,7 @@ score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
     candidates = candidate_table,
     candidate_components = candidate_components,
     quality = quality,
+    background_level = prepared$grid$background_level,
     all_converged = all(vapply(engine_results, function(result) {
       result$convergence$converged
     }, logical(1)))
@@ -1529,6 +1570,10 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
 
   fold_results <- vector("list", folds$n_folds)
   fold_info <- vector("list", folds$n_folds)
+  revision_2026_10 <- !gaze_replay_is_legacy(spec)
+  if (revision_2026_10) note_gaze_replay_plane(spec)
+  training_fallback_n <- 0L
+  unseen_level_n <- 0L
   for (fold in seq_len(folds$n_folds)) {
     eval_rows <- which(folds$fold_id == fold & eval_mask)
     if (length(eval_rows) == 0L) next
@@ -1545,14 +1590,30 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
     if (nrow(train_source) == 0L || nrow(ref_train) == 0L) {
       stop("Fold ", fold, " has no Replay training data.")
     }
-    model <- fit_gaze_replay_model(
-      ref_train, train_source, match_on, contrast_on, refvar, sourcevar, spec,
-      template_on = template_on
-    )
+    model <- if (revision_2026_10) {
+      suppressMessages(fit_gaze_replay_model(
+        ref_train, train_source, match_on, contrast_on, refvar, sourcevar,
+        spec, template_on = template_on
+      ))
+    } else {
+      fit_gaze_replay_model(
+        ref_train, train_source, match_on, contrast_on, refvar, sourcevar,
+        spec, template_on = template_on
+      )
+    }
+    if (revision_2026_10) {
+      training_fallback_n <- training_fallback_n +
+        sum(model$training$background_level != "participant")
+      if (!is.null(spec$background_by)) {
+        unseen_level_n <- unseen_level_n + sum(!gaze_key(
+          eval_source, spec$background_by, "background_by"
+        ) %in% gaze_key(train_source, spec$background_by, "background_by"))
+      }
+    }
     scored <- lapply(seq_len(nrow(eval_source)), function(i) {
       score_gaze_replay_row(
         eval_source[i, , drop = FALSE], ref_eval, match_on, contrast_on,
-        refvar, sourcevar, model
+        refvar, sourcevar, model, support_tab = eval_source
       )
     })
     result_fold <- eval_source
@@ -1584,6 +1645,11 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
       )
     }
     result_fold$all_converged <- vapply(scored, `[[`, logical(1), "all_converged")
+    if (revision_2026_10) {
+      result_fold$background_level <- vapply(
+        scored, `[[`, character(1), "background_level"
+      )
+    }
     result_fold$alignment <- lapply(scored, `[[`, "alignment")
     result_fold$candidates <- lapply(scored, `[[`, "candidates")
     fold_results[[fold]] <- result_fold
@@ -1609,6 +1675,36 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
   }
   results <- results[order(results[["..gaze_row_id"]]), , drop = FALSE]
   results[["..gaze_row_id"]] <- NULL
+  background_fallback <- NULL
+  if (revision_2026_10) {
+    background_fallback <- list(
+      background_by = spec$background_by,
+      background_support = spec$background_support,
+      training_rows = as.integer(training_fallback_n),
+      scored_rows = as.integer(sum(!results$background_level %in%
+                                     c("participant", "held_out_support"))),
+      unseen_level_rows = as.integer(unseen_level_n)
+    )
+    if (unseen_level_n > 0L &&
+        identical(spec$background_support, "training")) {
+      message(
+        "Replay: ", unseen_level_n, " scored rows belong to background_by ",
+        "levels absent from their training fold (e.g. held-out ",
+        "participants); they use the population background. Set ",
+        "background_support = \"held_out\" to use their own non-candidate ",
+        "recalls instead."
+      )
+    }
+    if (!is.null(spec$background_by) &&
+        background_fallback$scored_rows + training_fallback_n > 0L) {
+      message(
+        "Replay: the pooled background replaced the participant-level ",
+        "background for ", background_fallback$scored_rows, " of ",
+        nrow(results), " scored rows and ", training_fallback_n,
+        " training rows (summed over folds)."
+      )
+    }
+  }
   structure(
     list(
       results = results,
@@ -1630,6 +1726,7 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
         template_prior = if (is.null(template_on)) "single" else "equal",
         reliability = spec$reliability,
         revision = if (is.null(spec$revision)) "2026.08" else spec$revision,
+        background_fallback = background_fallback,
         seed = seed,
         n_folds = folds$n_folds
       )

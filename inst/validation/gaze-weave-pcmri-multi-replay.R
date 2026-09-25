@@ -945,6 +945,13 @@ multi_replay_checkpoint <- function(output_dir, method_group, fold_id,
   )
 }
 
+# Replay model revision is part of checkpoint identity. Checkpoints written
+# before revisions existed carry none and are frozen revision 2026.08.
+multi_replay_checkpoint_revision <- function(checkpoint) {
+  if (is.null(checkpoint$replay_revision)) "2026.08" else
+    checkpoint$replay_revision
+}
+
 multi_replay_collect_checkpoints <- function(output_dir, method_groups,
                                              fold_ids, smoke = FALSE) {
   paths <- unlist(lapply(fold_ids, function(fold_id) {
@@ -960,7 +967,8 @@ multi_replay_collect_checkpoints <- function(output_dir, method_groups,
   checkpoints <- lapply(paths, readRDS)
   valid <- vapply(checkpoints, function(value) {
     identical(value$protocol_version, multi_replay_protocol_version) &&
-      identical(value$seed, multi_replay_seed)
+      identical(value$seed, multi_replay_seed) &&
+      identical(multi_replay_checkpoint_revision(value), "2026.08")
   }, logical(1))
   if (!all(valid)) stop("A checkpoint belongs to another protocol or seed.")
   checkpoints
@@ -1505,7 +1513,8 @@ run_gaze_weave_pcmri_multi_replay <- function(
         checkpoint <- readRDS(path)
         if (!identical(
           checkpoint$protocol_version, multi_replay_protocol_version
-        ) || !identical(checkpoint$seed, multi_replay_seed)) {
+        ) || !identical(checkpoint$seed, multi_replay_seed) ||
+          !identical(multi_replay_checkpoint_revision(checkpoint), "2026.08")) {
           stop("A checkpoint uses another protocol version: ", path)
         }
         message("Using checkpoint: ", basename(path))
@@ -1518,6 +1527,7 @@ run_gaze_weave_pcmri_multi_replay <- function(
       checkpoint <- multi_replay_score_fold_method(
         tables, candidate_plan, fold, specs, method_group
       )
+      checkpoint$replay_revision <- specs$replay_p4$revision
       saveRDS(checkpoint, path, version = 3)
     }
   }
