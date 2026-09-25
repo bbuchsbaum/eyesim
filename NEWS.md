@@ -2,15 +2,26 @@
 
 * GazeWeave Replay gains `gaze_replay_spec(revision = c("2026.10",
   "2026.08"))`. The new default, `"2026.10"`, changes Replay as follows:
+  - The observation unit is one recall fixation. The HMM makes exactly one
+    hidden-state visit per recall fixation (background, or one state per
+    encoding fixation, with the same transition structure as before), and
+    each fixation emits its position and its duration. Durations are
+    log-normal: replay states have log-duration mean
+    `a + b * log(encoding duration)`, and the background has its own
+    log-normal. Both are normalised densities whose parameters are shared by
+    every candidate. The candidate score is the total trial log likelihood,
+    not a mean per duration bin, so evidence grows with the number of recall
+    fixations. `grid_size` is ignored under `"2026.10"` (a one-time message
+    says so when it is supplied).
   - When a `screen` is declared, each replay emission is a Student density
     truncated to the screen and normalised by its on-screen mass. Under
     `"2026.08"` the on-screen mass was 0.99 at the centre and 0.35 near a
     corner. Encoding fixations recorded off the screen are projected onto
     it, both in the emissions and in the EM scale update. Without a screen,
     the support is the whole plane, and a one-time message says so.
-  - The background state is a screen-truncated, duration-weighted kernel
-    density of recalls, mixed with a uniform screen floor whose weight EM
-    fits. `"2026.08"` used a single Student density at the training recall
+  - The background state's position density is a screen-truncated kernel
+    density of recall fixations (equal weight per fixation within a trial),
+    mixed with a uniform screen floor whose weight EM fits. `"2026.08"` used a single Student density at the training recall
     mean. The evaluation protocol is declared by `background_support`:
     - Under `"training"` (the default), backgrounds come from training
       recalls only. The `background_by` level is used when it has at least
@@ -32,32 +43,28 @@
     - Pooled fallbacks are reported by a message and counted in
       `gaze_replay_cv()` provenance (`background_fallback`), as are
       background levels unseen in training (e.g. under participant holdout).
-  - The replay scale and all four transition probabilities are fitted by
-    Baum–Welch EM on training rows only. `transition_grid` now supplies only
+  - The replay scale, the duration parameters, and all four transition
+    probabilities are fitted by Baum–Welch EM on training rows only. `transition_grid` now supplies only
     the starting values. The background entry, initial and persistence
     probabilities may all approach one, so a fully null recall can be
     represented. The replay scale is capped at one sixth of the shorter
     screen side: a replay state is local, and a near-uniform replay state
     cannot be distinguished from the background. EM reports non-convergence
     if the likelihood ever decreases.
-  - On simulated Replay data, EM recovers the replay scale to within 2% and
-    the background share to within 0.02. `"2026.08"` inflated the scale by
+  - On data simulated from the fixation-level model, EM recovers the replay
+    scale to within 1%, the background share to within 0.02, and the
+    duration slope `b` to within 0.01. `"2026.08"` inflated the scale by
     60%. With the validation-court transition grid, it also could not
     exceed a stationary background share of 0.67 under a full null.
-  - Known limitation: duration-grid bins are still treated as conditionally
-    independent emissions. When fixations span several bins, the repeated
-    coordinates favour sharp replay states, so replay and background are not
-    identified. On a uniform on-screen null the fitted background share is
-    0.94 with one bin per fixation, but about 0.5 with two. This is the
-    typical case: the default `grid_size = 64` exceeds most recalls'
-    fixation counts. On a pure-uniform null with 20-30 fixations at 64
-    bins, the background share is 0.44-0.62 and candidate scores spread by
-    0.2-0.5 nats. At typical settings the fitted background share is
-    therefore not interpretable, and no background-share recovery is
-    claimed. Fitting and `gaze_replay_cv()` report recalls with fewer
-    fixations than `grid_size`, via a message and
-    `provenance$repeated_grid_rows`. The default `grid_size` is unchanged.
-    A semi-Markov Replay is planned.
+  - An earlier, unreleased draft of `"2026.10"` kept the duration-grid
+    observation model. It treated repeated bins of one fixation as
+    independent emissions, so replay and background were not identified: on
+    a uniform null with 20-30 fixations at 64 bins the background share was
+    0.44-0.62. The fixation-level model fits the same null with a background
+    share of 0.98, and the candidate score spread is about 1% of a typical
+    true-candidate margin. The draft's repeated-grid message and
+    `provenance$repeated_grid_rows` are removed, because `"2026.10"` is
+    unreleased; its results are not comparable with this version.
   - Fitted models record `revision`, EM diagnostics (`training$em`), and the
     background model. Their `version` is 5.
   - `gaze_replay_align()` and `gaze_replay_align_episode()` gain

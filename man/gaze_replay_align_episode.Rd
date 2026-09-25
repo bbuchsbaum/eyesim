@@ -37,9 +37,10 @@ A `gaze_engine_result` whose alignment inherits from
   `gaze_replay_episode_alignment` and `gaze_replay_alignment`.
 }
 \description{
-Each encoding path is aligned independently. Their mean-log-likelihood
-scores are combined as an equal-weight mixture, so no transition is created
-between study presentations. The returned alignment retains all component
+Each encoding path is aligned independently. Their scores (total log
+likelihoods under revision `"2026.10"`, mean log likelihoods per duration
+bin under `"2026.08"`) are combined as an equal-weight mixture, so no
+transition is created between study presentations. The returned alignment retains all component
 posteriors and uses the highest-responsibility component for the ordinary
 overlay and braid fields.
 }

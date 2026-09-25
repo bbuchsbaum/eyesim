@@ -63,16 +63,17 @@ prior. With \(K\) equally likely candidates, the maximum is
 \(\log_2 K\). Negative values mean that gaze made the correct item less
 plausible.
 
-Replay divides its raw duration-grid log likelihood by the number of grid bins
-before candidate calibration. The resulting mean log predictive density is
-invariant to a proportional change in numerical grid resolution. The residual
-calibration temperature has a fixed weak prior centred on one. This prevents a
-small, perfectly separated training set from forcing numerically degenerate
-zero/one probabilities without tying the prior to an arbitrary grid length. If
-a training contrast has fewer than four candidate items, Replay records an
-explicit temperature-one fallback instead of pretending that an inner
-calibration estimate is available. The raw total HMM likelihood remains in the
-alignment object as a diagnostic.
+Replay (revision `"2026.10"`, the default) observes each recall fixation once,
+with its position and its duration, and scores a candidate by the total log
+likelihood of the recall. Evidence therefore grows with the number of recall
+fixations; there is no duration grid to choose. The frozen revision
+`"2026.08"` instead divided a duration-grid log likelihood by the number of
+grid bins. A residual calibration temperature is fitted on inner held-out
+items with a fixed weak prior centred on one. This prevents a small, perfectly
+separated training set from forcing numerically degenerate zero/one
+probabilities. If a training contrast has fewer than four candidate items,
+Replay records an explicit temperature-one fallback instead of pretending that
+an inner calibration estimate is available.
 
 `gaze_info_bits` is the sole primary endpoint. Coverage, spatial error,
 chronology, contraction, rank, and alignment stability are nested diagnostics
@@ -153,7 +154,6 @@ default because it can rescue wrong templates.
 
 ```{r fit}
 replay_spec <- gaze_replay_spec(
-  grid_size = 24,
   transition_grid = list(
     background = c(0.02, 0.08),
     restart = c(0.02, 0.08),
@@ -195,7 +195,7 @@ autoplot(
 )
 ```
 
-```{r braid, fig.cap="Replay posterior correspondence through normalized gaze time."}
+```{r braid, fig.cap="Replay posterior correspondence between encoding and recall fixations, in normalized time."}
 autoplot(
   fit,
   key = list(participant = "p1", image_id = 1),
