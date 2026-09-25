@@ -421,6 +421,142 @@ transport_v3_identity_calibration <- function(spec, reason) {
   )
 }
 
+# Typicality offsets (revision 2026.10, plan A3) --------------------------
+#
+# For every candidate, the mean episode score against a fixed seeded subsample
+# of training recalls whose item differs from the candidate's item. Offsets
+# are kept per study episode, so each episode score loses its own typicality
+# before the tempered log mean. Nothing here reads a held-out recall or a
+# held-out label.
+transport_v3_typicality <- function(
+    candidate_keys, ref_tab, train_source, match_on, contrast_on, refvar,
+    sourcevar, episode_on, spec, warp) {
+  control <- spec$calibration$control
+  item_on <- gaze_typicality_item_on(control, match_on, contrast_on)
+  ref_key <- gaze_key(ref_tab, match_on, "match_on")
+  ref_item <- gaze_key(ref_tab, item_on, "typicality item")
+  train_item <- gaze_key(train_source, item_on, "typicality item")
+  source_rows <- gaze_typicality_source_rows(
+    train_item, control$typicality_sources, spec$calibration$seed
+  )
+  sources <- train_source[source_rows, , drop = FALSE]
+  source_item <- train_item[source_rows]
+  source_measure <- lapply(sources[[sourcevar]], as_gaze_measure,
+                           chronology = spec$chronology)
+  source_warp <- lapply(seq_len(nrow(sources)), function(j) {
+    transport_v3_row_warp(warp, sources[j, , drop = FALSE], spec)
+  })
+  offsets <- vector("list", length(candidate_keys))
+  names(offsets) <- candidate_keys
+  source_scores <- valid_ids <- vector("list", length(candidate_keys))
+  score_matrix <- matrix(NA_real_, length(candidate_keys), nrow(sources))
+  for (index in seq_along(candidate_keys)) {
+    rows <- which(ref_key == candidate_keys[[index]])
+    episode_id <- if (is.null(episode_on)) {
+      rep("episode_1", length(rows))
+    } else {
+      gaze_key(ref_tab[rows, , drop = FALSE], episode_on, "episode_on")
+    }
+    prepared <- prepare_transport_v3_episodes(
+      stats::setNames(ref_tab[[refvar]][rows], episode_id), spec$chronology
+    )
+    item <- unique(ref_item[rows])
+    episode_scores <- list()
+    valid_ids[[index]] <- prepared$valid_ids
+    for (j in which(!source_item %in% item)) {
+      result <- score_transport_v3_episode_candidate(
+        source_measure[[j]], prepared, spec,
+        candidate_key = candidate_keys[[index]],
+        aligner = function(reference, source, spec, candidate_key) {
+          gaze_transport_align(reference, source, spec,
+                               warp_model = source_warp[[j]],
+                               candidate_key = candidate_key)
+        }
+      )
+      scores <- result$diagnostics$episode_scores
+      episode_scores[[as.character(j)]] <- scores
+      score_matrix[index, j] <- transport_v3_log_mean_exp(scores)
+    }
+    source_scores[[index]] <- episode_scores
+  }
+  table <- gaze_typicality_summary(score_matrix, candidate_keys)
+  # Episode offsets: per-source centred episode means, shrunk by each
+  # candidate's empirical-Bayes factor toward their common grand mean (a
+  # constant for every candidate, which cancels in the softmax).
+  centre <- gaze_typicality_source_centre(score_matrix)
+  for (index in seq_along(candidate_keys)) {
+    episode_scores <- source_scores[[index]]
+    offsets[[index]] <- if (length(episode_scores)) {
+      Reduce(`+`, lapply(names(episode_scores), function(j) {
+        episode_scores[[j]] - centre[[as.integer(j)]]
+      })) / length(episode_scores)
+    } else {
+      stats::setNames(rep(0, length(valid_ids[[index]])), valid_ids[[index]])
+    }
+  }
+  applied <- identical(table$status[[1L]], "applied")
+  grand <- if (applied) mean(unlist(offsets)) else 0
+  if (!applied) {
+    offsets <- lapply(offsets, function(offset) offset * 0)
+  } else {
+    offsets <- stats::setNames(lapply(seq_along(offsets), function(index) {
+      grand + table$shrinkage[[index]] * (offsets[[index]] - grand)
+    }), names(offsets))
+  }
+  list(
+    offsets = offsets,
+    scale = if (gaze_calibration_standardized(spec)) {
+      stats::setNames(table$scale, candidate_keys)
+    },
+    grand = grand,
+    table = table,
+    item_on = item_on
+  )
+}
+
+# Held-out evidence under the evidence-scaled calibration: candidate and
+# per-episode evidence at the row's inverse temperature.
+transport_v3_calibrated_evidence <- function(scored, calibration, typicality,
+                                             candidate_pool_id) {
+  profile <- gaze_typicality_adjust(scored$profile, typicality)
+  offsets <- typicality$offsets
+  evidence_count <- scored$quality$effective_fixations
+  evidence <- score_gaze_calibrated_row(
+    profile, scored$true_index, evidence_count, calibration,
+    candidate_key = names(profile), prior = scored$prior,
+    candidate_pool_id = candidate_pool_id
+  )
+  evidence$candidates$raw_score <- vapply(scored$profile, gaze_log_mean_exp,
+                                          numeric(1))
+  evidence$candidates$typicality_offset <- if (is.null(offsets)) 0 else {
+    vapply(names(profile), function(key) {
+      mean(offsets[[key]][names(scored$profile[[key]])])
+    }, numeric(1))
+  }
+  evidence$candidates$typicality_scale <- if (is.null(typicality$scale)) {
+    1
+  } else {
+    unname(typicality$scale[names(profile)])
+  }
+  beta <- evidence$inverse_temperature
+  episode_evidence <- lapply(scored$common_episode_ids, function(episode_id) {
+    ranking <- vapply(profile, function(scores) {
+      beta * scores[[episode_id]]
+    }, numeric(1))
+    score_gaze_candidates(
+      ranking, true_index = scored$true_index,
+      candidate_key = names(profile), prior = scored$prior,
+      temperature = 1,
+      candidate_pool_id = paste0(candidate_pool_id, ":", episode_id)
+    )
+  })
+  names(episode_evidence) <- scored$common_episode_ids
+  scored$evidence <- evidence
+  scored$episode_evidence <- episode_evidence
+  scored$evidence_count <- evidence_count
+  scored
+}
+
 fit_transport_v3_inner_calibration <- function(
     ref_tab, source_tab, match_on, contrast_on, refvar, sourcevar,
     episode_on, priorvar, spec, fold_contrast_on = contrast_on) {
@@ -432,11 +568,18 @@ fit_transport_v3_inner_calibration <- function(
     ),
     error = function(condition) condition
   )
+  evidence_scaled <- gaze_calibration_evidence_scaled(spec)
+  typicality <- gaze_calibration_typicality(spec)
   if (inherits(inner, "error")) {
     return(list(
-      calibration = transport_v3_identity_calibration(
-        spec, conditionMessage(inner)
-      ),
+      calibration = if (evidence_scaled) {
+        gaze_evidence_calibration_fallback(
+          spec$calibration$control, spec$temperature_bounds,
+          conditionMessage(inner)
+        )
+      } else {
+        transport_v3_identity_calibration(spec, conditionMessage(inner))
+      },
       receipts = list()
     ))
   }
@@ -445,6 +588,7 @@ fit_transport_v3_inner_calibration <- function(
   priors <- vector("list", nrow(source_tab))
   effective_fixations <- numeric(nrow(source_tab))
   receipts <- vector("list", inner$n_folds)
+  typicality_tables <- list()
   for (fold in seq_len(inner$n_folds)) {
     eval_rows <- which(inner$fold_id == fold)
     train_rows <- which(inner$fold_id != fold)
@@ -471,6 +615,19 @@ fit_transport_v3_inner_calibration <- function(
       priors[[row]] <- scored$prior
       effective_fixations[[row]] <- scored$quality$effective_fixations
     }
+    if (typicality) {
+      # Offsets for the inner evaluation rows come from the inner training
+      # rows only, exactly as the outer offsets come from outer training rows.
+      candidate_keys <- unique(unlist(lapply(profiles[eval_rows], names)))
+      offsets <- transport_v3_typicality(
+        candidate_keys, ref_tab, source_tab[train_rows, , drop = FALSE],
+        match_on, contrast_on, refvar, sourcevar, episode_on, spec, warp
+      )
+      for (row in eval_rows) {
+        profiles[[row]] <- gaze_typicality_adjust(profiles[[row]], offsets)
+      }
+      typicality_tables[[fold]] <- cbind(fold = fold, offsets$table)
+    }
     receipts[[fold]] <- list(
       fold = fold,
       train_rows = source_tab$..gaze_row_id[train_rows],
@@ -483,9 +640,24 @@ fit_transport_v3_inner_calibration <- function(
       episode_policy = "equal_prior_common_valid_intersection"
     )
   }
-  calibration <- fit_transport_v3_calibration(
-    profiles, true_index, effective_fixations, priors, spec
-  )
+  calibration <- if (evidence_scaled) {
+    fitted <- fit_gaze_evidence_calibration(
+      profiles, true_index, effective_fixations, priors,
+      control = spec$calibration$control,
+      temperature_bounds = spec$temperature_bounds
+    )
+    fitted$evidence_measure <- "effective_fixations"
+    fitted$typicality <- if (typicality) {
+      do.call(rbind, typicality_tables)
+    } else {
+      NULL
+    }
+    fitted
+  } else {
+    fit_transport_v3_calibration(
+      profiles, true_index, effective_fixations, priors, spec
+    )
+  }
   calibration$folds <- receipts
   calibration$seed <- spec$calibration$seed
   list(calibration = calibration, receipts = receipts)
@@ -556,6 +728,17 @@ gaze_transport_cv <- function(
   ))) {
     stop("Duplicate reference candidates require episode_on.")
   }
+  evidence_scaled <- gaze_calibration_evidence_scaled(spec)
+  typicality <- gaze_calibration_typicality(spec)
+  if (typicality) {
+    item_on <- gaze_typicality_item_on(
+      spec$calibration$control, match_on, contrast_on
+    )
+    if (!all(item_on %in% names(ref_tab)) ||
+        !all(item_on %in% names(source_tab))) {
+      stop("Typicality item columns must exist in both tables.")
+    }
+  }
   source_tab <- dplyr::ungroup(source_tab)
   source_tab$..gaze_row_id <- seq_len(nrow(source_tab))
   source_key <- gaze_key(source_tab, match_on, "match_on")
@@ -609,7 +792,30 @@ gaze_transport_cv <- function(
       contrast_on, refvar, sourcevar, episode_on, priorvar, spec
     )
     calibration <- inner$calibration
+    typicality_fold <- NULL
+    if (typicality) {
+      candidate_keys <- unique(unlist(lapply(eval_rows, function(row) {
+        transport_v3_reference_bank(
+          ref_tab, source_tab[row, , drop = FALSE], match_on, contrast_on,
+          refvar, episode_on, priorvar
+        )$candidate_keys
+      })))
+      typicality_fold <- transport_v3_typicality(
+        candidate_keys, ref_tab, source_tab[train_rows, , drop = FALSE],
+        match_on, contrast_on, refvar, sourcevar, episode_on, spec, warp
+      )
+    }
     scored <- lapply(eval_rows, function(row) {
+      if (evidence_scaled) {
+        row_scored <- score_transport_v3_cv_row(
+          source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
+          refvar, sourcevar, episode_on, priorvar, spec, warp
+        )
+        return(transport_v3_calibrated_evidence(
+          row_scored, calibration, typicality_fold,
+          row_scored$pool_id
+        ))
+      }
       score_transport_v3_cv_row(
         source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
         refvar, sourcevar, episode_on, priorvar, spec, warp,
@@ -630,6 +836,14 @@ gaze_transport_cv <- function(
       }, numeric(1))
     }
     result_fold$candidate_count <- as.integer(result_fold$candidate_count)
+    if (evidence_scaled) {
+      result_fold$inverse_temperature <- vapply(scored, function(result) {
+        result$evidence$inverse_temperature
+      }, numeric(1))
+      result_fold$evidence_count <- vapply(
+        scored, `[[`, numeric(1), "evidence_count"
+      )
+    }
     quality_fields <- names(scored[[1L]]$quality)
     for (field in quality_fields) {
       prototype <- scored[[1L]]$quality[[field]]
@@ -674,6 +888,9 @@ gaze_transport_cv <- function(
       episode_policy = "equal_prior_common_valid_intersection",
       heldout_cell_contributed_to_fit = FALSE
     )
+    if (typicality) {
+      fold_info[[fold]]$typicality <- cbind(fold = fold, typicality_fold$table)
+    }
   }
   )
   results <- dplyr::bind_rows(fold_results)
@@ -719,20 +936,33 @@ gaze_transport_cv <- function(
       )
     ))
   }
+  calibration_summary <- list(
+    heldout_log_loss = mean(results$log_loss),
+    heldout_reliability_curve = reliability_curve,
+    heldout_ece = transport_v3_expected_calibration_error(
+      reliability_curve
+    ),
+    candidate_pool_size_sensitivity = pool_sensitivity
+  )
+  provenance_calibration <-
+    "inner_oof_episode_scale_temperature_and_reliability"
+  if (evidence_scaled) {
+    calibration_summary <- c(
+      calibration_summary,
+      gaze_calibration_fit_summary(fold_info, results, typicality)
+    )
+    provenance_calibration <- paste0(
+      "inner_oof_evidence_scaled_temperature(effective_fixations)",
+      if (typicality) paste0("+typicality_", spec$calibration$control$typicality) else ""
+    )
+  }
   structure(
     list(
       results = results,
       spec = spec,
       solver = solver,
       folds = fold_info,
-      calibration = list(
-        heldout_log_loss = mean(results$log_loss),
-        heldout_reliability_curve = reliability_curve,
-        heldout_ece = transport_v3_expected_calibration_error(
-          reliability_curve
-        ),
-        candidate_pool_size_sensitivity = pool_sensitivity
-      ),
+      calibration = calibration_summary,
       keys = list(
         match_on = match_on,
         contrast_on = contrast_on,
@@ -751,7 +981,7 @@ gaze_transport_cv <- function(
         } else {
           paste0("actual_design_prior:", priorvar)
         },
-        calibration = "inner_oof_episode_scale_temperature_and_reliability",
+        calibration = provenance_calibration,
         reliability = spec$reliability,
         generic_gaze_quality = "separate_response_blind_diagnostic_channel",
         seed = seed,

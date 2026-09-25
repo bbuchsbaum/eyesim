@@ -103,6 +103,11 @@ validate_replay_probability_grid <- function(grid) {
 #'   evaluation rows to decide which recalls lie outside the pool, so it
 #'   cannot be used on unlabelled recalls. Training fits always use the other
 #'   training trials of the same level, excluding the fitted item.
+#' @param calibration_control Revision `"2026.10"` only: a
+#'   [gaze_calibration_control()]. `NULL` uses its defaults: an
+#'   evidence-scaled temperature whose evidence count is the number of recall
+#'   fixations, fitted on inner out-of-fold rows. `reliability =
+#'   "effective_fixations"` then requires `method = "global"`.
 #'
 #' @return A frozen `gaze_replay_spec`.
 #' @export
@@ -124,7 +129,8 @@ gaze_replay_spec <- function(
     screen = NULL,
     revision = c("2026.10", "2026.08"),
     background_by = NULL,
-    background_support = c("training", "held_out")) {
+    background_support = c("training", "held_out"),
+    calibration_control = NULL) {
   revision <- match.arg(revision)
   background_support <- match.arg(background_support)
   if (identical(background_support, "held_out") &&
@@ -183,6 +189,17 @@ gaze_replay_spec <- function(
       is.character(warp$center) && is.null(screen)) {
     stop("gaze_warp_contraction(center = 'screen') requires a screen specification.")
   }
+  calibration_control <- resolve_gaze_calibration_control(
+    calibration_control, revision, reliability
+  )
+  calibration <- list(
+    folds = 2L,
+    seed = 104729L,
+    log_temperature_prior_sd = 1,
+    log1p_kappa_prior_sd = 1
+  )
+  # Frozen revision 2026.08 specifications carry no calibration control.
+  if (!is.null(calibration_control)) calibration$control <- calibration_control
 
   structure(
     list(
@@ -197,12 +214,7 @@ gaze_replay_spec <- function(
       warp = warp,
       screen = screen,
       chronology = gaze_local_order(),
-      calibration = list(
-        folds = 2L,
-        seed = 104729L,
-        log_temperature_prior_sd = 1,
-        log1p_kappa_prior_sd = 1
-      ),
+      calibration = calibration,
       version = if (identical(revision, "2026.08")) 3L else 4L,
       revision = revision,
       background_by = background_by,
@@ -929,6 +941,8 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
   }), recursive = FALSE)
 
   legacy <- gaze_replay_is_legacy(spec)
+  evidence_scaled <- !legacy && gaze_calibration_evidence_scaled(spec)
+  typicality <- !legacy && gaze_calibration_typicality(spec)
   revision_fit <- NULL
   if (legacy) {
     emission_models <- lapply(sort(unique(group_key)), function(group) {
@@ -1003,6 +1017,8 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
       )
       score_sets <- vector("list", nrow(source_tab))
       true_index <- integer(nrow(source_tab))
+      evidence_count <- numeric(nrow(source_tab))
+      typicality_tables <- list()
       fold_audit <- vector("list", inner$n_folds)
       for (fold in seq_len(inner$n_folds)) {
         eval_rows <- which(inner$fold_id == fold)
@@ -1032,7 +1048,14 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
             inner_model,
             support_tab = source_tab[eval_rows, , drop = FALSE]
           )
-          score_sets[[row]] <- scored$candidates$log_score
+          if (evidence_scaled) {
+            score_sets[[row]] <- stats::setNames(
+              scored$candidates$raw_score, scored$candidates$candidate_key
+            )
+            evidence_count[[row]] <- scored$evidence_count
+          } else {
+            score_sets[[row]] <- scored$candidates$log_score
+          }
           true_index[[row]] <- which(scored$candidates$is_true)
         }
         fold_audit[[fold]] <- list(
@@ -1043,13 +1066,37 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
           eval_match_keys = eval_keys,
           overlap_match_n = length(intersect(train_keys, eval_keys))
         )
+        if (typicality) {
+          # Inner offsets come from the inner training rows only.
+          offsets <- replay_typicality(
+            inner_model, ref_eval, source_tab[train_rows, , drop = FALSE],
+            match_on, contrast_on, refvar, sourcevar
+          )
+          for (row in eval_rows) {
+            score_sets[[row]] <- unlist(gaze_typicality_adjust(
+              as.list(score_sets[[row]]), offsets
+            ))
+          }
+          typicality_tables[[fold]] <- cbind(fold = fold, offsets$table)
+          fold_audit[[fold]]$typicality <- typicality_tables[[fold]]
+        }
       }
       effective_fixations <- vapply(
         source_tab[[sourcevar]],
         function(path) gaze_replay_path_quality(path)$effective_fixations,
         numeric(1)
       )
-      if (identical(spec$reliability, "effective_fixations")) {
+      if (evidence_scaled) {
+        calibration <- fit_gaze_evidence_calibration(
+          lapply(score_sets, as.list), true_index, evidence_count,
+          control = spec$calibration$control,
+          temperature_bounds = spec$temperature_bounds
+        )
+        calibration$evidence_measure <- "recall_fixations"
+        calibration$typicality <- if (typicality) {
+          do.call(rbind, typicality_tables)
+        }
+      } else if (identical(spec$reliability, "effective_fixations")) {
         calibration <- fit_gaze_replay_reliability(
           score_sets,
           true_index,
@@ -1071,16 +1118,37 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
             spec$calibration$log_temperature_prior_sd
         )
       }
-      calibration$scheme <- "inner_cross_fitted_candidate_log_loss"
+      calibration$scheme <- if (evidence_scaled) {
+        "inner_cross_fitted_evidence_scaled_temperature"
+      } else {
+        "inner_cross_fitted_candidate_log_loss"
+      }
       if (identical(spec$reliability, "effective_fixations")) {
         calibration$scheme <- paste0(
           calibration$scheme,
           "_with_effective_fixation_shrinkage"
         )
       }
-      calibration$score_scale <- score_scale
+      # The evidence-scaled fit keeps its numeric score scale.
+      if (evidence_scaled) {
+        calibration$score_semantics <- score_scale
+      } else {
+        calibration$score_scale <- score_scale
+      }
       if (legacy) calibration$grid_size <- spec$grid_size
       calibration$folds <- fold_audit
+      calibration$seed <- spec$calibration$seed
+      temperature <- calibration$temperature
+    } else if (evidence_scaled) {
+      calibration <- gaze_evidence_calibration_fallback(
+        spec$calibration$control, spec$temperature_bounds,
+        paste0(
+          "fewer than ", 2L * calibration_folds,
+          " candidates in at least one training contrast stratum"
+        )
+      )
+      calibration$score_semantics <- score_scale
+      calibration$folds <- list()
       calibration$seed <- spec$calibration$seed
       temperature <- calibration$temperature
     } else {
@@ -1431,7 +1499,7 @@ gaze_replay_align_episode <- function(
 
 score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
                                   refvar, sourcevar, model,
-                                  support_tab = NULL) {
+                                  support_tab = NULL, typicality = NULL) {
   source_match_key <- gaze_key(source_row, match_on, "match_on")
   ref_match_key <- gaze_key(ref_eval, match_on, "match_on")
   source_contrast_key <- if (is.null(contrast_on)) "all" else
@@ -1500,20 +1568,64 @@ score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
   } else {
     1
   }
-  evidence <- score_gaze_engine_results(
-    engine_results,
-    true_key = source_match_key,
-    temperature = model$temperature,
-    reliability = reliability,
-    candidate_pool_id = paste0("held-out:", source_contrast_key)
-  )
+  evidence_scaled <- identical(model$revision, "2026.10") &&
+    gaze_calibration_evidence_scaled(model$spec)
+  evidence_count <- if (identical(model$revision, "2026.10")) {
+    as.numeric(prepared$grid$n_fixations)
+  } else {
+    NA_real_
+  }
+  raw_score <- vapply(engine_results, `[[`, numeric(1), "log_score")
+  offset <- rep(0, length(candidate_key))
+  scale <- rep(1, length(candidate_key))
+  ranking_score <- raw_score
+  if (evidence_scaled) {
+    if (!is.null(typicality)) {
+      offset <- unlist(typicality$offsets[candidate_key], use.names = FALSE)
+      if (!is.null(typicality$scale)) {
+        scale <- unname(typicality$scale[candidate_key])
+      }
+      ranking_score <- unlist(gaze_typicality_adjust(
+        stats::setNames(as.list(raw_score), candidate_key), typicality
+      ), use.names = FALSE)
+    }
+    calibration <- model$calibration
+    if (!inherits(calibration, "gaze_evidence_calibration")) {
+      calibration <- gaze_replay_identity_calibration()
+    }
+    evidence <- score_gaze_calibrated_row(
+      as.list(ranking_score), true_candidate, evidence_count,
+      calibration, candidate_key = candidate_key,
+      candidate_pool_id = paste0("held-out:", source_contrast_key)
+    )
+  } else {
+    evidence <- score_gaze_engine_results(
+      engine_results,
+      true_key = source_match_key,
+      temperature = model$temperature,
+      reliability = reliability,
+      candidate_pool_id = paste0("held-out:", source_contrast_key)
+    )
+  }
   first_row <- vapply(candidate_key, function(key) {
     candidate_rows[which(ref_match_key[candidate_rows] == key)[[1L]]]
   }, integer(1))
   candidate_table <- ref_eval[
     first_row, unique(c(match_on, contrast_on)), drop = FALSE
   ]
-  candidate_table$log_score <- evidence$candidates$log_score
+  candidate_table$log_score <- if (evidence_scaled) {
+    raw_score
+  } else {
+    evidence$candidates$log_score
+  }
+  if (evidence_scaled) {
+    candidate_table$candidate_key <- candidate_key
+    candidate_table$raw_score <- raw_score
+    candidate_table$typicality_offset <- offset
+    candidate_table$typicality_scale <- scale
+    candidate_table$ranking_score <- ranking_score
+    candidate_table$calibrated_logit <- evidence$candidates$log_score
+  }
   candidate_table$prior <- evidence$candidates$prior
   candidate_table$base_posterior <- evidence$candidates$base_posterior
   candidate_table$posterior <- evidence$candidates$posterior
@@ -1563,9 +1675,100 @@ score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
     candidate_components = candidate_components,
     quality = quality,
     background_level = prepared$grid$background_level,
+    evidence_count = evidence_count,
     all_converged = all(vapply(engine_results, function(result) {
       result$convergence$converged
     }, logical(1)))
+  )
+}
+
+# Temperature one, no evidence scaling: used by revision 2026.10 models
+# fitted without a contrastive calibration set (as before A3).
+gaze_replay_identity_calibration <- function() {
+  structure(
+    list(inverse_temperature = 1, temperature = 1, gamma = 0,
+         evidence_reference = 1, scheme = "identity_no_calibration_set"),
+    class = c("gaze_evidence_calibration", "list")
+  )
+}
+
+# Typicality offsets for Replay (revision 2026.10, plan A3): each candidate's
+# mean total log likelihood against a fixed seeded subsample of training
+# recalls of other items. Each source's background excludes the candidate
+# pool (as for scored rows) and the source's own item, so a training recall
+# never explains itself through the background.
+replay_typicality <- function(model, ref_eval, train_source, match_on,
+                              contrast_on, refvar, sourcevar) {
+  spec <- model$spec
+  control <- spec$calibration$control
+  item_on <- gaze_typicality_item_on(control, match_on, contrast_on)
+  ref_key <- gaze_key(ref_eval, match_on, "match_on")
+  ref_item <- gaze_key(ref_eval, item_on, "typicality item")
+  ref_contrast <- if (is.null(contrast_on)) {
+    rep("all", nrow(ref_eval))
+  } else {
+    gaze_key(ref_eval, contrast_on, "contrast_on")
+  }
+  train_item <- gaze_key(train_source, item_on, "typicality item")
+  source_rows <- gaze_typicality_source_rows(
+    train_item, control$typicality_sources, spec$calibration$seed
+  )
+  sources <- train_source[source_rows, , drop = FALSE]
+  source_item <- train_item[source_rows]
+  exclude_on <- model$background$exclude_on
+  source_exclude <- gaze_key(sources, exclude_on, "background exclusion")
+  keys <- unique(ref_key)
+  score_matrix <- matrix(NA_real_, length(keys), nrow(sources))
+  for (pool in unique(ref_contrast)) {
+    pool_rows <- which(ref_contrast == pool)
+    pool_keys <- unique(ref_key[pool_rows])
+    pool_exclude <- unique(gaze_key(
+      ref_eval[pool_rows, , drop = FALSE], exclude_on, "background exclusion"
+    ))
+    for (j in seq_len(nrow(sources))) {
+      eligible <- pool_keys[vapply(pool_keys, function(key) {
+        !source_item[[j]] %in% ref_item[ref_key == key]
+      }, logical(1))]
+      if (!length(eligible)) next
+      source_row <- sources[j, , drop = FALSE]
+      warp_group <- if (is.null(spec$warp$fit_by)) {
+        names(model$emission_models)[[1]]
+      } else {
+        gaze_key(source_row, spec$warp$fit_by, "warp fit_by")
+      }
+      background_key <- if (is.null(model$background$background_by)) {
+        NULL
+      } else {
+        gaze_key(source_row, model$background$background_by, "background_by")
+      }
+      prepared <- prepare_gaze_replay_source(
+        source_row[[sourcevar]][[1]], model, warp_group, background_key,
+        union(pool_exclude, source_exclude[[j]])
+      )
+      for (key in eligible) {
+        rows <- pool_rows[ref_key[pool_rows] == key]
+        template_key <- if (is.null(model$template_on)) {
+          "template"
+        } else {
+          replay_template_labels(ref_eval[rows, , drop = FALSE],
+                                 model$template_on)
+        }
+        score_matrix[match(key, keys), j] <- gaze_replay_align_episode_prepared(
+          ref_eval[[refvar]][rows], prepared, model,
+          candidate_key = key, template_key = template_key
+        )$log_score
+      }
+    }
+  }
+  table <- gaze_typicality_summary(score_matrix, keys)
+  list(
+    offsets = stats::setNames(as.list(table$offset), keys),
+    scale = if (gaze_calibration_standardized(spec)) {
+      stats::setNames(table$scale, keys)
+    },
+    grand = table$grand_mean[[1L]],
+    table = table,
+    item_on = item_on
   )
 }
 
@@ -1623,6 +1826,17 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
   fold_info <- vector("list", folds$n_folds)
   revision_2026_10 <- !gaze_replay_is_legacy(spec)
   if (revision_2026_10) note_gaze_replay_plane(spec)
+  evidence_scaled <- revision_2026_10 && gaze_calibration_evidence_scaled(spec)
+  typicality <- revision_2026_10 && gaze_calibration_typicality(spec)
+  if (typicality) {
+    item_on <- gaze_typicality_item_on(
+      spec$calibration$control, match_on, contrast_on
+    )
+    if (!all(item_on %in% names(ref_tab)) ||
+        !all(item_on %in% names(source_tab))) {
+      stop("Typicality item columns must exist in both tables.")
+    }
+  }
   training_fallback_n <- 0L
   unseen_level_n <- 0L
   for (fold in seq_len(folds$n_folds)) {
@@ -1661,14 +1875,30 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
         ) %in% gaze_key(train_source, spec$background_by, "background_by"))
       }
     }
+    typicality_fold <- if (typicality) {
+      replay_typicality(model, ref_eval, train_source, match_on, contrast_on,
+                        refvar, sourcevar)
+    }
     scored <- lapply(seq_len(nrow(eval_source)), function(i) {
       score_gaze_replay_row(
         eval_source[i, , drop = FALSE], ref_eval, match_on, contrast_on,
-        refvar, sourcevar, model, support_tab = eval_source
+        refvar, sourcevar, model, support_tab = eval_source,
+        typicality = typicality_fold
       )
     })
     result_fold <- eval_source
     result_fold$.cv_fold <- fold
+    if (evidence_scaled) {
+      result_fold$temperature <- vapply(scored, function(result) {
+        result$evidence$temperature
+      }, numeric(1))
+      result_fold$inverse_temperature <- vapply(scored, function(result) {
+        result$evidence$inverse_temperature
+      }, numeric(1))
+      result_fold$evidence_count <- vapply(
+        scored, `[[`, numeric(1), "evidence_count"
+      )
+    }
     for (field in c(
       "gaze_info_bits", "base_gaze_info_bits", "odds_bits",
       "posterior_true", "log_loss", "base_log_loss", "brier_score",
@@ -1718,6 +1948,9 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
       emission_models = model$emission_models,
       warp = model$warp$info
     )
+    if (typicality) {
+      fold_info[[fold]]$typicality <- cbind(fold = fold, typicality_fold$table)
+    }
   }
 
   results <- dplyr::bind_rows(fold_results)
@@ -1781,7 +2014,25 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
     provenance$repeated_grid_rows <- NULL
     provenance$observation_unit <- "recall_fixation"
   }
-  structure(
+  calibration_summary <- NULL
+  if (evidence_scaled) {
+    provenance$temperature <- paste0(
+      "inner out-of-fold evidence-scaled temperature (recall fixations) ",
+      "on total trial log likelihood",
+      if (typicality) paste0(" with ", spec$calibration$control$typicality, " typicality offset") else ""
+    )
+    if (typicality) {
+      provenance$score_semantics <- paste0(
+        "total_trial_log_likelihood_typicality_adjusted",
+        "(ranking_score_not_normalised_likelihood)"
+      )
+    }
+    calibration_summary <- c(
+      list(heldout_log_loss = mean(results$log_loss)),
+      gaze_calibration_fit_summary(fold_info, results, typicality)
+    )
+  }
+  fit <- structure(
     list(
       results = results,
       spec = spec,
@@ -1796,6 +2047,9 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
     ),
     class = c("gaze_replay_fit", "list")
   )
+  # Earlier layouts have no calibration element.
+  if (!is.null(calibration_summary)) fit$calibration <- calibration_summary
+  fit
 }
 
 #' @export

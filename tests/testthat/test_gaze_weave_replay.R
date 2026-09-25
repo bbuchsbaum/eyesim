@@ -1,5 +1,6 @@
 make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L,
-                                  revision = "2026.10") {
+                                  revision = "2026.10",
+                                  calibration_control = NULL) {
   gaze_replay_spec(
     grid_size = grid_size,
     max_skip = 2L,
@@ -12,7 +13,8 @@ make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L,
       background_stay = 0.9
     ),
     warp = warp,
-    revision = revision
+    revision = revision,
+    calibration_control = calibration_control
   )
 }
 
@@ -279,7 +281,12 @@ test_that("Replay temperature calibration is inner-cross-fitted by item", {
     tabs$source_tab[tabs$source_tab$participant == "p1", ],
     match_on = c("participant", "image_id"),
     contrast_on = "participant",
-    spec = make_replay_test_spec(grid_size = 12)
+    # The pre-A3 global temperature calibration (see
+    # test_gaze_weave_calibration_revision.R for the default).
+    spec = make_replay_test_spec(
+      grid_size = 12,
+      calibration_control = gaze_calibration_control(method = "global")
+    )
   )
 
   expect_identical(
@@ -301,7 +308,8 @@ test_that("cross-fitted Replay uses disjoint item keys and normalized candidates
       translation = TRUE,
       fit_by = "participant"
     ),
-    grid_size = 12
+    grid_size = 12,
+    calibration_control = gaze_calibration_control(method = "global")
   )
   fit <- gaze_replay_cv(
     tabs$ref_tab,

@@ -68,12 +68,22 @@ with its position and its duration, and scores a candidate by the total log
 likelihood of the recall. Evidence therefore grows with the number of recall
 fixations; there is no duration grid to choose. The frozen revision
 `"2026.08"` instead divided a duration-grid log likelihood by the number of
-grid bins. A residual calibration temperature is fitted on inner held-out
-items with a fixed weak prior centred on one. This prevents a small, perfectly
-separated training set from forcing numerically degenerate zero/one
-probabilities. If a training contrast has fewer than four candidate items,
-Replay records an explicit temperature-one fallback instead of pretending that
-an inner calibration estimate is available.
+grid bins.
+
+Under revision `"2026.10"` both engines calibrate candidate probabilities the
+same way (see `?gaze_calibration_control`). Each held-out row gets its own
+temperature, \(T_i = T(\bar n / n_i)^\gamma\), where \(n_i\) counts the row's
+evidence (Transport: duration-effective recall fixations; Replay: recall
+fixations). \(T\) and \(\gamma \in [0, 1]\) are fitted on inner held-out rows of
+the outer-training trials only. One global temperature made sparse recalls
+overconfident and rich recalls underconfident. This is calibration: it never changes
+the ranking of candidates within a row. The fit's prior pulls only toward the
+declared candidate prior (less confidence), never toward a fixed temperature.
+An optional typicality offset subtracts each candidate's mean score against
+training recalls of other items; the adjusted scores are ranking scores, not
+normalised likelihoods. If a training contrast has fewer than four candidate
+items, Replay returns the declared prior (no inner calibration estimate) under
+`"2026.10"`, and temperature one under `"2026.08"`.
 
 `gaze_info_bits` is the sole primary endpoint. Coverage, spatial error,
 chronology, contraction, rank, and alignment stability are nested diagnostics

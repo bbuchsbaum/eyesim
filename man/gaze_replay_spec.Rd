@@ -18,7 +18,8 @@ gaze_replay_spec(
   screen = NULL,
   revision = c("2026.10", "2026.08"),
   background_by = NULL,
-  background_support = c("training", "held_out")
+  background_support = c("training", "held_out"),
+  calibration_control = NULL
 )
 }
 \arguments{
@@ -65,8 +66,9 @@ training recalls (excluding the candidate pool, see `background_by`)
 mixed with a uniform screen floor. Durations are log-normal, with
 log-duration mean `a + b * log(encoding duration)` for replay states and
 a separate log-normal for the background; these parameters are shared
-by every candidate. The score is the total trial log likelihood, so evidence grows with the
-number of recall fixations. The replay scale, duration parameters,
+by every candidate. The score is the total trial log likelihood, so
+evidence grows with the number of recall fixations. The replay scale,
+duration parameters,
 background floor weight, and all transition probabilities are fitted by
 Baum-Welch (EM) on training rows, with `transition_grid` medians used
 only as starting values. `"2026.08"` reproduces the frozen behaviour:
@@ -107,6 +109,12 @@ engages. `"held_out"` is transductive: it reads the item labels of other
 evaluation rows to decide which recalls lie outside the pool, so it
 cannot be used on unlabelled recalls. Training fits always use the other
 training trials of the same level, excluding the fitted item.}
+
+\item{calibration_control}{Revision `"2026.10"` only: a
+[gaze_calibration_control()]. `NULL` uses its defaults: an
+evidence-scaled temperature whose evidence count is the number of recall
+fixations, fitted on inner out-of-fold rows. `reliability =
+"effective_fixations"` then requires `method = "global"`.}
 }
 \value{
 A frozen `gaze_replay_spec`.

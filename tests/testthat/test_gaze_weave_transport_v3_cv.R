@@ -50,7 +50,11 @@ make_transport_v3_cv_spec <- function(reliability = "effective_fixations") {
     backend = "optimized",
     reliability = reliability,
     calibration_folds = 2,
-    calibration_seed = 20260822
+    calibration_seed = 20260822,
+    # These tests cover the temperature and kappa calibration; the revision
+    # 2026.10 evidence-scaled calibration is tested in
+    # test_gaze_weave_calibration_revision.R.
+    calibration_control = gaze_calibration_control(method = "global")
   )
 }
 

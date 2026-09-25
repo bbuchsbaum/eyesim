@@ -13,7 +13,12 @@ make_episode_test_spec <- function(reliability = "none", grid_size = 12L,
     ),
     reliability = reliability,
     reliability_kappa_bounds = c(0, 100),
-    revision = revision
+    revision = revision,
+    # The kappa shrink needs the pre-A3 global calibration under 2026.10.
+    calibration_control = if (identical(revision, "2026.10") &&
+                              identical(reliability, "effective_fixations")) {
+      gaze_calibration_control(method = "global")
+    }
   )
 }
 

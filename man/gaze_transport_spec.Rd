@@ -27,13 +27,14 @@ gaze_transport_spec(
   polish_maxit = 200L,
   polish_gap_tolerance = 1e-07,
   polish_relative_tolerance = 1e-08,
-  reliability = c("effective_fixations", "none"),
+  reliability = NULL,
   reliability_kappa_bounds = c(0, 100),
   calibration_folds = 2L,
   calibration_seed = 20260822L,
   log_temperature_prior_sd = 1,
   log1p_kappa_prior_sd = 1,
-  revision = c("2026.10", "2026.08")
+  revision = c("2026.10", "2026.08"),
+  calibration_control = NULL
 )
 }
 \arguments{
@@ -96,15 +97,21 @@ keeps the entropic solution; `"audit"` polishes every coverage node.}
 
 \item{polish_maxit, polish_gap_tolerance, polish_relative_tolerance}{Conditional-gradient stopping controls.}
 
-\item{reliability}{Response-blind calibration policy. The default learns
-effective-fixation shrinkage on inner out-of-fold predictions and includes
-the temperature-only solution as an exact boundary.}
+\item{reliability}{Response-blind calibration policy.
+`"effective_fixations"` learns effective-fixation shrinkage (kappa) on
+inner out-of-fold predictions and includes the temperature-only solution
+as an exact boundary. `NULL` (the default) uses `"effective_fixations"`
+under revision `"2026.08"` and `"none"` under `"2026.10"`, whose
+evidence-scaled temperature replaces the shrink (see
+[gaze_calibration_control()]).}
 
 \item{reliability_kappa_bounds}{Non-negative bounds for the shrinkage scale.}
 
 \item{calibration_folds, calibration_seed}{Inner calibration-fold policy.}
 
-\item{log_temperature_prior_sd, log1p_kappa_prior_sd}{Calibration penalties.}
+\item{log_temperature_prior_sd, log1p_kappa_prior_sd}{Penalties of the
+frozen calibration (revision `"2026.08"`, or revision `"2026.10"` with
+`gaze_calibration_control(method = "global")`).}
 
 \item{revision}{Solver revision. `"2026.10"` (the default) is the
 corrected solver and estimand. The chronology residual is
@@ -131,6 +138,9 @@ reason on a selection boundary. `"2026.08"` reproduces the frozen August
 2026 solver exactly; the frozen validation courts pin it.
 Specifications saved before revisions existed are solved as
 `"2026.08"`.}
+
+\item{calibration_control}{Revision `"2026.10"` only: a
+[gaze_calibration_control()]. `NULL` uses its defaults.}
 }
 \value{
 A frozen `gaze_transport_spec`.

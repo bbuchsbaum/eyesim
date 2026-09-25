@@ -153,12 +153,20 @@ transport_v3_revised <- function(spec) {
 #'   2026 solver exactly; the frozen validation courts pin it.
 #'   Specifications saved before revisions existed are solved as
 #'   `"2026.08"`.
-#' @param reliability Response-blind calibration policy. The default learns
-#'   effective-fixation shrinkage on inner out-of-fold predictions and includes
-#'   the temperature-only solution as an exact boundary.
+#' @param reliability Response-blind calibration policy.
+#'   `"effective_fixations"` learns effective-fixation shrinkage (kappa) on
+#'   inner out-of-fold predictions and includes the temperature-only solution
+#'   as an exact boundary. `NULL` (the default) uses `"effective_fixations"`
+#'   under revision `"2026.08"` and `"none"` under `"2026.10"`, whose
+#'   evidence-scaled temperature replaces the shrink (see
+#'   [gaze_calibration_control()]).
 #' @param reliability_kappa_bounds Non-negative bounds for the shrinkage scale.
 #' @param calibration_folds,calibration_seed Inner calibration-fold policy.
-#' @param log_temperature_prior_sd,log1p_kappa_prior_sd Calibration penalties.
+#' @param log_temperature_prior_sd,log1p_kappa_prior_sd Penalties of the
+#'   frozen calibration (revision `"2026.08"`, or revision `"2026.10"` with
+#'   `gaze_calibration_control(method = "global")`).
+#' @param calibration_control Revision `"2026.10"` only: a
+#'   [gaze_calibration_control()]. `NULL` uses its defaults.
 #'
 #' @return A frozen `gaze_transport_spec`.
 #' @export
@@ -176,12 +184,20 @@ gaze_transport_spec <- function(
     multistart = 1L, backend = c("auto", "optimized", "reference"),
     polish = c("none", "audit"), polish_maxit = 200L,
     polish_gap_tolerance = 1e-7, polish_relative_tolerance = 1e-8,
-    reliability = c("effective_fixations", "none"),
+    reliability = NULL,
     reliability_kappa_bounds = c(0, 100),
     calibration_folds = 2L, calibration_seed = 20260822L,
     log_temperature_prior_sd = 1, log1p_kappa_prior_sd = 1,
-    revision = c("2026.10", "2026.08")) {
+    revision = c("2026.10", "2026.08"),
+    calibration_control = NULL) {
   revision <- match.arg(revision)
+  if (is.null(reliability)) {
+    reliability <- if (identical(revision, "2026.08")) {
+      "effective_fixations"
+    } else {
+      "none"
+    }
+  }
   if (!inherits(spatial, "gaze_spatial_spec")) {
     stop("spatial must be created by gaze_gaussian_mixture().")
   }
@@ -266,7 +282,10 @@ gaze_transport_spec <- function(
   projection_method <- match.arg(projection_method)
   backend <- match.arg(backend)
   polish <- match.arg(polish)
-  reliability <- match.arg(reliability)
+  reliability <- match.arg(reliability, c("effective_fixations", "none"))
+  calibration_control <- resolve_gaze_calibration_control(
+    calibration_control, revision, reliability
+  )
   polish_maxit <- as.integer(polish_maxit)
   if (length(polish_maxit) != 1L || is.na(polish_maxit) || polish_maxit < 1L) {
     stop("polish_maxit must be a positive integer.")
@@ -303,6 +322,14 @@ gaze_transport_spec <- function(
   quadrature <- transport_v3_coverage_quadrature(
     coverage_nodes, coverage_prior
   )
+  calibration <- list(
+    folds = calibration_folds,
+    seed = calibration_seed,
+    log_temperature_prior_sd = as.numeric(log_temperature_prior_sd),
+    log1p_kappa_prior_sd = as.numeric(log1p_kappa_prior_sd)
+  )
+  # Frozen revision 2026.08 specifications carry no calibration control.
+  if (!is.null(calibration_control)) calibration$control <- calibration_control
   structure(
     list(
       spatial = spatial,
@@ -315,12 +342,7 @@ gaze_transport_spec <- function(
       temperature_bounds = as.numeric(temperature_bounds),
       reliability = reliability,
       reliability_kappa_bounds = as.numeric(reliability_kappa_bounds),
-      calibration = list(
-        folds = calibration_folds,
-        seed = calibration_seed,
-        log_temperature_prior_sd = as.numeric(log_temperature_prior_sd),
-        log1p_kappa_prior_sd = as.numeric(log1p_kappa_prior_sd)
-      ),
+      calibration = calibration,
       warp = warp,
       screen = screen,
       control = c(
