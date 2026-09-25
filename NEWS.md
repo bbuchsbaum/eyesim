@@ -1,55 +1,73 @@
 # eyesim 0.1.0.9000
 
 * `gaze_transport_spec()` gains `revision = c("2026.10", "2026.08")`. The
-  default, `"2026.10"`, corrects the Transport solver in both the native and
+  default, `"2026.10"`, changes the Transport solver in both the native and
   the reference backend. `"2026.08"` reproduces the frozen August 2026 solver
   bit for bit, and the frozen validation courts now pin it. Specifications
   saved before revisions existed are solved as `"2026.08"`; an unknown
   revision is an error. Under `"2026.10"`:
   - **Estimand change (unreleased).** The chronology residual is
-    `1 - 2A / (R + S + 1e-3)`. It was `1 - 2A / (R + S)`, set to 0 when
-    `R + S <= 1e-15`. The old definition jumped by up to 0.1 in the objective
+    `1 - 2A / (R + S + kappa)` with `kappa = 1e-3`, one constant shared by
+    both backends. It was `1 - 2A / (R + S)`, set to 0 when
+    `R + S <= 1e-15`. That definition jumped by up to 0.1 in the objective
     and was 0/0 for one-fixation sources. The new residual is continuous,
     has a bounded gradient, and tends to 1 as selected edge mass vanishes.
     The limit 1 is the neutral value: a source without edges gets the same
     chronology term from every candidate.
-  - **Stationarity.** The convergence test is the support-weighted reduced
-    gradient `min_ab sum P (G - a - b)^2`, the `t -> 0` limit of the dual
-    gap `<g, P - P_t> / t`. A stage converges only when it is at most
-    `0.2 * tolerance` and the plan is feasible. Exponent saturation,
-    backtracking and projection noise cannot fake it. The 2026.08 rule
-    stopped after one small step. The first 2026.10 draft certified a
-    residual of a step whose `+/-50` exponent clamp had saturated, which let
-    non-stationary nodes pass. Every mirror step is now capped at
-    `min(step_size, 50 / max|g|)`, and a backtracked step doubles back.
-  - **Line-search failures.** Both revisions accept a step that raises the
-    objective by up to 1e-12 relative. A line search therefore fails only
-    when every trial rose by more than that, which at 1e-8 projection
-    accuracy is noise-dominated. The native backend reported this as a
-    numerical failure, and `backend = "auto"` then silently re-solved the
-    pair with the 30-200x slower reference backend. Such a failure, or a
-    noise-level gain at a heavily backtracked step, now establishes neither
-    failure nor convergence. The stage is recorded as
-    `"stalled_projection_limited"`: not converged, still scored.
+  - **Stopping rule (first-order).** `tolerance` is now in objective units
+    (nats), with default `1e-6`. A stage stops when three conditions hold:
+    the plan is feasible, no negligible-mass cell is trapped, and a
+    first-order model predicts at most `tolerance` of remaining decrease.
+    The model sums entropic single-cell relaxation gains on real cells and a
+    quadratic model on slack cells, both from least-squares dual prices.
+    This is a stopping heuristic, not an optimality certificate. On a
+    60-pair review set, a tight continuation of stopped nodes lowered the
+    objective by at most 9.7e-7 at the 95th percentile. On 9 of 692 nodes
+    it still found 1e-5 to 1.4e-3, along slow directions or away from
+    saddles. Tolerances of 1e-7 to 1e-9 did not remove those nodes and
+    multiplied stalls.
+  - **Traps and steps.** A reviewer showed that zeroing a support cell could
+    produce plans that a weighted measure alone certified, 2e-6 to 25 above
+    the node optimum. Such cells are now detected and reseeded (a 1e-3
+    mixture with the independent start). All 40 review traps then
+    re-converged within 4e-7 or stayed uncertified. Every mirror step is
+    capped at `min(step_size, 50 / max|g|)`, so the exponent clamp never
+    binds.
+  - **Line searches, stalls and `maxit`.** Both revisions accept a step that
+    raises the objective by up to 1e-12 relative. A line search therefore
+    fails only when every trial rose by more than that, which at 1e-8
+    projection accuracy is noise-dominated. The native backend reported this
+    as a numerical failure, and `backend = "auto"` then silently re-solved
+    the pair with the 30-200x slower reference backend. A noise-limited line
+    search now ends the stage as `"stalled_projection_limited"`. Reaching
+    `maxit` ends the node as `"not_converged"`, including under
+    `backend = "optimized"`; it previously raised an error on 14 of 60
+    review pairs at `step_size = 0.05`. Both statuses are scored,
+    recorded, and counted by `gaze_transport_cv()`.
   - **Projection.** When standard Sinkhorn exhausts its iterations, a damped
     log-domain dual Newton projection takes over, then log-domain Sinkhorn,
     in both backends.
   - **Starts and entropy schedule.** Every coverage node is solved from the
-    independent start and the adjacent-coverage continuation. This replaces
-    the reference backend's silent cold restart. Fits that converged or
-    stalled are preferred over fits that hit `maxit`; within that tier the
-    lower objective wins. The default entropy schedule is
-    `c(0.15, 0.05, 0.015)`; the extra smoother first stage makes the local
-    optimum reached independent of `step_size`.
+    independent start and the adjacent-coverage continuation, replacing the
+    reference backend's silent cold restart. `multistart = 2` adds a spatial
+    start and is now native. The default entropy schedule is
+    `c(0.15, 0.05, 0.015)`.
+  - **Known residual error: local optima.** The objective is non-convex.
+    Against a multistart oracle on the 60 review pairs, the default score
+    differed by up to 0.12 nats (0.39 null-score SD), with 95th percentile
+    0.0056 nats; the worst cases are null pairs. `multistart = 2` reduced
+    the 95th percentile only to 0.0053 at 1.48 times the runtime, so it is
+    opt-in. Scores also still depend on `step_size` at this level.
   - The mutual-information term is evaluated in the log domain when the
     product of two marginals underflows.
   - **Backends and fallbacks.** Under `backend = "auto"`, specifications the
-    native backend cannot solve (for example `multistart = 2`) go to the
-    reference backend for every pair. Any per-pair fallback raises a warning
-    of class `gaze_transport_backend_fallback`. Every alignment records its
-    backend, fallback, status and solver revision in `convergence`.
-    `gaze_transport_cv()` reports fallback and stall counts per row and in
-    `solver`. Validation checkpoints record and verify the solver revision.
+    native backend cannot solve (`projection_method = "log"`) go to the
+    reference backend for every pair. Any per-pair numerical fallback raises
+    a warning of class `gaze_transport_backend_fallback`. Every alignment
+    records its backend, fallback, status and solver revision in
+    `convergence`. `gaze_transport_cv()` reports fallback, stall and
+    not-converged counts per row and in `solver`. Validation checkpoints
+    record and verify the solver revision.
   - **Polish gap.** The polish Frank-Wolfe gap is `NA`, with a reason, where
     a selected mass with a positive target vanishes. The Jensen-Shannon
     gradient is unbounded there, so the reported gap came from the gradient

@@ -386,7 +386,12 @@ transport_initial_plans <- function(reference, source, spatial_cost,
     spatial[seq_len(n_reference), seq_len(n_source)] <-
       pmax(base[seq_len(n_reference), seq_len(n_source)], 1e-300) *
       exp(-pmin(spatial_cost / scale, 700))
-    projected <- project_partial_coupling(
+    project <- if (transport_v3_revised(spec)) {
+      project_partial_coupling_revised
+    } else {
+      project_partial_coupling
+    }
+    projected <- project(
       spatial, reference$mass, source$mass, coverage, spec$control
     )
     if (projected$converged) {

@@ -190,19 +190,22 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
   result
 }
 
-# Revision 2026.10 stationarity: besides the projected update residual, the
-# support-weighted reduced gradient
-#   s0 = min_{a, b} sum_ij P_ij (G_ij - a_i - b_j)^2
-# over the augmented plan (G = centred gradient on real cells, 0 on slack)
-# must not exceed transport_v3_gap_factor * tolerance. s0 is the limit of
-# the dual gap <g, P - P_t> / t as t -> 0, that is the rate at which an
-# infinitesimal mirror step lowers the objective; unlike a residual it is
-# unaffected by step size or exponent saturation. With the default
-# tolerance a step of 0.1 then predicts at most 1e-6 of descent. Mirrors
-# kGapFactor and reduced_gradient_gap() in src/transport_v3.cpp.
-transport_v3_gap_factor <- 0.2
-
-transport_v3_reduced_gradient_gap <- function(augmented, centered_gradient) {
+# Revision 2026.10 first-order stopping rule. It is a heuristic model of the
+# decrease still available at a node, not a proof of optimality (the
+# objective is non-convex). With dual prices a, b fitted by P-weighted least
+# squares to T (T = centred gradient G on real cells, 0 on slack cells),
+# delta_ij = a_i + b_j - T_ij is the first-order gain per unit of mass moved
+# into cell ij. The predicted remaining decrease is
+#   real cells:  sum entropy * P * (exp(x) - 1 - x),  x = delta / entropy,
+#                the exact gain of relaxing one cell against its entropic
+#                barrier (equal to P delta^2 / (2 entropy) for small x);
+#   slack cells: sum P delta^2 / (2 entropy) (no barrier; quadratic model).
+# A slack cell with negligible mass (< 1e-12) and delta > 1e-3 is a trap:
+# mirror descent grows it only multiplicatively, so it cannot re-enter the
+# support in useful time. The same holds for a real cell whose relaxed mass
+# P exp(x) exceeds 1e-9 while P < 1e-12. Traps block certification and
+# trigger a reseed. Mirrors stationarity_check() in src/transport_v3.cpp.
+transport_v3_stationarity <- function(augmented, centered_gradient, entropy) {
   n_rows <- nrow(augmented)
   n_columns <- ncol(augmented)
   weight <- augmented
@@ -223,30 +226,55 @@ transport_v3_reduced_gradient_gap <- function(augmented, centered_gradient) {
     solve(reduced, right[free]),
     error = function(condition) NULL
   )
-  if (is.null(solution) || any(!is.finite(solution))) return(Inf)
+  if (is.null(solution) || any(!is.finite(solution))) {
+    return(list(predicted = Inf, trap = FALSE, s0 = Inf))
+  }
   solution <- c(solution, 0)
-  fitted <- outer(
+  delta <- outer(
     solution[seq_len(n_rows)], solution[n_rows + seq_len(n_columns)],
     FUN = "+"
+  ) - target
+  real <- matrix(FALSE, n_rows, n_columns)
+  real[-n_rows, -n_columns] <- TRUE
+  slack <- !real
+  slack[n_rows, n_columns] <- FALSE
+  x <- pmin(delta[real] / entropy, 700)
+  mass <- weight[real]
+  gain_real <- sum(entropy * mass * (exp(x) - 1 - x))
+  gain_slack <- sum(weight[slack] * delta[slack]^2) / (2 * entropy)
+  real_trap <- any(mass < 1e-12 & log(pmax(mass, 1e-320)) + x > log(1e-9))
+  slack_trap <- any(weight[slack] < 1e-12 & delta[slack] > 1e-3)
+  list(
+    predicted = gain_real + gain_slack,
+    trap = real_trap || slack_trap,
+    s0 = sum(weight * delta^2)
   )
-  sum(weight * (target - fitted)^2)
 }
+
+# Revision 2026.10 reseed: mix the plan with the independent start and
+# re-project, lifting every cell to a non-negligible mass so that a trapped
+# cell can re-enter the support.
+transport_v3_reseed_fraction <- 1e-3
 
 # One entropy stage of the revision 2026.10 mirror-descent solver. The native
 # backend (src/transport_v3.cpp, revision = 1) implements the same rules:
 #
-# * Objective: the chronology residual is 1 - 2A / (R + S + 1e-3), continuous
-#   and tending to 1 as the selected edge mass vanishes.
-# * Stationarity: a stage converges ("stationary") when the current plan is
-#   feasible (marginal error <= projection_tolerance) and its
-#   support-weighted reduced gradient
-#     s0 = min_ab sum_ij P_ij (G_ij - a_i - b_j)^2
-#   (G: centred gradient on real cells, 0 on slack) is at most
-#   0.2 * tolerance. s0 is the t -> 0 limit of the dual gap <g, P - P_t> / t,
-#   the rate at which a mirror step lowers the objective, so it cannot be
-#   faked by exponent saturation, backtracking, or projection noise; with the
-#   default tolerance a step of 0.1 predicts at most 1e-6 of descent. The
-#   projected update residual is recorded as a diagnostic only.
+# * Objective: the chronology residual is 1 - 2A / (R + S + kappa), with
+#   kappa = transport_v3_chronology_pseudo_count passed from R.
+# * Stopping rule (first-order, heuristic): a stage stops as "stationary"
+#   when the plan is feasible, no cell is trapped, and the first-order model
+#   of the decrease still available at the plan (transport_v3_stationarity:
+#   entropic single-cell relaxation gains on real cells plus a quadratic
+#   model on slack cells, from P-weighted least-squares dual prices) is at
+#   most `tolerance` nats. This bounds neither the distance to a local
+#   optimum along slow, low-curvature directions nor escape from saddles; on
+#   the review set (60 pairs, 720 nodes, default tolerance 1e-6) the q95
+#   decrease that a tight continuation still found at certified nodes was
+#   9.7e-7, but 9 of 692 nodes still decreased by 1e-5 to 1.4e-3.
+# * Traps: a negligible-mass cell whose relaxed mass exceeds 1e-9 (real) or
+#   whose dual gain exceeds 1e-3 (slack) blocks certification and triggers a
+#   reseed (mix 1e-3 of the independent start, re-project), at most three
+#   times per stage.
 # * Step limit: every trial step is capped at
 #   step_limit = min(step_size, 50 / max|G|), so the +/-50 exponent clamp
 #   never binds. After an accepted trial the next start step doubles.
@@ -258,12 +286,16 @@ transport_v3_reduced_gradient_gap <- function(augmented, centered_gradient) {
 #   a failure establishes nothing. When no trial is accepted, or the accepted
 #   decrease is at most 10 * projection_tolerance * max(1, |f|) at a step
 #   backtracked below step_limit / 8, the stage ends
-#   "stalled_projection_limited": not converged, still scored.
+#   "stalled_projection_limited": not converged, still scored. A stage that
+#   reaches maxit ends "maxit" and its node is "not_converged": recorded and
+#   scored, not an error.
 # * Backtracking continues past 21 trials while the mirror exponent is large.
-# * Starts: every coverage node is solved from the independent start and the
-#   adjacent-coverage continuation. Fits whose stages all ended converged or
-#   stalled are preferred over fits that hit maxit; within that tier the
-#   lowest regularized objective is kept (ties keep the independent start).
+# * Starts: every coverage node is solved from the independent start, the
+#   spatial start when multistart = 2, and the adjacent-coverage
+#   continuation. Fits whose stages all ended converged or stalled are
+#   preferred over fits that hit maxit; within that tier the lowest
+#   regularized objective is kept (ties keep the earlier start). The result
+#   is still a local optimum of a non-convex objective.
 transport_v3_reference_stage_revised <- function(augmented, reference, source,
                                                  spatial_cost, coverage, spec,
                                                  entropy) {
@@ -280,6 +312,7 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
   final_objective_change <- Inf
   final_step <- NA_real_
   reduced_gradient <- Inf
+  reseeds <- 0L
   projection <- list(error = Inf, converged = FALSE, method = NA_character_)
   iteration <- 0L
   for (iteration in seq_len(control$maxit)) {
@@ -293,11 +326,29 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
       abs(rowSums(augmented) - row_target),
       abs(colSums(augmented) - column_target)
     )
-    reduced_gradient <- transport_v3_reduced_gradient_gap(
-      augmented, centered_gradient
+    stationarity <- transport_v3_stationarity(
+      augmented, centered_gradient, entropy
     )
-    if (feasibility <= control$projection_tolerance &&
-        reduced_gradient <= transport_v3_gap_factor * control$tolerance) {
+    reduced_gradient <- stationarity$predicted
+    if (stationarity$trap && reseeds < 3L) {
+      # A cell outside the support should re-enter it: mix in the
+      # independent start and re-project, then keep iterating.
+      reseeds <- reseeds + 1L
+      mixed <- (1 - transport_v3_reseed_fraction) * augmented +
+        transport_v3_reseed_fraction *
+          transport_augmented_start(reference$mass, source$mass, coverage)
+      reseeded <- project_partial_coupling_revised(
+        mixed, reference$mass, source$mass, coverage, control
+      )
+      if (isTRUE(reseeded$converged)) {
+        augmented <- reseeded$plan
+        projection <- reseeded
+        step <- control$step_size
+        next
+      }
+    }
+    if (feasibility <= control$projection_tolerance && !stationarity$trap &&
+        stationarity$predicted <= control$tolerance) {
       stage_converged <- TRUE
       termination <- "stationary"
       # The certificate concerns the current plan: report its own marginal
@@ -392,7 +443,8 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
       projection_fallback = isTRUE(projection$fallback_from_standard),
       termination = termination,
       step = final_step,
-      reduced_gradient = reduced_gradient
+      predicted_decrease = reduced_gradient,
+      reseeds = reseeds
     )
   )
 }

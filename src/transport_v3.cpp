@@ -6,17 +6,22 @@
 
 namespace {
 
-// Revision 2026.10: a stage is stationary only when, besides the projected
-// update residual, the support-weighted reduced gradient (the t -> 0 limit
-// of the dual gap <g, P - P_t> / t) is at most kGapFactor * tolerance.
-// Mirrors transport_v3_gap_factor and transport_v3_reduced_gradient_gap()
-// in R/gaze_weave_transport_v3_solver.R.
-constexpr double kGapFactor = 0.2;
+// Revision 2026.10 first-order stopping rule; mirrors
+// transport_v3_stationarity() in R/gaze_weave_transport_v3_solver.R, where it
+// is documented. Returns the predicted remaining decrease and flags traps.
+struct StationarityV3 {
+  double predicted;
+  bool trap;
+};
 
-double reduced_gradient_gap(const arma::mat& augmented,
-                            const arma::mat& centered_gradient) {
+StationarityV3 stationarity_check(const arma::mat& augmented,
+                                  const arma::mat& centered_gradient,
+                                  double entropy) {
   const arma::uword m = augmented.n_rows;
   const arma::uword n = augmented.n_cols;
+  StationarityV3 out;
+  out.predicted = std::numeric_limits<double>::infinity();
+  out.trap = false;
   arma::mat weight = augmented;
   weight(m - 1, n - 1) = 0.0;
   arma::mat target(m, n, arma::fill::zeros);
@@ -39,13 +44,35 @@ double reduced_gradient_gap(const arma::mat& augmented,
   if (!arma::solve(solution, reduced, right.subvec(0, free - 1),
                    arma::solve_opts::no_approx) ||
       !solution.is_finite()) {
-    return std::numeric_limits<double>::infinity();
+    return out;
   }
   solution = arma::join_cols(solution, arma::vec({0.0}));
-  arma::mat fitted = arma::repmat(solution.subvec(0, m - 1), 1, n) +
-    arma::repmat(solution.subvec(m, m + n - 1).t(), m, 1);
-  return arma::accu(weight % arma::square(target - fitted));
+  double gain_real = 0.0;
+  double gain_slack = 0.0;
+  for (arma::uword i = 0; i < m; ++i) {
+    for (arma::uword j = 0; j < n; ++j) {
+      if (i == m - 1 && j == n - 1) continue;
+      const double delta = solution[i] + solution[m + j] - target(i, j);
+      const double mass = weight(i, j);
+      if (i < m - 1 && j < n - 1) {
+        const double x = std::min(delta / entropy, 700.0);
+        gain_real += entropy * mass * (std::exp(x) - 1.0 - x);
+        if (mass < 1e-12 &&
+            std::log(std::max(mass, 1e-320)) + x > std::log(1e-9)) {
+          out.trap = true;
+        }
+      } else {
+        gain_slack += mass * delta * delta;
+        if (mass < 1e-12 && delta > 1e-3) out.trap = true;
+      }
+    }
+  }
+  out.predicted = gain_real + gain_slack / (2.0 * entropy);
+  return out;
 }
+
+// Revision 2026.10 reseed fraction; mirrors transport_v3_reseed_fraction.
+constexpr double kReseedFraction = 1e-3;
 
 struct ObjectiveV3 {
   double scientific;
@@ -105,7 +132,8 @@ ObjectiveV3 objective_v3(
     double selection_weight,
     double entropy,
     bool need_gradient,
-    bool revised = false) {
+    bool revised = false,
+    double pseudo_count = 0.0) {
   const double coverage = arma::accu(coupling);
   arma::mat correspondence = coupling / coverage;
   arma::vec reference_selected = arma::sum(correspondence, 1);
@@ -121,10 +149,9 @@ ObjectiveV3 objective_v3(
   arma::mat forward = reference_relation * correspondence * source_relation.t();
   double agreement = arma::accu(correspondence % forward);
   double denominator = reference_edge_mass + source_edge_mass;
-  // Revision 2026.10: pseudo-count kappa = 1e-3 (see
-  // transport_v3_chronology_pseudo_count in R), continuous and tending to 1
-  // as the selected edge mass vanishes.
-  const double smoothed = revised ? denominator + 1e-3 : denominator;
+  // Revision 2026.10: pseudo-count kappa (transport_v3_chronology_pseudo_count
+  // in R, passed in), continuous and tending to 1 as edge mass vanishes.
+  const double smoothed = revised ? denominator + pseudo_count : denominator;
   double chronology = (!revised && denominator <= 1e-15) ? 0.0 :
     1.0 - 2.0 * agreement / smoothed;
   chronology = std::min(1.0, std::max(0.0, chronology));
@@ -554,18 +581,22 @@ struct NodeFitV3 {
 // (transport_v3_reference_stage_revised() and
 // solve_transport_v3_mass_reference()) implements the same 2026.10 rules:
 //
-// * Objective: the chronology residual is 1 - 2A / (R + S + 1e-3), continuous
-//   and tending to 1 as the selected edge mass vanishes.
-// * Stationarity: a stage converges ("stationary") when the current plan is
-//   feasible (marginal error <= projection_tolerance) and its
-//   support-weighted reduced gradient
-//     s0 = min_ab sum_ij P_ij (G_ij - a_i - b_j)^2
-//   (G: centred gradient on real cells, 0 on slack) is at most
-//   0.2 * tolerance. s0 is the t -> 0 limit of the dual gap <g, P - P_t> / t,
-//   the rate at which a mirror step lowers the objective, so it cannot be
-//   faked by exponent saturation, backtracking, or projection noise; with the
-//   default tolerance a step of 0.1 predicts at most 1e-6 of descent. The
-//   projected update residual is recorded as a diagnostic only.
+// * Objective: the chronology residual is 1 - 2A / (R + S + kappa), with
+//   kappa = transport_v3_chronology_pseudo_count passed from R.
+// * Stopping rule (first-order, heuristic): a stage stops as "stationary"
+//   when the plan is feasible, no cell is trapped, and the first-order model
+//   of the decrease still available at the plan (transport_v3_stationarity:
+//   entropic single-cell relaxation gains on real cells plus a quadratic
+//   model on slack cells, from P-weighted least-squares dual prices) is at
+//   most `tolerance` nats. This bounds neither the distance to a local
+//   optimum along slow, low-curvature directions nor escape from saddles; on
+//   the review set (60 pairs, 720 nodes, default tolerance 1e-6) the q95
+//   decrease that a tight continuation still found at certified nodes was
+//   9.7e-7, but 9 of 692 nodes still decreased by 1e-5 to 1.4e-3.
+// * Traps: a negligible-mass cell whose relaxed mass exceeds 1e-9 (real) or
+//   whose dual gain exceeds 1e-3 (slack) blocks certification and triggers a
+//   reseed (mix 1e-3 of the independent start, re-project), at most three
+//   times per stage.
 // * Step limit: every trial step is capped at
 //   step_limit = min(step_size, 50 / max|G|), so the +/-50 exponent clamp
 //   never binds. After an accepted trial the next start step doubles.
@@ -577,12 +608,16 @@ struct NodeFitV3 {
 //   a failure establishes nothing. When no trial is accepted, or the accepted
 //   decrease is at most 10 * projection_tolerance * max(1, |f|) at a step
 //   backtracked below step_limit / 8, the stage ends
-//   "stalled_projection_limited": not converged, still scored.
+//   "stalled_projection_limited": not converged, still scored. A stage that
+//   reaches maxit ends "maxit" and its node is "not_converged": recorded and
+//   scored, not an error.
 // * Backtracking continues past 21 trials while the mirror exponent is large.
-// * Starts: every coverage node is solved from the independent start and the
-//   adjacent-coverage continuation. Fits whose stages all ended converged or
-//   stalled are preferred over fits that hit maxit; within that tier the
-//   lowest regularized objective is kept (ties keep the independent start).
+// * Starts: every coverage node is solved from the independent start, the
+//   spatial start when multistart = 2, and the adjacent-coverage
+//   continuation. Fits whose stages all ended converged or stalled are
+//   preferred over fits that hit maxit; within that tier the lowest
+//   regularized objective is kept (ties keep the earlier start). The result
+//   is still a local optimum of a non-convex objective.
 // [[Rcpp::export]]
 Rcpp::List transport_v3_profile_native_cpp(
     const arma::vec& reference_mass,
@@ -599,7 +634,9 @@ Rcpp::List transport_v3_profile_native_cpp(
     double tolerance,
     int projection_maxit,
     double projection_tolerance,
-    int revision = 0) {
+    int revision = 0,
+    double chronology_pseudo_count = 0.0,
+    int multistart = 1) {
   const bool revised = revision >= 1;
   const arma::uword nr = reference_mass.n_elem;
   const arma::uword ns = source_mass.n_elem;
@@ -672,6 +709,7 @@ Rcpp::List transport_v3_profile_native_cpp(
         bool stalled = false;
         int used_newton = 0;
         double reduced_gradient = std::numeric_limits<double>::infinity();
+        int reseeds = 0;
         int iteration = 0;
         int projection_iterations = 0;
         if (revised) {
@@ -681,7 +719,8 @@ Rcpp::List transport_v3_profile_native_cpp(
             ObjectiveV3 current = objective_v3(
               coupling, reference_mass, source_mass,
               reference_relation, source_relation, spatial_cost,
-              temporal_weight, selection_weight, entropy, true, true
+              temporal_weight, selection_weight, entropy, true, true,
+              chronology_pseudo_count
             );
             arma::mat gradient =
               current.gradient - matrix_median(current.gradient);
@@ -689,9 +728,31 @@ Rcpp::List transport_v3_profile_native_cpp(
               arma::abs(arma::sum(augmented, 1) - row_target).max(),
               arma::abs(arma::sum(augmented, 0).t() - column_target).max()
             );
-            reduced_gradient = reduced_gradient_gap(augmented, gradient);
-            if (feasibility <= projection_tolerance &&
-                reduced_gradient <= kGapFactor * tolerance) {
+            const StationarityV3 stationarity =
+              stationarity_check(augmented, gradient, entropy);
+            reduced_gradient = stationarity.predicted;
+            if (stationarity.trap && reseeds < 3) {
+              // A cell outside the support should re-enter it: mix in the
+              // independent start and re-project, then keep iterating.
+              ++reseeds;
+              arma::mat mixed = (1.0 - kReseedFraction) * augmented +
+                kReseedFraction * independent;
+              arma::mat reseeded;
+              double reseed_error = std::numeric_limits<double>::infinity();
+              int reseed_iterations = 0;
+              int reseed_method = 0;
+              if (project_revised(
+                    mixed, row_target, column_target, projection_maxit,
+                    projection_tolerance, reseeded, reseed_error,
+                    reseed_iterations, reseed_method)) {
+                augmented = reseeded;
+                used_newton = reseed_method;
+                step = step_size;
+                continue;
+              }
+            }
+            if (feasibility <= projection_tolerance && !stationarity.trap &&
+                stationarity.predicted <= tolerance) {
               stage_converged = true;
               termination = "stationary";
               final_projection_error = feasibility;
@@ -735,7 +796,8 @@ Rcpp::List transport_v3_profile_native_cpp(
               proposal_objective = objective_v3(
                 proposal_coupling, reference_mass, source_mass,
                 reference_relation, source_relation, spatial_cost,
-                temporal_weight, selection_weight, entropy, false, true
+                temporal_weight, selection_weight, entropy, false, true,
+                chronology_pseudo_count
               );
               if (std::isfinite(proposal_objective.optimization) &&
                   proposal_objective.optimization <= current.optimization +
@@ -856,7 +918,8 @@ Rcpp::List transport_v3_profile_native_cpp(
         if (revised) {
           entry.push_back(termination, "termination");
           entry.push_back(final_step, "step");
-          entry.push_back(reduced_gradient, "reduced_gradient");
+          entry.push_back(reduced_gradient, "predicted_decrease");
+          entry.push_back(reseeds, "reseeds");
           entry.push_back(start_name, "start");
         }
         history[stage] = entry;
@@ -880,7 +943,8 @@ Rcpp::List transport_v3_profile_native_cpp(
         coupling, reference_mass, source_mass,
         reference_relation, source_relation, spatial_cost,
         temporal_weight, selection_weight,
-        entropy_schedule[entropy_schedule.n_elem - 1], false, revised
+        entropy_schedule[entropy_schedule.n_elem - 1], false, revised,
+        chronology_pseudo_count
       );
       return fit;
     };
@@ -888,6 +952,26 @@ Rcpp::List transport_v3_profile_native_cpp(
     std::vector<NodeFitV3> candidates;
     if (revised) {
       candidates.push_back(solve_node("independent_native", independent));
+      if (multistart >= 2) {
+        // Spatial structural start (mirrors transport_initial_plans()).
+        arma::mat spatial = independent;
+        const double scale = std::max(matrix_median(spatial_cost), 0.05);
+        spatial.submat(0, 0, nr - 1, ns - 1) =
+          arma::clamp(independent.submat(0, 0, nr - 1, ns - 1), 1e-300,
+                      std::numeric_limits<double>::max()) %
+          arma::exp(-arma::clamp(spatial_cost / scale, -
+            std::numeric_limits<double>::max(), 700.0));
+        arma::mat spatial_plan;
+        double spatial_error = std::numeric_limits<double>::infinity();
+        int spatial_iterations = 0;
+        int spatial_method = 0;
+        if (project_revised(spatial, row_target, column_target,
+                            projection_maxit, projection_tolerance,
+                            spatial_plan, spatial_error, spatial_iterations,
+                            spatial_method)) {
+          candidates.push_back(solve_node("spatial_native", spatial_plan));
+        }
+      }
       if (have_continuation) {
         candidates.push_back(
           solve_node("adjacent_coverage_native", continuation)
@@ -932,11 +1016,9 @@ Rcpp::List transport_v3_profile_native_cpp(
     start_objectives.attr("names") = start_names;
     start_scientific.attr("names") = start_names;
     const double start_spread = candidates.size() < 2 ? 0.0 :
-      std::abs(candidates[0].final.optimization -
-               candidates[1].final.optimization);
+      Rcpp::max(start_objectives) - Rcpp::min(start_objectives);
     const double start_scientific_spread = candidates.size() < 2 ? 0.0 :
-      std::abs(candidates[0].final.scientific -
-               candidates[1].final.scientific);
+      Rcpp::max(start_scientific) - Rcpp::min(start_scientific);
     arma::mat coupling = fit.augmented.submat(0, 0, nr - 1, ns - 1);
     Rcpp::List node = Rcpp::List::create(
       Rcpp::Named("start") = fit.start,

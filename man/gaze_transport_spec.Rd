@@ -17,7 +17,7 @@ gaze_transport_spec(
   screen = NULL,
   maxit = 1000L,
   step_size = 2,
-  tolerance = 5e-05,
+  tolerance = NULL,
   projection_maxit = 1000L,
   projection_tolerance = 1e-08,
   projection_method = c("auto", "standard", "log"),
@@ -52,8 +52,9 @@ gaze_transport_spec(
 \item{entropy_schedule}{Positive correspondence-smoothing continuation
 values; the last value defines the optimized objective. `NULL` (the
 default) uses `c(0.15, 0.05, 0.015)` under revision `"2026.10"` and
-`c(0.05, 0.015)` under `"2026.08"`. The extra, smoother first stage makes
-the local optimum reached independent of `step_size`.}
+`c(0.05, 0.015)` under `"2026.08"`. The extra, smoother first stage
+reduces, but does not remove, the dependence of the local optimum
+reached on `step_size`.}
 
 \item{temperature_bounds}{Calibration temperature bounds.}
 
@@ -61,19 +62,31 @@ the local optimum reached independent of `step_size`.}
 
 \item{screen}{Optional screen geometry.}
 
-\item{maxit, step_size, tolerance}{Reference solver controls.}
+\item{maxit, step_size}{Mirror-descent iteration limit and largest step.}
+
+\item{tolerance}{Stopping tolerance. Under revision `"2026.10"` its unit is
+the regularized objective (nats): a stage stops when a first-order model
+predicts at most `tolerance` of remaining decrease at the current plan
+(see `revision`). `NULL` (the default) uses `1e-6` under `"2026.10"` and
+the relative objective change `5e-5` under `"2026.08"`.}
 
 \item{projection_maxit, projection_tolerance, projection_method}{Fixed-mass
 projection controls.}
 
-\item{multistart}{One or two common structural starts.}
+\item{multistart}{One or two common structural starts. Under revision
+`"2026.10"` both backends always add the adjacent-coverage continuation,
+and `2` adds a spatial start (natively supported). On the review set,
+`2` lowered the 95th-percentile gap to a multistart oracle only from
+0.0056 to 0.0053 nats at 1.48 times the runtime, so it is opt-in.}
 
 \item{backend}{Pair solver backend. `"reference"` is the readable R oracle;
 `"optimized"` uses the estimator-preserving batched implementation;
 `"auto"` uses the optimized backend with a reference fallback. Under
 revision `"2026.10"`, a specification the native backend cannot solve
-(for example `multistart = 2`) is routed to the reference backend for
-every pair, and a per-pair numerical fallback raises a warning of class
+(`projection_method = "log"`) is routed to the reference backend for
+every pair, a node that reaches `maxit` is recorded as
+`"not_converged"` and scored rather than raising an error, and a
+per-pair numerical fallback raises a warning of class
 `gaze_transport_backend_fallback`. The backend used is recorded in every
 alignment's `convergence` element.}
 
@@ -95,18 +108,24 @@ the temperature-only solution as an exact boundary.}
 \item{revision}{Solver revision. `"2026.10"` (the default) is the
 corrected solver and estimand. The chronology residual is
 `1 - 2A / (R + S + 1e-3)`, continuous as the selected edge mass
-vanishes. A stage converges only when the plan is feasible and its
-support-weighted reduced gradient (the limiting dual gap of a mirror
-step) is at most `0.2 * tolerance`. Mirror steps are capped so the
+vanishes. The stopping rule is first-order: a stage stops when the plan
+is feasible, no cell outside the support is trapped, and a first-order
+model predicts at most `tolerance` of remaining decrease. It does not
+certify a local optimum: slow directions and saddles can remain (on the
+review set about 1% of stopped nodes could still be lowered by 1e-5 to
+1.4e-3). Trapped cells are reseeded. Mirror steps are capped so the
 exponent never saturates. A line search limited by projection noise
-records the stage as `"stalled_projection_limited"` (not converged, but
-scored). Standard Sinkhorn is finished by a dual Newton projection and
-then log-domain Sinkhorn. Every coverage node is solved from the
-independent and the continuation start, replacing the reference
-backend's silent cold restart. `backend = "auto"` warns about and
-records every numerical fallback. The polish Frank-Wolfe gap is `NA`
-with a reason on a selection boundary. `"2026.08"` reproduces the frozen
-August 2026 solver exactly; the frozen validation courts pin it.
+records the stage as `"stalled_projection_limited"` and `maxit` as
+`"not_converged"`; both are scored. Standard Sinkhorn is finished by a
+dual Newton projection and then log-domain Sinkhorn. Every coverage node
+is solved from the independent and the continuation start, replacing
+the reference backend's silent cold restart. The result is a local
+optimum of a non-convex objective: on the review set the score differed
+from a multistart oracle by up to 0.12 nats (0.39 null-score SD; 95th
+percentile 0.0056 nats, 0.02 SD). `backend = "auto"` warns about and records
+every numerical fallback. The polish Frank-Wolfe gap is `NA` with a
+reason on a selection boundary. `"2026.08"` reproduces the frozen August
+2026 solver exactly; the frozen validation courts pin it.
 Specifications saved before revisions existed are solved as
 `"2026.08"`.}
 }

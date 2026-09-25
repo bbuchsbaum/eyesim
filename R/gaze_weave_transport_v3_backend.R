@@ -10,7 +10,7 @@ transport_v3_native_unsupported <- function(spec) {
   if (!transport_v3_native_available()) {
     return("Transport native backend is unavailable on this platform.")
   }
-  if (spec$control$multistart != 1L) {
+  if (spec$control$multistart != 1L && !transport_v3_revised(spec)) {
     return("The native backend currently requires multistart = 1.")
   }
   if (identical(spec$control$projection_method, "log")) {
@@ -43,7 +43,9 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
     tolerance = spec$control$tolerance,
     projection_maxit = spec$control$projection_maxit,
     projection_tolerance = spec$control$projection_tolerance,
-    revision = if (transport_v3_revised(spec)) 1L else 0L
+    revision = if (transport_v3_revised(spec)) 1L else 0L,
+    chronology_pseudo_count = transport_v3_chronology_pseudo_count,
+    multistart = spec$control$multistart
   )
   fits <- native$fits
   if (length(fits) != length(quadrature$coverage) ||
@@ -151,9 +153,14 @@ solve_transport_v3_profile_ordered <- function(reference, source, spec,
     error = function(condition) condition
   )
   native_success <- !inherits(native, "error") && if (revised) {
-    # A projection-limited stall is recorded, not a failure: scoring proceeds.
+    # Revision 2026.10: a projection-limited stall or a node that reached
+    # maxit ("not_converged") is recorded and scored, not a failure. The
+    # reference backend runs the same algorithm and would reach the same
+    # maxit 30-200x more slowly, so falling back (or erroring under
+    # "optimized") would discard a feasible solution without improving it.
+    # Only a numerical failure falls back.
     all(vapply(native$fits, function(fit) {
-      fit$status %in% c("converged", "stalled_projection_limited")
+      !identical(fit$status, "numerical_failure")
     }, logical(1)))
   } else {
     all(vapply(native$fits, function(fit) isTRUE(fit$converged), logical(1)))

@@ -376,6 +376,11 @@ score_transport_v3_cv_row <- function(
       scored$candidates, function(convergence) {
         identical(convergence$status, "stalled_projection_limited")
       }
+    ),
+    solver_not_converged = transport_v3_count_alignments(
+      scored$candidates, function(convergence) {
+        identical(convergence$status, "not_converged")
+      }
     )
   )
 }
@@ -516,10 +521,12 @@ transport_v3_expected_calibration_error <- function(reliability_table) {
 #'
 #' @return A `gaze_transport_fit` with held-out candidate probabilities,
 #'   fold receipts, response-blind quality diagnostics, and calibration checks.
-#'   `results$backend_fallbacks` and `results$solver_stalled` count, per
-#'   held-out row, the episode alignments solved by the reference backend
-#'   after a native failure and those recorded as
-#'   `"stalled_projection_limited"`. The `solver` element summarises the
+#'   `results$backend_fallbacks`, `results$solver_stalled` and
+#'   `results$solver_not_converged` count, per held-out row, the episode
+#'   alignments solved by the reference backend after a native failure, those
+#'   recorded as `"stalled_projection_limited"`, and those in which a
+#'   coverage node reached `maxit` (`"not_converged"`, still scored). The
+#'   `solver` element summarises the
 #'   solver revision, the backends used, and these counts (including inner
 #'   calibration alignments in `backend_fallback_count`). Per-alignment
 #'   fallback warnings are replaced by one summary warning.
@@ -643,6 +650,9 @@ gaze_transport_cv <- function(
     result_fold$solver_stalled <- vapply(
       scored, `[[`, integer(1), "solver_stalled"
     )
+    result_fold$solver_not_converged <- vapply(
+      scored, `[[`, integer(1), "solver_not_converged"
+    )
     result_fold$candidates <- lapply(scored, function(result) {
       result$evidence$candidates
     })
@@ -692,7 +702,8 @@ gaze_transport_cv <- function(
     heldout_backends = sort(heldout_backends),
     backend_fallback_count = fallback_records,
     heldout_backend_fallback_count = as.integer(sum(results$backend_fallbacks)),
-    heldout_stalled_count = as.integer(sum(results$solver_stalled))
+    heldout_stalled_count = as.integer(sum(results$solver_stalled)),
+    heldout_not_converged_count = as.integer(sum(results$solver_not_converged))
   )
   if (fallback_warnings > 0L) {
     warning(structure(

@@ -242,7 +242,9 @@ test_that("a saturated mirror step never certifies a non-stationary node", {
   }
 })
 
-test_that("scores do not depend on the mirror step size", {
+test_that("review pair 118 scores agree across mirror step sizes", {
+  # A regression check on one pair only; in general scores still depend on
+  # step_size through the local optimum reached (see NEWS).
   skip_if_not(eyesim:::transport_v3_native_available())
   pair <- transport_revision_pair118()
   scores <- vapply(c(2, 0.25, 0.05), function(step) {
@@ -375,12 +377,157 @@ test_that("unsupported native policies route to the reference backend", {
   spec <- gaze_transport_spec(
     coverage_nodes = 2, entropy_schedule = 0.03, maxit = 30,
     tolerance = 1e-3, projection_maxit = 300, projection_tolerance = 1e-7,
-    multistart = 2, backend = "auto"
+    projection_method = "log", backend = "auto"
   )
   expect_no_warning(result <- gaze_transport_align(path, path, spec))
   expect_identical(result$convergence$backend, "reference")
   expect_false(result$convergence$fallback)
-  expect_match(result$convergence$backend_route, "multistart", fixed = TRUE)
+  expect_match(result$convergence$backend_route, "log-domain", fixed = TRUE)
+})
+
+test_that("native multistart matches the reference oracle", {
+  skip_if_not(eyesim:::transport_v3_native_available())
+  reference <- transport_revision_path(c(2, 5, 9, 12), c(3, 7, 4, 8))
+  source <- transport_revision_path(c(2.4, 5.3, 8.6), c(3.2, 6.5, 4.4))
+  native <- gaze_transport_align(
+    reference, source,
+    gaze_transport_spec(backend = "optimized", multistart = 2L)
+  )
+  oracle <- gaze_transport_align(
+    reference, source,
+    gaze_transport_spec(backend = "reference", multistart = 2L)
+  )
+  expect_identical(native$convergence$backend, "native_rcpparmadillo")
+  expect_true(all(vapply(native$alignment$profile$fits, function(fit) {
+    "spatial_native" %in% names(fit$start_objectives)
+  }, logical(1))))
+  expect_lt(abs(native$log_score - oracle$log_score), 1e-6)
+})
+
+test_that("both backends read the chronology pseudo-count from one constant", {
+  skip_if_not(eyesim:::transport_v3_native_available())
+  reference <- transport_revision_path(c(2, 5, 9, 12), c(3, 7, 4, 8))
+  source <- transport_revision_path(c(2.4, 5.3, 8.6), c(3.2, 6.5, 4.4))
+  score <- function(backend) {
+    gaze_transport_align(
+      reference, source, gaze_transport_spec(backend = backend)
+    )$log_score
+  }
+  default <- score("optimized")
+  local_mocked_bindings(transport_v3_chronology_pseudo_count = 0.2)
+  native <- score("optimized")
+  oracle <- score("reference")
+  expect_gt(abs(native - default), 1e-4)
+  expect_lt(abs(native - oracle), 1e-6)
+})
+
+test_that("reaching maxit is recorded and scored, not an error", {
+  skip_if_not(eyesim:::transport_v3_native_available())
+  reference <- transport_revision_path(c(2, 5, 9, 12), c(3, 7, 4, 8))
+  source <- transport_revision_path(c(2.4, 5.3, 8.6), c(3.2, 6.5, 4.4))
+  spec <- gaze_transport_spec(backend = "optimized", step_size = 0.05, maxit = 5L)
+  expect_no_error(result <- gaze_transport_align(reference, source, spec))
+  expect_identical(result$convergence$status, "not_converged")
+  expect_identical(result$convergence$backend, "native_rcpparmadillo")
+  expect_false(result$convergence$fallback)
+  expect_true(is.finite(result$log_score))
+  expect_no_warning(
+    auto <- gaze_transport_align(
+      reference, source,
+      gaze_transport_spec(backend = "auto", step_size = 0.05, maxit = 5L)
+    )
+  )
+  expect_false(auto$convergence$fallback)
+})
+
+# Pair 94 of the review probe set (set.seed(11) generator).
+transport_revision_pair94 <- function() {
+  list(
+    reference = transport_revision_path(
+      c(20.1050154371187, 2.82494349312037, 7.02438600268215),
+      c(8.91253510117531, 15.691644763574, 4.01146831410006)
+    ),
+    source = transport_revision_path(
+      c(22.3944645132869, 8.49569070152938, 26.5495868250728),
+      c(7.96401504566893, 1.03310775477439, 11.2457623830996)
+    )
+  )
+}
+
+test_that("a plan with a zeroed support cell is not certified in place", {
+  pairs <- list(
+    transport_revision_pair94(),
+    list(
+      reference = transport_revision_path(
+        c(24.116132248193, 15.0186096066609, 2.27322669886053,
+          21.8344945404679),
+        c(7.28982275770977, 18.4285079068504, 14.6237265886739,
+          4.59919406240806)
+      ),
+      source = transport_revision_path(
+        c(23.551057927151, 14.9630431319283, 24.4763657430114),
+        c(6.9930906277275, 16.9068108187189, 6.88592172687604)
+      )
+    )
+  )
+  spec <- gaze_transport_spec(backend = "reference")
+  entropy <- utils::tail(spec$entropy_schedule, 1)
+  for (pair in pairs) {
+    reference <- eyesim:::as_transport_v3_measure(pair$reference, spec$chronology)
+    source <- eyesim:::as_transport_v3_measure(pair$source, spec$chronology)
+    swapped <- eyesim:::gaze_measure_order_key(reference) <
+      eyesim:::gaze_measure_order_key(source)
+    if (swapped) {
+      held <- reference
+      reference <- source
+      source <- held
+    }
+    cost <- eyesim:::gaze_spatial_cost(
+      reference$coords, source$coords, spec$spatial
+    )
+    rows <- seq_along(reference$mass)
+    columns <- seq_along(source$mass)
+    objective <- function(plan) {
+      eyesim:::transport_v3_objective(
+        plan[rows, columns, drop = FALSE], reference, source, cost, spec,
+        entropy
+      )$optimization
+    }
+    result <- gaze_transport_align(pair$reference, pair$source, spec)
+    fits <- result$alignment$profile$fits
+    converged <- which(vapply(fits, function(fit) {
+      identical(fit$status, "converged")
+    }, logical(1)))
+    fit <- fits[[converged[[ceiling(length(converged) / 2)]]]]
+    plan <- fit$augmented
+    if (swapped) plan <- t(plan)
+    for (what in c("real", "slack")) {
+      kernel <- plan
+      if (what == "real") {
+        cell <- which(plan[rows, columns] == max(plan[rows, columns]),
+                      arr.ind = TRUE)[1, ]
+        kernel[cell[[1]], cell[[2]]] <- 1e-250
+      } else {
+        kernel[which.max(plan[rows, ncol(plan)]), ncol(plan)] <- 1e-250
+      }
+      control <- spec$control
+      control$projection_tolerance <- 1e-12
+      trapped <- eyesim:::project_partial_coupling_revised(
+        kernel, reference$mass, source$mass, fit$coverage, control
+      )$plan
+      stage <- eyesim:::transport_v3_reference_stage_revised(
+        trapped, reference, source, cost, fit$coverage, spec, entropy
+      )
+      if (isTRUE(stage$converged)) {
+        expect_lte(
+          objective(stage$augmented), objective(plan) + 1e-4,
+          label = paste("trapped", what, "cell certified")
+        )
+      } else {
+        succeed()
+      }
+    }
+  }
 })
 
 test_that("cross-validation reports backend fallback counts", {
@@ -424,6 +571,10 @@ test_that("cross-validation reports backend fallback counts", {
   expect_identical(
     sum(clean$results$solver_stalled), clean$solver$heldout_stalled_count
   )
+  expect_identical(
+    sum(clean$results$solver_not_converged),
+    clean$solver$heldout_not_converged_count
+  )
 
   local_mocked_bindings(
     solve_transport_v3_profile_native = function(...) {
@@ -455,7 +606,11 @@ test_that("native and reference backends agree on random synthetic pairs", {
     expect_false(inherits(native, "error"))
     if (inherits(native, "error")) next
     oracle <- gaze_transport_align(pair$reference, pair$source, reference)
-    expect_true(native$convergence$converged)
+    # A projection-limited stall or maxit is a recorded outcome, not a
+    # failure. Near the projection-noise floor the two backends can end the
+    # same node with different such statuses, so only failures are excluded.
+    expect_false(identical(native$convergence$status, "numerical_failure"))
+    expect_false(identical(oracle$convergence$status, "numerical_failure"))
     expect_lt(abs(native$log_score - oracle$log_score), 1e-4)
   }
 })
