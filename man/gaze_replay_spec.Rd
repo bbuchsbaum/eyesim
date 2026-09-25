@@ -23,7 +23,14 @@ gaze_replay_spec(
 }
 \arguments{
 \item{grid_size}{Number of normalized duration-mass observations per recall
-trial.}
+trial. Under revision `"2026.10"`, a recall with fewer fixations than
+`grid_size` repeats each fixation across several bins. The HMM treats
+the repeats as independent observations, so replay and background are
+not identified. At typical settings (the default of 64 bins, recalls of
+5-30 fixations) the fitted background share is not interpretable, and a
+pure background null can still spread candidate scores. Fitting and
+[gaze_replay_cv()] report such recalls (a message and
+`provenance$repeated_grid_rows`). The default is unchanged.}
 
 \item{max_skip}{Maximum forward encoding-state jump in a local transition.}
 
@@ -70,8 +77,13 @@ density is estimated under revision `"2026.10"`. `NULL` pools all
 training recalls. Levels with fewer than three other training trials fall
 back to the pooled density; fitting reports this with a message and
 [gaze_replay_cv()] records the count in `provenance$background_fallback`.
-At scoring time the background excludes every item in the candidate
-pool, so it never depends on which candidate is true.}
+At scoring time the background excludes training rows whose
+exclusion key matches any candidate in the pool; it is never tied to
+the true candidate, so it does not depend on the label. The exclusion
+key is `setdiff(match_on, background_by)`. When `background_by` is not
+part of `match_on` (or is `NULL`), that key still contains the
+participant, so other participants' recalls of the candidate items stay
+in the background.}
 
 \item{background_support}{Background evaluation protocol under revision
 `"2026.10"`. `"training"` (default) estimates every background from
@@ -83,8 +95,14 @@ participant is unseen, so the population density is used and
 `background_by`) instead uses the evaluation participant's own recalls
 of items outside the scored row's candidate pool, available in the same
 evaluation fold, falling back to the training protocol when fewer than
-three such trials exist. Training fits always use the other training
-trials of the same level, excluding the fitted item.}
+three such trials exist. It can engage only with an item-level split and
+a `contrast_on` that divides each participant's items into blocks, so
+that other-block recalls share the evaluation fold. Under participant
+holdout with shared items every item is a candidate, and it never
+engages. `"held_out"` is transductive: it reads the item labels of other
+evaluation rows to decide which recalls lie outside the pool, so it
+cannot be used on unlabelled recalls. Training fits always use the other
+training trials of the same level, excluding the fitted item.}
 }
 \value{
 A frozen `gaze_replay_spec`.

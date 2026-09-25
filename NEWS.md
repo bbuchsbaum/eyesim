@@ -16,10 +16,17 @@
       recalls only. The `background_by` level is used when it has at least
       three trials, otherwise the population density.
     - Under `"held_out"` (opt-in), a held-out participant's own recalls of
-      items outside the scored row's candidate pool are used.
-    - At scoring time the background excludes the whole candidate pool, so it
-      never depends on which candidate is true. If that exclusion would leave
-      fewer than three trials, nothing is excluded. An earlier draft excluded
+      items outside the scored row's candidate pool are used. It engages only
+      with an item-level split and a `contrast_on` that blocks items; it never
+      engages under participant holdout with shared items. It is
+      transductive: it reads other evaluation rows' item labels, so it cannot
+      be used on unlabelled recalls.
+    - At scoring time the background drops training rows whose exclusion key
+      (`setdiff(match_on, background_by)`) matches any candidate in the pool,
+      never only the true one, so it is independent of the label. When
+      `background_by` is not in `match_on`, that key includes the participant,
+      so other participants' recalls of the candidate items remain. If the
+      exclusion would leave fewer than three trials, nothing is excluded. An earlier draft excluded
       only the true item, which leaked the label: on an ambiguous null, top-1
       accuracy with two candidates rose from 0.48 to 0.90.
     - Pooled fallbacks are reported by a message and counted in
@@ -41,9 +48,16 @@
     independent emissions. When fixations span several bins, the repeated
     coordinates favour sharp replay states, so replay and background are not
     identified. On a uniform on-screen null the fitted background share is
-    0.94 with one bin per fixation, but about 0.5 with two. No
-    background-share recovery is claimed in that regime. A semi-Markov
-    Replay is planned.
+    0.94 with one bin per fixation, but about 0.5 with two. This is the
+    typical case: the default `grid_size = 64` exceeds most recalls'
+    fixation counts. On a pure-uniform null with 20-30 fixations at 64
+    bins, the background share is 0.44-0.62 and candidate scores spread by
+    0.2-0.5 nats. At typical settings the fitted background share is
+    therefore not interpretable, and no background-share recovery is
+    claimed. Fitting and `gaze_replay_cv()` report recalls with fewer
+    fixations than `grid_size`, via a message and
+    `provenance$repeated_grid_rows`. The default `grid_size` is unchanged.
+    A semi-Markov Replay is planned.
   - Fitted models record `revision`, EM diagnostics (`training$em`), and the
     background model. Their `version` is 5.
   - `gaze_replay_align()` and `gaze_replay_align_episode()` gain

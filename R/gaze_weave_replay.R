@@ -27,7 +27,14 @@ validate_replay_probability_grid <- function(grid) {
 #' are selected using training trials only by [fit_gaze_replay_model()].
 #'
 #' @param grid_size Number of normalized duration-mass observations per recall
-#'   trial.
+#'   trial. Under revision `"2026.10"`, a recall with fewer fixations than
+#'   `grid_size` repeats each fixation across several bins. The HMM treats
+#'   the repeats as independent observations, so replay and background are
+#'   not identified. At typical settings (the default of 64 bins, recalls of
+#'   5-30 fixations) the fitted background share is not interpretable, and a
+#'   pure background null can still spread candidate scores. Fitting and
+#'   [gaze_replay_cv()] report such recalls (a message and
+#'   `provenance$repeated_grid_rows`). The default is unchanged.
 #' @param max_skip Maximum forward encoding-state jump in a local transition.
 #' @param student_df Degrees of freedom for robust bivariate Student emissions.
 #' @param scale_floor Positive lower bound for fitted spatial scales.
@@ -63,8 +70,13 @@ validate_replay_probability_grid <- function(grid) {
 #'   training recalls. Levels with fewer than three other training trials fall
 #'   back to the pooled density; fitting reports this with a message and
 #'   [gaze_replay_cv()] records the count in `provenance$background_fallback`.
-#'   At scoring time the background excludes every item in the candidate
-#'   pool, so it never depends on which candidate is true.
+#'   At scoring time the background excludes training rows whose
+#'   exclusion key matches any candidate in the pool; it is never tied to
+#'   the true candidate, so it does not depend on the label. The exclusion
+#'   key is `setdiff(match_on, background_by)`. When `background_by` is not
+#'   part of `match_on` (or is `NULL`), that key still contains the
+#'   participant, so other participants' recalls of the candidate items stay
+#'   in the background.
 #' @param background_support Background evaluation protocol under revision
 #'   `"2026.10"`. `"training"` (default) estimates every background from
 #'   training recalls only: the `background_by` level when it has at least
@@ -75,8 +87,14 @@ validate_replay_probability_grid <- function(grid) {
 #'   `background_by`) instead uses the evaluation participant's own recalls
 #'   of items outside the scored row's candidate pool, available in the same
 #'   evaluation fold, falling back to the training protocol when fewer than
-#'   three such trials exist. Training fits always use the other training
-#'   trials of the same level, excluding the fitted item.
+#'   three such trials exist. It can engage only with an item-level split and
+#'   a `contrast_on` that divides each participant's items into blocks, so
+#'   that other-block recalls share the evaluation fold. Under participant
+#'   holdout with shared items every item is a candidate, and it never
+#'   engages. `"held_out"` is transductive: it reads the item labels of other
+#'   evaluation rows to decide which recalls lie outside the pool, so it
+#'   cannot be used on unlabelled recalls. Training fits always use the other
+#'   training trials of the same level, excluding the fitted item.
 #'
 #' @return A frozen `gaze_replay_spec`.
 #' @export
@@ -1676,6 +1694,17 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
   results <- results[order(results[["..gaze_row_id"]]), , drop = FALSE]
   results[["..gaze_row_id"]] <- NULL
   background_fallback <- NULL
+  repeated_grid_rows <- NULL
+  if (revision_2026_10) {
+    repeated_grid_rows <- as.integer(sum(
+      results$coalesced_fixation_count < spec$grid_size
+    ))
+    if (repeated_grid_rows > 0L) {
+      message(gaze_replay_repeated_grid_message(
+        repeated_grid_rows, nrow(results), "scored recalls", spec$grid_size
+      ))
+    }
+  }
   if (revision_2026_10) {
     background_fallback <- list(
       background_by = spec$background_by,
@@ -1690,9 +1719,11 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
       message(
         "Replay: ", unseen_level_n, " scored rows belong to background_by ",
         "levels absent from their training fold (e.g. held-out ",
-        "participants); they use the population background. Set ",
-        "background_support = \"held_out\" to use their own non-candidate ",
-        "recalls instead."
+        "participants); they use the population background. ",
+        "background_support = \"held_out\" cannot help here: it needs an ",
+        "item-level split and a contrast_on that blocks items, so that ",
+        "non-candidate recalls of the same participant share the evaluation ",
+        "fold."
       )
     }
     if (!is.null(spec$background_by) &&
@@ -1727,6 +1758,7 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
         reliability = spec$reliability,
         revision = if (is.null(spec$revision)) "2026.08" else spec$revision,
         background_fallback = background_fallback,
+        repeated_grid_rows = repeated_grid_rows,
         seed = seed,
         n_folds = folds$n_folds
       )

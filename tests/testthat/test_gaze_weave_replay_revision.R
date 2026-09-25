@@ -702,3 +702,46 @@ test_that("undeclared screens and pooled background fallbacks are reported", {
   expect_gt(fit$provenance$background_fallback$scored_rows, 0L)
   expect_true("pooled" %in% fit$results$background_level)
 })
+
+test_that("grids longer than the recall's fixation count are reported", {
+  data <- simulate_replay_hmm(n_participants = 2L, n_items = 4L,
+                              n_bins = 16L, seed = 10L)
+  exact <- make_revision_spec(n_bins = 16L)
+  repeated <- make_revision_spec(n_bins = 32L)
+
+  expect_no_message(
+    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
+                          spec = exact),
+    message = "repeat"
+  )
+  expect_message(
+    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
+                          spec = repeated),
+    "8 of 8 training recalls have fewer fixations than grid_size"
+  )
+  fit <- suppressMessages(gaze_replay_cv(
+    data$ref, data$src, match_on = c("participant", "image_id"),
+    contrast_on = "participant", n_folds = 2, seed = 2, spec = repeated
+  ))
+  expect_identical(fit$provenance$repeated_grid_rows, nrow(data$src))
+})
+
+test_that("the participant-holdout message does not recommend held-out support", {
+  data <- held_out_protocol_data()
+  messages <- character()
+  withCallingHandlers(
+    gaze_replay_cv(
+      data$ref, data$src, match_on = c("participant", "image_id"),
+      contrast_on = NULL, split_on = "participant",
+      n_folds = 3, seed = 1, spec = make_revision_spec(n_bins = 16L)
+    ),
+    message = function(m) {
+      messages <<- c(messages, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  holdout <- grep("absent from their training fold", messages, value = TRUE)
+
+  expect_length(holdout, 1L)
+  expect_match(holdout, "item-level split", fixed = TRUE)
+})

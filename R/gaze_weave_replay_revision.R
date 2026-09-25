@@ -57,6 +57,17 @@ note_gaze_replay_plane <- function(spec) {
   invisible(TRUE)
 }
 
+gaze_replay_repeated_grid_message <- function(count, total, what,
+                                              grid_size) {
+  paste0(
+    "Replay: ", count, " of ", total, " ", what, " have fewer fixations ",
+    "than grid_size = ", grid_size, ", so fixations repeat across ",
+    "duration bins. Replay and background are then not identified: the ",
+    "fitted background share is not interpretable, and candidate scores can ",
+    "differ under a pure background null."
+  )
+}
+
 # Screen geometry ------------------------------------------------------------
 
 gaze_replay_screen_rect <- function(screen) {
@@ -654,6 +665,15 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
   })
   names(emission_models) <- groups
   background$floor_weight <- em$floor_weight
+  fixation_count <- vapply(episodes, function(episode) {
+    nrow(episode$source$coords)
+  }, integer(1))
+  repeated_n <- sum(fixation_count < spec$grid_size)
+  if (repeated_n > 0L) {
+    message(gaze_replay_repeated_grid_message(
+      repeated_n, length(fixation_count), "training recalls", spec$grid_size
+    ))
+  }
   fallback_n <- sum(background_level != "participant")
   if (!is.null(background_by) && fallback_n > 0L) {
     message(
@@ -668,7 +688,8 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
     parameters = em$parameters,
     background = background,
     screen = rect,
-    em = em[setdiff(names(em), c("parameters", "replay_scale"))],
+    em = c(em[setdiff(names(em), c("parameters", "replay_scale"))],
+           list(repeated_grid_rows = repeated_n)),
     background_level = background_level
   )
 }
