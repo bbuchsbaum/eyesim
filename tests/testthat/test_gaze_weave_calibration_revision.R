@@ -245,6 +245,35 @@ test_that("rank and top-1 follow the ranking score when the prior is returned", 
   expect_equal(evidence$gaze_info_bits, 0)
 })
 
+test_that("rank and top-1 do not depend on the inverse temperature", {
+  # Two-episode candidates. As beta -> 0 the tempered log mean ranks by the
+  # arithmetic episode mean (a: -5 < b: -3), at beta = 1 by the log mean
+  # (a: log((1 + e^-10) / 2) ~ -0.69 > b: -3). Rank and top-1 must use one
+  # fixed score whatever the fitted beta; only the probabilities change.
+  profile <- list(a = c(0, -10), b = c(-3, -3))
+  calibration_at <- function(beta) {
+    list(inverse_temperature = beta, gamma = 0, evidence_reference = 1,
+         temperature_bounds = NULL)
+  }
+  rows <- lapply(c(0, 1e-6, 0.5, 1), function(beta) {
+    eyesim:::score_gaze_calibrated_row(profile, true_index = 2L, evidence = 3,
+                                       calibration = calibration_at(beta))
+  })
+  for (row in rows) {
+    expect_identical(row$template_rank, 2)
+    expect_identical(row$top1_credit, 0)
+    expect_identical(row$tied_candidates, 1L)
+  }
+  expect_equal(rows[[1]]$candidates$posterior, c(0.5, 0.5))
+  expect_gt(rows[[4]]$candidates$posterior[[1]], 0.5)
+  # Label independence: relabelling a as true gives the complementary rank.
+  other <- eyesim:::score_gaze_calibrated_row(
+    profile, true_index = 1L, evidence = 3, calibration = calibration_at(1e-6)
+  )
+  expect_identical(other$template_rank, 1)
+  expect_identical(other$top1_credit, 1)
+})
+
 # Engine fixtures ------------------------------------------------------------
 
 calibration_screen_w <- 30
@@ -414,6 +443,78 @@ test_that("a pre-A3 2026.10 specification reproduces its calibration exactly", {
                       contrast_on = "participant", n_folds = 2, spec = spec)
   }
   expect_identical(strip(run(saved)), strip(run(global)))
+})
+
+# Two study presentations per candidate with unrelated encodings, and
+# random recalls: episode scores disagree, so a tempered log mean would rank
+# differently at different temperatures.
+simulate_two_episode_transport <- function(seed, n_participants = 3,
+                                           n_items = 4) {
+  calibration_with_seed(seed, {
+    ref <- expand.grid(item = seq_len(n_items),
+                       participant = paste0("p", seq_len(n_participants)),
+                       presentation = 1:2, stringsAsFactors = FALSE)
+    ref$fixgroup <- lapply(seq_len(nrow(ref)), function(i) {
+      calibration_uniform_path(6)
+    })
+    src <- expand.grid(item = seq_len(n_items),
+                       participant = paste0("p", seq_len(n_participants)),
+                       stringsAsFactors = FALSE)
+    src$fixgroup <- lapply(seq_len(nrow(src)), function(i) {
+      calibration_uniform_path(sample(c(2, 8), 1))
+    })
+    list(ref = tibble::as_tibble(ref), src = tibble::as_tibble(src))
+  })
+}
+
+test_that("multi-episode Transport top-1 and AUC do not depend on the calibration", {
+  data <- simulate_two_episode_transport(2)
+  run <- function(control, reliability = "none") {
+    gaze_transport_cv(
+      data$ref, data$src, match_on = c("participant", "item"),
+      contrast_on = "participant", n_folds = 2, seed = 1,
+      episode_on = "presentation",
+      spec = calibration_transport_spec(reliability = reliability,
+                                        calibration_control = control)
+    )
+  }
+  none <- function(...) gaze_calibration_control(typicality = "none", ...)
+  fits <- list(
+    scaled = run(none()),
+    unshrunk = run(none(stein_shrinkage = FALSE)),
+    global = run(gaze_calibration_control(method = "global"),
+                 reliability = "effective_fixations")
+  )
+  # A Stein factor of zero in every fold returns the declared prior.
+  fit_original <- eyesim:::fit_gaze_evidence_calibration
+  local_mocked_bindings(
+    fit_gaze_evidence_calibration = function(...) {
+      fit <- fit_original(...)
+      fit$inverse_temperature <- 0
+      fit$standardized_inverse_temperature <- 0
+      fit$gamma <- 0
+      fit$stein_factor <- 0
+      fit
+    },
+    .package = "eyesim"
+  )
+  fits$prior <- run(none())
+  expect_true(all(fits$prior$results$gaze_info_bits == 0))
+  expect_true(any(fits$unshrunk$results$inverse_temperature > 0))
+  # The probabilities differ across calibrations ...
+  expect_false(isTRUE(all.equal(fits$unshrunk$results$posterior_true,
+                                fits$prior$results$posterior_true)))
+  # ... but rank, top-1 and the per-row AUC are identical.
+  auc <- function(fit) {
+    (fit$results$candidate_count - fit$results$template_rank) /
+      (fit$results$candidate_count - 1)
+  }
+  for (fit in fits[-1]) {
+    expect_identical(fit$results$template_rank, fits$scaled$results$template_rank)
+    expect_identical(fit$results$top1_credit, fits$scaled$results$top1_credit)
+    expect_identical(auc(fit), auc(fits$scaled))
+  }
+  expect_true(all(fits$scaled$results$common_episode_count == 2L))
 })
 
 test_that("typicality offsets use training recalls of other items only", {
@@ -722,8 +823,7 @@ test_that("revision 2026.08 and the global method reproduce pre-A3 fits exactly"
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------
 
 skip_unless_slow_calibration <- function() {
-  skip_if_not(identical(Sys.getenv("EYESIM_SLOW_TESTS"), "true"),
-              "slow calibration check")
+  skip_unless_slow_tests("slow calibration check")
 }
 
 # Pool held-out rows over seeds. `top1` credit against chance 1/K.
@@ -743,9 +843,8 @@ pool_null <- function(fits) {
 
 # Share of held-out rows whose argmax candidate has a central encoding,
 # per central candidate (chance 1 / K).
-# The argmax uses the (offset-adjusted) ranking score, which the posterior
-# preserves whenever the inverse temperature is positive; when a fold's
-# calibration returns the prior every posterior ties.
+# The argmax uses the (offset-adjusted) ranking score, which is also what
+# rank and top-1 use under every calibration.
 central_share <- function(fits, is_central) {
   wins <- unlist(lapply(fits, function(fit) {
     vapply(fit$results$candidates, function(candidates) {
@@ -839,10 +938,10 @@ test_that("the typicality offset removes the central-candidate advantage", {
 
 # Known limitation, pinned so that a fix is noticed: for Replay the offset
 # lowers the central share (0.30 -> 0.27 in the A3 study) but does not bring
-# it within MC error of 1 / K. Replay's total log likelihoods are heavy
-# tailed and their per-candidate variances differ by three orders of
-# magnitude, which neither a mean nor a scale offset equalises; the offset is
-# therefore opt-in for Replay.
+# it within MC error of 1 / K. Under these nulls the HMM background absorbs
+# most recalls and most pools are near-ties (57% of rows within 0.01 nats);
+# the residual bias is the argmax among near-ties, which no offset removes.
+# The offset is therefore opt-in for Replay.
 test_that("the Replay typicality offset reduces but does not remove central bias", {
   skip_unless_slow_calibration()
   central <- function(candidate) candidate$image_id %% 3 == 1

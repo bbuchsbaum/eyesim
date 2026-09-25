@@ -26,8 +26,28 @@
 #' geometric mean over the calibration rows. \eqn{T} and \eqn{\gamma} are
 #' fitted jointly by minimising the candidate log loss of inner out-of-fold
 #' rows; no held-out row enters the fit. \eqn{\gamma = 0} is one global
-#' temperature. This is a calibration device: within a row it never changes
-#' the ranking of the candidates.
+#' temperature.
+#'
+#' **Ranking.** Calibration changes probabilities and bits only. Under
+#' revision `"2026.10"`, `template_rank` and `top1_credit` (and any AUC
+#' computed from ranks) always use one fixed reference ranking: the log
+#' posterior at inverse temperature one, \eqn{\log \pi_k + r_k}, where
+#' \eqn{r_k} is the engine's native candidate score after any typicality
+#' offset (Transport: the log mean of the episode scores; Replay: the trial
+#' log likelihood) and \eqn{\pi_k} the declared prior (uniform unless
+#' `priorvar` is given). This holds for both methods and every fitted
+#' \eqn{T}, \eqn{\gamma} or Stein factor, including a calibration that
+#' returns the prior. The ranking cannot be read off the calibrated
+#' probabilities: for multi-episode Transport the inverse temperature acts
+#' inside the log mean over episodes, which ranks by the arithmetic episode
+#' mean as \eqn{1/T \to 0} and by the log mean at \eqn{T = 1}. Transport
+#' per-episode ranks use the same rule. The reference score uses no label,
+#' so relabelling a row permutes it but never changes it. Ties use a
+#' relative tolerance of \eqn{\sqrt{\epsilon}} on this log scale.
+#' Replay's trial log likelihoods are often near-ties (see `typicality`), so
+#' a Replay top-1 or AUC should be computed from the candidate tables'
+#' `ranking_score` with a tie tolerance declared before the analysis (for
+#' example 0.01 nats), splitting credit among tied candidates.
 #'
 #' The fit penalises the standardised inverse temperature
 #' \eqn{\tilde\beta = \sigma / T} with a Gaussian prior centred at zero, where
@@ -87,12 +107,18 @@
 #'
 #' @param method `"evidence_scaled"` (default) fits \eqn{T} and \eqn{\gamma}
 #'   as described. `"global"` reproduces the pre-A3 revision `"2026.10"`
-#'   calibration exactly: one temperature with a log-normal prior centred at
+#'   calibration: one temperature with a log-normal prior centred at
 #'   one and, when the engine's `reliability` is `"effective_fixations"`,
 #'   the \eqn{\kappa} shrink. The pre-change Transport default used that
-#'   shrink, so reproducing it needs `reliability = "effective_fixations"`
-#'   passed explicitly. Fit outputs then match; the specification itself
-#'   additionally carries this control.
+#'   shrink, so reproducing pre-A3 `"2026.10"` requires
+#'   `reliability = "effective_fixations"` passed explicitly; with the
+#'   (new) default `reliability = "none"` the global path fits a different
+#'   model. Probabilities and bits then match exactly; the specification
+#'   additionally carries this control. Rank and top-1 use the reference
+#'   ranking described under Ranking, so they differ from the pre-change
+#'   values only in rows where the fitted temperature or the \eqn{\kappa}
+#'   mixture had reordered the candidates (multi-episode Transport, or a
+#'   non-uniform prior).
 #' @param gamma_bounds Bounds for \eqn{\gamma}; equal values fix it (for
 #'   example `c(0, 0)` for one global temperature with the new prior).
 #' @param inverse_temperature_prior_sd Standard deviation of the zero-centred
@@ -111,10 +137,16 @@
 #'   central-candidate argmax share per candidate from 0.40 to 0.16 (chance
 #'   0.167, MC error 0.020) without lowering top-1 or AUC on signal data.
 #'   For Replay it lowered the share only from 0.30 to about 0.25-0.27
-#'   (MC error 0.015): its candidate scores (total log likelihoods) are
-#'   heavy-tailed, and the per-candidate variance ratio across held-out rows
-#'   exceeded 1000, which neither a mean nor a scale offset equalises. It is
-#'   therefore opt-in for Replay.
+#'   (MC error 0.015), and it is therefore opt-in for Replay. The residual
+#'   is not a heavy-tail effect. Under these nulls the HMM background state
+#'   absorbs most recall fixations, so the candidates' likelihoods nearly
+#'   coincide: in 57\% of held-out rows every candidate lay within 0.01
+#'   nats of the others. The very large per-candidate SD ratio across rows
+#'   comes from these near-degenerate pools, and the central bias from the
+#'   argmax among near-ties: central candidates won 0.54 of the tie rows
+#'   against a 0.37 share of the candidates (few rows, so imprecise). An
+#'   offset cannot remove it; a pre-declared tie tolerance for top-1 and
+#'   AUC (see Ranking) is the appropriate treatment.
 #' @param typicality_sources Maximum number of training recalls used per
 #'   fold to estimate every candidate's offset.
 #' @param typicality_item_on Columns defining an "item" for the
@@ -469,7 +501,9 @@ gaze_evidence_calibration_fallback <- function(control, temperature_bounds,
   )
 }
 
-# Held-out evidence for one row under a fitted evidence calibration.
+# Held-out evidence for one row under a fitted evidence calibration. The
+# calibration sets the probabilities and bits; rank and top-1 always come
+# from the fixed reference ranking (see gaze_reference_rank()).
 score_gaze_calibrated_row <- function(profile, true_index, evidence,
                                       calibration, candidate_key = NULL,
                                       prior = NULL,
@@ -489,41 +523,47 @@ score_gaze_calibrated_row <- function(profile, true_index, evidence,
   # normalised likelihood when an offset was subtracted).
   ranking <- vapply(profile, gaze_log_mean_exp, numeric(1))
   result$candidates$ranking_score <- ranking
-  if (beta == 0) {
-    # The calibration returned the declared prior, so every posterior equals
-    # the prior. Rank and top-1 then use the limit of a vanishing inverse
-    # temperature: the prior first, ties broken by the ranking score.
-    rank <- gaze_lexicographic_rank(
-      result$candidates$prior, ranking, true_index
-    )
-    result$template_rank <- rank[["template_rank"]]
-    result$top1_credit <- rank[["top1_credit"]]
-    result$tied_candidates <- as.integer(rank[["tied_candidates"]])
-  }
-  result
+  gaze_apply_reference_rank(result, ranking, true_index)
 }
 
-# Rank of the true candidate ordering first by `primary` (the declared
-# prior) and then by `secondary` (the ranking score), each with the usual
-# relative tie tolerance.
-gaze_lexicographic_rank <- function(primary, secondary, true_index,
-                                    tolerance = sqrt(.Machine$double.eps)) {
-  same <- function(values, index) {
-    abs(values - values[[index]]) <=
-      tolerance * max(1, abs(values[[index]]))
+# The calibration-independent ranking of one row: the log posterior at the
+# reference inverse temperature one, log prior_k + r_k, where r_k is the
+# engine's native candidate score after any typicality offset (Transport:
+# the log mean of the episode scores; Replay: the trial log likelihood).
+# A fitted inverse temperature below one would move a multi-episode
+# Transport ranking toward the arithmetic episode mean, and a zero one would
+# tie every candidate, so rank and top-1 never use the fitted calibration.
+# Ties use a relative tolerance on this log scale, declared here once. The
+# score uses no label, so relabelling a row permutes, never changes, it.
+gaze_reference_rank <- function(ranking_score, prior, true_index,
+                                tolerance = sqrt(.Machine$double.eps)) {
+  value <- log(normalize_gaze_prior(prior, length(ranking_score))) +
+    ranking_score
+  target <- value[[true_index]]
+  if (target == -Inf) {
+    better <- sum(value > -Inf)
+    tied <- sum(value == -Inf)
+  } else {
+    threshold <- tolerance * max(1, abs(target))
+    better <- sum(value > target + threshold)
+    tied <- sum(abs(value - target) <= threshold)
   }
-  primary_tie <- same(primary, true_index)
-  secondary_tie <- same(secondary, true_index)
-  better <- sum(
-    (!primary_tie & primary > primary[[true_index]]) |
-      (primary_tie & !secondary_tie & secondary > secondary[[true_index]])
-  )
-  tied <- sum(primary_tie & secondary_tie)
   c(
     template_rank = 1 + better + (tied - 1) / 2,
     top1_credit = if (better == 0) 1 / tied else 0,
     tied_candidates = tied
   )
+}
+
+# Replace the rank fields of a scored row with the reference ranking.
+gaze_apply_reference_rank <- function(evidence, ranking_score, true_index) {
+  rank <- gaze_reference_rank(
+    ranking_score, evidence$candidates$prior, true_index
+  )
+  evidence$template_rank <- unname(rank[["template_rank"]])
+  evidence$top1_credit <- unname(rank[["top1_credit"]])
+  evidence$tied_candidates <- as.integer(rank[["tied_candidates"]])
+  evidence
 }
 
 # Cross-fitted calibration summary shared by both engines' CV results.

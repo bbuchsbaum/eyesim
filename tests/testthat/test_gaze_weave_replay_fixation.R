@@ -523,8 +523,7 @@ test_that("revision 2026.08 reproduces its frozen cross-fitted fit exactly", {
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------
 
 test_that("a group-density null gives no candidate preference beyond MC error", {
-  skip_if_not(identical(Sys.getenv("EYESIM_SLOW_TESTS"), "true"),
-              "slow Replay null check")
+  skip_unless_slow_tests("slow Replay null check")
   top1 <- bits <- chance <- numeric()
   for (seed in 1:4) {
     data <- simulate_fixation_replay(n_participants = 4L, n_items = 8L,
@@ -543,5 +542,8 @@ test_that("a group-density null gives no candidate preference beyond MC error", 
   mc_error <- sqrt(sum(chance * (1 - chance))) / length(top1)
 
   expect_lt(abs(mean(top1) - mean(chance)), 3 * mc_error)
-  expect_lt(mean(bits), 3 * stats::sd(bits) / sqrt(length(bits)))
+  # No overconfidence beyond MC error. When the Stein factor returns the
+  # declared prior in every fold, every row has exactly zero bits and the
+  # MC error is zero, so the boundary itself (equality) is the ideal outcome.
+  expect_lte(mean(bits), 3 * stats::sd(bits) / sqrt(length(bits)))
 })

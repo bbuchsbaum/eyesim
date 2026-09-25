@@ -617,7 +617,7 @@ test_that("native and reference backends agree on random synthetic pairs", {
 
 test_that("native backend never fails on 150 random synthetic pairs", {
   skip_on_cran()
-  skip_if_not(nzchar(Sys.getenv("EYESIM_SLOW_TESTS")))
+  skip_unless_slow_tests("native backend stress check")
   skip_if_not(eyesim:::transport_v3_native_available())
   pairs <- transport_revision_pairs(150L, 2:12, seed = 11L)
   optimized <- gaze_transport_spec(backend = "optimized")

@@ -1,0 +1,11 @@
+test_that("the slow-test gate accepts any non-empty value but false and 0", {
+  expect_true(eyesim_slow_tests_enabled("true"))
+  expect_true(eyesim_slow_tests_enabled("TRUE"))
+  expect_true(eyesim_slow_tests_enabled("1"))
+  expect_true(eyesim_slow_tests_enabled("yes"))
+  expect_false(eyesim_slow_tests_enabled(""))
+  expect_false(eyesim_slow_tests_enabled("false"))
+  expect_false(eyesim_slow_tests_enabled("FALSE"))
+  expect_false(eyesim_slow_tests_enabled("0"))
+  expect_false(eyesim_slow_tests_enabled(" "))
+})

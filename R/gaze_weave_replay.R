@@ -1606,6 +1606,11 @@ score_gaze_replay_row <- function(source_row, ref_eval, match_on, contrast_on,
       reliability = reliability,
       candidate_pool_id = paste0("held-out:", source_contrast_key)
     )
+    if (identical(model$revision, "2026.10")) {
+      # Rank and top-1 never depend on the calibration under 2026.10.
+      evidence <- gaze_apply_reference_rank(evidence, raw_score,
+                                            true_candidate)
+    }
   }
   first_row <- vapply(candidate_key, function(key) {
     candidate_rows[which(ref_match_key[candidate_rows] == key)[[1L]]]

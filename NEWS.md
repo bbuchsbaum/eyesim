@@ -174,9 +174,8 @@
     (Transport: duration-effective recall fixations; Replay: recall
     fixations) and `n_ref` is their geometric mean over the calibration
     rows. `T` and `gamma` in `[0, 1]` are fitted jointly on inner
-    out-of-fold rows only. `gamma = 0` is one global temperature. This is
-    calibration only: rankings within a row do not change. The engine's
-    lower temperature bound caps every row's confidence.
+    out-of-fold rows only. `gamma = 0` is one global temperature. The
+    engine's lower temperature bound caps every row's confidence.
     Results gain `temperature` (per row), `inverse_temperature` and
     `evidence_count`; `fit$calibration$fold_calibration` records each
     fold's fit.
@@ -190,19 +189,41 @@
     `max(0, 1 - p / LR)`, with `LR` the inner likelihood-ratio statistic
     against the declared prior and `p` the number of free parameters. With
     a few dozen inner rows a null fit otherwise returns a positive inverse
-    temperature about half the time. When a fold's calibration returns the
-    prior, `template_rank` and `top1_credit` order candidates by the
-    declared prior and then by the ranking score; probabilities (and any
-    AUC computed from them) then carry no ranking information.
+    temperature about half the time.
+  - **Ranking is calibration-independent.** Calibration changes
+    probabilities and bits only. Under `"2026.10"`, `template_rank` and
+    `top1_credit` (candidate and per-episode) come from one fixed,
+    label-free reference ranking for both engines and both methods:
+    `log prior_k + r_k`, with `r_k` the native candidate score after any
+    typicality offset (Transport: log mean of the episode scores at inverse
+    temperature one; Replay: trial log likelihood), whatever the fitted `T`,
+    `gamma` or Stein factor. Previously they followed the calibrated
+    posterior. That is not calibration-invariant for multi-episode
+    Transport, whose inverse temperature acts inside the log mean over
+    episodes: episodes a = (0, -10) and b = (-3, -3) rank b first as
+    `1/T -> 0` (arithmetic mean) but a first at `T = 1`. The earlier rule for
+    a calibration that returns the prior (prior first, then the ranking
+    score) was therefore not the `1/T -> 0` limit, and the claim that
+    calibration never changes the ranking was false for multi-episode
+    Transport. A test pins identical top-1 and rank AUC across
+    `"evidence_scaled"`, `"global"`, an unshrunk fit and a Stein factor of
+    zero on a two-episode Transport CV. AUC should be computed from ranks
+    or `ranking_score`, not from the calibrated probabilities.
   - **Kappa.** The effective-fixation reliability shrink is dropped from
     the default: it could only temper sparse rows, and with `gamma` it was
     a second, weakly identified parameter on the same axis. Transport's
     `reliability` now defaults to `"none"` under `"2026.10"`, and
     `"effective_fixations"` requires
-    `gaze_calibration_control(method = "global")`. That method, with
-    `reliability = "effective_fixations"` passed explicitly for Transport,
-    reproduces the pre-change `"2026.10"` fit outputs exactly; a saved
-    `"2026.10"` specification without a control is treated the same way.
+    `gaze_calibration_control(method = "global")`. That method reproduces
+    the pre-change `"2026.10"` probabilities and bits exactly only with
+    `reliability = "effective_fixations"` passed explicitly for Transport
+    (the new default `"none"` fits a different model); a saved `"2026.10"`
+    specification without a control is treated the same way. Its rank and
+    top-1 follow the reference ranking above and so differ from the
+    pre-change values only where the fitted temperature or kappa mixture had
+    reordered candidates (multi-episode Transport or a non-uniform prior);
+    the pinned fixture, single-episode with a uniform prior, is
+    `identical()`.
   - **Typicality offset** (default `"standardized"` for Transport, `"none"`
     for Replay). `typicality = "mean"` subtracts each
     candidate's mean score against a seeded, item-balanced subsample of the
@@ -241,8 +262,17 @@
       error 0.015). The offsets equalise the candidates' held-out means
       (Transport between-candidate SD 0.32 to 0.08) but not their
       variances: the per-candidate SD ratio was 9.3 before and 6.0 after
-      `"standardized"` (11.1 after `"mean"`) for Transport, and above 1900
-      for Replay before and after.
+      `"standardized"` (11.1 after `"mean"`) for Transport. For Replay it
+      exceeded 1900 before and after, but this is not a heavy-tail effect:
+      under these nulls the HMM background absorbs most recall fixations,
+      and in 57% of rows every candidate lay within 0.01 nats of the
+      others. The SD ratio comes from these near-degenerate pools, and
+      Replay's residual central bias from the argmax among near-ties
+      (central candidates won 0.54 of the tie rows against a 0.37 share of
+      candidates; few rows). Replay top-1 and AUC should therefore be
+      computed from `ranking_score` with a tie tolerance declared in
+      advance (for example 0.01 nats), splitting credit among tied
+      candidates.
     - Discrimination on signal data: Transport top-1 0.781 / AUC 0.942
       without an offset, 0.781 / 0.944 with `"standardized"`, 0.771 / 0.940
       with `"mean"`; Replay 0.938 / 0.985 without, 0.951 / 0.988 with

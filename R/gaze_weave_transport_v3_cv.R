@@ -543,17 +543,42 @@ transport_v3_calibrated_evidence <- function(scored, calibration, typicality,
     ranking <- vapply(profile, function(scores) {
       beta * scores[[episode_id]]
     }, numeric(1))
-    score_gaze_candidates(
-      ranking, true_index = scored$true_index,
-      candidate_key = names(profile), prior = scored$prior,
-      temperature = 1,
-      candidate_pool_id = paste0(candidate_pool_id, ":", episode_id)
+    gaze_apply_reference_rank(
+      score_gaze_candidates(
+        ranking, true_index = scored$true_index,
+        candidate_key = names(profile), prior = scored$prior,
+        temperature = 1,
+        candidate_pool_id = paste0(candidate_pool_id, ":", episode_id)
+      ),
+      vapply(profile, function(scores) scores[[episode_id]], numeric(1)),
+      scored$true_index
     )
   })
   names(episode_evidence) <- scored$common_episode_ids
   scored$evidence <- evidence
   scored$episode_evidence <- episode_evidence
   scored$evidence_count <- evidence_count
+  scored
+}
+
+# Revision 2026.10 rank and top-1 of a row scored at a fitted temperature
+# (the "global" calibration): the reference ranking of the untempered episode
+# scores, for the candidate and for every episode.
+transport_v3_reference_rank <- function(scored) {
+  scored$evidence <- gaze_apply_reference_rank(
+    scored$evidence, vapply(scored$profile, gaze_log_mean_exp, numeric(1)),
+    scored$true_index
+  )
+  scored$episode_evidence <- stats::setNames(lapply(
+    scored$common_episode_ids, function(episode_id) {
+      gaze_apply_reference_rank(
+        scored$episode_evidence[[episode_id]],
+        vapply(scored$profile, function(scores) scores[[episode_id]],
+               numeric(1)),
+        scored$true_index
+      )
+    }
+  ), scored$common_episode_ids)
   scored
 }
 
@@ -729,6 +754,9 @@ gaze_transport_cv <- function(
     stop("Duplicate reference candidates require episode_on.")
   }
   evidence_scaled <- gaze_calibration_evidence_scaled(spec)
+  # Under revision 2026.10 rank and top-1 never depend on the calibration
+  # (also for the "global" method); revision 2026.08 is left unchanged.
+  reference_rank <- identical(transport_v3_revision(spec), "2026.10")
   typicality <- gaze_calibration_typicality(spec)
   if (typicality) {
     item_on <- gaze_typicality_item_on(
@@ -816,12 +844,16 @@ gaze_transport_cv <- function(
           row_scored$pool_id
         ))
       }
-      score_transport_v3_cv_row(
+      row_scored <- score_transport_v3_cv_row(
         source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
         refvar, sourcevar, episode_on, priorvar, spec, warp,
         temperature = calibration$temperature,
         kappa = calibration$kappa
       )
+      if (reference_rank) {
+        row_scored <- transport_v3_reference_rank(row_scored)
+      }
+      row_scored
     })
     result_fold <- source_tab[eval_rows, , drop = FALSE]
     result_fold$.cv_fold <- fold

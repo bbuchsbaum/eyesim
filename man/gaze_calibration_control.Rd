@@ -17,12 +17,18 @@ gaze_calibration_control(
 \arguments{
 \item{method}{`"evidence_scaled"` (default) fits \eqn{T} and \eqn{\gamma}
 as described. `"global"` reproduces the pre-A3 revision `"2026.10"`
-calibration exactly: one temperature with a log-normal prior centred at
+calibration: one temperature with a log-normal prior centred at
 one and, when the engine's `reliability` is `"effective_fixations"`,
 the \eqn{\kappa} shrink. The pre-change Transport default used that
-shrink, so reproducing it needs `reliability = "effective_fixations"`
-passed explicitly. Fit outputs then match; the specification itself
-additionally carries this control.}
+shrink, so reproducing pre-A3 `"2026.10"` requires
+`reliability = "effective_fixations"` passed explicitly; with the
+(new) default `reliability = "none"` the global path fits a different
+model. Probabilities and bits then match exactly; the specification
+additionally carries this control. Rank and top-1 use the reference
+ranking described under Ranking, so they differ from the pre-change
+values only in rows where the fitted temperature or the \eqn{\kappa}
+mixture had reordered the candidates (multi-episode Transport, or a
+non-uniform prior).}
 
 \item{gamma_bounds}{Bounds for \eqn{\gamma}; equal values fix it (for
 example `c(0, 0)` for one global temperature with the new prior).}
@@ -45,10 +51,16 @@ with six candidates per pool, `"standardized"` brought Transport's
 central-candidate argmax share per candidate from 0.40 to 0.16 (chance
 0.167, MC error 0.020) without lowering top-1 or AUC on signal data.
 For Replay it lowered the share only from 0.30 to about 0.25-0.27
-(MC error 0.015): its candidate scores (total log likelihoods) are
-heavy-tailed, and the per-candidate variance ratio across held-out rows
-exceeded 1000, which neither a mean nor a scale offset equalises. It is
-therefore opt-in for Replay.}
+(MC error 0.015), and it is therefore opt-in for Replay. The residual
+is not a heavy-tail effect. Under these nulls the HMM background state
+absorbs most recall fixations, so the candidates' likelihoods nearly
+coincide: in 57\% of held-out rows every candidate lay within 0.01
+nats of the others. The very large per-candidate SD ratio across rows
+comes from these near-degenerate pools, and the central bias from the
+argmax among near-ties: central candidates won 0.54 of the tie rows
+against a 0.37 share of the candidates (few rows, so imprecise). An
+offset cannot remove it; a pre-declared tie tolerance for top-1 and
+AUC (see Ranking) is the appropriate treatment.}
 
 \item{typicality_sources}{Maximum number of training recalls used per
 fold to estimate every candidate's offset.}
@@ -73,8 +85,28 @@ number of recall fixations the HMM observes) and \eqn{\bar n} is the
 geometric mean over the calibration rows. \eqn{T} and \eqn{\gamma} are
 fitted jointly by minimising the candidate log loss of inner out-of-fold
 rows; no held-out row enters the fit. \eqn{\gamma = 0} is one global
-temperature. This is a calibration device: within a row it never changes
-the ranking of the candidates.
+temperature.
+
+**Ranking.** Calibration changes probabilities and bits only. Under
+revision `"2026.10"`, `template_rank` and `top1_credit` (and any AUC
+computed from ranks) always use one fixed reference ranking: the log
+posterior at inverse temperature one, \eqn{\log \pi_k + r_k}, where
+\eqn{r_k} is the engine's native candidate score after any typicality
+offset (Transport: the log mean of the episode scores; Replay: the trial
+log likelihood) and \eqn{\pi_k} the declared prior (uniform unless
+`priorvar` is given). This holds for both methods and every fitted
+\eqn{T}, \eqn{\gamma} or Stein factor, including a calibration that
+returns the prior. The ranking cannot be read off the calibrated
+probabilities: for multi-episode Transport the inverse temperature acts
+inside the log mean over episodes, which ranks by the arithmetic episode
+mean as \eqn{1/T \to 0} and by the log mean at \eqn{T = 1}. Transport
+per-episode ranks use the same rule. The reference score uses no label,
+so relabelling a row permutes it but never changes it. Ties use a
+relative tolerance of \eqn{\sqrt{\epsilon}} on this log scale.
+Replay's trial log likelihoods are often near-ties (see `typicality`), so
+a Replay top-1 or AUC should be computed from the candidate tables'
+`ranking_score` with a tie tolerance declared before the analysis (for
+example 0.01 nats), splitting credit among tied candidates.
 
 The fit penalises the standardised inverse temperature
 \eqn{\tilde\beta = \sigma / T} with a Gaussian prior centred at zero, where
