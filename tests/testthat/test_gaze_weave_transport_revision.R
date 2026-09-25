@@ -132,7 +132,7 @@ test_that("the stop rule does not stop on one heavily backtracked step", {
   # is frozen here; inst/validation is not involved. Backend agreement alone
   # is not sufficient, because both backends could share a premature stop.
   # Revision 2026.08 scores this pair -1.3634 (a 0.14-nat stop-rule error).
-  oracle_score <- -1.2199479011
+  oracle_score <- -1.2068974004
 
   default <- gaze_transport_align(
     reference, source, gaze_transport_spec(backend = "optimized")
@@ -147,6 +147,177 @@ test_that("the stop rule does not stop on one heavily backtracked step", {
   expect_true(default$convergence$converged)
   expect_lt(abs(default$log_score - oracle_score), 0.01)
   expect_lt(abs(default$log_score - tight$log_score), 0.01)
+})
+
+# Largest objective decrease that a small projected mirror step achieves from
+# each converged coverage node of an alignment (tightly projected, final
+# entropy). Zero means no small step descends.
+transport_revision_small_step_descent <- function(result, reference, source,
+                                                  spec) {
+  reference <- eyesim:::as_transport_v3_measure(reference, spec$chronology)
+  source <- eyesim:::as_transport_v3_measure(source, spec$chronology)
+  cost <- eyesim:::gaze_spatial_cost(
+    reference$coords, source$coords, spec$spatial
+  )
+  entropy <- utils::tail(spec$entropy_schedule, 1)
+  rows <- seq_along(reference$mass)
+  columns <- seq_along(source$mass)
+  tight <- spec$control
+  tight$projection_tolerance <- 1e-11
+  vapply(result$alignment$profile$fits, function(fit) {
+    if (!identical(fit$status, "converged")) return(0)
+    augmented <- fit$augmented
+    current <- eyesim:::transport_v3_objective(
+      augmented[rows, columns, drop = FALSE], reference, source, cost, spec,
+      entropy, gradient = TRUE
+    )
+    gradient <- current$gradient - stats::median(current$gradient)
+    best <- 0
+    for (step in c(0.1, 0.03, 0.01, 0.003)) {
+      kernel <- augmented
+      kernel[rows, columns] <- pmax(augmented[rows, columns], 1e-300) *
+        exp(pmax(pmin(-step * gradient, 50), -50))
+      projection <- eyesim:::project_partial_coupling_revised(
+        kernel, reference$mass, source$mass, fit$coverage, tight
+      )
+      if (!isTRUE(projection$converged)) next
+      value <- eyesim:::transport_v3_objective(
+        projection$plan[rows, columns, drop = FALSE], reference, source,
+        cost, spec, entropy
+      )$optimization
+      best <- max(best, current$optimization - value)
+    }
+    best
+  }, numeric(1))
+}
+
+transport_revision_pair134 <- function() {
+  list(
+    reference = transport_revision_path(
+      c(1.59957729466259, 28.085163069889, 2.61879675090313,
+        3.98616542108357, 11.4314303006977),
+      c(5.67472292575985, 9.4715854995884, 4.62438578438014,
+        8.86520146718249, 5.57847462547943)
+    ),
+    source = transport_revision_path(
+      c(7.00039075873792, 10.6210063286126, 18.2622979432344,
+        23.798659957014, 2.2444723052904),
+      c(13.8152038375847, 18.9951667808928, 4.35126664955169,
+        17.9943125946447, 14.0034753344953)
+    )
+  )
+}
+
+transport_revision_pair118 <- function() {
+  list(
+    reference = transport_revision_path(
+      c(19.4531975416467, 7.80971233732998, 17.2545288726687,
+        25.749476599507, 15.7219495503232),
+      c(4.1737774903886, 7.78590210527182, 8.19896909128875,
+        15.0142093077302, 1.23240248532966)
+    ),
+    source = transport_revision_path(
+      c(19.0306649431586, 5.78759774472564, 4.19821098353714,
+        8.76898297201842, 11.7428692597896, 1.33927661459893,
+        26.1695548668504, 16.166871888563, 23.1607949361205,
+        2.313935123384, 17.7435952061787),
+      c(15.0350786959752, 9.20990427210927, 9.78326073940843,
+        18.8875433998182, 3.77925990754738, 5.44136211648583,
+        2.79010437708348, 1.51434923103079, 9.80730763170868,
+        13.8354574074037, 16.7554191015661)
+    )
+  )
+}
+
+test_that("a saturated mirror step never certifies a non-stationary node", {
+  skip_if_not(eyesim:::transport_v3_native_available())
+  pair <- transport_revision_pair134()
+  for (backend in c("optimized", "reference")) {
+    spec <- gaze_transport_spec(backend = backend)
+    result <- gaze_transport_align(pair$reference, pair$source, spec)
+    descent <- transport_revision_small_step_descent(
+      result, pair$reference, pair$source, spec
+    )
+    expect_lte(max(descent), 1e-6)
+  }
+})
+
+test_that("scores do not depend on the mirror step size", {
+  skip_if_not(eyesim:::transport_v3_native_available())
+  pair <- transport_revision_pair118()
+  scores <- vapply(c(2, 0.25, 0.05), function(step) {
+    gaze_transport_align(
+      pair$reference, pair$source,
+      gaze_transport_spec(
+        backend = "optimized", step_size = step, maxit = 20000L
+      )
+    )$log_score
+  }, numeric(1))
+  expect_lte(diff(range(scores)), 1e-4)
+})
+
+test_that("the chronology term is continuous as edge mass vanishes", {
+  reference_relation <- matrix(0, 3, 3)
+  reference_relation[1, 2] <- reference_relation[2, 3] <- 1
+  source_relation <- reference_relation
+  plan <- function(epsilon) {
+    # All mass on the edge-free diagonal cell (1, 3), plus leakage onto the
+    # edge-carrying cells.
+    correspondence <- matrix(epsilon, 3, 3)
+    correspondence[1, 3] <- 1
+    correspondence / sum(correspondence)
+  }
+  exact <- eyesim:::transport_v3_edge_terms(
+    plan(0), reference_relation, source_relation,
+    pseudo_count = eyesim:::transport_v3_chronology_pseudo_count
+  )$residual
+  leaky <- eyesim:::transport_v3_edge_terms(
+    plan(1e-9), reference_relation, source_relation,
+    pseudo_count = eyesim:::transport_v3_chronology_pseudo_count
+  )$residual
+  expect_equal(exact, 1)
+  expect_lt(abs(leaky - exact), 1e-6)
+
+  # The pseudo-count gradient matches finite differences.
+  set.seed(4)
+  correspondence <- matrix(stats::runif(9), 3, 3)
+  correspondence <- correspondence / sum(correspondence)
+  terms <- eyesim:::transport_v3_edge_terms(
+    correspondence, reference_relation, source_relation, gradient = TRUE,
+    pseudo_count = eyesim:::transport_v3_chronology_pseudo_count
+  )
+  # Mass-preserving directional derivatives: move h from cell 1 to each cell.
+  for (cell in 2:9) {
+    shifted <- correspondence
+    shifted[cell] <- shifted[cell] + 1e-7
+    shifted[1] <- shifted[1] - 1e-7
+    numeric <- (eyesim:::transport_v3_edge_terms(
+      shifted, reference_relation, source_relation,
+      pseudo_count = eyesim:::transport_v3_chronology_pseudo_count
+    )$residual - terms$residual) / 1e-7
+    expect_equal(
+      numeric, terms$gradient[cell] - terms$gradient[1], tolerance = 1e-4
+    )
+  }
+})
+
+test_that("a one-fixation source gets equal chronology from reordered candidates", {
+  source <- transport_revision_path(10.2, 6.1)
+  coords <- list(x = c(4, 10, 16, 22), y = c(5, 6, 8, 5))
+  forward <- transport_revision_path(coords$x, coords$y)
+  shuffled <- transport_revision_path(coords$x[c(3, 1, 4, 2)],
+                                      coords$y[c(3, 1, 4, 2)])
+  for (backend in c("optimized", "reference")) {
+    spec <- gaze_transport_spec(backend = backend)
+    a <- gaze_transport_align(forward, source, spec)
+    b <- gaze_transport_align(shuffled, source, spec)
+    expect_equal(
+      a$alignment$profile$conditional_chronology,
+      b$alignment$profile$conditional_chronology,
+      tolerance = 1e-10
+    )
+    expect_equal(a$log_score, b$log_score, tolerance = 1e-8)
+  }
 })
 
 test_that("an uncertifiable residual is recorded as a projection-limited stall", {

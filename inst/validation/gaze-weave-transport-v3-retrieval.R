@@ -238,6 +238,12 @@ v3_retrieval_checkpoint <- function(output_dir, fold_id) {
   file.path(output_dir, sprintf("checkpoint-transport-v3-fold-%02d.rds", fold_id))
 }
 
+# Transport solver revision recorded in a checkpoint. Checkpoints written
+# before solver revisions existed carry none and were solved as "2026.08".
+v3_checkpoint_solver_revision <- function(value) {
+  if (is.null(value$solver_revision)) "2026.08" else value$solver_revision
+}
+
 v3_retrieval_source_files <- function() {
   sort(unique(c(
     Sys.glob(file.path("R", "gaze_weave_transport_v3*.R")),
@@ -369,17 +375,20 @@ run_gaze_weave_transport_v3_retrieval_measurement <- function(
     if (resume && file.exists(path)) {
       value <- readRDS(path)
       if (!identical(value$protocol_version, v3_retrieval_protocol_version) ||
-          !identical(value$seed, v3_retrieval_seed)) {
+          !identical(value$seed, v3_retrieval_seed) ||
+          !identical(
+            v3_checkpoint_solver_revision(value),
+            eyesim:::transport_v3_revision(spec)
+          )) {
         stop("A retrieval checkpoint belongs to another protocol.")
       }
       message("Using checkpoint: ", basename(path))
       next
     }
     message("Transport v3 frozen retrieval measurement: fold ", fold$id)
-    saveRDS(
-      v3_retrieval_score_fold(tables, candidate_plan, fold, spec),
-      path, version = 3
-    )
+    value <- v3_retrieval_score_fold(tables, candidate_plan, fold, spec)
+    value$solver_revision <- eyesim:::transport_v3_revision(spec)
+    saveRDS(value, path, version = 3)
   }
   invisible(list(cohort = cohort, fold_plan = fold_plan,
                  candidate_plan = candidate_plan))

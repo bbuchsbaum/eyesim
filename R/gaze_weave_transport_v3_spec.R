@@ -83,7 +83,11 @@ transport_v3_revised <- function(spec) {
 #' @param coverage_nodes Number of default coverage quadrature nodes.
 #' @param temporal_weight Non-negative directed local-order weight.
 #' @param selection_weights Non-negative reference and source selection weights.
-#' @param entropy_schedule Positive correspondence-smoothing continuation values.
+#' @param entropy_schedule Positive correspondence-smoothing continuation
+#'   values; the last value defines the optimized objective. `NULL` (the
+#'   default) uses `c(0.15, 0.05, 0.015)` under revision `"2026.10"` and
+#'   `c(0.05, 0.015)` under `"2026.08"`. The extra, smoother first stage makes
+#'   the local optimum reached independent of `step_size`.
 #' @param temperature_bounds Calibration temperature bounds.
 #' @param warp Candidate-invariant cross-fitted warp specification.
 #' @param screen Optional screen geometry.
@@ -104,19 +108,20 @@ transport_v3_revised <- function(spec) {
 #' @param polish_maxit,polish_gap_tolerance,polish_relative_tolerance
 #'   Conditional-gradient stopping controls.
 #' @param revision Solver revision. `"2026.10"` (the default) is the
-#'   corrected solver. A stage converges only when the projected update
-#'   residual of an unbacktracked mirror step (at least `step_size / 8`) is at
-#'   most `tolerance`. When the line search is limited by projection noise,
-#'   the fixed-step residual is checked with a tighter projection; if it
-#'   cannot be certified the stage is recorded as
-#'   `"stalled_projection_limited"` (not converged, but scored). Standard
-#'   Sinkhorn is finished by a dual Newton projection when it exhausts its
-#'   iterations. Every coverage node is solved from the independent and the
-#'   continuation start and the lower objective is kept, replacing the
-#'   reference backend's silent cold restart. `backend = "auto"` warns about
-#'   and records every numerical fallback, and the polish Frank-Wolfe gap is
-#'   `NA` with a reason on a selection boundary. `"2026.08"` reproduces the
-#'   frozen August 2026 solver exactly; the frozen validation courts pin it.
+#'   corrected solver and estimand. The chronology residual is
+#'   `1 - 2A / (R + S + 1e-3)`, continuous as the selected edge mass
+#'   vanishes. A stage converges only when the plan is feasible and its
+#'   support-weighted reduced gradient (the limiting dual gap of a mirror
+#'   step) is at most `0.2 * tolerance`. Mirror steps are capped so the
+#'   exponent never saturates. A line search limited by projection noise
+#'   records the stage as `"stalled_projection_limited"` (not converged, but
+#'   scored). Standard Sinkhorn is finished by a dual Newton projection and
+#'   then log-domain Sinkhorn. Every coverage node is solved from the
+#'   independent and the continuation start, replacing the reference
+#'   backend's silent cold restart. `backend = "auto"` warns about and
+#'   records every numerical fallback. The polish Frank-Wolfe gap is `NA`
+#'   with a reason on a selection boundary. `"2026.08"` reproduces the frozen
+#'   August 2026 solver exactly; the frozen validation courts pin it.
 #'   Specifications saved before revisions existed are solved as
 #'   `"2026.08"`.
 #' @param reliability Response-blind calibration policy. The default learns
@@ -133,7 +138,7 @@ gaze_transport_spec <- function(
     chronology = gaze_order_neighbours(neighbours = 2),
     coverage_prior = c(2, 2), coverage_nodes = 12L,
     temporal_weight = 2, selection_weights = c(0.5, 0.5),
-    entropy_schedule = c(0.05, 0.015),
+    entropy_schedule = NULL,
     temperature_bounds = c(0.05, 20),
     warp = gaze_warp_none(), screen = NULL,
     maxit = 1000L, step_size = 2, tolerance = 5e-5,
@@ -174,6 +179,13 @@ gaze_transport_spec <- function(
   }
   if (abs(selection_weights[[1]] - selection_weights[[2]]) > 1e-14) {
     stop("Symmetric Transport requires equal reference and source selection weights.")
+  }
+  if (is.null(entropy_schedule)) {
+    entropy_schedule <- if (identical(revision, "2026.10")) {
+      c(0.15, 0.05, 0.015)
+    } else {
+      c(0.05, 0.015)
+    }
   }
   if (!is.numeric(entropy_schedule) || length(entropy_schedule) == 0L ||
       any(!is.finite(entropy_schedule)) || any(entropy_schedule <= 0)) {

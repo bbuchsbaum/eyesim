@@ -26,9 +26,18 @@ validate_transport_v3_edge_inputs <- function(correspondence,
   invisible(TRUE)
 }
 
+# Revision 2026.10 chronology pseudo-count. The Dice residual becomes
+# 1 - 2A / (R + S + kappa): continuous everywhere, with a bounded gradient,
+# and tending to 1 (no order agreement) as the selected edge mass vanishes.
+# The limit 1 is the only neutral value: a source without edges (one
+# fixation) has A = 0, so any other limit would make its residual depend on
+# the candidate's own edge mass R, favouring candidates by their order alone.
+transport_v3_chronology_pseudo_count <- 1e-3
+
 transport_v3_edge_terms <- function(correspondence, reference_relation,
                                     source_relation, gradient = FALSE,
-                                    edge_tolerance = 1e-15) {
+                                    edge_tolerance = 1e-15,
+                                    pseudo_count = 0) {
   validate_transport_v3_edge_inputs(
     correspondence, reference_relation, source_relation
   )
@@ -51,8 +60,12 @@ transport_v3_edge_terms <- function(correspondence, reference_relation,
     t(source_relation)
   agreement <- sum(correspondence * forward_agreement)
   denominator <- reference_edge_mass + source_edge_mass
+  if (length(pseudo_count) != 1L || !is.finite(pseudo_count) ||
+      pseudo_count < 0) {
+    stop("pseudo_count must be one finite non-negative value.")
+  }
 
-  if (denominator <= edge_tolerance) {
+  if (pseudo_count == 0 && denominator <= edge_tolerance) {
     residual <- 0
     derivative <- if (gradient) {
       matrix(0, nrow(correspondence), ncol(correspondence))
@@ -60,7 +73,8 @@ transport_v3_edge_terms <- function(correspondence, reference_relation,
       NULL
     }
   } else {
-    raw_residual <- 1 - 2 * agreement / denominator
+    smoothed <- denominator + pseudo_count
+    raw_residual <- 1 - 2 * agreement / smoothed
     numerical_slack <- 64 * .Machine$double.eps
     if (raw_residual < -numerical_slack ||
         raw_residual > 1 + numerical_slack) {
@@ -81,8 +95,8 @@ transport_v3_edge_terms <- function(correspondence, reference_relation,
       denominator_gradient <- outer(reference_gradient, rep(1, ncol(correspondence))) +
         outer(rep(1, nrow(correspondence)), source_gradient)
       derivative <- -2 * (
-        agreement_gradient * denominator - agreement * denominator_gradient
-      ) / denominator^2
+        agreement_gradient * smoothed - agreement * denominator_gradient
+      ) / smoothed^2
     }
   }
 

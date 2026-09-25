@@ -1,44 +1,60 @@
 # eyesim 0.1.0.9000
 
 * `gaze_transport_spec()` gains `revision = c("2026.10", "2026.08")`. The
-  default `"2026.10"` corrects the Transport solver in both the native and
-  the reference backend; `"2026.08"` reproduces the frozen August 2026
-  solver bit for bit, and the frozen validation courts now pin it.
-  Specifications saved before revisions existed are solved as `"2026.08"`;
-  an unknown revision is an error. Behavioural changes under `"2026.10"`:
-  - Both revisions accept a mirror step that raises the objective by at most
-    1e-12 relative. The native backend declared a numerical failure when every
-    backtracked trial rose by more than that, which at 1e-8 projection
-    accuracy is noise-dominated; `backend = "auto"` then silently re-solved
-    the pair with the 30-200x slower reference backend. A failed or
-    noise-limited line search no longer means failure or convergence: the
-    mirror-descent fixed-point residual is evaluated at the fixed step
-    `step_size` with a 100-times tighter projection. A certified residual
-    converges the stage; otherwise the stage is recorded as
-    `"stalled_projection_limited"` (not converged, still scored).
-  - A stage converges only when the projected update residual of an
-    unbacktracked step (at least `step_size / 8`) is at most `tolerance`,
-    not after one small, heavily backtracked step.
-  - Standard Sinkhorn is finished by a damped dual Newton projection when it
-    exhausts its iterations, so near-decoupled plans no longer force tiny
-    mirror steps.
-  - Every coverage node is solved from the independent start and the
-    adjacent-coverage continuation, keeping the lower objective. This
-    replaces the reference backend's silent cold restart and removes the
-    dependence of a node's solution on how far the previous node was
-    optimized.
+  default, `"2026.10"`, corrects the Transport solver in both the native and
+  the reference backend. `"2026.08"` reproduces the frozen August 2026 solver
+  bit for bit, and the frozen validation courts now pin it. Specifications
+  saved before revisions existed are solved as `"2026.08"`; an unknown
+  revision is an error. Under `"2026.10"`:
+  - **Estimand change (unreleased).** The chronology residual is
+    `1 - 2A / (R + S + 1e-3)`. It was `1 - 2A / (R + S)`, set to 0 when
+    `R + S <= 1e-15`. The old definition jumped by up to 0.1 in the objective
+    and was 0/0 for one-fixation sources. The new residual is continuous,
+    has a bounded gradient, and tends to 1 as selected edge mass vanishes.
+    The limit 1 is the neutral value: a source without edges gets the same
+    chronology term from every candidate.
+  - **Stationarity.** The convergence test is the support-weighted reduced
+    gradient `min_ab sum P (G - a - b)^2`, the `t -> 0` limit of the dual
+    gap `<g, P - P_t> / t`. A stage converges only when it is at most
+    `0.2 * tolerance` and the plan is feasible. Exponent saturation,
+    backtracking and projection noise cannot fake it. The 2026.08 rule
+    stopped after one small step. The first 2026.10 draft certified a
+    residual of a step whose `+/-50` exponent clamp had saturated, which let
+    non-stationary nodes pass. Every mirror step is now capped at
+    `min(step_size, 50 / max|g|)`, and a backtracked step doubles back.
+  - **Line-search failures.** Both revisions accept a step that raises the
+    objective by up to 1e-12 relative. A line search therefore fails only
+    when every trial rose by more than that, which at 1e-8 projection
+    accuracy is noise-dominated. The native backend reported this as a
+    numerical failure, and `backend = "auto"` then silently re-solved the
+    pair with the 30-200x slower reference backend. Such a failure, or a
+    noise-level gain at a heavily backtracked step, now establishes neither
+    failure nor convergence. The stage is recorded as
+    `"stalled_projection_limited"`: not converged, still scored.
+  - **Projection.** When standard Sinkhorn exhausts its iterations, a damped
+    log-domain dual Newton projection takes over, then log-domain Sinkhorn,
+    in both backends.
+  - **Starts and entropy schedule.** Every coverage node is solved from the
+    independent start and the adjacent-coverage continuation. This replaces
+    the reference backend's silent cold restart. Fits that converged or
+    stalled are preferred over fits that hit `maxit`; within that tier the
+    lower objective wins. The default entropy schedule is
+    `c(0.15, 0.05, 0.015)`; the extra smoother first stage makes the local
+    optimum reached independent of `step_size`.
   - The mutual-information term is evaluated in the log domain when the
     product of two marginals underflows.
-  - `backend = "auto"` routes specifications the native backend cannot solve
-    (for example `multistart = 2`) to the reference backend for every pair,
-    and warns (class `gaze_transport_backend_fallback`) about any per-pair
-    fallback. Every alignment records its backend, fallback, status, and
-    solver revision in `convergence`; `gaze_transport_cv()` reports fallback
-    and stall counts per row and in `solver`.
-  - The polish Frank-Wolfe gap is `NA`, with a reason, where a selected mass
-    with a positive target vanishes: the Jensen-Shannon gradient is
-    unbounded there, and the reported gap was set by the gradient floor. The
-    objective is non-convex, so the gap is a stationarity measure only.
+  - **Backends and fallbacks.** Under `backend = "auto"`, specifications the
+    native backend cannot solve (for example `multistart = 2`) go to the
+    reference backend for every pair. Any per-pair fallback raises a warning
+    of class `gaze_transport_backend_fallback`. Every alignment records its
+    backend, fallback, status and solver revision in `convergence`.
+    `gaze_transport_cv()` reports fallback and stall counts per row and in
+    `solver`. Validation checkpoints record and verify the solver revision.
+  - **Polish gap.** The polish Frank-Wolfe gap is `NA`, with a reason, where
+    a selected mass with a positive target vanishes. The Jensen-Shannon
+    gradient is unbounded there, so the reported gap came from the gradient
+    floor. The objective is non-convex, so the gap measures stationarity
+    only.
 
 * Canonicalized edge-normalized Transport as the sole public Transport method.
   The API is now `gaze_transport_spec()`, `gaze_transport_align()`,

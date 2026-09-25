@@ -274,6 +274,19 @@ own_group_score_one <- function(
   scored
 }
 
+# Transport solver revision recorded in a checkpoint; checkpoints written
+# before solver revisions existed carry none and were solved as "2026.08".
+own_group_checkpoint_revision <- function(checkpoint) {
+  if (is.null(checkpoint$solver_revision)) "2026.08" else
+    checkpoint$solver_revision
+}
+
+# Revision of the frozen canonical specification this analysis scores with.
+own_group_expected_revision <- function() {
+  spec <- readRDS(file.path(v3_retrieval_output_dir, "freeze-private", "spec.rds"))
+  eyesim:::transport_v3_revision(own_group_spec_from_frozen(spec))
+}
+
 own_group_checkpoint <- function(output_dir, family, fold_id) {
   file.path(output_dir, sprintf(
     "checkpoint-other-participants-%s-fold-%02d.rds", family, fold_id
@@ -354,7 +367,11 @@ own_group_score_fold <- function(
   path <- own_group_checkpoint(output_dir, family, fold_id)
   if (resume && file.exists(path)) {
     checkpoint <- readRDS(path)
-    if (identical(checkpoint$protocol, "own-group/1.1.0")) {
+    if (identical(checkpoint$protocol, "own-group/1.1.0") &&
+        identical(
+          own_group_checkpoint_revision(checkpoint),
+          own_group_expected_revision()
+        )) {
       message("Using checkpoint: ", basename(path))
       return(invisible(checkpoint))
     }
@@ -436,7 +453,8 @@ own_group_score_fold <- function(
   }
   result <- list(
     scored = scored, audit = audit, seed = seed,
-    protocol = "own-group/1.1.0"
+    protocol = "own-group/1.1.0",
+    solver_revision = eyesim:::transport_v3_revision(context$spec)
   )
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   saveRDS(result, path, version = 3)
@@ -464,7 +482,9 @@ own_group_read_scores <- function(
   if (!all(file.exists(paths))) stop("Other-participant checkpoints incomplete.")
   values <- lapply(paths, readRDS)
   if (any(vapply(values, `[[`, integer(1), "seed") != own_group_seed) ||
-      any(vapply(values, `[[`, character(1), "protocol") != "own-group/1.1.0")) {
+      any(vapply(values, `[[`, character(1), "protocol") != "own-group/1.1.0") ||
+      any(vapply(values, own_group_checkpoint_revision, character(1)) !=
+            own_group_expected_revision())) {
     stop("Other-participant checkpoints belong to another protocol.")
   }
   list(

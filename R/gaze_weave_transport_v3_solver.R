@@ -119,7 +119,12 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
     correspondence,
     reference$relation,
     source$relation,
-    gradient = gradient
+    gradient = gradient,
+    pseudo_count = if (transport_v3_revised(spec)) {
+      transport_v3_chronology_pseudo_count
+    } else {
+      0
+    }
   )
   reference_selection <- transport_v3_jensen_shannon(
     reference_selected_unit, reference$mass
@@ -185,36 +190,87 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
   result
 }
 
+# Revision 2026.10 stationarity: besides the projected update residual, the
+# support-weighted reduced gradient
+#   s0 = min_{a, b} sum_ij P_ij (G_ij - a_i - b_j)^2
+# over the augmented plan (G = centred gradient on real cells, 0 on slack)
+# must not exceed transport_v3_gap_factor * tolerance. s0 is the limit of
+# the dual gap <g, P - P_t> / t as t -> 0, that is the rate at which an
+# infinitesimal mirror step lowers the objective; unlike a residual it is
+# unaffected by step size or exponent saturation. With the default
+# tolerance a step of 0.1 then predicts at most 1e-6 of descent. Mirrors
+# kGapFactor and reduced_gradient_gap() in src/transport_v3.cpp.
+transport_v3_gap_factor <- 0.2
+
+transport_v3_reduced_gradient_gap <- function(augmented, centered_gradient) {
+  n_rows <- nrow(augmented)
+  n_columns <- ncol(augmented)
+  weight <- augmented
+  weight[n_rows, n_columns] <- 0
+  target <- matrix(0, n_rows, n_columns)
+  target[-n_rows, -n_columns] <- centered_gradient
+  row_weight <- rowSums(weight)
+  column_weight <- colSums(weight)
+  normal <- rbind(
+    cbind(diag(row_weight, n_rows), weight),
+    cbind(t(weight), diag(column_weight, n_columns))
+  )
+  right <- c(rowSums(weight * target), colSums(weight * target))
+  free <- seq_len(n_rows + n_columns - 1L)
+  reduced <- normal[free, free, drop = FALSE]
+  diag(reduced) <- diag(reduced) + 1e-14 * max(diag(reduced))
+  solution <- tryCatch(
+    solve(reduced, right[free]),
+    error = function(condition) NULL
+  )
+  if (is.null(solution) || any(!is.finite(solution))) return(Inf)
+  solution <- c(solution, 0)
+  fitted <- outer(
+    solution[seq_len(n_rows)], solution[n_rows + seq_len(n_columns)],
+    FUN = "+"
+  )
+  sum(weight * (target - fitted)^2)
+}
+
 # One entropy stage of the revision 2026.10 mirror-descent solver. The native
 # backend (src/transport_v3.cpp, revision = 1) implements the same rules:
 #
-# * Projection: standard Sinkhorn, then a damped dual Newton finisher when
-#   Sinkhorn exhausts its iterations.
-# * Convergence: the first projected trial of an iteration taken at an
-#   unbacktracked step (at least step_size / 8) has projected update residual
-#   max|P_trial - P| / step <= tolerance and a converged projection.
+# * Objective: the chronology residual is 1 - 2A / (R + S + 1e-3), continuous
+#   and tending to 1 as the selected edge mass vanishes.
+# * Stationarity: a stage converges ("stationary") when the current plan is
+#   feasible (marginal error <= projection_tolerance) and its
+#   support-weighted reduced gradient
+#     s0 = min_ab sum_ij P_ij (G_ij - a_i - b_j)^2
+#   (G: centred gradient on real cells, 0 on slack) is at most
+#   0.2 * tolerance. s0 is the t -> 0 limit of the dual gap <g, P - P_t> / t,
+#   the rate at which a mirror step lowers the objective, so it cannot be
+#   faked by exponent saturation, backtracking, or projection noise; with the
+#   default tolerance a step of 0.1 predicts at most 1e-6 of descent. The
+#   projected update residual is recorded as a diagnostic only.
+# * Step limit: every trial step is capped at
+#   step_limit = min(step_size, 50 / max|G|), so the +/-50 exponent clamp
+#   never binds. After an accepted trial the next start step doubles.
+# * Projection: standard Sinkhorn, then a damped log-domain dual Newton
+#   finisher, then log-domain Sinkhorn.
 # * Noise-limited iterations: both revisions accept a trial that rises by at
-#   most 1e-12 relative, and a line search "fails" only when every trial rose
-#   by more than that. At 1e-8 projection accuracy such rises (and descents
-#   below 100 * projection_tolerance * max(1, |f|)) are noise, so they neither
-#   show progress nor establish stationarity. The stage then evaluates the
-#   mirror-descent fixed-point residual at the fixed reference step
-#   step_size, with a projection 100 times tighter, and checks the current
-#   plan's feasibility. A residual <= tolerance ends the stage as converged
-#   ("stationary_residual"). If no unbacktracked progress is possible, or the
-#   residual is below what the projection can resolve
-#   (10 * projection_tolerance / step_size), the stage ends as
-#   "stalled_projection_limited": not converged, but not a numerical failure.
-#   Otherwise the accepted step is taken and iteration continues.
-# * Starts: each coverage node is solved from the structural start(s) and the
-#   adjacent-coverage continuation; the lowest regularized objective is kept.
-# * Backtracking continues past 21 trials while the (clamped) mirror exponent
-#   is still large, so a huge gradient cannot defeat the step-size decrease.
+#   most 1e-12 relative, so a line search "fails" only when every trial rose
+#   by more than that, which at 1e-8 projection accuracy is noise-dominated;
+#   a failure establishes nothing. When no trial is accepted, or the accepted
+#   decrease is at most 10 * projection_tolerance * max(1, |f|) at a step
+#   backtracked below step_limit / 8, the stage ends
+#   "stalled_projection_limited": not converged, still scored.
+# * Backtracking continues past 21 trials while the mirror exponent is large.
+# * Starts: every coverage node is solved from the independent start and the
+#   adjacent-coverage continuation. Fits whose stages all ended converged or
+#   stalled are preferred over fits that hit maxit; within that tier the
+#   lowest regularized objective is kept (ties keep the independent start).
 transport_v3_reference_stage_revised <- function(augmented, reference, source,
                                                  spatial_cost, coverage, spec,
                                                  entropy) {
   real_rows <- seq_len(length(reference$mass))
   real_columns <- seq_len(length(source$mass))
+  row_target <- c(reference$mass, 1 - coverage)
+  column_target <- c(source$mass, 1 - coverage)
   control <- spec$control
   step <- control$step_size
   stage_converged <- FALSE
@@ -223,6 +279,7 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
   final_change <- Inf
   final_objective_change <- Inf
   final_step <- NA_real_
+  reduced_gradient <- Inf
   projection <- list(error = Inf, converged = FALSE, method = NA_character_)
   iteration <- 0L
   for (iteration in seq_len(control$maxit)) {
@@ -232,14 +289,39 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
       gradient = TRUE
     )
     centered_gradient <- current$gradient - stats::median(current$gradient)
+    feasibility <- max(
+      abs(rowSums(augmented) - row_target),
+      abs(colSums(augmented) - column_target)
+    )
+    reduced_gradient <- transport_v3_reduced_gradient_gap(
+      augmented, centered_gradient
+    )
+    if (feasibility <= control$projection_tolerance &&
+        reduced_gradient <= transport_v3_gap_factor * control$tolerance) {
+      stage_converged <- TRUE
+      termination <- "stationary"
+      # The certificate concerns the current plan: report its own marginal
+      # error, and the method of the projection that produced it.
+      projection <- list(
+        error = feasibility,
+        converged = TRUE,
+        method = if (is.na(projection$method)) "input" else projection$method,
+        fallback_from_standard = projection$fallback_from_standard
+      )
+      break
+    }
     gradient_scale <- max(abs(centered_gradient))
+    step_limit <- if (gradient_scale > 0) {
+      min(control$step_size, 50 / gradient_scale)
+    } else {
+      control$step_size
+    }
     scale <- max(1, abs(current$optimization))
     accepted <- FALSE
-    trial_step <- step
+    trial_step <- min(step, step_limit)
     proposal <- augmented
     proposal_objective <- current
-    certificate <- NULL
-    best_increase <- Inf
+    trial_projection <- projection
     backtrack <- 0L
     repeat {
       if (backtrack > 20L &&
@@ -250,29 +332,18 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
       kernel <- augmented
       update <- exp(pmax(pmin(-trial_step * centered_gradient, 50), -50))
       kernel[real_rows, real_columns] <- pmax(coupling, 1e-300) * update
-      projection <- project_partial_coupling_revised(
+      trial_projection <- project_partial_coupling_revised(
         kernel, reference$mass, source$mass, coverage, control
       )
-      if (!projection$converged) {
+      if (!trial_projection$converged) {
         trial_step <- trial_step / 2
         next
       }
-      proposal <- projection$plan
+      proposal <- trial_projection$plan
       proposal_objective <- transport_v3_objective(
         proposal[real_rows, real_columns, drop = FALSE],
         reference, source, spatial_cost, spec, entropy
       )
-      if (is.null(certificate) && trial_step >= control$step_size / 8) {
-        certificate <- list(
-          change = max(abs(proposal - augmented)),
-          step = trial_step,
-          error = projection$error
-        )
-      }
-      increase <- proposal_objective$optimization - current$optimization
-      if (is.finite(increase) && increase < best_increase) {
-        best_increase <- increase
-      }
       if (is.finite(proposal_objective$optimization) &&
           proposal_objective$optimization <= current$optimization +
             1e-12 * max(1, abs(current$optimization))) {
@@ -281,61 +352,24 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
       }
       trial_step <- trial_step / 2
     }
-    certified <- !is.null(certificate) &&
-      certificate$change / certificate$step <= control$tolerance &&
-      certificate$error <= control$projection_tolerance
+    decrease <- current$optimization - proposal_objective$optimization
     noise_limited <- !accepted || (
-      !certified &&
-        current$optimization - proposal_objective$optimization <=
-          100 * control$projection_tolerance * scale
+      trial_step < step_limit / 8 &&
+        decrease <= 10 * control$projection_tolerance * scale
     )
     if (noise_limited) {
-      # Certified: converged. Otherwise the stage stalls when no unbacktracked
-      # progress is possible or when the residual is already below what the
-      # projection accuracy can resolve (10 * projection_tolerance /
-      # step_size); else it continues with the accepted step.
-      stationarity <- transport_v3_fixed_step_residual(
-        augmented, coupling, centered_gradient, reference, source, coverage,
-        control
-      )
-      progressing <- accepted && trial_step >= control$step_size / 8
-      resolvable <- stationarity$residual >
-        10 * control$projection_tolerance / control$step_size
-      certified_fixed <- stationarity$projected && stationarity$feasible &&
-        stationarity$residual <= control$tolerance
-      if (certified_fixed || !progressing || !stationarity$projected ||
-          !stationarity$feasible || !resolvable) {
-        final_change <- stationarity$change
-        final_step <- control$step_size
-        final_objective_change <- abs(best_increase) / scale
-        projection <- stationarity$projection
-        if (certified_fixed) {
-          stage_converged <- TRUE
-          termination <- "stationary_residual"
-        } else {
-          stalled <- TRUE
-          termination <- "stalled_projection_limited"
-        }
-        break
-      }
-    }
-    final_change <- max(abs(proposal - augmented))
-    final_objective_change <- abs(
-      proposal_objective$optimization - current$optimization
-    ) / max(1, abs(current$optimization))
-    final_step <- trial_step
-    augmented <- proposal
-    step <- min(trial_step * 1.1, control$step_size)
-    if (certified) {
-      stage_converged <- TRUE
-      termination <- "residual"
-      if (certificate$step != trial_step) {
-        # Report the residual that certified convergence.
-        final_change <- certificate$change
-        final_step <- certificate$step
-      }
+      stalled <- TRUE
+      termination <- "stalled_projection_limited"
+      final_objective_change <- if (accepted) abs(decrease) / scale else Inf
       break
     }
+    final_change <- max(abs(proposal - augmented))
+    final_objective_change <- abs(decrease) / scale
+    final_step <- trial_step
+    projection <- trial_projection
+    augmented <- proposal
+    # Doubling (2026.08 used 1.1) lets a backtracked step recover quickly.
+    step <- min(trial_step * 2, control$step_size)
   }
   list(
     augmented = augmented,
@@ -357,42 +391,11 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
       projection_method = projection$method,
       projection_fallback = isTRUE(projection$fallback_from_standard),
       termination = termination,
-      step = final_step
+      step = final_step,
+      reduced_gradient = reduced_gradient
     )
   )
 }
-
-# Mirror-descent fixed-point residual at the fixed reference step step_size,
-# projected 100 times more tightly than the solver's projections, with a
-# feasibility check of the current plan.
-transport_v3_fixed_step_residual <- function(augmented, coupling,
-                                             centered_gradient, reference,
-                                             source, coverage, control) {
-  real_rows <- seq_len(length(reference$mass))
-  real_columns <- seq_len(length(source$mass))
-  kernel <- augmented
-  update <- exp(pmax(pmin(-control$step_size * centered_gradient, 50), -50))
-  kernel[real_rows, real_columns] <- pmax(coupling, 1e-300) * update
-  tight <- control
-  tight$projection_tolerance <- control$projection_tolerance * 1e-2
-  projection <- project_partial_coupling_revised(
-    kernel, reference$mass, source$mass, coverage, tight
-  )
-  feasibility <- max(
-    abs(rowSums(augmented) - c(reference$mass, 1 - coverage)),
-    abs(colSums(augmented) - c(source$mass, 1 - coverage))
-  )
-  projected <- isTRUE(projection$converged)
-  change <- if (projected) max(abs(projection$plan - augmented)) else Inf
-  list(
-    projected = projected,
-    feasible = feasibility <= control$projection_tolerance,
-    change = change,
-    residual = change / control$step_size,
-    projection = projection
-  )
-}
-
 
 solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
                                               coverage, spec,
@@ -596,11 +599,16 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     return(fallback)
   }
   best <- if (revised) {
-    # Keep the fit with the lowest finite regularized objective (ties keep
-    # the first start); its convergence status is reported as is.
-    finite <- which(is.finite(optimization))
+    # Prefer fits whose stages all ended certified or projection-limited
+    # over fits that hit maxit; within the preferred tier keep the lowest
+    # finite regularized objective (ties keep the first start).
+    preferred <- vapply(fits, function(fit) {
+      fit$status %in% c("converged", "stalled_projection_limited")
+    }, logical(1))
+    tier <- if (any(preferred)) which(preferred) else seq_along(fits)
+    finite <- tier[is.finite(optimization[tier])]
     if (length(finite) == 0L) {
-      fits[[1L]]
+      fits[[tier[[1L]]]]
     } else {
       fits[[finite[[which.min(optimization[finite])]]]]
     }
