@@ -1,8 +1,12 @@
 # GazeWeave Replay revision 2026.10 ----------------------------------------
 #
-# Screen-truncated emissions, participant-level out-of-fold background
-# densities, and Baum-Welch (EM) parameter fitting. Revision "2026.08" keeps
-# the frozen behaviour in gaze_weave_replay.R.
+# Fixation-level observation model: one hidden-state visit per recall
+# fixation, emitting its position (screen-truncated Student replay states and
+# a participant-level out-of-fold background density) and its duration
+# (log-normal; replay mean a + b log(encoding duration), plus a background
+# log-normal). All parameters are fitted by Baum-Welch (EM) on training rows.
+# Revision "2026.08" keeps the frozen duration-grid behaviour in
+# gaze_weave_replay.R.
 
 # Objects saved before revisions existed carry no revision and are frozen
 # revision 2026.08; any other unknown revision is refused.
@@ -30,7 +34,10 @@ gaze_replay_em_control <- function() {
     background_floor_bounds = c(1e-3, 1 - 1e-6),
     background_min_trials = 3L,
     quadrature_nodes = 40L,
-    max_scale_fraction = 1 / 6
+    max_scale_fraction = 1 / 6,
+    # Lower bound on log-duration standard deviations (log units), so equal
+    # recall durations do not give a degenerate likelihood.
+    duration_sd_floor = 0.05
   )
 }
 
@@ -57,15 +64,137 @@ note_gaze_replay_plane <- function(spec) {
   invisible(TRUE)
 }
 
-gaze_replay_repeated_grid_message <- function(count, total, what,
-                                              grid_size) {
-  paste0(
-    "Replay: ", count, " of ", total, " ", what, " have fewer fixations ",
-    "than grid_size = ", grid_size, ", so fixations repeat across ",
-    "duration bins. Replay and background are then not identified: the ",
-    "fitted background share is not interpretable, and candidate scores can ",
-    "differ under a pure background null."
+note_gaze_replay_grid_size <- function() {
+  if (isTRUE(gaze_replay_notices$grid_size)) return(invisible(FALSE))
+  assign("grid_size", TRUE, envir = gaze_replay_notices)
+  message(
+    "Replay revision 2026.10: grid_size is ignored. The model observes each ",
+    "recall fixation once (position and duration); grid_size applies only ",
+    "to revision \"2026.08\". (Shown once per session.)"
   )
+  invisible(TRUE)
+}
+
+# Fixation-level observations -------------------------------------------------
+
+# One observation per recall fixation, in temporal order. Field names follow
+# the legacy duration grid (coords, fixation_index, time) so alignment
+# consumers such as the plots work unchanged.
+gaze_replay_fixation_observation <- function(measure) {
+  if (!inherits(measure, "gaze_measure")) {
+    stop("measure must be a gaze_measure.")
+  }
+  duration <- as.numeric(measure$fixations$duration)
+  if (length(duration) != nrow(measure$coords) || any(duration <= 0)) {
+    stop("Replay fixation observations need one positive duration per fixation.")
+  }
+  list(
+    coords = measure$coords,
+    duration = duration,
+    log_duration = log(duration),
+    fixation_index = seq_len(nrow(measure$coords)),
+    time = measure$time,
+    n_fixations = nrow(measure$coords)
+  )
+}
+
+gaze_replay_reference_log_duration <- function(reference) {
+  duration <- reference$fixations$duration
+  if (is.null(duration) || length(duration) != nrow(reference$coords) ||
+      any(!is.finite(duration)) || any(duration <= 0)) {
+    stop("Replay revision 2026.10 needs positive encoding fixation durations.")
+  }
+  log(as.numeric(duration))
+}
+
+# Log-normal duration emissions ------------------------------------------------
+
+# Log densities (with respect to duration, not log duration) of each recall
+# fixation duration under the background state (column one) and each replay
+# state j, whose log-duration mean is a + b * log(encoding duration j). Both
+# are normalised densities on (0, Inf) with parameters shared by every
+# candidate, so they introduce no candidate-dependent offset.
+gaze_replay_duration_log_density <- function(log_duration,
+                                             reference_log_duration,
+                                             duration) {
+  background <- stats::dnorm(
+    log_duration, duration$background_mean, duration$background_sd,
+    log = TRUE
+  ) - log_duration
+  replay_mean <- duration$replay_intercept +
+    duration$replay_slope * reference_log_duration
+  replay <- stats::dnorm(
+    outer(log_duration, replay_mean, FUN = "-") / duration$replay_sd,
+    log = TRUE
+  ) - log(duration$replay_sd) - log_duration
+  cbind(background, matrix(replay, length(log_duration)))
+}
+
+gaze_replay_initial_duration <- function(log_duration, floor) {
+  spread <- max(stats::sd(log_duration), floor, na.rm = TRUE)
+  center <- mean(log_duration)
+  list(
+    replay_intercept = center, replay_slope = 0, replay_sd = spread,
+    background_mean = center, background_sd = spread
+  )
+}
+
+# Exact M-step for the duration parameters given state posteriors: weighted
+# least squares of recall log duration on encoding log duration for the replay
+# states, and a weighted mean and variance for the background state. Each
+# block is the constrained maximiser of its own term of the expected complete
+# log likelihood (standard deviations floored), so EM stays monotone.
+gaze_replay_m_step_duration <- function(items, previous, floor) {
+  s0 <- sx <- sy <- sxx <- sxy <- 0
+  b0 <- by <- 0
+  for (item in items) {
+    gamma <- item$weight * item$posterior
+    replay <- gamma[, -1, drop = FALSE]
+    x <- item$reference_log_duration
+    y <- item$log_duration
+    row_weight <- rowSums(replay)
+    col_weight <- colSums(replay)
+    s0 <- s0 + sum(replay)
+    sx <- sx + sum(col_weight * x)
+    sy <- sy + sum(row_weight * y)
+    sxx <- sxx + sum(col_weight * x^2)
+    sxy <- sxy + sum(replay * outer(y, x))
+    b0 <- b0 + sum(gamma[, 1])
+    by <- by + sum(gamma[, 1] * y)
+  }
+  out <- previous
+  if (s0 > 1e-8) {
+    x_bar <- sx / s0
+    y_bar <- sy / s0
+    x_var <- sxx / s0 - x_bar^2
+    slope <- if (x_var > 1e-10) (sxy / s0 - x_bar * y_bar) / x_var else 0
+    intercept <- y_bar - slope * x_bar
+    residual <- 0
+    for (item in items) {
+      replay <- item$weight * item$posterior[, -1, drop = FALSE]
+      mean_matrix <- matrix(
+        intercept + slope * item$reference_log_duration,
+        length(item$log_duration), length(item$reference_log_duration),
+        byrow = TRUE
+      )
+      residual <- residual + sum(replay * (item$log_duration - mean_matrix)^2)
+    }
+    out$replay_intercept <- intercept
+    out$replay_slope <- slope
+    out$replay_sd <- max(sqrt(residual / s0), floor)
+  }
+  if (b0 > 1e-8) {
+    center <- by / b0
+    residual <- 0
+    for (item in items) {
+      residual <- residual + sum(
+        item$weight * item$posterior[, 1] * (item$log_duration - center)^2
+      )
+    }
+    out$background_mean <- center
+    out$background_sd <- max(sqrt(residual / b0), floor)
+  }
+  out
 }
 
 # Screen geometry ------------------------------------------------------------
@@ -156,14 +285,17 @@ gaze_replay_truncated_t_log_density <- function(observed, centers, scale,
 
 # Participant-level screen-truncated background ------------------------------
 
+# The background state emits fixation positions (durations are modelled
+# separately), so each fixation of a trial carries equal weight.
 gaze_replay_background_table <- function(measures, background_key,
                                          exclude_key) {
   rows <- lapply(seq_along(measures), function(i) {
     measure <- measures[[i]]
+    n <- nrow(measure$coords)
     data.frame(
       x = measure$coords[, 1],
       y = measure$coords[, 2],
-      mass = measure$mass,
+      mass = rep(1 / n, n),
       trial = i,
       background_key = background_key[[i]],
       exclude_key = exclude_key[[i]],
@@ -243,7 +375,7 @@ gaze_replay_background_log_density <- function(observed, background,
     ))
   }
   trials <- unique(table$trial)
-  # Every trial carries equal total weight; duration mass within trial.
+  # Every trial carries equal total weight, split equally over its fixations.
   weight <- table$mass / stats::ave(table$mass, table$trial, FUN = sum) /
     length(trials)
   points <- cbind(table$x, table$y)
@@ -292,11 +424,138 @@ gaze_replay_emissions_revision <- function(reference, grid, emission_model,
   if (is.null(grid$log_background)) {
     stop("Replay revision 2026.10 emissions need a prepared background density.")
   }
-  cbind(
+  if (is.null(grid$log_duration) || is.null(emission_model$duration)) {
+    stop("Replay revision 2026.10 emissions need fixation durations and ",
+         "fitted duration parameters.")
+  }
+  spatial <- cbind(
     grid$log_background,
     gaze_replay_truncated_t_log_density(
       grid$coords, reference$coords, emission_model$replay_scale, degrees,
       emission_model$screen
+    )
+  )
+  spatial + gaze_replay_duration_log_density(
+    grid$log_duration, gaze_replay_reference_log_duration(reference),
+    emission_model$duration
+  )
+}
+
+# Fixation-level pair alignment ----------------------------------------------
+
+# Score = total trial log likelihood over the recall's fixations (no division
+# by a grid size), so evidence grows with the number of recall fixations.
+gaze_replay_pair_alignment_fixation <- function(reference, emission_model,
+                                                parameters, spec, grid) {
+  if (is.null(grid$log_background) || is.null(grid$log_duration)) {
+    stop("Replay revision 2026.10 alignment needs a prepared fixation ",
+         "observation (see prepare_gaze_replay_source()).")
+  }
+  transition <- gaze_replay_transition(reference$mass, parameters,
+                                       spec$max_skip)
+  log_emission <- gaze_replay_emissions(
+    reference, grid, emission_model, spec$student_df
+  )
+  fit <- gaze_replay_forward_backward(log_emission, transition)
+  n_fixations <- nrow(log_emission)
+
+  replay_posterior <- fit$posterior[, -1, drop = FALSE]
+  replay_probability <- rowSums(replay_posterior)
+  normalized_replay <- replay_posterior
+  positive <- replay_probability > 0
+  normalized_replay[positive, ] <-
+    replay_posterior[positive, , drop = FALSE] / replay_probability[positive]
+  barycentric <- normalized_replay %*% reference$coords
+  barycentric[!positive, ] <- NA_real_
+
+  dx <- outer(grid$coords[, 1], reference$coords[, 1], FUN = "-")
+  dy <- outer(grid$coords[, 2], reference$coords[, 2], FUN = "-")
+  replay_weight <- sum(replay_posterior)
+  spatial_rmse <- if (replay_weight > 0) {
+    sqrt(sum(replay_posterior * (dx^2 + dy^2)) / replay_weight)
+  } else {
+    NA_real_
+  }
+  expected_restart <- sum(fit$expected_restart)
+
+  structure(
+    list(
+      log_likelihood = fit$log_likelihood,
+      posterior = fit$posterior,
+      replay_posterior = replay_posterior,
+      grid = grid,
+      barycentric = barycentric,
+      transition = transition,
+      emissions = log_emission,
+      diagnostics = list(
+        replay_coverage = mean(replay_probability),
+        background_coverage = mean(fit$posterior[, 1]),
+        encoding_visitation = colMeans(replay_posterior),
+        expected_restarts = expected_restart,
+        restart_rate = if (n_fixations > 1L) {
+          expected_restart / (n_fixations - 1L)
+        } else {
+          NA_real_
+        },
+        spatial_rmse = spatial_rmse,
+        template_state_count = nrow(reference$coords),
+        recall_fixations = n_fixations
+      ),
+      convergence = list(
+        converged = is.finite(fit$log_likelihood) &&
+          all(is.finite(fit$posterior)),
+        method = "scaled_low_rank_forward_backward",
+        complexity = "O(recall_fixations * encoding_fixations * max_skip)"
+      )
+    ),
+    class = c("gaze_replay_alignment", "list")
+  )
+}
+
+gaze_replay_align_prepared_fixation <- function(reference_measure, prepared,
+                                                model, candidate_key) {
+  alignment <- gaze_replay_pair_alignment_fixation(
+    reference_measure,
+    model$emission_models[[prepared$group]],
+    model$parameters,
+    model$spec,
+    prepared$grid
+  )
+  alignment$reference <- reference_measure
+  alignment$source <- prepared$source
+  alignment$registered_source <- prepared$registered_source
+  alignment$warp <- prepared$warp
+  alignment$spec <- model$spec
+  alignment$diagnostics <- c(
+    alignment$diagnostics,
+    prepared$quality,
+    list(
+      template_count = 1L,
+      template_effective_count = 1,
+      template_weight_max = 1
+    )
+  )
+
+  new_gaze_engine_result(
+    engine = "replay",
+    candidate_key = candidate_key,
+    log_score = alignment$log_likelihood,
+    diagnostics = alignment$diagnostics,
+    alignment = alignment,
+    convergence = alignment$convergence,
+    provenance = list(
+      engine_version = model$version,
+      directionality = "encoding_to_recall",
+      score_semantics = "total_trial_log_likelihood",
+      raw_score_semantics = "total_trial_log_likelihood",
+      raw_log_likelihood = alignment$log_likelihood,
+      duration_semantics = "fixation_level_log_normal_duration_emissions",
+      candidate_invariant = TRUE,
+      warp_group = prepared$group,
+      transition_parameters = model$parameters,
+      duration_parameters = model$emission_models[[prepared$group]]$duration,
+      likelihood_temperature = model$temperature,
+      temperature_semantics = "residual_scale_on_total_log_likelihood"
     )
   )
 }
@@ -428,14 +687,20 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
   })
   names(scale) <- groups
   floor_weight <- control$background_floor
+  episode_first <- vapply(split(seq_along(pairs), pair_episode), `[[`,
+                          integer(1), 1L)
+  duration <- gaze_replay_initial_duration(
+    unlist(lapply(pairs[episode_first], `[[`, "log_duration")),
+    control$duration_sd_floor
+  )
   trace <- numeric()
   converged <- FALSE
   decreased <- FALSE
-  n_bins <- sum(vapply(split(seq_along(pairs), pair_episode), function(rows) {
-    nrow(pairs[[rows[[1]]]]$grid)
+  n_obs <- sum(vapply(pairs[episode_first], function(pair) {
+    nrow(pair$coords)
   }, numeric(1)))
 
-  run_e_step <- function(parameters, scale, floor_weight) {
+  run_e_step <- function(parameters, scale, floor_weight, duration) {
     lapply(pairs, function(pair) {
       transition <- gaze_replay_transition(
         pair$reference_mass, parameters, spec$max_skip
@@ -446,8 +711,10 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
       log_emission <- cbind(
         log_background,
         gaze_replay_truncated_t_log_density(
-          pair$grid, pair$centers, scale[[pair$group]], degrees, rect
+          pair$coords, pair$centers, scale[[pair$group]], degrees, rect
         )
+      ) + gaze_replay_duration_log_density(
+        pair$log_duration, pair$reference_log_duration, duration
       )
       fit <- gaze_replay_forward_backward(log_emission, transition)
       list(
@@ -457,7 +724,7 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
     })
   }
 
-  e_step <- run_e_step(parameters, scale, floor_weight)
+  e_step <- run_e_step(parameters, scale, floor_weight, duration)
   for (iteration in seq_len(control$max_iterations)) {
     pair_ll <- vapply(e_step, `[[`, numeric(1), "log_likelihood")
     episode_rows <- split(seq_along(pairs), pair_episode)
@@ -473,8 +740,8 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
       change <- trace[[length(trace)]] - trace[[length(trace) - 1L]]
       # EM must not decrease the likelihood; a decrease beyond tolerance
       # signals an inconsistent update and is never reported as convergence.
-      if (change < -control$tolerance * n_bins) decreased <- TRUE
-      if (abs(change) <= control$tolerance * n_bins) {
+      if (change < -control$tolerance * n_obs) decreased <- TRUE
+      if (abs(change) <= control$tolerance * n_obs) {
         converged <- !decreased
         break
       }
@@ -533,7 +800,17 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
         items, degrees, rect, spec$scale_floor, scale[[group]], scale_upper
       )
     }
-    e_step <- run_e_step(parameters, scale, floor_weight)
+    # Duration parameters are shared by every candidate and warp group.
+    duration <- gaze_replay_m_step_duration(
+      lapply(seq_along(pairs), function(i) list(
+        weight = weights[[i]],
+        posterior = e_step[[i]]$stats$posterior,
+        log_duration = pairs[[i]]$log_duration,
+        reference_log_duration = pairs[[i]]$reference_log_duration
+      )),
+      duration, control$duration_sd_floor
+    )
+    e_step <- run_e_step(parameters, scale, floor_weight, duration)
   }
 
   posterior_background <- vapply(e_step, function(value) {
@@ -549,6 +826,7 @@ fit_gaze_replay_em <- function(pairs, pair_episode, groups, spec, rect,
   list(
     parameters = parameters,
     replay_scale = scale,
+    duration = duration,
     log_likelihood_trace = trace,
     iterations = length(trace),
     converged = converged,
@@ -627,8 +905,8 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
   background_level <- character(length(episodes))
   for (i in seq_along(episodes)) {
     episode <- episodes[[i]]
-    grid <- gaze_duration_grid(episode$source, spec$grid_size)
-    coords <- gaze_replay_clamp_to_screen(grid$coords, rect)
+    observation <- gaze_replay_fixation_observation(episode$source)
+    coords <- gaze_replay_clamp_to_screen(observation$coords, rect)
     bg <- gaze_replay_background_log_density(
       coords, background, background_key[[i]], exclude_key[[i]]
     )
@@ -640,7 +918,9 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
       dx <- outer(coords[, 1], centers[, 1], FUN = "-")
       dy <- outer(coords[, 2], centers[, 2], FUN = "-")
       pairs[[length(pairs) + 1L]] <- list(
-        grid = coords,
+        coords = coords,
+        log_duration = observation$log_duration,
+        reference_log_duration = gaze_replay_reference_log_duration(reference),
         centers = centers,
         reference_mass = reference$mass,
         distance_sq = dx^2 + dy^2,
@@ -657,23 +937,15 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
     list(
       revision = "2026.10",
       replay_scale = em$replay_scale[[group]],
+      duration = em$duration,
       screen = rect,
-      training_grid_points = sum(vapply(pairs, function(pair) {
-        if (identical(pair$group, group)) nrow(pair$grid) else 0L
+      training_fixations = sum(vapply(pairs, function(pair) {
+        if (identical(pair$group, group)) nrow(pair$coords) else 0L
       }, integer(1)))
     )
   })
   names(emission_models) <- groups
   background$floor_weight <- em$floor_weight
-  fixation_count <- vapply(episodes, function(episode) {
-    nrow(episode$source$coords)
-  }, integer(1))
-  repeated_n <- sum(fixation_count < spec$grid_size)
-  if (repeated_n > 0L) {
-    message(gaze_replay_repeated_grid_message(
-      repeated_n, length(fixation_count), "training recalls", spec$grid_size
-    ))
-  }
   fallback_n <- sum(background_level != "participant")
   if (!is.null(background_by) && fallback_n > 0L) {
     message(
@@ -688,8 +960,7 @@ fit_gaze_replay_revision <- function(episodes, source_tab, match_on, spec,
     parameters = em$parameters,
     background = background,
     screen = rect,
-    em = c(em[setdiff(names(em), c("parameters", "replay_scale"))],
-           list(repeated_grid_rows = repeated_n)),
+    em = em[setdiff(names(em), c("parameters", "replay_scale"))],
     background_level = background_level
   )
 }

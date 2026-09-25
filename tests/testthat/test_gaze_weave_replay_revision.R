@@ -1,5 +1,7 @@
 # Replay revision 2026.10: screen normalisation, background, and EM fitting.
-# All data are simulated from the Replay generative model itself.
+# All data are simulated from the Replay generative model itself. The
+# fixation-level observation model (plan A2b) has its own file,
+# test_gaze_weave_replay_fixation.R.
 
 replay_revision_under_test <- "2026.10"
 revision_screen_w <- 1024
@@ -31,8 +33,8 @@ revision_path <- function(xy) {
                       onset = seq_len(nrow(xy)) - 1)
 }
 
-# One fixation per duration bin (grid_size = n_bins), so the Replay HMM is
-# the exact generative model of the simulated recalls.
+# One recall fixation per hidden-state visit (equal durations), so the
+# fixation-level Replay HMM is the exact generative model of the recalls.
 simulate_replay_hmm <- function(n_participants = 4L, n_items = 12L,
                                 n_bins = 32L, n_reference = 6L, scale = 40,
                                 parameters = list(
@@ -111,7 +113,7 @@ fit_revision_model <- function(data, revision = replay_revision_under_test) {
   )
 }
 
-# Posterior share of duration bins assigned to the background state on the
+# Posterior share of observations assigned to the background state on the
 # training rows. Revision 2026.10 records the out-of-fold EM value; the frozen
 # revision is summarised with its own alignment posteriors.
 fitted_background_fraction <- function(model, data) {
@@ -131,7 +133,7 @@ revision_key <- function(value, column) {
 }
 
 revision_emission_grid <- function(model, points) {
-  grid <- list(coords = points)
+  grid <- list(coords = points, log_duration = rep(0, nrow(points)))
   if (identical(model$revision, "2026.10")) {
     grid <- gaze_replay_prepare_background(
       grid, model, revision_key("p1", "participant"),
@@ -165,17 +167,26 @@ test_that("every Replay emission state integrates to one over the screen", {
   points <- as.matrix(expand.grid(gx, gy))
   cell <- (revision_screen_w / nx) * (revision_screen_h / ny)
   # Centre, edge midpoint, corner, and a fixation recorded just off screen.
-  reference <- list(coords = rbind(
-    c(revision_screen_w / 2, revision_screen_h / 2),
-    c(1, revision_screen_h / 2),
-    c(1, 1),
-    c(revision_screen_w + 5, revision_screen_h - 2)
-  ))
-  log_emission <- gaze_replay_emissions(
-    reference, revision_emission_grid(model, points),
-    model$emission_models[[1]], model$spec$student_df
+  reference <- list(
+    coords = rbind(
+      c(revision_screen_w / 2, revision_screen_h / 2),
+      c(1, revision_screen_h / 2),
+      c(1, 1),
+      c(revision_screen_w + 5, revision_screen_h - 2)
+    ),
+    fixations = data.frame(duration = c(1, 2, 3, 4))
   )
-  integral <- colSums(exp(log_emission)) * cell
+  grid <- revision_emission_grid(model, points)
+  log_emission <- gaze_replay_emissions(
+    reference, grid, model$emission_models[[1]], model$spec$student_df
+  )
+  # Every point has the same duration, so dividing out each state's duration
+  # density leaves its spatial density, which must integrate to one.
+  duration <- gaze_replay_duration_log_density(
+    grid$log_duration[[1]], log(reference$fixations$duration),
+    model$emission_models[[1]]$duration
+  )
+  integral <- unname(colSums(exp(sweep(log_emission, 2, duration))) * cell)
 
   expect_equal(integral, rep(1, ncol(log_emission)), tolerance = 1e-3)
 })
@@ -193,9 +204,10 @@ test_that("edge-heavy true candidates are not penalised against central ones", {
                ylim = c(0, revision_screen_h),
                area = revision_screen_w * revision_screen_h)
   state <- rep(seq_len(nrow(shape)), each = 8L)
-  # Per-bin shortfall of the model score from the exact screen-truncated
-  # generating log density of the replayed recall. Identical relative
-  # geometry must give the same shortfall wherever the candidate sits.
+  # Per-fixation shortfall of the model score (a total log likelihood) from
+  # the exact screen-truncated generating log density of the replayed
+  # recall. Identical relative geometry must give the same shortfall
+  # wherever the candidate sits.
   shortfall <- function(candidate) {
     recall <- t(vapply(state, function(s) {
       revision_rtrunc_t(candidate[s, ], 40)
@@ -203,9 +215,9 @@ test_that("edge-heavy true candidates are not penalised against central ones", {
     generating <- gaze_replay_truncated_t_log_density(
       recall, candidate, 40, 4, rect
     )[cbind(seq_along(state), state)]
-    sum(generating) / length(state) - gaze_replay_align(
+    (sum(generating) - gaze_replay_align(
       revision_path(candidate), revision_path(recall), model
-    )$log_score
+    )$log_score) / length(state)
   }
   set.seed(9)
   values <- t(replicate(20, vapply(placements, shortfall, numeric(1))))
@@ -251,8 +263,7 @@ test_that("forward-backward and Baum-Welch counts match a dense HMM", {
   model <- signal_model()
   reference <- as_gaze_measure(data$ref$fixgroup[[5]], gaze_local_order())
   source <- as_gaze_measure(data$src$fixgroup[[5]], gaze_local_order())
-  grid <- gaze_duration_grid(source, model$spec$grid_size)
-  grid <- revision_emission_grid(model, grid$coords)
+  grid <- revision_emission_grid(model, source$coords)
   transition <- gaze_replay_transition(
     reference$mass, model$parameters, model$spec$max_skip
   )
@@ -431,8 +442,10 @@ test_that("scoring backgrounds never depend on which candidate is true", {
       invariant = max(abs(first$candidates$log_score -
                             second$candidates$log_score)),
       top1 = first$evidence$top1_credit,
-      margin = first$candidates$log_score[[1]] -
-        first$candidates$log_score[[2]]
+      # Per recall fixation: the scale of the former one-bin-per-fixation
+      # score.
+      margin = (first$candidates$log_score[[1]] -
+        first$candidates$log_score[[2]]) / 24
     )
   }))
 
@@ -521,7 +534,6 @@ uniform_null_model <- function(grid_size, seed = 6L) {
 }
 
 test_that("a uniform on-screen null is fitted as background", {
-  # One duration bin per fixation: the identifiable setting.
   model <- uniform_null_model(grid_size = 12L)
   bound <- min(revision_screen_w, revision_screen_h) / 6
 
@@ -529,18 +541,16 @@ test_that("a uniform on-screen null is fitted as background", {
   expect_lte(model$emission_models[[1]]$replay_scale, bound + 1e-8)
 })
 
-test_that("duplicated duration bins leave replay and background unidentified", {
-  # Documents a known limitation, not a desired outcome. The duration grid
-  # repeats each fixation's coordinates in consecutive bins. The HMM treats
-  # those repeats as independent emissions, so a sharp replay state gains
-  # likelihood on repeated points even when recall is uniform noise. Replay
-  # and background are then not identified, and the background share of a
-  # uniform null is not recovered. A semi-Markov emission (planned) removes
-  # the duplicates. Until then, no background-share recovery is claimed
-  # when fixations span several bins.
+test_that("a grid longer than the recalls no longer unidentifies the null", {
+  # Under the former duration-bin observation model a grid of 24 bins for
+  # 12-fixation recalls repeated every fixation, and the uniform null was
+  # fitted with a background share below 0.8. The fixation-level model
+  # observes each fixation once, so grid_size cannot matter.
   model <- uniform_null_model(grid_size = 24L)
 
-  expect_lt(model$training$em$background_fraction, 0.8)
+  expect_gt(model$training$em$background_fraction, 0.8)
+  expect_identical(model$parameters,
+                   uniform_null_model(grid_size = 12L)$parameters)
 })
 
 test_that("an all-background null leaves the candidates exchangeable", {
@@ -703,27 +713,34 @@ test_that("undeclared screens and pooled background fallbacks are reported", {
   expect_true("pooled" %in% fit$results$background_level)
 })
 
-test_that("grids longer than the recall's fixation count are reported", {
+test_that("grids longer than the recall's fixation count change nothing", {
+  # The repeated-grid report of the duration-bin model is retired: each
+  # recall fixation is observed exactly once.
   data <- simulate_replay_hmm(n_participants = 2L, n_items = 4L,
                               n_bins = 16L, seed = 10L)
   exact <- make_revision_spec(n_bins = 16L)
   repeated <- make_revision_spec(n_bins = 32L)
 
   expect_no_message(
-    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
-                          spec = exact),
+    exact_model <- fit_gaze_replay_model(
+      data$ref, data$src, c("participant", "image_id"), spec = exact
+    ),
     message = "repeat"
   )
-  expect_message(
-    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
-                          spec = repeated),
-    "8 of 8 training recalls have fewer fixations than grid_size"
+  expect_no_message(
+    repeated_model <- fit_gaze_replay_model(
+      data$ref, data$src, c("participant", "image_id"), spec = repeated
+    ),
+    message = "repeat"
   )
+  expect_identical(repeated_model$parameters, exact_model$parameters)
+  expect_identical(repeated_model$emission_models,
+                   exact_model$emission_models)
   fit <- suppressMessages(gaze_replay_cv(
     data$ref, data$src, match_on = c("participant", "image_id"),
     contrast_on = "participant", n_folds = 2, seed = 2, spec = repeated
   ))
-  expect_identical(fit$provenance$repeated_grid_rows, nrow(data$src))
+  expect_false("repeated_grid_rows" %in% names(fit$provenance))
 })
 
 test_that("the participant-holdout message does not recommend held-out support", {

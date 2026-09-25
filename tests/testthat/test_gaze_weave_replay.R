@@ -63,12 +63,30 @@ test_that("Replay evidence scale is invariant to duration-grid replication", {
   expect_equal(fit_16$temperature, fit_64$temperature, tolerance = 1e-12)
 })
 
-test_that("Replay retains raw likelihood while scoring mean log density", {
+test_that("revision 2026.10 scores the total trial log likelihood", {
+  reference <- make_gaze_fixations(rbind(c(0, 0), c(1, 1), c(2, 0)))
+  training <- tibble::tibble(image_id = 1L, fixgroup = list(reference))
+  model <- suppressMessages(fit_gaze_replay_model(
+    training, training, match_on = "image_id",
+    spec = suppressMessages(make_replay_test_spec(grid_size = 20))
+  ))
+  result <- gaze_replay_align(reference, reference, model)
+
+  expect_equal(result$log_score, result$alignment$log_likelihood,
+               tolerance = 0)
+  expect_identical(nrow(result$alignment$posterior), 3L)
+  expect_identical(
+    result$provenance$score_semantics,
+    "total_trial_log_likelihood"
+  )
+})
+
+test_that("Replay 2026.08 retains raw likelihood while scoring mean log density", {
   reference <- make_gaze_fixations(rbind(c(0, 0), c(1, 1), c(2, 0)))
   training <- tibble::tibble(image_id = 1L, fixgroup = list(reference))
   model <- fit_gaze_replay_model(
     training, training, match_on = "image_id",
-    spec = make_replay_test_spec(grid_size = 20)
+    spec = make_replay_test_spec(grid_size = 20, revision = "2026.08")
   )
   result <- gaze_replay_align(reference, reference, model)
 

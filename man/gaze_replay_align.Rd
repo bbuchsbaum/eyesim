@@ -30,9 +30,11 @@ fitted with `background_by` only. `NULL` uses the pooled training
 background density.}
 }
 \value{
-A `gaze_engine_result` containing mean log predictive density per
-  normalized duration bin and a `gaze_replay_alignment` posterior object.
-  The alignment retains the raw total HMM log likelihood as a diagnostic.
+A `gaze_engine_result` and a `gaze_replay_alignment` posterior
+  object. Under revision `"2026.10"` the score is the total trial log
+  likelihood over recall fixations. Under `"2026.08"` it is the mean log
+  predictive density per normalized duration bin, and the alignment
+  retains the raw total HMM log likelihood as a diagnostic.
 }
 \description{
 Align recall gaze to an encoding path with a fitted Replay model
