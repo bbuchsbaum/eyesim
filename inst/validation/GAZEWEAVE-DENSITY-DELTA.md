@@ -429,8 +429,9 @@ background 0.88–0.95, group 0.05–0.12 and uniform ≈ 0. The M1 own weight i
 Gates:
 
 - Null (1): pass.
-- Nulls (2) and (3): within tolerance (neither rejects, and both upper bounds
-  are ≤ 0.01).
+- Nulls (2) and (3): both fail to reject under the primary decision rule, and
+  both 95% upper bounds are ≤ the δ_tol = 0.01 nats pre-declared for them in
+  section 7 and A3. (Wording revised post-review, 2026-09-24; see below.)
 - Primary rejects: fail.
 - Both primary − null contrasts: fail.
 - Attribution gate: fail.
@@ -472,15 +473,69 @@ design detects an own share of 5% of retrieval fixations. With high overlap
 (the own pattern is a reweighting of the image's own hotspots) it needs a
 share of about 10–20%. They are not ceilings on the real effect.
 
-**Reading the real result against the sweep.** The observed paired
-own − pseudo Δ is 0.0021 (upper bound 0.0080). That is below the mean
-contrast at s = 0.05 under low overlap, and comparable to high-overlap
-shares of about 0.05–0.10. So a distinct, low-overlap own pattern carrying
-≥ 5% of retrieval dwell is unlikely under this generator. An own pattern that
-reweights the same salient regions others fixate, at a share of about 10%,
-is not excluded. None of this is evidence of absent reactivation (section 10).
-Participant × image preference remains a named alternative for any future
-positive result.
+**Reading the real result against the sweep.** *Superseded by the
+post-review addition below.* The original reading said that a distinct own
+pattern carrying ≥ 5% of retrieval dwell was unlikely. That claim does not
+hold, because the synthetic generator is image-dominated in a way the real
+data are not.
+
+### Post-review addition (2026-09-24)
+
+A fresh-context review found no correctness or leakage defects, and the
+verdict stands. This addition revises the interpretation only. The estimand,
+frozen protocol, script and freeze hashes are unchanged.
+
+**1. Power under real template structure.** The synthetic sweep is
+image-dominated. Its fitted M0 group weight is 0.70–0.84, against 0.05–0.12
+in the real data.
+
+Real own–group template overlap (Bhattacharyya coefficient at h = 40 px) is
+0.81, between the sweep's low-overlap (0.74) and high-overlap (0.87) cells.
+
+I therefore ran a semi-synthetic injection on the real templates, using
+`run_density_delta_injection()` in `gaze-weave-density-delta-injection.R`. It
+sources the frozen script unchanged, so the freeze still verifies:
+
+- Retrieval positions are drawn from the real fold-specific M0 fit, with a
+  share s replaced by draws from the own template (h = 40 px).
+- Real fixation counts and durations are kept.
+- Own and pseudo-own designs are fully cross-fitted, and the paired
+  own − pseudo rule is applied.
+- There were 40 replicates per share. The aggregate is in
+  `gaze-weave-density-delta-simulation/injection-summary.csv`.
+
+| Own share s | Power (Clopper–Pearson 95%) | Mean own − pseudo | Fitted own weight |
+|---|---|---|---|
+| 0 | 0.00 (0–0.09) | −0.0002 | 0.008 |
+| 0.05 | 0.15 (0.06–0.30) | 0.0036 | 0.051 |
+| 0.10 | 0.93 (0.80–0.98) | 0.0149 | 0.100 |
+| 0.15 | 1.00 (0.91–1) | 0.0299 | 0.153 |
+| 0.20 | 1.00 (0.91–1) | 0.0473 | 0.202 |
+
+A reviewer probe with 12 replicates per share gave 0.00, 0.17, 0.67 and 1.00
+at s = 0, 0.05, 0.10 and 0.20, consistent within its wide Monte-Carlo error.
+
+The real data (own − pseudo 0.0021; fitted own weight 0.04–0.07) are
+**consistent with an own share of about 5% that this court cannot detect**
+(power about 0.15). Under real structure the detectable threshold is roughly
+a 10% share (power 0.93 at s = 0.10).
+
+**2. The bootstrap is conservative.** Across the 1.1.0 sweep cells, the mean
+crossed-bootstrap SE divided by the empirical SD of the replicate estimates
+has median 1.6 (IQR 1.5–1.75, range 1.0–1.9). The reported intervals are
+therefore probably too wide, and power is understated. Rescaling by that
+factor gives z ≈ 1.1 for own − pseudo and z ≈ 1.4 for the primary. Neither
+reaches the one-sided criterion, so the verdict is unchanged.
+
+**3. Alternative explanations for any future positive own − pseudo result.**
+In addition to participant × image preference (section 10), a
+participant-level calibration offset could produce such a result if it
+interacts with image structure. An example is a systematic gaze shift that
+moves fixations onto or off salient regions consistently across study and
+test. This would favour the participant's own template without any
+encoding–retrieval correspondence.
+
+None of this is evidence of absent reactivation (section 10).
 
 ### Protocol 1.0.0 (superseded; reported for completeness)
 
