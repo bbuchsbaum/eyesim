@@ -56,6 +56,80 @@
     floor. The objective is non-convex, so the gap measures stationarity
     only.
 
+* GazeWeave Replay gains `gaze_replay_spec(revision = c("2026.10",
+  "2026.08"))`. The new default, `"2026.10"`, changes Replay as follows:
+  - The observation unit is one recall fixation. The HMM makes exactly one
+    hidden-state visit per recall fixation (background, or one state per
+    encoding fixation, with the same transition structure as before), and
+    each fixation emits its position and its duration. Durations are
+    log-normal: replay states have log-duration mean
+    `a + b * log(encoding duration)`, and the background has its own
+    log-normal. Both are normalised densities whose parameters are shared by
+    every candidate. The candidate score is the total trial log likelihood,
+    not a mean per duration bin, so evidence grows with the number of recall
+    fixations. `grid_size` is ignored under `"2026.10"` (a one-time message
+    says so when it is supplied).
+  - When a `screen` is declared, each replay emission is a Student density
+    truncated to the screen and normalised by its on-screen mass. Under
+    `"2026.08"` the on-screen mass was 0.99 at the centre and 0.35 near a
+    corner. Encoding fixations recorded off the screen are projected onto
+    it, both in the emissions and in the EM scale update. Without a screen,
+    the support is the whole plane, and a one-time message says so.
+  - The background state's position density is a screen-truncated kernel
+    density of recall fixations (equal weight per fixation within a trial),
+    mixed with a uniform screen floor whose weight EM fits. `"2026.08"` used a single Student density at the training recall
+    mean. The evaluation protocol is declared by `background_support`:
+    - Under `"training"` (the default), backgrounds come from training
+      recalls only. The `background_by` level is used when it has at least
+      three trials, otherwise the population density.
+    - Under `"held_out"` (opt-in), a held-out participant's own recalls of
+      items outside the scored row's candidate pool are used. It engages only
+      with an item-level split and a `contrast_on` that blocks items; it never
+      engages under participant holdout with shared items. It is
+      transductive: it reads other evaluation rows' item labels, so it cannot
+      be used on unlabelled recalls.
+    - At scoring time the background drops training rows whose exclusion key
+      (`setdiff(match_on, background_by)`) matches any candidate in the pool,
+      never only the true one, so it is independent of the label. When
+      `background_by` is not in `match_on`, that key includes the participant,
+      so other participants' recalls of the candidate items remain. If the
+      exclusion would leave fewer than three trials, nothing is excluded. An earlier draft excluded
+      only the true item, which leaked the label: on an ambiguous null, top-1
+      accuracy with two candidates rose from 0.48 to 0.90.
+    - Pooled fallbacks are reported by a message and counted in
+      `gaze_replay_cv()` provenance (`background_fallback`), as are
+      background levels unseen in training (e.g. under participant holdout).
+  - The replay scale, the duration parameters, and all four transition
+    probabilities are fitted by Baum–Welch EM on training rows only. `transition_grid` now supplies only
+    the starting values. The background entry, initial and persistence
+    probabilities may all approach one, so a fully null recall can be
+    represented. The replay scale is capped at one sixth of the shorter
+    screen side: a replay state is local, and a near-uniform replay state
+    cannot be distinguished from the background. EM reports non-convergence
+    if the likelihood ever decreases.
+  - On data simulated from the fixation-level model, EM recovers the replay
+    scale to within 1%, the background share to within 0.02, and the
+    duration slope `b` to within 0.01. `"2026.08"` inflated the scale by
+    60%. With the validation-court transition grid, it also could not
+    exceed a stationary background share of 0.67 under a full null.
+  - An earlier, unreleased draft of `"2026.10"` kept the duration-grid
+    observation model. It treated repeated bins of one fixation as
+    independent emissions, so replay and background were not identified: on
+    a uniform null with 20-30 fixations at 64 bins the background share was
+    0.44-0.62. The fixation-level model fits the same null with a background
+    share of 0.98, and the candidate score spread is about 1% of a typical
+    true-candidate margin. The draft's repeated-grid message and
+    `provenance$repeated_grid_rows` are removed, because `"2026.10"` is
+    unreleased; its results are not comparable with this version.
+  - Fitted models record `revision`, EM diagnostics (`training$em`), and the
+    background model. Their `version` is 5.
+  - `gaze_replay_align()` and `gaze_replay_align_episode()` gain
+    `background_key`. Revision `"2026.08"` reproduces the earlier fits and
+    scores bit for bit. The frozen validation court scripts pin it.
+  - Specs and models saved without a revision are treated as `"2026.08"`.
+    An unknown revision is an error. Multi-presentation court checkpoints
+    record the Replay revision.
+
 * Canonicalized edge-normalized Transport as the sole public Transport method.
   The API is now `gaze_transport_spec()`, `gaze_transport_align()`,
   `gaze_transport_cv()`, and related unversioned helpers; `gaze_weave_cv()`

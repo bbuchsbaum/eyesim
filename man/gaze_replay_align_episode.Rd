@@ -10,7 +10,8 @@ gaze_replay_align_episode(
   model,
   candidate_key = "candidate",
   template_key = NULL,
-  warp_group = NULL
+  warp_group = NULL,
+  background_key = NULL
 )
 }
 \arguments{
@@ -25,15 +26,21 @@ gaze_replay_align_episode(
 \item{template_key}{Optional unique identifiers for `references`.}
 
 \item{warp_group}{Required fitted group key for grouped models.}
+
+\item{background_key}{Optional values of the `background_by` columns (in
+their declared order) for the recall path; revision `"2026.10"` models
+fitted with `background_by` only. `NULL` uses the pooled training
+background density.}
 }
 \value{
 A `gaze_engine_result` whose alignment inherits from
   `gaze_replay_episode_alignment` and `gaze_replay_alignment`.
 }
 \description{
-Each encoding path is aligned independently. Their mean-log-likelihood
-scores are combined as an equal-weight mixture, so no transition is created
-between study presentations. The returned alignment retains all component
+Each encoding path is aligned independently. Their scores (total log
+likelihoods under revision `"2026.10"`, mean log likelihoods per duration
+bin under `"2026.08"`) are combined as an equal-weight mixture, so no
+transition is created between study presentations. The returned alignment retains all component
 posteriors and uses the highest-responsibility component for the ordinary
 overlay and braid fields.
 }

@@ -116,7 +116,8 @@ v3_court_specs <- function(smoke = FALSE) {
       advance = c(0.25, 0.55), background_stay = c(0.85, 0.95)
     ),
     warp = warp, screen = screen,
-    reliability = "effective_fixations"
+    reliability = "effective_fixations",
+    revision = "2026.08"
   )
   baseline <- gaze_baseline_spec(
     screen = screen,

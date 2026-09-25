@@ -1,4 +1,5 @@
-make_episode_test_spec <- function(reliability = "none", grid_size = 12L) {
+make_episode_test_spec <- function(reliability = "none", grid_size = 12L,
+                                   revision = "2026.10") {
   gaze_replay_spec(
     grid_size = grid_size,
     max_skip = 2L,
@@ -11,7 +12,8 @@ make_episode_test_spec <- function(reliability = "none", grid_size = 12L) {
       background_stay = 0.9
     ),
     reliability = reliability,
-    reliability_kappa_bounds = c(0, 100)
+    reliability_kappa_bounds = c(0, 100),
+    revision = revision
   )
 }
 
@@ -182,7 +184,7 @@ test_that("four-presentation episodes preserve separate paths", {
   model <- fit_gaze_replay_model(
     tabs$reference, tabs$source,
     match_on = "item", template_on = "presentation",
-    spec = make_episode_test_spec()
+    spec = make_episode_test_spec(revision = "2026.08")
   )
   episode <- gaze_replay_align_episode(
     tabs$a, tabs$a[[4L]], model,
