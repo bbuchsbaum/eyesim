@@ -4,17 +4,27 @@ transport_v3_native_available <- function() {
   is.loaded("_eyesim_transport_v3_profile_native_cpp", PACKAGE = "eyesim")
 }
 
-solve_transport_v3_profile_native <- function(reference, source, spec,
-                                              quadrature = spec$coverage) {
+# Reason the native backend cannot solve a specification, or NULL. These are
+# properties of the specification, not of a pair, so they apply to every pair.
+transport_v3_native_unsupported <- function(spec) {
   if (!transport_v3_native_available()) {
-    stop("Transport native backend is unavailable on this platform.")
+    return("Transport native backend is unavailable on this platform.")
   }
   if (spec$control$multistart != 1L) {
-    stop("The native backend currently requires multistart = 1.")
+    return("The native backend currently requires multistart = 1.")
   }
   if (identical(spec$control$projection_method, "log")) {
-    stop("The native backend does not replace the log-domain projection oracle.")
+    return(
+      "The native backend does not replace the log-domain projection oracle."
+    )
   }
+  NULL
+}
+
+solve_transport_v3_profile_native <- function(reference, source, spec,
+                                              quadrature = spec$coverage) {
+  unsupported <- transport_v3_native_unsupported(spec)
+  if (!is.null(unsupported)) stop(unsupported)
   spatial_cost <- gaze_spatial_cost(
     reference$coords, source$coords, spec$spatial
   )
@@ -32,7 +42,8 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
     step_size = spec$control$step_size,
     tolerance = spec$control$tolerance,
     projection_maxit = spec$control$projection_maxit,
-    projection_tolerance = spec$control$projection_tolerance
+    projection_tolerance = spec$control$projection_tolerance,
+    revision = if (transport_v3_revised(spec)) 1L else 0L
   )
   fits <- native$fits
   if (length(fits) != length(quadrature$coverage) ||
@@ -51,8 +62,9 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
       spec,
       final_entropy
     )
-    fit$start_objectives[[1]] <- fit$objective$optimization
-    fit$start_scientific_objectives[[1]] <- fit$objective$scientific
+    chosen <- if (transport_v3_revised(spec)) fit$start else 1L
+    fit$start_objectives[[chosen]] <- fit$objective$optimization
+    fit$start_scientific_objectives[[chosen]] <- fit$objective$scientific
     fit
   })
   structure(
@@ -95,6 +107,21 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
   )
 }
 
+transport_v3_backend_fallback_warning <- function(reason) {
+  structure(
+    class = c("gaze_transport_backend_fallback", "warning", "condition"),
+    list(
+      message = paste0(
+        "Transport native backend failed (", reason, "); this pair was ",
+        "solved by the reference backend. The fallback is recorded in the ",
+        "alignment's convergence$fallback."
+      ),
+      call = NULL,
+      reason = reason
+    )
+  )
+}
+
 solve_transport_v3_profile_ordered <- function(reference, source, spec,
                                                quadrature = spec$coverage) {
   backend <- spec$control$backend
@@ -103,12 +130,34 @@ solve_transport_v3_profile_ordered <- function(reference, source, spec,
       reference, source, spec, quadrature
     ))
   }
+  revised <- transport_v3_revised(spec)
+  if (revised) {
+    # Under revision 2026.10 a specification the native backend cannot solve
+    # is routed to the reference backend for every pair, so no pair-level
+    # algorithm mixing occurs.
+    unsupported <- transport_v3_native_unsupported(spec)
+    if (!is.null(unsupported)) {
+      if (identical(backend, "optimized")) stop(unsupported)
+      routed <- solve_transport_v3_profile_reference(
+        reference, source, spec, quadrature
+      )
+      routed$fallback <- FALSE
+      routed$backend_route <- paste0("auto_to_reference: ", unsupported)
+      return(routed)
+    }
+  }
   native <- tryCatch(
     solve_transport_v3_profile_native(reference, source, spec, quadrature),
     error = function(condition) condition
   )
-  native_success <- !inherits(native, "error") &&
+  native_success <- !inherits(native, "error") && if (revised) {
+    # A projection-limited stall is recorded, not a failure: scoring proceeds.
+    all(vapply(native$fits, function(fit) {
+      fit$status %in% c("converged", "stalled_projection_limited")
+    }, logical(1)))
+  } else {
     all(vapply(native$fits, function(fit) isTRUE(fit$converged), logical(1)))
+  }
   if (native_success) return(native)
   if (identical(backend, "optimized")) {
     if (inherits(native, "error")) stop(conditionMessage(native))
@@ -124,6 +173,15 @@ solve_transport_v3_profile_ordered <- function(reference, source, spec,
     "native_nonconvergence"
   }
   reference$backend <- "reference_fallback"
+  # A silent record for callers that count fallbacks (gaze_transport_cv());
+  # without a handler it has no effect.
+  signalCondition(structure(
+    class = c("gaze_transport_backend_fallback_record", "condition"),
+    list(message = reference$fallback_reason, call = NULL)
+  ))
+  if (revised) {
+    warning(transport_v3_backend_fallback_warning(reference$fallback_reason))
+  }
   reference
 }
 

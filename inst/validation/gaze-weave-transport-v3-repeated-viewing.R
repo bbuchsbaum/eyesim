@@ -52,7 +52,8 @@ v3_repeated_spec <- function(smoke = FALSE) {
     backend = "auto",
     reliability = "effective_fixations",
     calibration_folds = 2L,
-    calibration_seed = 20260822L
+    calibration_seed = 20260822L,
+    revision = "2026.08"
   )
 }
 

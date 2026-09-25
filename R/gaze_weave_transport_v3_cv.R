@@ -368,8 +368,29 @@ score_transport_v3_cv_row <- function(
     warp = row_warp,
     all_converged = all(vapply(scored$candidates, function(candidate) {
       candidate$convergence$converged
-    }, logical(1)))
+    }, logical(1))),
+    backend_fallbacks = transport_v3_count_alignments(
+      scored$candidates, function(convergence) isTRUE(convergence$fallback)
+    ),
+    solver_stalled = transport_v3_count_alignments(
+      scored$candidates, function(convergence) {
+        identical(convergence$status, "stalled_projection_limited")
+      }
+    )
   )
+}
+
+# Number of episode alignments, across candidates, whose convergence record
+# satisfies `predicate` (for example, solved by the reference backend after a
+# native failure).
+transport_v3_count_alignments <- function(candidates, predicate) {
+  as.integer(sum(vapply(candidates, function(candidate) {
+    episodes <- candidate$alignment$episodes
+    if (is.null(episodes)) episodes <- list(candidate)
+    sum(vapply(episodes, function(result) {
+      isTRUE(predicate(result$convergence))
+    }, logical(1)))
+  }, numeric(1))))
 }
 
 transport_v3_identity_calibration <- function(spec, reason) {
@@ -495,6 +516,13 @@ transport_v3_expected_calibration_error <- function(reliability_table) {
 #'
 #' @return A `gaze_transport_fit` with held-out candidate probabilities,
 #'   fold receipts, response-blind quality diagnostics, and calibration checks.
+#'   `results$backend_fallbacks` and `results$solver_stalled` count, per
+#'   held-out row, the episode alignments solved by the reference backend
+#'   after a native failure and those recorded as
+#'   `"stalled_projection_limited"`. The `solver` element summarises the
+#'   solver revision, the backends used, and these counts (including inner
+#'   calibration alignments in `backend_fallback_count`). Per-alignment
+#'   fallback warnings are replaced by one summary warning.
 #' @export
 gaze_transport_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,
@@ -540,7 +568,19 @@ gaze_transport_cv <- function(
   fold_results <- vector("list", folds$n_folds)
   fold_info <- vector("list", folds$n_folds)
   all_evidence <- list()
-  for (fold in seq_len(folds$n_folds)) {
+  # Count every native-to-reference fallback (outer and inner calibration
+  # alignments) and replace per-pair warnings with one summary warning.
+  fallback_records <- 0L
+  fallback_warnings <- 0L
+  withCallingHandlers(
+    gaze_transport_backend_fallback_record = function(condition) {
+      fallback_records <<- fallback_records + 1L
+    },
+    gaze_transport_backend_fallback = function(condition) {
+      fallback_warnings <<- fallback_warnings + 1L
+      invokeRestart("muffleWarning")
+    },
+    for (fold in seq_len(folds$n_folds)) {
     eval_rows <- which(folds$fold_id == fold & eval_mask)
     if (length(eval_rows) == 0L) next
     eval_keys <- unique(source_key[eval_rows])
@@ -597,6 +637,12 @@ gaze_transport_cv <- function(
     result_fold$all_converged <- vapply(
       scored, `[[`, logical(1), "all_converged"
     )
+    result_fold$backend_fallbacks <- vapply(
+      scored, `[[`, integer(1), "backend_fallbacks"
+    )
+    result_fold$solver_stalled <- vapply(
+      scored, `[[`, integer(1), "solver_stalled"
+    )
     result_fold$candidates <- lapply(scored, function(result) {
       result$evidence$candidates
     })
@@ -619,6 +665,7 @@ gaze_transport_cv <- function(
       heldout_cell_contributed_to_fit = FALSE
     )
   }
+  )
   results <- dplyr::bind_rows(fold_results)
   if (nrow(results) == 0L) {
     stop("No held-out Transport rows were scored.")
@@ -630,10 +677,42 @@ gaze_transport_cv <- function(
     cbind(gaze_info_bits, log_loss) ~ candidate_count,
     data = results, FUN = mean
   )
+  heldout_backends <- unique(unlist(lapply(
+    results$alignments, function(candidates) {
+      lapply(candidates, function(candidate) {
+        vapply(candidate$alignment$episodes, function(result) {
+          result$convergence$backend
+        }, character(1))
+      })
+    }
+  )))
+  solver <- list(
+    revision = transport_v3_revision(spec),
+    backend = spec$control$backend,
+    heldout_backends = sort(heldout_backends),
+    backend_fallback_count = fallback_records,
+    heldout_backend_fallback_count = as.integer(sum(results$backend_fallbacks)),
+    heldout_stalled_count = as.integer(sum(results$solver_stalled))
+  )
+  if (fallback_warnings > 0L) {
+    warning(structure(
+      class = c("gaze_transport_backend_fallback", "warning", "condition"),
+      list(
+        message = paste0(
+          fallback_warnings, " Transport alignment(s) fell back from the ",
+          "native to the reference backend (", solver$heldout_backend_fallback_count,
+          " held out). See results$backend_fallbacks and solver."
+        ),
+        call = NULL,
+        reason = "native_failure"
+      )
+    ))
+  }
   structure(
     list(
       results = results,
       spec = spec,
+      solver = solver,
       folds = fold_info,
       calibration = list(
         heldout_log_loss = mean(results$log_loss),
@@ -653,6 +732,7 @@ gaze_transport_cv <- function(
       ),
       provenance = list(
         engine = "transport",
+        solver_revision = transport_v3_revision(spec),
         primary_score = "gaze_info_bits=log2(p_true/prior_true)",
         candidate_pool = "exhaustive_permitted_within_contrast",
         candidate_prior = if (is.null(priorvar)) {

@@ -32,7 +32,8 @@ gaze_transport_spec(
   calibration_folds = 2L,
   calibration_seed = 20260822L,
   log_temperature_prior_sd = 1,
-  log1p_kappa_prior_sd = 1
+  log1p_kappa_prior_sd = 1,
+  revision = c("2026.10", "2026.08")
 )
 }
 \arguments{
@@ -65,7 +66,12 @@ projection controls.}
 
 \item{backend}{Pair solver backend. `"reference"` is the readable R oracle;
 `"optimized"` uses the estimator-preserving batched implementation;
-`"auto"` uses the optimized backend with a clean reference fallback.}
+`"auto"` uses the optimized backend with a reference fallback. Under
+revision `"2026.10"`, a specification the native backend cannot solve
+(for example `multistart = 2`) is routed to the reference backend for
+every pair, and a per-pair numerical fallback raises a warning of class
+`gaze_transport_backend_fallback`. The backend used is recorded in every
+alignment's `convergence` element.}
 
 \item{polish}{Optional scientific-objective Frank-Wolfe audit. The default
 keeps the entropic solution; `"audit"` polishes every coverage node.}
@@ -81,6 +87,23 @@ the temperature-only solution as an exact boundary.}
 \item{calibration_folds, calibration_seed}{Inner calibration-fold policy.}
 
 \item{log_temperature_prior_sd, log1p_kappa_prior_sd}{Calibration penalties.}
+
+\item{revision}{Solver revision. `"2026.10"` (the default) is the
+corrected solver. A stage converges only when the projected update
+residual of an unbacktracked mirror step (at least `step_size / 8`) is at
+most `tolerance`. When the line search is limited by projection noise,
+the fixed-step residual is checked with a tighter projection; if it
+cannot be certified the stage is recorded as
+`"stalled_projection_limited"` (not converged, but scored). Standard
+Sinkhorn is finished by a dual Newton projection when it exhausts its
+iterations. Every coverage node is solved from the independent and the
+continuation start and the lower objective is kept, replacing the
+reference backend's silent cold restart. `backend = "auto"` warns about
+and records every numerical fallback, and the polish Frank-Wolfe gap is
+`NA` with a reason on a selection boundary. `"2026.08"` reproduces the
+frozen August 2026 solver exactly; the frozen validation courts pin it.
+Specifications saved before revisions existed are solved as
+`"2026.08"`.}
 }
 \value{
 A frozen `gaze_transport_spec`.

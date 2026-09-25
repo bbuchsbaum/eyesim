@@ -46,6 +46,30 @@ transport_v3_coverage_quadrature <- function(n = 8L,
   )
 }
 
+# Solver revision of a Transport specification. Specifications serialised
+# before revisions existed carry no revision or, from 2026-08 onwards, the
+# estimand name in the `revision` slot; both are solved with the frozen
+# 2026.08 rules. Any other value is rejected.
+transport_v3_revision <- function(spec) {
+  revision <- spec$revision
+  if (is.null(revision) ||
+      identical(revision, "edge_normalized_episode_transport")) {
+    return("2026.08")
+  }
+  if (identical(revision, "2026.08") || identical(revision, "2026.10")) {
+    return(revision)
+  }
+  stop(
+    "Unknown Transport solver revision: ",
+    paste(format(revision), collapse = ", "),
+    ". Supported revisions are \"2026.10\" and \"2026.08\"."
+  )
+}
+
+transport_v3_revised <- function(spec) {
+  identical(transport_v3_revision(spec), "2026.10")
+}
+
 #' Specify edge-normalized GazeWeave Transport
 #'
 #' Transport separates matched coverage, normalized correspondence,
@@ -69,11 +93,32 @@ transport_v3_coverage_quadrature <- function(n = 8L,
 #' @param multistart One or two common structural starts.
 #' @param backend Pair solver backend. `"reference"` is the readable R oracle;
 #'   `"optimized"` uses the estimator-preserving batched implementation;
-#'   `"auto"` uses the optimized backend with a clean reference fallback.
+#'   `"auto"` uses the optimized backend with a reference fallback. Under
+#'   revision `"2026.10"`, a specification the native backend cannot solve
+#'   (for example `multistart = 2`) is routed to the reference backend for
+#'   every pair, and a per-pair numerical fallback raises a warning of class
+#'   `gaze_transport_backend_fallback`. The backend used is recorded in every
+#'   alignment's `convergence` element.
 #' @param polish Optional scientific-objective Frank-Wolfe audit. The default
 #'   keeps the entropic solution; `"audit"` polishes every coverage node.
 #' @param polish_maxit,polish_gap_tolerance,polish_relative_tolerance
 #'   Conditional-gradient stopping controls.
+#' @param revision Solver revision. `"2026.10"` (the default) is the
+#'   corrected solver. A stage converges only when the projected update
+#'   residual of an unbacktracked mirror step (at least `step_size / 8`) is at
+#'   most `tolerance`. When the line search is limited by projection noise,
+#'   the fixed-step residual is checked with a tighter projection; if it
+#'   cannot be certified the stage is recorded as
+#'   `"stalled_projection_limited"` (not converged, but scored). Standard
+#'   Sinkhorn is finished by a dual Newton projection when it exhausts its
+#'   iterations. Every coverage node is solved from the independent and the
+#'   continuation start and the lower objective is kept, replacing the
+#'   reference backend's silent cold restart. `backend = "auto"` warns about
+#'   and records every numerical fallback, and the polish Frank-Wolfe gap is
+#'   `NA` with a reason on a selection boundary. `"2026.08"` reproduces the
+#'   frozen August 2026 solver exactly; the frozen validation courts pin it.
+#'   Specifications saved before revisions existed are solved as
+#'   `"2026.08"`.
 #' @param reliability Response-blind calibration policy. The default learns
 #'   effective-fixation shrinkage on inner out-of-fold predictions and includes
 #'   the temperature-only solution as an exact boundary.
@@ -100,7 +145,9 @@ gaze_transport_spec <- function(
     reliability = c("effective_fixations", "none"),
     reliability_kappa_bounds = c(0, 100),
     calibration_folds = 2L, calibration_seed = 20260822L,
-    log_temperature_prior_sd = 1, log1p_kappa_prior_sd = 1) {
+    log_temperature_prior_sd = 1, log1p_kappa_prior_sd = 1,
+    revision = c("2026.10", "2026.08")) {
+  revision <- match.arg(revision)
   if (!inherits(spatial, "gaze_spatial_spec")) {
     stop("spatial must be created by gaze_gaussian_mixture().")
   }
@@ -240,7 +287,7 @@ gaze_transport_spec <- function(
           polish_relative_tolerance = as.numeric(polish_relative_tolerance)
         )
       ),
-      revision = "edge_normalized_episode_transport",
+      revision = revision,
       estimand = "edge_normalized_episode_transport"
     ),
     class = c("gaze_transport_spec", "list")
@@ -254,5 +301,6 @@ print.gaze_transport_spec <- function(x, ...) {
       paste(x$coverage_prior, collapse = ", "), ") prior\n", sep = "")
   cat("  chronology: next", x$chronology$neighbours, "ordinal neighbours\n")
   cat("  backend:", x$control$backend, "\n")
+  cat("  solver revision:", transport_v3_revision(x), "\n")
   invisible(x)
 }

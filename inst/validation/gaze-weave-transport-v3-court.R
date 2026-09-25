@@ -92,7 +92,8 @@ v3_court_specs <- function(smoke = FALSE) {
     projection_maxit = if (smoke) 300L else 1000L,
     projection_tolerance = 1e-7,
     backend = "optimized", reliability = "effective_fixations",
-    calibration_folds = 2L, calibration_seed = 20260822L
+    calibration_folds = 2L, calibration_seed = 20260822L,
+    revision = "2026.08"
   )
   transport_v2 <- gaze_transport_v2_spec(
     spatial = gaze_gaussian_mixture(c(40, 80, 160), unit = "px"),
@@ -441,7 +442,8 @@ v3_court_invariance <- function(seed = 20260822L) {
       coverage_nodes = nodes, entropy_schedule = 0.03,
       maxit = 1000, tolerance = 5e-5,
       projection_maxit = 300, projection_tolerance = 1e-7,
-      backend = "optimized", reliability = "none"
+      backend = "optimized", reliability = "none",
+      revision = "2026.08"
     )
   }
   spec <- make_spec()
@@ -554,7 +556,8 @@ v3_court_perturbations <- function(data, seed = 20260822L) {
     coverage_nodes = 12, entropy_schedule = 0.03,
     maxit = 1000, tolerance = 5e-5,
     projection_maxit = 300, projection_tolerance = 1e-7,
-    backend = "optimized", reliability = "none"
+    backend = "optimized", reliability = "none",
+    revision = "2026.08"
   )
   baseline_spec <- gaze_baseline_spec(
     gaze_screen(1200, 900, "px"), c(80, 160), density_grid = 12,

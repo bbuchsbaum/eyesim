@@ -53,6 +53,13 @@ design-prior weight per candidate. `NULL` declares a uniform design.}
 \value{
 A `gaze_transport_fit` with held-out candidate probabilities,
   fold receipts, response-blind quality diagnostics, and calibration checks.
+  `results$backend_fallbacks` and `results$solver_stalled` count, per
+  held-out row, the episode alignments solved by the reference backend
+  after a native failure and those recorded as
+  `"stalled_projection_limited"`. The `solver` element summarises the
+  solver revision, the backends used, and these counts (including inner
+  calibration alignments in `backend_fallback_count`). Per-alignment
+  fallback warnings are replaced by one summary warning.
 }
 \description{
 Outer folds hold out participant-item cells. Within each outer-training set,

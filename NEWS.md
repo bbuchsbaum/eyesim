@@ -1,5 +1,45 @@
 # eyesim 0.1.0.9000
 
+* `gaze_transport_spec()` gains `revision = c("2026.10", "2026.08")`. The
+  default `"2026.10"` corrects the Transport solver in both the native and
+  the reference backend; `"2026.08"` reproduces the frozen August 2026
+  solver bit for bit, and the frozen validation courts now pin it.
+  Specifications saved before revisions existed are solved as `"2026.08"`;
+  an unknown revision is an error. Behavioural changes under `"2026.10"`:
+  - Both revisions accept a mirror step that raises the objective by at most
+    1e-12 relative. The native backend declared a numerical failure when every
+    backtracked trial rose by more than that, which at 1e-8 projection
+    accuracy is noise-dominated; `backend = "auto"` then silently re-solved
+    the pair with the 30-200x slower reference backend. A failed or
+    noise-limited line search no longer means failure or convergence: the
+    mirror-descent fixed-point residual is evaluated at the fixed step
+    `step_size` with a 100-times tighter projection. A certified residual
+    converges the stage; otherwise the stage is recorded as
+    `"stalled_projection_limited"` (not converged, still scored).
+  - A stage converges only when the projected update residual of an
+    unbacktracked step (at least `step_size / 8`) is at most `tolerance`,
+    not after one small, heavily backtracked step.
+  - Standard Sinkhorn is finished by a damped dual Newton projection when it
+    exhausts its iterations, so near-decoupled plans no longer force tiny
+    mirror steps.
+  - Every coverage node is solved from the independent start and the
+    adjacent-coverage continuation, keeping the lower objective. This
+    replaces the reference backend's silent cold restart and removes the
+    dependence of a node's solution on how far the previous node was
+    optimized.
+  - The mutual-information term is evaluated in the log domain when the
+    product of two marginals underflows.
+  - `backend = "auto"` routes specifications the native backend cannot solve
+    (for example `multistart = 2`) to the reference backend for every pair,
+    and warns (class `gaze_transport_backend_fallback`) about any per-pair
+    fallback. Every alignment records its backend, fallback, status, and
+    solver revision in `convergence`; `gaze_transport_cv()` reports fallback
+    and stall counts per row and in `solver`.
+  - The polish Frank-Wolfe gap is `NA`, with a reason, where a selected mass
+    with a positive target vanishes: the Jensen-Shannon gradient is
+    unbounded there, and the reported gap was set by the gradient floor. The
+    objective is non-convex, so the gap is a stationarity measure only.
+
 * Canonicalized edge-normalized Transport as the sole public Transport method.
   The API is now `gaze_transport_spec()`, `gaze_transport_align()`,
   `gaze_transport_cv()`, and related unversioned helpers; `gaze_weave_cv()`

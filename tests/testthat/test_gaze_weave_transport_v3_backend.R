@@ -196,7 +196,10 @@ test_that("auto backend falls back cleanly when native policy is unsupported", {
     projection_maxit = 300,
     projection_tolerance = 1e-7,
     multistart = 2,
-    backend = "auto"
+    backend = "auto",
+    # Revision 2026.10 routes unsupported policies to the reference backend
+    # instead (test_gaze_weave_transport_revision.R).
+    revision = "2026.08"
   )
   result <- gaze_transport_align(path, path, auto_spec)
 

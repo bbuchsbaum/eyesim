@@ -39,6 +39,31 @@ transport_v3_jensen_shannon_gradient <- function(observed, target) {
   )
 }
 
+# Revision 2026.10 mutual information. Identical to gaze_mutual_information()
+# except that a positive cell whose independent reference mass underflows to
+# zero is evaluated in the log domain instead of contributing Inf.
+transport_v3_mutual_information <- function(correspondence) {
+  if (!is.matrix(correspondence) || any(!is.finite(correspondence)) ||
+      any(correspondence < 0) || abs(sum(correspondence) - 1) > 1e-8) {
+    stop("correspondence must be a finite non-negative unit-mass matrix.")
+  }
+  alpha <- rowSums(correspondence)
+  beta <- colSums(correspondence)
+  reference <- outer(alpha, beta)
+  positive <- correspondence > 0
+  value <- correspondence[positive]
+  ratio <- value / reference[positive]
+  unstable <- !(reference[positive] > 0) | !is.finite(ratio)
+  terms <- value * log(ratio)
+  if (any(unstable)) {
+    cells <- which(positive, arr.ind = TRUE)[unstable, , drop = FALSE]
+    terms[unstable] <- value[unstable] * (
+      log(value[unstable]) - log(alpha[cells[, 1L]]) - log(beta[cells[, 2L]])
+    )
+  }
+  sum(terms)
+}
+
 transport_v3_objective <- function(coupling, reference, source, spatial_cost,
                                    spec, entropy, warp_penalty = 0,
                                    gradient = FALSE) {
@@ -102,7 +127,11 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
   source_selection <- transport_v3_jensen_shannon(
     source_selected_unit, source$mass
   )
-  correspondence_information <- gaze_mutual_information(correspondence)
+  correspondence_information <- if (transport_v3_revised(spec)) {
+    transport_v3_mutual_information(correspondence)
+  } else {
+    gaze_mutual_information(correspondence)
+  }
   scientific_components <- c(
     spatial = coverage * spatial,
     chronology = coverage * spec$temporal_weight * edge$residual,
@@ -156,9 +185,219 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
   result
 }
 
+# One entropy stage of the revision 2026.10 mirror-descent solver. The native
+# backend (src/transport_v3.cpp, revision = 1) implements the same rules:
+#
+# * Projection: standard Sinkhorn, then a damped dual Newton finisher when
+#   Sinkhorn exhausts its iterations.
+# * Convergence: the first projected trial of an iteration taken at an
+#   unbacktracked step (at least step_size / 8) has projected update residual
+#   max|P_trial - P| / step <= tolerance and a converged projection.
+# * Noise-limited iterations: both revisions accept a trial that rises by at
+#   most 1e-12 relative, and a line search "fails" only when every trial rose
+#   by more than that. At 1e-8 projection accuracy such rises (and descents
+#   below 100 * projection_tolerance * max(1, |f|)) are noise, so they neither
+#   show progress nor establish stationarity. The stage then evaluates the
+#   mirror-descent fixed-point residual at the fixed reference step
+#   step_size, with a projection 100 times tighter, and checks the current
+#   plan's feasibility. A residual <= tolerance ends the stage as converged
+#   ("stationary_residual"). If no unbacktracked progress is possible, or the
+#   residual is below what the projection can resolve
+#   (10 * projection_tolerance / step_size), the stage ends as
+#   "stalled_projection_limited": not converged, but not a numerical failure.
+#   Otherwise the accepted step is taken and iteration continues.
+# * Starts: each coverage node is solved from the structural start(s) and the
+#   adjacent-coverage continuation; the lowest regularized objective is kept.
+# * Backtracking continues past 21 trials while the (clamped) mirror exponent
+#   is still large, so a huge gradient cannot defeat the step-size decrease.
+transport_v3_reference_stage_revised <- function(augmented, reference, source,
+                                                 spatial_cost, coverage, spec,
+                                                 entropy) {
+  real_rows <- seq_len(length(reference$mass))
+  real_columns <- seq_len(length(source$mass))
+  control <- spec$control
+  step <- control$step_size
+  stage_converged <- FALSE
+  stalled <- FALSE
+  termination <- "maxit"
+  final_change <- Inf
+  final_objective_change <- Inf
+  final_step <- NA_real_
+  projection <- list(error = Inf, converged = FALSE, method = NA_character_)
+  iteration <- 0L
+  for (iteration in seq_len(control$maxit)) {
+    coupling <- augmented[real_rows, real_columns, drop = FALSE]
+    current <- transport_v3_objective(
+      coupling, reference, source, spatial_cost, spec, entropy,
+      gradient = TRUE
+    )
+    centered_gradient <- current$gradient - stats::median(current$gradient)
+    gradient_scale <- max(abs(centered_gradient))
+    scale <- max(1, abs(current$optimization))
+    accepted <- FALSE
+    trial_step <- step
+    proposal <- augmented
+    proposal_objective <- current
+    certificate <- NULL
+    best_increase <- Inf
+    backtrack <- 0L
+    repeat {
+      if (backtrack > 20L &&
+          (trial_step * gradient_scale <= 1e-4 || backtrack > 80L)) {
+        break
+      }
+      backtrack <- backtrack + 1L
+      kernel <- augmented
+      update <- exp(pmax(pmin(-trial_step * centered_gradient, 50), -50))
+      kernel[real_rows, real_columns] <- pmax(coupling, 1e-300) * update
+      projection <- project_partial_coupling_revised(
+        kernel, reference$mass, source$mass, coverage, control
+      )
+      if (!projection$converged) {
+        trial_step <- trial_step / 2
+        next
+      }
+      proposal <- projection$plan
+      proposal_objective <- transport_v3_objective(
+        proposal[real_rows, real_columns, drop = FALSE],
+        reference, source, spatial_cost, spec, entropy
+      )
+      if (is.null(certificate) && trial_step >= control$step_size / 8) {
+        certificate <- list(
+          change = max(abs(proposal - augmented)),
+          step = trial_step,
+          error = projection$error
+        )
+      }
+      increase <- proposal_objective$optimization - current$optimization
+      if (is.finite(increase) && increase < best_increase) {
+        best_increase <- increase
+      }
+      if (is.finite(proposal_objective$optimization) &&
+          proposal_objective$optimization <= current$optimization +
+            1e-12 * max(1, abs(current$optimization))) {
+        accepted <- TRUE
+        break
+      }
+      trial_step <- trial_step / 2
+    }
+    certified <- !is.null(certificate) &&
+      certificate$change / certificate$step <= control$tolerance &&
+      certificate$error <= control$projection_tolerance
+    noise_limited <- !accepted || (
+      !certified &&
+        current$optimization - proposal_objective$optimization <=
+          100 * control$projection_tolerance * scale
+    )
+    if (noise_limited) {
+      # Certified: converged. Otherwise the stage stalls when no unbacktracked
+      # progress is possible or when the residual is already below what the
+      # projection accuracy can resolve (10 * projection_tolerance /
+      # step_size); else it continues with the accepted step.
+      stationarity <- transport_v3_fixed_step_residual(
+        augmented, coupling, centered_gradient, reference, source, coverage,
+        control
+      )
+      progressing <- accepted && trial_step >= control$step_size / 8
+      resolvable <- stationarity$residual >
+        10 * control$projection_tolerance / control$step_size
+      certified_fixed <- stationarity$projected && stationarity$feasible &&
+        stationarity$residual <= control$tolerance
+      if (certified_fixed || !progressing || !stationarity$projected ||
+          !stationarity$feasible || !resolvable) {
+        final_change <- stationarity$change
+        final_step <- control$step_size
+        final_objective_change <- abs(best_increase) / scale
+        projection <- stationarity$projection
+        if (certified_fixed) {
+          stage_converged <- TRUE
+          termination <- "stationary_residual"
+        } else {
+          stalled <- TRUE
+          termination <- "stalled_projection_limited"
+        }
+        break
+      }
+    }
+    final_change <- max(abs(proposal - augmented))
+    final_objective_change <- abs(
+      proposal_objective$optimization - current$optimization
+    ) / max(1, abs(current$optimization))
+    final_step <- trial_step
+    augmented <- proposal
+    step <- min(trial_step * 1.1, control$step_size)
+    if (certified) {
+      stage_converged <- TRUE
+      termination <- "residual"
+      if (certificate$step != trial_step) {
+        # Report the residual that certified convergence.
+        final_change <- certificate$change
+        final_step <- certificate$step
+      }
+      break
+    }
+  }
+  list(
+    augmented = augmented,
+    converged = stage_converged,
+    stalled = stalled,
+    final_change = final_change,
+    final_objective_change = final_objective_change,
+    final_step = final_step,
+    history = list(
+      entropy = entropy,
+      iterations = iteration,
+      converged = stage_converged,
+      coupling_change = final_change,
+      relative_objective_change = final_objective_change,
+      projected_update_residual = final_change /
+        max(final_step, .Machine$double.eps),
+      projection_error = projection$error,
+      projection_converged = isTRUE(projection$converged),
+      projection_method = projection$method,
+      projection_fallback = isTRUE(projection$fallback_from_standard),
+      termination = termination,
+      step = final_step
+    )
+  )
+}
+
+# Mirror-descent fixed-point residual at the fixed reference step step_size,
+# projected 100 times more tightly than the solver's projections, with a
+# feasibility check of the current plan.
+transport_v3_fixed_step_residual <- function(augmented, coupling,
+                                             centered_gradient, reference,
+                                             source, coverage, control) {
+  real_rows <- seq_len(length(reference$mass))
+  real_columns <- seq_len(length(source$mass))
+  kernel <- augmented
+  update <- exp(pmax(pmin(-control$step_size * centered_gradient, 50), -50))
+  kernel[real_rows, real_columns] <- pmax(coupling, 1e-300) * update
+  tight <- control
+  tight$projection_tolerance <- control$projection_tolerance * 1e-2
+  projection <- project_partial_coupling_revised(
+    kernel, reference$mass, source$mass, coverage, tight
+  )
+  feasibility <- max(
+    abs(rowSums(augmented) - c(reference$mass, 1 - coverage)),
+    abs(colSums(augmented) - c(source$mass, 1 - coverage))
+  )
+  projected <- isTRUE(projection$converged)
+  change <- if (projected) max(abs(projection$plan - augmented)) else Inf
+  list(
+    projected = projected,
+    feasible = feasibility <= control$projection_tolerance,
+    change = change,
+    residual = change / control$step_size,
+    projection = projection
+  )
+}
+
+
 solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
                                               coverage, spec,
                                               initial_augmented = NULL) {
+  revised <- transport_v3_revised(spec)
   n_reference <- length(reference$mass)
   n_source <- length(source$mass)
   real_rows <- seq_len(n_reference)
@@ -167,7 +406,12 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     reference, source, spatial_cost, coverage, spec
   )
   if (!is.null(initial_augmented)) {
-    projected <- project_partial_coupling(
+    project <- if (revised) {
+      project_partial_coupling_revised
+    } else {
+      project_partial_coupling
+    }
+    projected <- project(
       initial_augmented,
       reference$mass,
       source$mass,
@@ -177,8 +421,14 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     if (projected$converged) {
       # Coverage continuation is within one candidate and follows the same
       # ascending-node policy for every candidate. It never carries state
-      # across candidates.
-      starts <- list(adjacent_coverage = projected$plan)
+      # across candidates. Revision 2026.10 solves from the continuation in
+      # addition to the structural starts, so the node's solution does not
+      # depend on how far the previous node was optimized.
+      if (revised) {
+        starts$adjacent_coverage <- projected$plan
+      } else {
+        starts <- list(adjacent_coverage = projected$plan)
+      }
     }
   }
 
@@ -190,7 +440,25 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     final_change <- Inf
     final_objective_change <- Inf
     final_step <- NA_real_
+    terminations <- character(0)
     for (entropy in spec$entropy_schedule) {
+      if (revised) {
+        stage <- transport_v3_reference_stage_revised(
+          augmented, reference, source, spatial_cost, coverage, spec, entropy
+        )
+        augmented <- stage$augmented
+        final_change <- stage$final_change
+        final_objective_change <- stage$final_objective_change
+        final_step <- stage$final_step
+        history[[length(history) + 1L]] <- c(
+          stage$history, list(start = start_name)
+        )
+        projection_converged <- projection_converged &&
+          stage$history$projection_converged
+        all_stages_converged <- all_stages_converged && stage$converged
+        terminations <- c(terminations, stage$history$termination)
+        next
+      }
       step <- spec$control$step_size
       stage_converged <- FALSE
       projection <- list(error = Inf, converged = FALSE, method = NA_character_)
@@ -280,7 +548,7 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
       spec,
       utils::tail(spec$entropy_schedule, 1)
     )
-    list(
+    fit <- list(
       start = start_name,
       coupling = coupling,
       augmented = augmented,
@@ -294,6 +562,16 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
       projected_update_residual = final_change /
         max(final_step, .Machine$double.eps)
     )
+    if (revised) {
+      fit$status <- if (isTRUE(fit$converged)) {
+        "converged"
+      } else if (any(terminations == "maxit")) {
+        "not_converged"
+      } else {
+        "stalled_projection_limited"
+      }
+    }
+    fit
   })
   optimization <- vapply(fits, function(fit) {
     fit$objective$optimization
@@ -302,7 +580,11 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     fit$objective$scientific
   }, numeric(1))
   converged <- vapply(fits, function(fit) isTRUE(fit$converged), logical(1))
-  if (!any(converged) && !is.null(initial_augmented)) {
+  # Revision 2026.08 silently restarted a non-converged warm-started node from
+  # the cold start (the native backend never did). Revision 2026.10 removes
+  # that restart: every node is solved from both the independent and the
+  # continuation start in both backends, and the node status is reported.
+  if (!revised && !any(converged) && !is.null(initial_augmented)) {
     fallback <- solve_transport_v3_mass_reference(
       reference, source, spatial_cost, coverage, spec,
       initial_augmented = NULL
@@ -313,7 +595,18 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     )
     return(fallback)
   }
-  best <- fits[[which.min(optimization)]]
+  best <- if (revised) {
+    # Keep the fit with the lowest finite regularized objective (ties keep
+    # the first start); its convergence status is reported as is.
+    finite <- which(is.finite(optimization))
+    if (length(finite) == 0L) {
+      fits[[1L]]
+    } else {
+      fits[[finite[[which.min(optimization[finite])]]]]
+    }
+  } else {
+    fits[[which.min(optimization)]]
+  }
   best$coverage <- coverage
   best$start_objectives <- stats::setNames(optimization, names(starts))
   best$start_scientific_objectives <- stats::setNames(scientific, names(starts))
@@ -446,6 +739,24 @@ solve_transport_v3_profile_symmetric <- function(reference, source, spec,
   )
 }
 
+# Per-coverage-node solver status. Revision 2026.10 fits carry an explicit
+# status; 2026.08 fits are either converged or not.
+transport_v3_node_status <- function(fits) {
+  vapply(fits, function(fit) {
+    if (!is.null(fit$status)) return(fit$status)
+    if (isTRUE(fit$converged)) "converged" else "not_converged"
+  }, character(1))
+}
+
+# Worst node status of one alignment.
+transport_v3_alignment_status <- function(node_status) {
+  severity <- c(
+    "converged", "stalled_projection_limited", "not_converged",
+    "numerical_failure"
+  )
+  severity[[max(match(node_status, severity), 1L, na.rm = TRUE)]]
+}
+
 transport_v3_alignment_from_profile <- function(profile, reference, source,
                                                 registered_source, warp, spec) {
   evidence <- transport_v3_profile_evidence(profile)
@@ -504,7 +815,13 @@ transport_v3_alignment_from_profile <- function(profile, reference, source,
       enabled = TRUE,
       oracle = profile$polish$oracle,
       map_gap = map_fit$polish$gap,
-      maximum_gap = max(polish_gaps),
+      maximum_gap = if (!transport_v3_revised(spec)) {
+        max(polish_gaps)
+      } else if (any(is.finite(polish_gaps))) {
+        max(polish_gaps[is.finite(polish_gaps)])
+      } else {
+        NA_real_
+      },
       map_improvement = map_fit$polish$improvement,
       total_improvement = sum(polish_improvements),
       maximum_feasibility_error = max(polish_feasibility),
@@ -514,10 +831,15 @@ transport_v3_alignment_from_profile <- function(profile, reference, source,
       stopping_reason = map_fit$polish$stopping_reason,
       trace = map_fit$polish$trace
     )
+    if (transport_v3_revised(spec)) {
+      diagnostics$polish$gap_reason <- map_fit$polish$gap_reason
+      diagnostics$polish$undefined_gap_nodes <- sum(is.na(polish_gaps))
+    }
   }
   entropic_converged <- all(vapply(
     profile$fits, `[[`, logical(1), "converged"
   ))
+  node_status <- transport_v3_node_status(profile$fits)
   structure(
     list(
       log_score = evidence$log_score,
@@ -538,6 +860,20 @@ transport_v3_alignment_from_profile <- function(profile, reference, source,
           (is.null(profile$polish) || profile$polish$all_feasible),
         method = "fixed_mass_mirror_descent_reference",
         backend = profile$backend,
+        fallback = isTRUE(profile$fallback),
+        fallback_reason = if (is.null(profile$fallback_reason)) {
+          NA_character_
+        } else {
+          profile$fallback_reason
+        },
+        backend_route = if (is.null(profile$backend_route)) {
+          NA_character_
+        } else {
+          profile$backend_route
+        },
+        revision = transport_v3_revision(spec),
+        status = transport_v3_alignment_status(node_status),
+        node_status = node_status,
         masses = lapply(profile$fits, `[[`, "history"),
         polish = profile$polish
       )
@@ -597,6 +933,7 @@ gaze_transport_align <- function(reference, source, spec,
     convergence = alignment$convergence,
     provenance = list(
       engine_version = 3L,
+      solver_revision = transport_v3_revision(spec),
       directionality = "symmetric",
       score_semantics = "coverage_integrated_negative_scientific_energy",
       duration_semantics = "unit_duration_mass_with_fixed_ordinal_neighbours",

@@ -10,6 +10,17 @@ transport_v3_feasibility <- function(coupling, reference_mass, source_mass,
   )
 }
 
+# TRUE when a selected unit mass with a positive target lies below `floor`.
+transport_v3_selection_boundary <- function(coupling, reference_mass,
+                                            source_mass, floor = 1e-12) {
+  coverage <- sum(coupling)
+  if (!is.finite(coverage) || coverage <= 0) return(TRUE)
+  reference_selected <- rowSums(coupling) / coverage
+  source_selected <- colSums(coupling) / coverage
+  any(reference_selected[reference_mass > 0] < floor) ||
+    any(source_selected[source_mass > 0] < floor)
+}
+
 transport_v3_linear_oracle <- function(gradient, reference_mass, source_mass,
                                        coverage) {
   if (!requireNamespace("lpSolve", quietly = TRUE)) {
@@ -168,6 +179,24 @@ polish_transport_v3_mass <- function(coupling, reference, source,
     current$gradient, reference$mass, source$mass, coverage
   )
   final_gap <- sum(current$gradient * (coupling - final_vertex))
+  gap_reason <- NA_character_
+  if (transport_v3_revised(spec)) {
+    # Revision 2026.10: the Jensen-Shannon selection gradient is unbounded
+    # where a positive-target selected mass vanishes, so there the
+    # conditional-gradient gap is set by the gradient floor rather than by
+    # stationarity. Report it only on the relative interior.
+    boundary <- transport_v3_selection_boundary(
+      coupling, reference$mass, source$mass
+    )
+    if (boundary) {
+      final_gap <- NA_real_
+      gap_reason <- paste0(
+        "selection_boundary: a selected mass with a positive target is below ",
+        "1e-12, where the selection gradient is unbounded; the ",
+        "conditional-gradient gap is not a stationarity certificate there"
+      )
+    }
+  }
   list(
     coupling = coupling,
     objective = transport_v3_objective(
@@ -176,6 +205,7 @@ polish_transport_v3_mass <- function(coupling, reference, source,
     initial_scientific = initial_scientific,
     improvement = initial_scientific - current$scientific,
     gap = final_gap,
+    gap_reason = gap_reason,
     feasibility = feasibility,
     trace = trace,
     converged = converged,
