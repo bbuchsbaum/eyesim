@@ -226,10 +226,10 @@
       factor was zero, so the declared prior was returned. With the new
       prior but without the Stein factor, Replay stayed at -0.10.
     - Transport with 2- and 8-fixation recalls: held-out log loss 0.885
-      before, 0.939 with `gamma = 0`, 0.774 with fitted `gamma` (1 in every
-      fold). Mean max-p minus accuracy moved from +0.13 / -0.11 (sparse /
-      rich) to -0.03 / -0.02 on one seed and from +0.04 / -0.27 to
-      -0.06 / -0.04 on the other. Top-1 and rank-based AUC are unchanged.
+      before, 0.939 with `gamma = 0`, 0.760 with fitted `gamma` (0.72 to 1
+      across folds). Mean max-p minus accuracy moved from +0.13 / -0.11
+      (sparse / rich) to -0.03 / -0.02 on one seed and from +0.04 / -0.27
+      to -0.06 / -0.05 on the other. Top-1 and rank-based AUC are unchanged.
     - Replay with 6- and 30-fixation recalls: fitted `gamma` is 0 to 0.3,
       because the total log likelihood already grows with the fixation
       count. Held-out log loss 0.626 before, 0.631 with `gamma = 0`, 0.653
