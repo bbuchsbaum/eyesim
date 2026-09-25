@@ -9,7 +9,7 @@ gaze_calibration_control(
   gamma_bounds = c(0, 1),
   inverse_temperature_prior_sd = 3,
   stein_shrinkage = TRUE,
-  typicality = c("none", "mean", "standardized"),
+  typicality = NULL,
   typicality_sources = 24L,
   typicality_item_on = NULL
 )
@@ -33,7 +33,19 @@ temperature is multiplied by \eqn{\max(0, 1 - p / LR)}, where \eqn{LR}
 is the inner likelihood-ratio statistic of the fit against the declared
 prior and \eqn{p} its number of free parameters (see Details).}
 
-\item{typicality}{Logical; subtract the typicality offset.}
+\item{typicality}{`"none"`, `"mean"` (subtract the offset) or
+`"standardized"` (subtract the offset from the row-centred score and
+divide by the candidate's shrunk score standard deviation over the
+sources). `NULL` (the default) uses the engine default: `"standardized"`
+for Transport and `"none"` for Replay. On a centre-biased simulated null
+with six candidates per pool, `"standardized"` brought Transport's
+central-candidate argmax share per candidate from 0.40 to 0.16 (chance
+0.167, MC error 0.020) without lowering top-1 or AUC on signal data.
+For Replay it lowered the share only from 0.30 to about 0.25-0.27
+(MC error 0.015): its candidate scores (total log likelihoods) are
+heavy-tailed, and the per-candidate variance ratio across held-out rows
+exceeded 1000, which neither a mean nor a scale offset equalises. It is
+therefore opt-in for Replay.}
 
 \item{typicality_sources}{Maximum number of training recalls used per
 fold to estimate every candidate's offset.}

@@ -96,6 +96,18 @@ test_that("specifications carry a calibration control only under 2026.10", {
   control <- gaze_transport_spec()$calibration$control
   expect_s3_class(control, "gaze_calibration_control")
   expect_identical(control$method, "evidence_scaled")
+  expect_identical(control$typicality, "standardized")
+  expect_identical(
+    suppressMessages(gaze_replay_spec())$calibration$control$typicality,
+    "none"
+  )
+  expect_null(gaze_calibration_control()$typicality)
+  expect_identical(
+    gaze_transport_spec(
+      calibration_control = gaze_calibration_control(typicality = "none")
+    )$calibration$control$typicality,
+    "none"
+  )
   expect_identical(gaze_transport_spec()$reliability, "none")
   expect_identical(gaze_transport_spec(revision = "2026.08")$reliability,
                    "effective_fixations")
@@ -747,29 +759,41 @@ test_that("the typicality offset removes the central-candidate advantage", {
             3 * standardized$mc_error)
 })
 
-test_that("the Replay typicality offset removes the central-candidate advantage", {
+# Known limitation, pinned so that a fix is noticed: for Replay the offset
+# lowers the central share (0.30 -> 0.27 in the A3 study) but does not bring
+# it within MC error of 1 / K. Replay's total log likelihoods are heavy
+# tailed and their per-candidate variances differ by three orders of
+# magnitude, which neither a mean nor a scale offset equalises; the offset is
+# therefore opt-in for Replay.
+test_that("the Replay typicality offset reduces but does not remove central bias", {
   skip_unless_slow_calibration()
   central <- function(candidate) candidate$image_id %% 3 == 1
-  fits <- lapply(1:3, function(seed) {
-    run_calibration_replay(
-      simulate_calibration_replay(6, 12, recall = "centre", layout = "mixed",
-                                  seed = 60 + seed),
-      seed = seed,
-      calibration_control = gaze_calibration_control(typicality = "standardized")
-    )
-  })
-  share <- central_share(fits, central)
-  expect_lt(abs(share$share_per_candidate - share$chance_per_candidate),
-            3 * share$mc_error)
+  run <- function(typicality) {
+    lapply(1:3, function(seed) {
+      run_calibration_replay(
+        simulate_calibration_replay(6, 12, recall = "centre",
+                                    layout = "mixed", seed = 60 + seed),
+        seed = seed,
+        calibration_control = gaze_calibration_control(typicality = typicality)
+      )
+    })
+  }
+  without <- central_share(run("none"), central)
+  standardized <- central_share(run("standardized"), central)
+  expect_lt(standardized$share_per_candidate, without$share_per_candidate)
+  expect_gt(standardized$share_per_candidate -
+              standardized$chance_per_candidate,
+            3 * standardized$mc_error)
 })
 
 test_that("the typicality offset does not reduce discrimination on signal data", {
   skip_unless_slow_calibration()
   data <- simulate_calibration_transport(8, 6, keep = c(2, 8), seed = 71)
-  off <- run_calibration_transport(data)
-  on <- run_calibration_transport(
-    data, calibration_control = gaze_calibration_control(typicality = "standardized")
+  off <- run_calibration_transport(
+    data, calibration_control = gaze_calibration_control(typicality = "none")
   )
+  on <- run_calibration_transport(data)  # Transport default: "standardized"
+  expect_identical(on$spec$calibration$control$typicality, "standardized")
   difference <- on$results$top1_credit - off$results$top1_credit
   expect_gt(mean(difference),
             -2 * stats::sd(difference) / sqrt(length(difference)))

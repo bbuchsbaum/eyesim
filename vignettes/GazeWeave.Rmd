@@ -79,8 +79,10 @@ the outer-training trials only. One global temperature made sparse recalls
 overconfident and rich recalls underconfident. This is calibration: it never changes
 the ranking of candidates within a row. The fit's prior pulls only toward the
 declared candidate prior (less confidence), never toward a fixed temperature.
-An optional typicality offset subtracts each candidate's mean score against
-training recalls of other items; the adjusted scores are ranking scores, not
+A typicality offset (the default for Transport, opt-in for Replay)
+standardizes each candidate's score against its scores on training recalls
+of other items, so that candidates which match generic, centre-biased gaze
+do not win by default; the adjusted scores are ranking scores, not
 normalised likelihoods. If a training contrast has fewer than four candidate
 items, Replay returns the declared prior (no inner calibration estimate) under
 `"2026.10"`, and temperature one under `"2026.08"`.

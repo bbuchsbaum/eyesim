@@ -190,7 +190,7 @@ gaze_replay_spec <- function(
     stop("gaze_warp_contraction(center = 'screen') requires a screen specification.")
   }
   calibration_control <- resolve_gaze_calibration_control(
-    calibration_control, revision, reliability
+    calibration_control, revision, reliability, "replay"
   )
   calibration <- list(
     folds = 2L,

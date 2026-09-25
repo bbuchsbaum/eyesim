@@ -284,7 +284,7 @@ gaze_transport_spec <- function(
   polish <- match.arg(polish)
   reliability <- match.arg(reliability, c("effective_fixations", "none"))
   calibration_control <- resolve_gaze_calibration_control(
-    calibration_control, revision, reliability
+    calibration_control, revision, reliability, "transport"
   )
   polish_maxit <- as.integer(polish_maxit)
   if (length(polish_maxit) != 1L || is.na(polish_maxit) || polish_maxit < 1L) {

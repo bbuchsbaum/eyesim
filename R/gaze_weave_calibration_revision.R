@@ -95,7 +95,19 @@
 #'   temperature is multiplied by \eqn{\max(0, 1 - p / LR)}, where \eqn{LR}
 #'   is the inner likelihood-ratio statistic of the fit against the declared
 #'   prior and \eqn{p} its number of free parameters (see Details).
-#' @param typicality Logical; subtract the typicality offset.
+#' @param typicality `"none"`, `"mean"` (subtract the offset) or
+#'   `"standardized"` (subtract the offset from the row-centred score and
+#'   divide by the candidate's shrunk score standard deviation over the
+#'   sources). `NULL` (the default) uses the engine default: `"standardized"`
+#'   for Transport and `"none"` for Replay. On a centre-biased simulated null
+#'   with six candidates per pool, `"standardized"` brought Transport's
+#'   central-candidate argmax share per candidate from 0.40 to 0.16 (chance
+#'   0.167, MC error 0.020) without lowering top-1 or AUC on signal data.
+#'   For Replay it lowered the share only from 0.30 to about 0.25-0.27
+#'   (MC error 0.015): its candidate scores (total log likelihoods) are
+#'   heavy-tailed, and the per-candidate variance ratio across held-out rows
+#'   exceeded 1000, which neither a mean nor a scale offset equalises. It is
+#'   therefore opt-in for Replay.
 #' @param typicality_sources Maximum number of training recalls used per
 #'   fold to estimate every candidate's offset.
 #' @param typicality_item_on Columns defining an "item" for the
@@ -109,10 +121,12 @@ gaze_calibration_control <- function(
     gamma_bounds = c(0, 1),
     inverse_temperature_prior_sd = 3,
     stein_shrinkage = TRUE,
-    typicality = c("none", "mean", "standardized"),
+    typicality = NULL,
     typicality_sources = 24L,
     typicality_item_on = NULL) {
-  typicality <- match.arg(typicality)
+  if (!is.null(typicality)) {
+    typicality <- match.arg(typicality, c("none", "mean", "standardized"))
+  }
   method <- match.arg(method)
   if (!is.logical(stein_shrinkage) || length(stein_shrinkage) != 1L ||
       is.na(stein_shrinkage)) {
@@ -138,8 +152,11 @@ gaze_calibration_control <- function(
        anyNA(typicality_item_on))) {
     stop("typicality_item_on must be NULL or column names.")
   }
-  if (!identical(typicality, "none") && identical(method, "global")) {
-    stop("The typicality offset requires method = \"evidence_scaled\".")
+  if (identical(method, "global")) {
+    if (!is.null(typicality) && !identical(typicality, "none")) {
+      stop("The typicality offset requires method = \"evidence_scaled\".")
+    }
+    typicality <- "none"
   }
   structure(
     list(
@@ -165,15 +182,20 @@ print.gaze_calibration_control <- function(x, ...) {
     cat("  inverse-temperature prior sd:", format(x$inverse_temperature_prior_sd),
         "\n")
   }
-  cat("  typicality offset:", if (!identical(x$typicality, "none")) {
+  cat("  typicality offset:", if (is.null(x$typicality)) {
+    "engine default"
+  } else if (!identical(x$typicality, "none")) {
     paste0(x$typicality, " (", x$typicality_sources, " training recalls)")
   } else "none", "\n")
   invisible(x)
 }
 
+# Engine defaults for the typicality offset (see gaze_calibration_control()).
+gaze_default_typicality <- c(transport = "standardized", replay = "none")
+
 # Resolve a spec's calibration control. Revision 2026.08 specs have none.
 resolve_gaze_calibration_control <- function(calibration_control, revision,
-                                             reliability) {
+                                             reliability, engine) {
   if (identical(revision, "2026.08")) {
     if (!is.null(calibration_control)) {
       stop("calibration_control requires revision \"2026.10\".")
@@ -185,6 +207,11 @@ resolve_gaze_calibration_control <- function(calibration_control, revision,
   }
   if (!inherits(calibration_control, "gaze_calibration_control")) {
     stop("calibration_control must be created by gaze_calibration_control().")
+  }
+  if (is.null(calibration_control$typicality)) {
+    calibration_control["typicality"] <- list(
+      gaze_default_typicality[[engine]]
+    )
   }
   if (identical(calibration_control$method, "evidence_scaled") &&
       identical(reliability, "effective_fixations")) {
