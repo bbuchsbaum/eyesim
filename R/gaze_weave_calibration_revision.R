@@ -38,7 +38,7 @@
 #' \eqn{T = 1}, pulled toward overconfidence whenever the scores' natural
 #' scale exceeded one nat (Replay's total trial log likelihood). The
 #' temperature has no upper bound (\eqn{T = \infty} returns the prior);
-#' the engine's lower temperature bound still caps confidence.
+#' the engine's lower temperature bound still caps every row's confidence.
 #'
 #' A calibration fitted on a few dozen inner rows is noisy, and under a null
 #' every positive inverse temperature is overconfidence on held-out rows.
@@ -77,7 +77,11 @@
 #' the ranking. When a candidate has fewer than two other-item sources, no
 #' offset is applied in that fold and the status is recorded. Inner
 #' calibration rows use offsets estimated from their own inner training rows.
-#' Offset-adjusted scores are ranking scores, not normalised likelihoods. Subtracting a mean equalises the candidates'
+#' Offset-adjusted scores are ranking scores, not normalised likelihoods.
+#' Two approximations: Transport offsets and scales are estimated over each
+#' candidate's valid study episodes, while a scored row uses the episodes
+#' valid for its whole pool; and Replay offsets always use the training
+#' background protocol, also under `background_support = "held_out"`. Subtracting a mean equalises the candidates'
 #' average scores under generic gaze but not their score variances; the fit
 #' records the per-candidate standard deviation over the typicality sources.
 #'
@@ -85,7 +89,10 @@
 #'   as described. `"global"` reproduces the pre-A3 revision `"2026.10"`
 #'   calibration exactly: one temperature with a log-normal prior centred at
 #'   one and, when the engine's `reliability` is `"effective_fixations"`,
-#'   the \eqn{\kappa} shrink.
+#'   the \eqn{\kappa} shrink. The pre-change Transport default used that
+#'   shrink, so reproducing it needs `reliability = "effective_fixations"`
+#'   passed explicitly. Fit outputs then match; the specification itself
+#'   additionally carries this control.
 #' @param gamma_bounds Bounds for \eqn{\gamma}; equal values fix it (for
 #'   example `c(0, 0)` for one global temperature with the new prior).
 #' @param inverse_temperature_prior_sd Standard deviation of the zero-centred
@@ -289,8 +296,13 @@ gaze_calibration_row_beta <- function(calibration, evidence) {
       any(evidence <= 0)) {
     stop("evidence counts must be finite and positive.")
   }
-  calibration$inverse_temperature *
+  beta <- calibration$inverse_temperature *
     (evidence / calibration$evidence_reference)^calibration$gamma
+  # The engine's lower temperature bound caps every row's confidence, also
+  # rows whose evidence exceeds the reference.
+  bounds <- calibration$temperature_bounds
+  if (!is.null(bounds)) beta <- pmin(beta, 1 / bounds[[1L]])
+  beta
 }
 
 gaze_calibration_row_loss <- function(profile, beta, prior, true_index) {
@@ -332,7 +344,8 @@ fit_gaze_evidence_calibration <- function(profiles, true_index, evidence,
   penalty_scale <- if (is.infinite(prior_sd)) 0 else 1 / (2 * n * prior_sd^2)
 
   loss <- function(standard_beta, gamma) {
-    beta <- standard_beta / score_scale * relative^gamma
+    beta <- pmin(standard_beta / score_scale * relative^gamma,
+                 1 / temperature_bounds[[1L]])
     mean(vapply(seq_len(n), function(i) {
       gaze_calibration_row_loss(profiles[[i]], beta[[i]], prior_sets[[i]],
                                 true_index[[i]])
@@ -384,7 +397,9 @@ fit_gaze_evidence_calibration <- function(profiles, true_index, evidence,
   unshrunk_beta <- fitted$standard_beta
   lr_statistic <- 2 * n * (loss(0, 0) - loss(unshrunk_beta, gamma))
   shrinkage_factor <- if (isTRUE(control$stein_shrinkage)) {
-    if (lr_statistic > 0) max(0, 1 - free_parameters / lr_statistic) else 0
+    if (is.finite(lr_statistic) && lr_statistic > 0) {
+      max(0, 1 - free_parameters / lr_statistic)
+    } else 0
   } else {
     1
   }
@@ -478,16 +493,37 @@ score_gaze_calibrated_row <- function(profile, true_index, evidence,
     # The calibration returned the declared prior, so every posterior equals
     # the prior. Rank and top-1 then use the limit of a vanishing inverse
     # temperature: the prior first, ties broken by the ranking score.
-    spread <- max(abs(ranking - mean(ranking)))
-    tiebreak <- if (spread > 0) (ranking - mean(ranking)) / spread else 0
-    rank <- gaze_rank_summary(
-      log(result$candidates$prior) + 1e-6 * tiebreak, true_index
+    rank <- gaze_lexicographic_rank(
+      result$candidates$prior, ranking, true_index
     )
-    result$template_rank <- unname(rank[["template_rank"]])
-    result$top1_credit <- unname(rank[["top1_credit"]])
+    result$template_rank <- rank[["template_rank"]]
+    result$top1_credit <- rank[["top1_credit"]]
     result$tied_candidates <- as.integer(rank[["tied_candidates"]])
   }
   result
+}
+
+# Rank of the true candidate ordering first by `primary` (the declared
+# prior) and then by `secondary` (the ranking score), each with the usual
+# relative tie tolerance.
+gaze_lexicographic_rank <- function(primary, secondary, true_index,
+                                    tolerance = sqrt(.Machine$double.eps)) {
+  same <- function(values, index) {
+    abs(values - values[[index]]) <=
+      tolerance * max(1, abs(values[[index]]))
+  }
+  primary_tie <- same(primary, true_index)
+  secondary_tie <- same(secondary, true_index)
+  better <- sum(
+    (!primary_tie & primary > primary[[true_index]]) |
+      (primary_tie & !secondary_tie & secondary > secondary[[true_index]])
+  )
+  tied <- sum(primary_tie & secondary_tie)
+  c(
+    template_rank = 1 + better + (tied - 1) / 2,
+    top1_credit = if (better == 0) 1 / tied else 0,
+    tied_candidates = tied
+  )
 }
 
 # Cross-fitted calibration summary shared by both engines' CV results.
@@ -615,6 +651,8 @@ gaze_typicality_summary <- function(score_matrix, candidate_key) {
   # constant (for Replay, mostly the recall's fixation count) is common to
   # all candidates, cancels in the softmax, and would otherwise dominate the
   # sampling variance of the offsets.
+  # A non-finite score (e.g. a -Inf likelihood) carries no usable mean.
+  score_matrix[!is.finite(score_matrix)] <- NA_real_
   score_matrix <- gaze_typicality_centre_sources(score_matrix)
   used <- rowSums(!is.na(score_matrix))
   enough <- all(used >= 2L)
@@ -634,7 +672,7 @@ gaze_typicality_summary <- function(score_matrix, candidate_key) {
     between <- if (length(source_mean) > 1L) {
       max(0, stats::var(source_mean) - mean(sampling_variance))
     } else 0
-    shrinkage <- if (between > 0) {
+    shrinkage <- if (isTRUE(between > 0)) {
       between / (between + sampling_variance)
     } else {
       rep(0, length(candidate_key))
@@ -650,14 +688,14 @@ gaze_typicality_summary <- function(score_matrix, candidate_key) {
   # empirical-Bayes rule (sampling variance of a log sd ~ 1 / (2 (n - 1))).
   # A candidate whose scores vary more under generic gaze is scaled down.
   scale <- rep(1, length(candidate_key))
-  if (enough && all(source_sd > 0)) {
+  if (enough && isTRUE(all(source_sd > 0))) {
     log_sd <- log(source_sd)
     log_sd_variance <- 1 / (2 * (used - 1))
     centre <- mean(log_sd)
     between <- if (length(log_sd) > 1L) {
       max(0, stats::var(log_sd) - mean(log_sd_variance))
     } else 0
-    weight <- if (between > 0) between / (between + log_sd_variance) else 0
+    weight <- if (isTRUE(between > 0)) between / (between + log_sd_variance) else 0
     scale <- exp(-(weight * (log_sd - centre)))
   }
   data.frame(

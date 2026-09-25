@@ -377,14 +377,23 @@ test_that("held-out labels never enter the Transport calibration", {
   fold <- fit$folds[[1]]
   held <- fold$eval_rows
   pair <- held[data$src$participant[held] == data$src$participant[held[[1]]]]
-  skip_if(length(pair) < 2L, "fixture has one held-out row per participant")
+  expect_gte(length(pair), 2L)
   swapped <- data
   swapped$src$fixgroup[pair[1:2]] <- data$src$fixgroup[rev(pair[1:2])]
   refit <- run_calibration_transport(swapped)
 
+  # Fold 1's calibration and typicality offsets use only its training rows.
   expect_identical(refit$folds[[1]]$calibration$inverse_temperature,
                    fold$calibration$inverse_temperature)
   expect_identical(refit$folds[[1]]$calibration$gamma, fold$calibration$gamma)
+  expect_identical(refit$folds[[1]]$typicality, fold$typicality)
+  expect_false(is.null(fold$typicality))
+  # The swapped rows are training rows of fold 2, whose fit may change.
+  rows <- match(pair[1:2], seq_len(nrow(data$src)))
+  expect_identical(
+    lapply(refit$results$candidates[rows], `[[`, "ranking_score"),
+    rev(lapply(fit$results$candidates[rows], `[[`, "ranking_score"))
+  )
 })
 
 test_that("a pre-A3 2026.10 specification reproduces its calibration exactly", {
@@ -634,11 +643,80 @@ test_that("relabelling a held-out row leaves Replay candidate scores unchanged",
   expect_identical(which(second$is_true), 3L)
 })
 
-test_that("the frozen Replay revision is untouched by the calibration control", {
-  golden <- readRDS(test_path("fixtures", "replay_legacy_2026_08.rds"))
-  spec <- gaze_replay_spec(revision = "2026.08")
-  expect_false("control" %in% names(spec$calibration))
-  expect_true(is.list(golden))
+# Pre-change reference fits ---------------------------------------------------
+#
+# fixtures/calibration_base_0d9fbcf.rds was produced by
+# calibration_base_fixture() below with the package at master commit 0d9fbcf
+# (before A3), passing that commit's default specifications:
+#   transport_08 = calibration_base_transport_spec(revision = "2026.08")
+#   transport_10 = calibration_base_transport_spec()
+#   replay_10    = calibration_replay_spec()
+# Transport uses the pure-R reference backend so that the stored numbers do
+# not depend on how the native code was compiled.
+
+calibration_base_transport_spec <- function(...) {
+  gaze_transport_spec(
+    coverage_nodes = 2, entropy_schedule = 0.03, maxit = 40,
+    tolerance = 1e-3, projection_maxit = 300, projection_tolerance = 1e-7,
+    backend = "reference", ...
+  )
+}
+
+calibration_base_fixture <- function(transport_08, transport_10, replay_10) {
+  transport_data <- simulate_calibration_transport(2, 3, n_encoding = 4, keep = c(2, 4),
+                                                   seed = 81)
+  replay_data <- simulate_calibration_replay(3, 8, n_fixations = c(6, 10),
+                                             seed = 82)
+  run_transport <- function(spec) {
+    fit <- gaze_transport_cv(
+      transport_data$ref, transport_data$src,
+      match_on = c("participant", "item"), contrast_on = "participant",
+      n_folds = 2, seed = 3, spec = spec
+    )
+    list(
+      results = fit$results[, setdiff(names(fit$results), "alignments")],
+      calibration = lapply(fit$folds, function(fold) {
+        fold$calibration[c("temperature", "kappa", "log_loss")]
+      }),
+      summary = fit$calibration,
+      provenance = fit$provenance
+    )
+  }
+  replay_fit <- suppressMessages(gaze_replay_cv(
+    replay_data$ref, replay_data$src,
+    match_on = c("participant", "image_id"), contrast_on = "participant",
+    n_folds = 2, seed = 4, spec = replay_10
+  ))
+  list(
+    transport_08 = run_transport(transport_08),
+    transport_10 = run_transport(transport_10),
+    replay_10 = list(
+      results = replay_fit$results[, setdiff(names(replay_fit$results),
+                                             "alignment")],
+      calibration = lapply(replay_fit$folds, function(fold) {
+        fold$calibration[c("temperature", "log_loss")]
+      }),
+      provenance = replay_fit$provenance
+    )
+  )
+}
+
+test_that("revision 2026.08 and the global method reproduce pre-A3 fits exactly", {
+  golden <- readRDS(test_path("fixtures", "calibration_base_0d9fbcf.rds"))
+  global <- gaze_calibration_control(method = "global")
+  current <- calibration_base_fixture(
+    transport_08 = calibration_base_transport_spec(revision = "2026.08"),
+    transport_10 = calibration_base_transport_spec(
+      reliability = "effective_fixations", calibration_control = global
+    ),
+    replay_10 = calibration_replay_spec(calibration_control = global)
+  )
+
+  expect_identical(current$transport_08, golden$transport_08)
+  expect_identical(current$transport_10, golden$transport_10)
+  expect_identical(current$replay_10, golden$replay_10)
+  expect_null(gaze_transport_spec(revision = "2026.08")$calibration$control)
+  expect_null(gaze_replay_spec(revision = "2026.08")$calibration$control)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

@@ -19,7 +19,10 @@ gaze_calibration_control(
 as described. `"global"` reproduces the pre-A3 revision `"2026.10"`
 calibration exactly: one temperature with a log-normal prior centred at
 one and, when the engine's `reliability` is `"effective_fixations"`,
-the \eqn{\kappa} shrink.}
+the \eqn{\kappa} shrink. The pre-change Transport default used that
+shrink, so reproducing it needs `reliability = "effective_fixations"`
+passed explicitly. Fit outputs then match; the specification itself
+additionally carries this control.}
 
 \item{gamma_bounds}{Bounds for \eqn{\gamma}; equal values fix it (for
 example `c(0, 0)` for one global temperature with the new prior).}
@@ -82,7 +85,7 @@ fixed temperature. The earlier prior on \eqn{\log T}, centred at
 \eqn{T = 1}, pulled toward overconfidence whenever the scores' natural
 scale exceeded one nat (Replay's total trial log likelihood). The
 temperature has no upper bound (\eqn{T = \infty} returns the prior);
-the engine's lower temperature bound still caps confidence.
+the engine's lower temperature bound still caps every row's confidence.
 
 A calibration fitted on a few dozen inner rows is noisy, and under a null
 every positive inverse temperature is overconfidence on held-out rows.
@@ -121,7 +124,11 @@ beyond sampling noise, so that offsets made mostly of noise do not perturb
 the ranking. When a candidate has fewer than two other-item sources, no
 offset is applied in that fold and the status is recorded. Inner
 calibration rows use offsets estimated from their own inner training rows.
-Offset-adjusted scores are ranking scores, not normalised likelihoods. Subtracting a mean equalises the candidates'
+Offset-adjusted scores are ranking scores, not normalised likelihoods.
+Two approximations: Transport offsets and scales are estimated over each
+candidate's valid study episodes, while a scored row uses the episodes
+valid for its whole pool; and Replay offsets always use the training
+background protocol, also under `background_support = "held_out"`. Subtracting a mean equalises the candidates'
 average scores under generic gaze but not their score variances; the fit
 records the per-candidate standard deviation over the typicality sources.
 }

@@ -164,14 +164,19 @@
   `gaze_calibration_control()` and the `calibration_control` argument of
   `gaze_transport_spec()` and `gaze_replay_spec()`. Revision `"2026.08"`
   is unchanged: its specifications carry no control, and its cross-fitted
-  results are `identical()` to those before this change.
+  results are `identical()` to those before this change (pinned by
+  `tests/testthat/fixtures/calibration_base_0d9fbcf.rds`, fitted at master
+  0d9fbcf). Replay fitted without `contrast_on` still scores at temperature
+  one, as before; with too few inner candidates it now returns the declared
+  prior instead of temperature one.
   - **Evidence-scaled temperature.** Each held-out row is scored at
     `T_i = T * (n_ref / n_i)^gamma`, where `n_i` counts the row's evidence
     (Transport: duration-effective recall fixations; Replay: recall
     fixations) and `n_ref` is their geometric mean over the calibration
     rows. `T` and `gamma` in `[0, 1]` are fitted jointly on inner
     out-of-fold rows only. `gamma = 0` is one global temperature. This is
-    calibration only: rankings within a row, top-1 and AUC do not change.
+    calibration only: rankings within a row do not change. The engine's
+    lower temperature bound caps every row's confidence.
     Results gain `temperature` (per row), `inverse_temperature` and
     `evidence_count`; `fit$calibration$fold_calibration` records each
     fold's fit.
@@ -186,15 +191,18 @@
     against the declared prior and `p` the number of free parameters. With
     a few dozen inner rows a null fit otherwise returns a positive inverse
     temperature about half the time. When a fold's calibration returns the
-    prior, rank and top-1 use the ranking score.
+    prior, `template_rank` and `top1_credit` order candidates by the
+    declared prior and then by the ranking score; probabilities (and any
+    AUC computed from them) then carry no ranking information.
   - **Kappa.** The effective-fixation reliability shrink is dropped from
     the default: it could only temper sparse rows, and with `gamma` it was
     a second, weakly identified parameter on the same axis. Transport's
     `reliability` now defaults to `"none"` under `"2026.10"`, and
     `"effective_fixations"` requires
-    `gaze_calibration_control(method = "global")`, which reproduces the
-    pre-change `"2026.10"` calibration exactly (a saved `"2026.10"`
-    specification without a control is treated the same way).
+    `gaze_calibration_control(method = "global")`. That method, with
+    `reliability = "effective_fixations"` passed explicitly for Transport,
+    reproduces the pre-change `"2026.10"` fit outputs exactly; a saved
+    `"2026.10"` specification without a control is treated the same way.
   - **Typicality offset** (default `"standardized"` for Transport, `"none"`
     for Replay). `typicality = "mean"` subtracts each
     candidate's mean score against a seeded, item-balanced subsample of the
@@ -207,9 +215,10 @@
     are ranking scores, not normalised likelihoods. Mean subtraction does
     not equalise score variances; `fit$calibration` reports per-candidate
     dispersion before and after.
-  - Simulated evidence (all synthetic; the slow checks in
-    `tests/testthat/test_gaze_weave_calibration_revision.R` run with
-    `EYESIM_SLOW_TESTS=true`). "Before" is the pre-change `"2026.10"`
+  - Simulated evidence (all synthetic; numbers from
+    `inst/validation/gaze-weave-calibration-a3.R`, gates asserted by the
+    slow checks in `tests/testthat/test_gaze_weave_calibration_revision.R`
+    with `EYESIM_SLOW_TESTS=true`). "Before" is the pre-change `"2026.10"`
     calibration.
     - Centre-biased nulls, pooled over four seeds: Replay mean bits -0.107
       (SE 0.034) before, 0.000 after; Transport -0.015 before, 0.000
@@ -220,7 +229,7 @@
       before, 0.939 with `gamma = 0`, 0.774 with fitted `gamma` (1 in every
       fold). Mean max-p minus accuracy moved from +0.13 / -0.11 (sparse /
       rich) to -0.03 / -0.02 on one seed and from +0.04 / -0.27 to
-      -0.06 / -0.04 on the other. Top-1 and AUC are unchanged.
+      -0.06 / -0.04 on the other. Top-1 and rank-based AUC are unchanged.
     - Replay with 6- and 30-fixation recalls: fitted `gamma` is 0 to 0.3,
       because the total log likelihood already grows with the fixation
       count. Held-out log loss 0.626 before, 0.631 with `gamma = 0`, 0.653
