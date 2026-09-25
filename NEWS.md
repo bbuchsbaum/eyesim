@@ -28,9 +28,12 @@
     multiplied stalls.
   - **Traps and steps.** A reviewer showed that zeroing a support cell could
     produce plans that a weighted measure alone certified, 2e-6 to 25 above
-    the node optimum. Such cells are now detected and reseeded (a 1e-3
-    mixture with the independent start). All 40 review traps then
-    re-converged within 4e-7 or stayed uncertified. Every mirror step is
+    the node optimum. Such cells, including cells at exactly zero, are now
+    detected from their uncapped relaxed mass and reseeded (a 1e-3 mixture
+    with the independent start). All 40 review traps then re-converged
+    within 4e-7 or stayed uncertified. Of 332 exact-zero variants, none
+    certify in place. After reseeding, 24 settle in a different local
+    optimum 1e-4 to 0.14 above the original. Every mirror step is
     capped at `min(step_size, 50 / max|g|)`, so the exponent clamp never
     binds.
   - **Line searches, stalls and `maxit`.** Both revisions accept a step that
@@ -52,12 +55,20 @@
     reference backend's silent cold restart. `multistart = 2` adds a spatial
     start and is now native. The default entropy schedule is
     `c(0.15, 0.05, 0.015)`.
-  - **Known residual error: local optima.** The objective is non-convex.
-    Against a multistart oracle on the 60 review pairs, the default score
-    differed by up to 0.12 nats (0.39 null-score SD), with 95th percentile
-    0.0056 nats; the worst cases are null pairs. `multistart = 2` reduced
-    the 95th percentile only to 0.0053 at 1.48 times the runtime, so it is
-    opt-in. Scores also still depend on `step_size` at this level.
+  - **Known residual error: local optima.** The objective is non-convex,
+    and the default score can fall short of a multistart oracle. The error
+    is one-sided (default scores are lower than the oracle's) and depends on
+    the pair mix:
+    - On our 60-pair review set, the gap was at most 0.12 nats (0.39
+      null-score SD), with 95th percentile 0.0056.
+    - On a second reviewer's 88-pair set (half null), the gap was at most
+      0.117 nats (0.24 SD), with 95th percentile 0.023 (0.047 SD). The 95th
+      percentile was 0.033 for null pairs and 0.006 for matched pairs.
+    The error is concentrated in null and sparse-source pairs.
+    `multistart = 2` never moved a score by more than 2e-5 on the reviewer's
+    set; on ours it lowered the 95th percentile only to 0.0053 at 1.48
+    times the runtime. It is therefore opt-in. Scores also still depend on
+    `step_size` at this level.
   - The mutual-information term is evaluated in the log domain when the
     product of two marginals underflows.
   - **Backends and fallbacks.** Under `backend = "auto"`, specifications the

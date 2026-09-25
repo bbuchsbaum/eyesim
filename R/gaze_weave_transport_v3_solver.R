@@ -203,7 +203,8 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
 # A slack cell with negligible mass (< 1e-12) and delta > 1e-3 is a trap:
 # mirror descent grows it only multiplicatively, so it cannot re-enter the
 # support in useful time. The same holds for a real cell whose relaxed mass
-# P exp(x) exceeds 1e-9 while P < 1e-12. Traps block certification and
+# P exp(delta / entropy) (uncapped, with P = 0 counted as the smallest
+# normal double) exceeds 1e-9 while P < 1e-12. Traps block certification and
 # trigger a reseed. Mirrors stationarity_check() in src/transport_v3.cpp.
 transport_v3_stationarity <- function(augmented, centered_gradient, entropy) {
   n_rows <- nrow(augmented)
@@ -242,7 +243,11 @@ transport_v3_stationarity <- function(augmented, centered_gradient, entropy) {
   mass <- weight[real]
   gain_real <- sum(entropy * mass * (exp(x) - 1 - x))
   gain_slack <- sum(weight[slack] * delta[slack]^2) / (2 * entropy)
-  real_trap <- any(mass < 1e-12 & log(pmax(mass, 1e-320)) + x > log(1e-9))
+  # Uncapped relaxed log-mass; an exactly zero cell is floored at the
+  # smallest normal double so that it is not invisible to the test.
+  relaxed_log_mass <- log(pmax(mass, .Machine$double.xmin)) +
+    delta[real] / entropy
+  real_trap <- any(mass < 1e-12 & relaxed_log_mass > log(1e-9))
   slack_trap <- any(weight[slack] < 1e-12 & delta[slack] > 1e-3)
   list(
     predicted = gain_real + gain_slack,

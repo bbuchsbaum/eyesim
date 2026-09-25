@@ -57,8 +57,11 @@ StationarityV3 stationarity_check(const arma::mat& augmented,
       if (i < m - 1 && j < n - 1) {
         const double x = std::min(delta / entropy, 700.0);
         gain_real += entropy * mass * (std::exp(x) - 1.0 - x);
+        // Uncapped relaxed log-mass; an exactly zero cell is floored at the
+        // smallest normal double so that it is not invisible to the test.
         if (mass < 1e-12 &&
-            std::log(std::max(mass, 1e-320)) + x > std::log(1e-9)) {
+            std::log(std::max(mass, std::numeric_limits<double>::min())) +
+              delta / entropy > std::log(1e-9)) {
           out.trap = true;
         }
       } else {
@@ -575,6 +578,21 @@ struct NodeFitV3 {
 };
 
 } // namespace
+
+// Test hook: the native revision 2026.10 stopping-rule check on one plan, so
+// that tests can compare it with transport_v3_stationarity() in R.
+// [[Rcpp::export]]
+Rcpp::List transport_v3_stationarity_native_cpp(
+    const arma::mat& augmented,
+    const arma::mat& centered_gradient,
+    double entropy) {
+  const StationarityV3 out =
+    stationarity_check(augmented, centered_gradient, entropy);
+  return Rcpp::List::create(
+    Rcpp::Named("predicted") = out.predicted,
+    Rcpp::Named("trap") = out.trap
+  );
+}
 
 // Solver revisions: 0 reproduces the frozen 2026.08 solver exactly; 1 is the
 // corrected 2026.10 solver. The R reference oracle

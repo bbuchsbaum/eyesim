@@ -697,3 +697,91 @@ test_that("the polish gap is NA with a reason on a selection boundary", {
     result$diagnostics$polish$undefined_gap_nodes, sum(is.na(gaps))
   )
 })
+
+test_that("an exact-zero support cell is a trap in both backends", {
+  pair <- transport_revision_pair94()
+  spec <- gaze_transport_spec(backend = "reference")
+  entropy <- utils::tail(spec$entropy_schedule, 1)
+  reference <- eyesim:::as_transport_v3_measure(pair$reference, spec$chronology)
+  source <- eyesim:::as_transport_v3_measure(pair$source, spec$chronology)
+  swapped <- eyesim:::gaze_measure_order_key(reference) <
+    eyesim:::gaze_measure_order_key(source)
+  if (swapped) {
+    held <- reference
+    reference <- source
+    source <- held
+  }
+  cost <- eyesim:::gaze_spatial_cost(
+    reference$coords, source$coords, spec$spatial
+  )
+  rows <- seq_along(reference$mass)
+  columns <- seq_along(source$mass)
+  objective <- function(plan, gradient = FALSE) {
+    eyesim:::transport_v3_objective(
+      plan[rows, columns, drop = FALSE], reference, source, cost, spec,
+      entropy, gradient = gradient
+    )
+  }
+  result <- gaze_transport_align(pair$reference, pair$source, spec)
+  fits <- result$alignment$profile$fits
+  converged <- which(vapply(fits, function(fit) {
+    identical(fit$status, "converged")
+  }, logical(1)))
+  fit <- fits[[converged[[ceiling(length(converged) / 2)]]]]
+  plan <- fit$augmented
+  if (swapped) plan <- t(plan)
+  cell <- which(plan[rows, columns] == max(plan[rows, columns]),
+                arr.ind = TRUE)[1, ]
+  kernel <- plan
+  kernel[cell[[1]], cell[[2]]] <- 0
+  control <- spec$control
+  control$projection_tolerance <- 1e-12
+  trapped <- eyesim:::project_partial_coupling_revised(
+    kernel, reference$mass, source$mass, fit$coverage, control
+  )$plan
+  expect_identical(trapped[cell[[1]], cell[[2]]], 0)
+  current <- objective(trapped, gradient = TRUE)
+  centered <- current$gradient - stats::median(current$gradient)
+  expect_true(
+    eyesim:::transport_v3_stationarity(trapped, centered, entropy)$trap
+  )
+  stage <- eyesim:::transport_v3_reference_stage_revised(
+    trapped, reference, source, cost, fit$coverage, spec, entropy
+  )
+  if (isTRUE(stage$converged)) {
+    expect_lte(
+      objective(stage$augmented)$optimization,
+      objective(plan)$optimization + 1e-4
+    )
+  }
+  skip_if_not(eyesim:::transport_v3_native_available())
+  native <- eyesim:::transport_v3_stationarity_native_cpp(
+    trapped, centered, entropy
+  )
+  expect_true(native$trap)
+})
+
+test_that("an exactly zero cell that should re-enter the support is a trap", {
+  # Real cells 2 x 2 plus slack; the corner is masked. Dual prices a, b fit
+  # every positive cell exactly; the zero cell (1, 1) is priced 20 below
+  # a_1 + b_1, so its relaxed mass exp(log(0+) + 20 / entropy) is enormous.
+  entropy <- 0.015
+  augmented <- matrix(
+    c(0, 0.2, 0.1,
+      0.3, 0.2, 0.1,
+      0.1, 0.1, 0),
+    3, 3, byrow = TRUE
+  )
+  row_price <- c(0.4, -0.3)
+  column_price <- c(0.1, 0.5)
+  gradient <- outer(row_price, column_price, FUN = "+")
+  gradient[1, 1] <- gradient[1, 1] - 20
+  checked <- eyesim:::transport_v3_stationarity(augmented, gradient, entropy)
+  expect_true(checked$trap)
+  skip_if_not(eyesim:::transport_v3_native_available())
+  native <- eyesim:::transport_v3_stationarity_native_cpp(
+    augmented, gradient, entropy
+  )
+  expect_true(native$trap)
+  expect_equal(native$predicted, checked$predicted, tolerance = 1e-10)
+})

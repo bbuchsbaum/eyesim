@@ -77,7 +77,8 @@ projection controls.}
 `"2026.10"` both backends always add the adjacent-coverage continuation,
 and `2` adds a spatial start (natively supported). On the review set,
 `2` lowered the 95th-percentile gap to a multistart oracle only from
-0.0056 to 0.0053 nats at 1.48 times the runtime, so it is opt-in.}
+0.0056 to 0.0053 nats at 1.48 times the runtime, and on a second review
+set it never moved a score by more than 2e-5, so it is opt-in.}
 
 \item{backend}{Pair solver backend. `"reference"` is the readable R oracle;
 `"optimized"` uses the estimator-preserving batched implementation;
@@ -120,9 +121,11 @@ records the stage as `"stalled_projection_limited"` and `maxit` as
 dual Newton projection and then log-domain Sinkhorn. Every coverage node
 is solved from the independent and the continuation start, replacing
 the reference backend's silent cold restart. The result is a local
-optimum of a non-convex objective: on the review set the score differed
-from a multistart oracle by up to 0.12 nats (0.39 null-score SD; 95th
-percentile 0.0056 nats, 0.02 SD). `backend = "auto"` warns about and records
+optimum of a non-convex objective. Scores fall short of a multistart
+oracle (one-sided, mostly in null and sparse-source pairs): by up to
+0.12 nats with 95th percentile 0.0056 on one 60-pair review set, and
+up to 0.117 with 95th percentile 0.023 (null pairs 0.033, matched 0.006)
+on a second 88-pair, half-null set. `backend = "auto"` warns about and records
 every numerical fallback. The polish Frank-Wolfe gap is `NA` with a
 reason on a selection boundary. `"2026.08"` reproduces the frozen August
 2026 solver exactly; the frozen validation courts pin it.
