@@ -1,5 +1,10 @@
 # eyesim 0.1.0.9000
 
+* `sample_fixations(fast = FALSE)` now returns the same object as the default
+  path: a `data.frame` with `duration = 1`, and all four columns for an empty
+  `time`. It returned a tibble with `duration` NA before the first onset and
+  0 after, and a column-less tibble for an empty `time`.
+
 * `gaze_transport_spec()` gains `revision = c("2026.10", "2026.08")`. The
   default, `"2026.10"`, changes the Transport solver in both the native and
   the reference backend. `"2026.08"` reproduces the frozen August 2026 solver

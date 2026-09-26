@@ -65,7 +65,6 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
 #'   onset (keeping the input order among tied onsets) and drop fixations with a
 #'   missing onset, so they return the same coordinates for any input order; of
 #'   tied onsets, the last one is used.
-#' @importFrom purrr map_dfr
 #' @export
 sample_fixations.fixation_group <- function(x, time, fast=TRUE, ...) {
 
@@ -85,14 +84,10 @@ sample_fixations.fixation_group <- function(x, time, fast=TRUE, ...) {
                onset = time, duration = rep(1, length(time)))
 
   } else {
-    purrr::map(time, function(t) {
-      len <- sum(onsets <= t)
-      if (len == 0) {
-        c(x=NA,y=NA, onset=t, duration=NA)
-      } else {
-        c(x=xs[len], y=ys[len], onset=t, duration=0)
-      }
-    }) %>% map_dfr(bind_rows)
+    idx <- vapply(time, function(t) sum(onsets <= t), integer(1))
+    idx[idx == 0L] <- NA_integer_
+    data.frame(x = xs[idx], y = ys[idx],
+               onset = time, duration = rep(1, length(time)))
   }
 
   class(ret) <- c("sampled_fixation_group", "fixation_group", class(ret))

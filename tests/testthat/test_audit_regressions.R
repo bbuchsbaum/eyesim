@@ -363,8 +363,11 @@ test_that("sample_fixations holds the last fixation on both paths", {
   slow <- sample_fixations(fg, times, fast = FALSE)
   expect_equal(fast$x, c(NA, 0, 0, 1, 1, 1))
   expect_equal(fast$y, c(NA, 0, 0, 1, 1, 1))
-  expect_equal(fast$x, slow$x)
-  expect_equal(fast$y, slow$y)
+  expect_equal(slow, fast)
+  expect_equal(fast$duration, rep(1, length(times)))
+  expect_equal(sample_fixations(fg, numeric(0), fast = FALSE),
+               sample_fixations(fg, numeric(0)))
+  expect_named(sample_fixations(fg, numeric(0)), c("x", "y", "onset", "duration"))
 
   # A single fixation no longer fails on the fast path.
   one <- fixation_group(x = 5, y = 6, onset = 10, duration = 100)
