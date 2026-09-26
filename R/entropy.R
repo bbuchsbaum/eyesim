@@ -30,8 +30,9 @@
 #' @param grid Grid dimensions for occupancy-grid entropy from fixation groups.
 #' @param duration_weighted Logical; if `TRUE`, duration-weighted KDE is used
 #'   for density-based entropy.
-#' @param aggregate For multiscale density objects, one of `"mean"` (default)
-#'   or `"none"`.
+#' @param aggregate For multiscale densities, one of `"mean"` (default) or
+#'   `"none"`. A fixation group gives a multiscale density when `sigma` is a
+#'   vector and `method = "density"`; otherwise `aggregate` has no effect.
 #' @param ... Additional arguments passed to `eye_density()` when
 #'   `method = "density"`.
 #'
@@ -82,8 +83,10 @@ fixation_entropy.fixation_group <- function(x, normalize = TRUE, base = exp(1),
                                             outdim = c(50, 50),
                                             grid = c(10, 10),
                                             duration_weighted = FALSE,
+                                            aggregate = c("mean", "none"),
                                             ...) {
   method <- match.arg(method)
+  aggregate <- match.arg(aggregate)
 
   if (nrow(x) == 0L) {
     return(NA_real_)
@@ -111,7 +114,7 @@ fixation_entropy.fixation_group <- function(x, normalize = TRUE, base = exp(1),
     if (is.null(dens)) {
       return(NA_real_)
     }
-    return(fixation_entropy(dens, normalize = normalize, base = base))
+    return(fixation_entropy(dens, normalize = normalize, base = base, aggregate = aggregate))
   }
 
   counts <- grid_fixation_counts(x, grid = grid, xbounds = xbounds, ybounds = ybounds)

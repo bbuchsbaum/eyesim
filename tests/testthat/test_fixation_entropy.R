@@ -229,3 +229,25 @@ test_that("grid_fixation_counts rejects invalid grid argument", {
     "length-2"
   )
 })
+
+test_that("fixation_entropy forwards aggregate for multiscale fixation groups", {
+  set.seed(1)
+  fg <- fixation_group(
+    x = runif(20, 0, 100), y = runif(20, 0, 100),
+    onset = seq(0, by = 250, length.out = 20), duration = rep(200, 20)
+  )
+  sigmas <- c(5, 10, 20)
+  per_scale <- fixation_entropy(fg, sigma = sigmas, aggregate = "none")
+  expect_length(per_scale, 3)
+  expect_named(per_scale, paste0("sigma_", sigmas))
+  expect_equal(fixation_entropy(fg, sigma = sigmas), mean(per_scale))
+  expect_equal(fixation_entropy(fg, sigma = sigmas, aggregate = "mean"), mean(per_scale))
+  expect_equal(unname(per_scale[2]), fixation_entropy(fg, sigma = 10))
+  # Single-scale and grid entropy ignore aggregate.
+  expect_equal(fixation_entropy(fg, aggregate = "none"), fixation_entropy(fg))
+  expect_equal(
+    fixation_entropy(fg, method = "grid", aggregate = "none"),
+    fixation_entropy(fg, method = "grid")
+  )
+  expect_error(fixation_entropy(fg, aggregate = "median"), "should be one of")
+})

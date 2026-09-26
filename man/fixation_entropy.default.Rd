@@ -33,6 +33,7 @@
   outdim = c(50, 50),
   grid = c(10, 10),
   duration_weighted = FALSE,
+  aggregate = c("mean", "none"),
   ...
 )
 }
@@ -48,8 +49,9 @@ possible entropy for the number of valid bins so results lie in `[0, 1]`.}
 \item{base}{Logarithm base used in the Shannon entropy. Defaults to
 `exp(1)`; use `2` for bits.}
 
-\item{aggregate}{For multiscale density objects, one of `"mean"` (default)
-or `"none"`.}
+\item{aggregate}{For multiscale densities, one of `"mean"` (default) or
+`"none"`. A fixation group gives a multiscale density when `sigma` is a
+vector and `method = "density"`; otherwise `aggregate` has no effect.}
 
 \item{method}{For `fixation_group` objects, one of `"density"` (default) or
 `"grid"`.}

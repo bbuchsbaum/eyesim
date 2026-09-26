@@ -1,5 +1,9 @@
 # eyesim 0.1.0.9000
 
+* `fixation_entropy()` on a fixation group accepts `aggregate`. With a vector
+  `sigma`, `aggregate = "none"` returns one entropy per scale. It was passed
+  on to `ks::kde()`, which rejected it.
+
 * `sample_fixations(fast = FALSE)` now returns the same object as the default
   path: a `data.frame` with `duration = 1`, and all four columns for an empty
   `time`. It returned a tibble with `duration` NA before the first onset and
