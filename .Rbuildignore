@@ -16,6 +16,7 @@ test_data
 ^AGENTS\.md$
 ^CLAUDE\.md$
 ^\.claude$
+^\.planning$
 ^\.omc$
 ^\.mote$
 ^Rplots\.pdf$

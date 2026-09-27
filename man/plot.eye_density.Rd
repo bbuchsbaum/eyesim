@@ -9,17 +9,30 @@
   alpha = 0.8,
   bg_image = NULL,
   transform = c("identity", "sqroot", "curoot", "rank"),
+  colours = NULL,
+  legend = TRUE,
+  limits = NULL,
   ...
 )
 }
 \arguments{
 \item{x}{An "eye_density" object.}
 
-\item{alpha}{The opacity level for the raster layer (default: 0.8).}
+\item{alpha}{Maximum opacity of the density layer (default: 0.8); lower
+densities are progressively more transparent.}
 
-\item{bg_image}{An optional image file name to use as the background.}
+\item{bg_image}{An optional image file name (or `cimg`) to use as the background.}
 
 \item{transform}{The transformation to apply to the density values (default: c("identity", "sqroot", "curoot", "rank")).}
+
+\item{colours}{Optional vector of colours for the density ramp
+(default: the eyesim density ramp).}
+
+\item{legend}{Whether to show the density colour bar (default: `TRUE`).}
+
+\item{limits}{Optional density limits for the colour scale (default: from
+zero to the map's maximum). Give several maps the same `limits` to
+compare them on one scale.}
 
 \item{...}{Additional args}
 }
@@ -27,7 +40,11 @@
 A ggplot object representing the eye density plot.
 }
 \description{
-This function creates a plot of the eye density using ggplot2.
+Draws a fixation density map on the shared eyesim density scale. Zero
+density is transparent, so a background stimulus shows through, and the
+map keeps the aspect ratio of its coordinate grid. Over a `bg_image`,
+thin white contour lines at five evenly spaced levels (from zero to the
+upper limit or the map's maximum) keep density edges visible.
 }
 \examples{
 # Create a fixation group and compute eye density
@@ -40,6 +57,9 @@ plot(ed)
 \seealso{
 Other visualization: 
 \code{\link{anim_scanpath}()},
-\code{\link{plot.fixation_group}()}
+\code{\link{eyesim_colours}()},
+\code{\link{plot.fixation_group}()},
+\code{\link{scale_fill_eyesim_density}()},
+\code{\link{theme_eyesim}()}
 }
 \concept{visualization}

@@ -18,7 +18,8 @@ globalVariables(unique(c(
   # plot.eye_density:
   "y", "z",
   # plot.fixation_group:
-  "index", "level", "onset", "psize", "y",
+  "duration", "index", "label", "level", "level_high", "level_low", "level_mid", "onset",
+  "psize", "y",
   # py_multi_match:
   "mmgaze", "onset",
   # rescale.fixation_group:

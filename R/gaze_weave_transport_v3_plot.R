@@ -1,60 +1,56 @@
 # Transport visual evidence ---------------------------------------------
 
 transport_v3_raw_registered_plot <- function(alignment) {
-  raw <- data.frame(
-    x = alignment$source$coords[, 1],
-    y = alignment$source$coords[, 2],
-    mass = alignment$source$mass,
-    index = seq_len(nrow(alignment$source$coords)),
-    view = "Raw source"
+  labels <- gaze_path_labels("transport")
+  views <- c("Raw source", "Registered source")
+  source <- rbind(
+    cbind(gaze_path_frame(alignment$source$coords, alignment$source$mass,
+                          "raw", labels), view = views[[1]]),
+    cbind(gaze_path_frame(alignment$registered_source$coords,
+                          alignment$registered_source$mass,
+                          "registered", labels), view = views[[2]])
   )
-  registered <- data.frame(
-    x = alignment$registered_source$coords[, 1],
-    y = alignment$registered_source$coords[, 2],
-    mass = alignment$registered_source$mass,
-    index = seq_len(nrow(alignment$registered_source$coords)),
-    view = "Registered source"
-  )
-  paths <- rbind(raw, registered)
-  reference <- data.frame(
-    x = alignment$reference$coords[, 1],
-    y = alignment$reference$coords[, 2],
-    mass = alignment$reference$mass,
-    index = seq_len(nrow(alignment$reference$coords))
-  )
+  reference <- gaze_path_frame(alignment$reference$coords,
+                               alignment$reference$mass, "reference", labels)
+  reference <- rbind(cbind(reference, view = views[[1]]),
+                     cbind(reference, view = views[[2]]))
+  paths <- rbind(reference, source)
+  paths$view <- factor(paths$view, levels = views)
+  unit <- gaze_axis_unit(alignment$spec)
   ggplot2::ggplot(
     paths,
-    ggplot2::aes(x = .data[["x"]], y = .data[["y"]])
+    ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
+                 colour = .data[["role"]], group = .data[["role"]])
   ) +
-    ggplot2::geom_path(
-      data = reference, colour = "#1B263B", linewidth = 0.8
-    ) +
+    ggplot2::geom_path(ggplot2::aes(linetype = .data[["role"]]), linewidth = 0.6) +
     ggplot2::geom_point(
-      data = reference,
-      ggplot2::aes(size = .data[["mass"]]),
-      colour = "#1B263B"
-    ) +
-    ggplot2::geom_path(colour = "#D1495B", linewidth = 0.8) +
-    ggplot2::geom_point(
-      ggplot2::aes(size = .data[["mass"]]), colour = "#D1495B"
+      ggplot2::aes(size = .data[["mass"]], shape = .data[["role"]]), stroke = 0.8
     ) +
     ggplot2::facet_wrap(ggplot2::vars(.data[["view"]])) +
-    ggplot2::scale_size_continuous(range = c(2, 6), guide = "none") +
+    gaze_path_scales(labels) +
+    ggplot2::scale_size_area(max_size = 4.5, guide = "none") +
+    ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.08)) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = 0.08)) +
     ggplot2::coord_equal() +
+    ggplot2::guides(
+      colour = ggplot2::guide_legend(override.aes = list(size = 2.2))
+    ) +
     ggplot2::labs(
       title = "Raw versus registered source path",
       subtitle = paste0(
-        "navy = reference; red = source; contraction scale = ",
-        signif(alignment$diagnostics$warp_scale, 4)
+        "contraction scale = ", signif(alignment$diagnostics$warp_scale, 4)
       ),
-      x = NULL, y = NULL
+      x = if (is.null(unit)) NULL else paste0("x (", unit, ")"),
+      y = if (is.null(unit)) NULL else paste0("y (", unit, ")")
     ) +
-    ggplot2::theme_minimal()
+    theme_eyesim() +
+    ggplot2::theme(legend.position = "bottom",
+                   legend.key.width = ggplot2::unit(24, "pt"))
 }
 
 transport_v3_diagnostic_plot <- function(alignment) {
   values <- data.frame(
-    diagnostic = c(
+    component = c(
       "matched coverage", "MAP coverage", "local-order preservation"
     ),
     value = c(
@@ -64,27 +60,20 @@ transport_v3_diagnostic_plot <- function(alignment) {
     ),
     stringsAsFactors = FALSE
   )
-  values$diagnostic <- factor(
-    values$diagnostic, levels = rev(values$diagnostic)
+  values$component <- factor(
+    values$component, levels = rev(values$component)
   )
   unit <- transport_v3_spatial_unit(alignment$spec)
-  ggplot2::ggplot(
+  gaze_diagnostic_bars(
     values,
-    ggplot2::aes(x = .data[["diagnostic"]], y = .data[["value"]])
-  ) +
-    ggplot2::geom_col(fill = "#6C5CE7") +
-    ggplot2::coord_flip() +
-    ggplot2::scale_y_continuous(limits = c(0, 1)) +
-    ggplot2::labs(
-      title = "Transport alignment diagnostics",
-      subtitle = paste0(
-        "optimized correspondence, not a posterior; spatial RMSE = ",
-        signif(alignment$diagnostics$spatial_rmse, 4), " ", unit,
-        "; solver converged = ", isTRUE(alignment$convergence$converged)
-      ),
-      x = NULL, y = "Conditional diagnostic"
-    ) +
-    ggplot2::theme_minimal()
+    title = "Transport alignment diagnostics",
+    subtitle = paste0(
+      "optimized correspondence, not a posterior; spatial RMSE = ",
+      signif(alignment$diagnostics$spatial_rmse, 4), " ", unit,
+      "; solver converged = ", isTRUE(alignment$convergence$converged)
+    ),
+    x_label = "Conditional diagnostic"
+  )
 }
 
 transport_v3_alignment_plot <- function(alignment, type,
@@ -107,10 +96,10 @@ transport_v3_alignment_plot <- function(alignment, type,
   }
   plot <- gaze_overlay_plot(alignment)
   plot$labels$title <- "Transport registered overlay"
-  plot$labels$subtitle <- paste0(
-    plot$labels$subtitle,
+  plot$labels$subtitle <- eyesim_wrap(paste0(
+    gsub("\n", " ", plot$labels$subtitle, fixed = TRUE),
     "; arrows summarize optimized correspondence, not posterior probability"
-  )
+  ))
   plot
 }
 
@@ -159,33 +148,51 @@ transport_v3_select_episode <- function(record, episode = NULL) {
   )
 }
 
+# One score, drawn as a single labelled lollipop from zero.
 transport_v3_evidence_plot <- function(record) {
+  col <- eyesim_colours()
   ledger <- data.frame(
     endpoint = "gaze_info_bits",
     value = record$gaze_info_bits,
     stringsAsFactors = FALSE
   )
+  ledger$label <- paste0(signif(ledger$value, 3), " bits")
   diagnostics <- record$diagnostics
+  span <- max(abs(ledger$value), 1)
   ggplot2::ggplot(
     ledger,
-    ggplot2::aes(x = .data[["endpoint"]], y = .data[["value"]])
+    ggplot2::aes(x = .data[["value"]], y = .data[["endpoint"]])
   ) +
-    ggplot2::geom_hline(yintercept = 0, colour = "grey55", linewidth = 0.4) +
-    ggplot2::geom_col(fill = "#6C5CE7", width = 0.5) +
+    ggplot2::geom_vline(xintercept = 0, colour = col[["muted"]], linewidth = 0.4) +
+    ggplot2::geom_segment(
+      ggplot2::aes(x = 0, xend = .data[["value"]],
+                   yend = .data[["endpoint"]]),
+      colour = col[["correspondence"]], linewidth = 1.2
+    ) +
+    ggplot2::geom_point(colour = col[["correspondence"]], size = 3.5) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = .data[["label"]]),
+      vjust = -1.1, size = 3.2, fontface = "bold", colour = col[["ink"]]
+    ) +
+    ggplot2::scale_x_continuous(limits = c(-span, span) * 1.1) +
     ggplot2::labs(
       title = "One-score evidence ledger",
-      subtitle = paste0(
+      subtitle = eyesim_wrap(paste0(
         "log2(p_true / prior_true); rank ", diagnostics$template_rank,
         " of ", diagnostics$candidate_count, "; ",
         diagnostics$episode_count, " equal-prior episode(s)"
-      ),
-      caption = paste(
+      )),
+      caption = eyesim_wrap(paste(
         "Candidate-dependent calibrated evidence; alignment diagnostics",
         "do not add to this score."
-      ),
-      x = NULL, y = "Information relative to declared candidate prior (bits)"
+      ), width = 80),
+      x = "Information relative to declared candidate prior (bits)", y = NULL
     ) +
-    ggplot2::theme_minimal()
+    theme_eyesim() +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_text(face = "bold", colour = col[["ink"]])
+    )
 }
 
 #' Plot one fitted Transport result
@@ -223,15 +230,21 @@ autoplot.gaze_transport_fit <- function(
     return(transport_v3_evidence_plot(record))
   }
   selected_episode <- transport_v3_select_episode(record, episode)
+  episode_note <- eyesim_wrap(paste0(
+    "Alignment panel: episode ", selected_episode$id, " of ",
+    selected_episode$count,
+    ". gaze_info_bits retains the fixed equal-prior episode mixture."
+  ), width = 110)
   if (type != "combined") {
     plot <- transport_v3_alignment_plot(
       selected_episode$alignment, type, coupling_threshold
     )
-    plot$labels$caption <- paste0(
-      "Alignment panel: episode ", selected_episode$id, " of ",
-      selected_episode$count,
-      ". gaze_info_bits retains the fixed equal-prior episode mixture."
-    )
+    existing <- plot$labels$caption
+    plot$labels$caption <- if (is.null(existing)) {
+      episode_note
+    } else {
+      paste(existing, episode_note, sep = "\n")
+    }
     return(plot)
   }
   plots <- list(
@@ -257,16 +270,16 @@ autoplot.gaze_transport_fit <- function(
     return(plots)
   }
   title <- paste0(
-    "Transport: gaze_info_bits = ", signif(record$gaze_info_bits, 4),
+    "Transport evidence: gaze_info_bits = ", signif(record$gaze_info_bits, 3),
+    " bits",
     "; diagnostic episode ", selected_episode$id, " of ",
     selected_episode$count
   )
-  patchwork::wrap_plots(plots, ncol = 1, heights = c(1, 2, 1.3, 2, 1)) +
-    patchwork::plot_annotation(
-      title = title,
-      subtitle = paste(
-        "Evidence mixes all retained episodes equally; correspondences are",
-        "optimized alignments, not posterior replay probabilities."
-      )
+  gaze_combine_panels(
+    plots, heights = c(0.45, 1.8, 0.9, 1.3, 0.75), title = title,
+    subtitle = paste(
+      "Evidence mixes all retained episodes equally; correspondences are",
+      "optimized alignments, not posterior replay probabilities."
     )
+  )
 }

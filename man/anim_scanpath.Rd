@@ -18,7 +18,7 @@ anim_scanpath(
 \arguments{
 \item{x}{A `fixation_group` object.}
 
-\item{bg_image}{An optional image file name to use as the background.}
+\item{bg_image}{An optional image file name (or `cimg`) to use as the background.}
 
 \item{xlim}{The range in x coordinates (default: range of x values in the fixation group).}
 
@@ -36,7 +36,9 @@ anim_scanpath(
 A gganimate object representing the animated scanpath.
 }
 \description{
-This function creates an animated visualization of a fixation scanpath using gganimate.
+Creates an animated scanpath: fixations appear one at a time (by order or
+by onset), earlier fixations stay visible as faded marks, and colour
+encodes onset on the shared eyesim time scale.
 }
 \examples{
 # Create a fixation group
@@ -48,7 +50,10 @@ if (requireNamespace("gganimate", quietly = TRUE)) {
 }
 \seealso{
 Other visualization: 
+\code{\link{eyesim_colours}()},
 \code{\link{plot.eye_density}()},
-\code{\link{plot.fixation_group}()}
+\code{\link{plot.fixation_group}()},
+\code{\link{scale_fill_eyesim_density}()},
+\code{\link{theme_eyesim}()}
 }
 \concept{visualization}

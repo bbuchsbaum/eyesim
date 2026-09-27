@@ -1,4 +1,50 @@
-# eyesim 0.1.0.9000
+# eyesim 0.2.0
+
+* All plots share one visual system. New exports: `theme_eyesim()`,
+  `theme_eyesim_spatial()`, `eyesim_colours()`, `scale_fill_eyesim_density()`
+  and `scale_colour_eyesim_time()`. Reference/encoding and source/recall gaze,
+  correspondence, diagnostics, time and density each keep one colour or ramp
+  across `plot.fixation_group()`, `plot.eye_density()`, `anim_scanpath()` and
+  the GazeWeave Replay and Transport `autoplot()` methods. Visible changes:
+  - `bg_image` is drawn with its stored colours. It was contrast-stretched.
+  - Stimulus-space plots keep a 1:1 aspect ratio, and `xlim`/`ylim` no
+    longer drop fixations outside them, so density contours close.
+  - Density is transparent at zero and has a colour bar. `plot.fixation_group()`
+    and `plot.eye_density()` gain `limits` (put several maps on one scale)
+    and `legend`; `plot.eye_density()` gains `colours`.
+  - `plot.fixation_group(transform = )` now transforms the density colour
+    scale, as documented. The fill was always cube-root before, so the default
+    (`"identity"`) now fills linearly and low densities look lighter.
+    `colours` is now used; it was ignored. `alpha_range` defaults to
+    `c(0, 0.9)`. Point area is proportional to duration.
+  - `plot.eye_density(alpha = )` is the opacity at maximum density; lower
+    densities are more transparent.
+  - `anim_scanpath()` titles frames by what it animates over ("Fixation N" or
+    "Onset N") and keeps earlier fixations as faded marks.
+  - `type = "density"` and `type = "filled_contour"` draw non-overlapping
+    density bands between evenly spaced edges from zero, coloured on the
+    shared density scale (so they honour `transform`, `colours` and
+    `limits`). The band containing zero is transparent, and a stepped colour
+    bar shows the band edges. Densities above `limits` take the top colour.
+    Over a `bg_image`, thin white contour lines keep density edges visible.
+  - Fixation numbers are placed when the plot is drawn, at its actual size:
+    next to their own fixation, or further out with a leader line that
+    stays clear of every other fixation and leader. Numbers are never drawn
+    over another number or marker. The first and last fixations are placed
+    first, and a ring marks the first fixation (its leader starts at the
+    ring). Numbers that cannot be placed unambiguously are omitted, and a
+    note inside the panel (unaffected by `labs(caption = )`) says how many.
+    Rank colour bars show no tick labels.
+  - `plot.fixation_group()` gains `aspect = c("equal", "free")`: `"free"`
+    fills the panel at the cost of true angles and shapes. With shared
+    `limits` below the peak, the stepped colour bar gains a "> limit" step,
+    and a lower limit is ignored (with a warning) for the banded types.
+  - GazeWeave overlays have a legend for the reference/source paths. Braid
+    widths, arrow opacity and point areas are scaled from zero (widths and
+    opacity keep a small visible floor). In both braids, point area is
+    fixation mass and source points are filled by the share of their mass
+    with a correspondence (faint = unmatched, or background in Replay).
+  - Requires ggplot2 >= 4.0.0 and imports viridisLite.
 
 * `fixation_entropy()` on a fixation group accepts `aggregate`. With a vector
   `sigma`, `aggregate = "none"` returns one entropy per scale. It was passed

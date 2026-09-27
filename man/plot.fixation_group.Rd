@@ -15,11 +15,14 @@
   show_path = TRUE,
   bins = max(as.integer(length(x$x)/10), 4),
   bg_image = NULL,
-  colours = rev(brewer.pal(n = 10, "Spectral")),
-  alpha_range = c(0.5, 1),
+  colours = NULL,
+  alpha_range = c(0, 0.9),
   alpha = 0.8,
   window = NULL,
   transform = c("identity", "sqroot", "curoot", "rank"),
+  legend = TRUE,
+  limits = NULL,
+  aspect = c("equal", "free"),
   ...
 )
 }
@@ -34,25 +37,45 @@
 
 \item{ylim}{The y-axis limits (default: range of y values in the fixation_group object).}
 
-\item{size_points}{Whether to size points according to fixation duration (default: TRUE).}
+\item{size_points}{Whether to size points according to fixation duration;
+point area is proportional to duration (default: TRUE).}
 
 \item{show_points}{Whether to show the fixations as points (default: TRUE).}
 
 \item{show_path}{Whether to show the fixation path (default: TRUE).}
 
-\item{bins}{Number of bins for density calculations (default: max(as.integer(length(x$x)/10), 4)).}
+\item{bins}{Number of density bands for `type = "density"`
+(default: max(as.integer(length(x$x)/10), 4)); `type = "filled_contour"`
+uses 10 bands.}
 
-\item{bg_image}{An optional background image file name.}
+\item{bg_image}{An optional background image file name (or `cimg`).}
 
-\item{colours}{Color palette to use for the plot (default: rev(brewer.pal(n=10, "Spectral"))).}
+\item{colours}{Optional colour ramp. For `type = "points"` it replaces the
+onset (time) ramp; for the density types it replaces the density ramp.
+Default `NULL` uses the eyesim ramps.}
 
-\item{alpha_range}{A vector specifying the minimum and maximum alpha values for density plots (default: c(0.5, 1)).}
+\item{alpha_range}{Opacity at zero and at maximum density for the density
+layers (default: c(0, 0.9), so zero density is transparent).}
 
 \item{alpha}{The opacity level for the points (default: 0.8).}
 
 \item{window}{A vector specifying the time window for selecting fixations (default: NULL).}
 
-\item{transform}{The transformation to apply to the density values (default: c("identity", "sqroot", "curoot", "rank")).}
+\item{transform}{The transformation applied to the density colour scale
+(default: c("identity", "sqroot", "curoot", "rank")).}
+
+\item{legend}{Whether to show legends: onset (points) or density (density
+types), plus duration when `size_points = TRUE` (default: `TRUE`).}
+
+\item{limits}{Optional density limits for the colour scale of the density
+types (default: from zero to the maximum). Use the same `limits` across
+plots to compare them on one scale; for the banded types they also fix
+the band edges. Densities above the upper limit take the top colour.}
+
+\item{aspect}{`"equal"` (default) keeps one data unit the same length on
+both axes, so saccade angles and cluster shapes are true; wide scanpaths
+then leave blank space. `"free"` fills the panel and distorts the
+geometry.}
 
 \item{...}{Additional arguments (currently unused).}
 }
@@ -60,8 +83,25 @@
 A ggplot object representing the fixation group plot.
 }
 \description{
-This function creates a plot of the fixation_group object using ggplot2.
-Different plot types and options can be specified to customize the output.
+Plots a fixation group in stimulus coordinates with the shared eyesim
+style. `type = "points"` draws the scanpath: fixations coloured by onset
+and sized by duration, joined in order. The density types draw a kernel
+density of the fixations on the eyesim density scale, with the fixations
+overlaid in grey. The plot keeps a 1:1 aspect ratio; `xlim`/`ylim` set the
+visible extent (and the extent of `bg_image`) without dropping data.
+A ring marks the first fixation.
+}
+\details{
+With fewer than 50 fixations, fixation numbers are placed when the plot
+is drawn, using its actual size: next to their own fixation, or further
+out with a leader line, never covering another number or marker. Numbers
+that cannot be placed are omitted, and a note in the panel says how many.
+
+`type = "density"` and `type = "filled_contour"` draw non-overlapping
+density bands between evenly spaced edges from zero, each coloured at its
+midpoint; the band containing zero is transparent, and the stepped colour
+bar shows the same edges. Over a `bg_image`, thin white contour lines
+separate the density from the stimulus colours.
 }
 \examples{
 # Create a fixation_group object
@@ -72,6 +112,9 @@ plot(fg)
 \seealso{
 Other visualization: 
 \code{\link{anim_scanpath}()},
-\code{\link{plot.eye_density}()}
+\code{\link{eyesim_colours}()},
+\code{\link{plot.eye_density}()},
+\code{\link{scale_fill_eyesim_density}()},
+\code{\link{theme_eyesim}()}
 }
 \concept{visualization}

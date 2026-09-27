@@ -30,36 +30,64 @@ gaze_warp_grid <- function(alignment, grid_n = 6L, line_n = 40L) {
   dplyr::bind_rows(c(vertical, horizontal))
 }
 
-gaze_overlay_plot <- function(alignment) {
-  reference <- data.frame(
-    x = alignment$reference$coords[, 1],
-    y = alignment$reference$coords[, 2],
-    mass = alignment$reference$mass,
-    index = seq_len(nrow(alignment$reference$coords))
+# Shared plot vocabulary ---------------------------------------------------
+
+# Display labels for the three gaze paths. Replay speaks of encoding/recall,
+# Transport of reference/source; both use the same colour roles.
+gaze_path_labels <- function(engine = c("transport", "replay")) {
+  engine <- match.arg(engine)
+  if (engine == "replay") {
+    c(reference = "Encoding", registered = "Recall (registered)",
+      raw = "Recall (raw)")
+  } else {
+    c(reference = "Reference", registered = "Source (registered)",
+      raw = "Source (raw)")
+  }
+}
+
+gaze_path_scales <- function(labels) {
+  col <- eyesim_colours()
+  values <- stats::setNames(
+    c(col[["reference"]], col[["source"]], col[["raw"]]),
+    labels[c("reference", "registered", "raw")]
   )
-  source <- data.frame(
-    x = alignment$source$coords[, 1],
-    y = alignment$source$coords[, 2],
-    mass = alignment$source$mass,
-    index = seq_len(nrow(alignment$source$coords))
+  linetypes <- stats::setNames(c("solid", "solid", "22"), names(values))
+  shapes <- stats::setNames(c(16, 17, 1), names(values))
+  list(
+    ggplot2::scale_colour_manual(values = values, breaks = names(values), name = NULL),
+    ggplot2::scale_linetype_manual(values = linetypes, breaks = names(values), name = NULL),
+    ggplot2::scale_shape_manual(values = shapes, breaks = names(values), name = NULL)
   )
-  registered <- data.frame(
-    x = alignment$registered_source$coords[, 1],
-    y = alignment$registered_source$coords[, 2],
-    mass = alignment$registered_source$mass,
-    index = seq_len(nrow(alignment$registered_source$coords))
+}
+
+gaze_path_frame <- function(coords, mass, role, labels) {
+  data.frame(
+    x = coords[, 1], y = coords[, 2], mass = mass,
+    # raw first: paths and points are drawn in level order, so the raw path
+    # sits underneath; legend order is fixed by the scale breaks
+    role = factor(labels[[role]], levels = labels[c("raw", "reference", "registered")])
   )
-  source_mass <- colSums(alignment$coupling)
-  destinations <- t(alignment$coupling) %*% alignment$reference$coords
-  destinations <- sweep(destinations, 1, source_mass, FUN = "/")
-  arrows <- data.frame(
-    x = registered$x,
-    y = registered$y,
-    xend = destinations[, 1],
-    yend = destinations[, 2],
-    mass = source_mass
+}
+
+gaze_axis_unit <- function(spec) {
+  unit <- tryCatch(transport_v3_spatial_unit(spec), error = function(e) NULL)
+  if (is.null(unit) || identical(unit, "native_coordinate_units")) NULL else unit
+}
+
+# Spatial overlay of reference, raw and registered source paths plus
+# correspondence arrows (opacity proportional to mass, anchored at zero).
+gaze_spatial_overlay <- function(alignment, arrows, arrow_limits, labels,
+                                 title, subtitle) {
+  paths <- rbind(
+    gaze_path_frame(alignment$source$coords, alignment$source$mass, "raw", labels),
+    gaze_path_frame(alignment$reference$coords, alignment$reference$mass,
+                    "reference", labels),
+    gaze_path_frame(alignment$registered_source$coords,
+                    alignment$registered_source$mass, "registered", labels)
   )
   grid <- gaze_warp_grid(alignment)
+  unit <- gaze_axis_unit(alignment$spec)
+  col <- eyesim_colours()
 
   plot <- ggplot2::ggplot()
   if (!is.null(grid)) {
@@ -67,74 +95,175 @@ gaze_overlay_plot <- function(alignment) {
       data = grid,
       ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
                    group = .data[["group"]]),
-      colour = "grey88",
-      linewidth = 0.3
+      colour = col[["grid"]], linewidth = 0.3
     )
   }
+  raw_first <- paths[order(paths$role), , drop = FALSE]
   plot +
     ggplot2::geom_path(
-      data = source,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]]),
-      colour = "grey65",
-      linewidth = 0.7,
-      linetype = 2
+      data = raw_first,
+      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
+                   colour = .data[["role"]], linetype = .data[["role"]],
+                   group = .data[["role"]]),
+      linewidth = 0.6
     ) +
-    ggplot2::geom_path(
-      data = reference,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]]),
-      colour = "#1B263B",
-      linewidth = 0.9
-    ) +
-    ggplot2::geom_path(
-      data = registered,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]]),
-      colour = "#D1495B",
-      linewidth = 0.9
+    ggplot2::geom_point(
+      data = raw_first,
+      ggplot2::aes(x = .data[["x"]], y = .data[["y"]], size = .data[["mass"]],
+                   colour = .data[["role"]], shape = .data[["role"]]),
+      stroke = 0.8
     ) +
     ggplot2::geom_segment(
       data = arrows,
       ggplot2::aes(
         x = .data[["x"]], y = .data[["y"]],
         xend = .data[["xend"]], yend = .data[["yend"]],
-        alpha = .data[["mass"]]
+        alpha = .data[["weight"]]
       ),
-      colour = "#6C757D",
-      linewidth = 0.35,
-      arrow = grid::arrow(length = grid::unit(0.08, "inches"))
+      colour = col[["correspondence"]], linewidth = 0.4,
+      arrow = grid::arrow(length = grid::unit(0.07, "inches"), type = "closed")
     ) +
-    ggplot2::geom_point(
-      data = source,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
-                   size = .data[["mass"]]),
-      colour = "grey65",
-      shape = 1,
-      stroke = 0.8
+    gaze_path_scales(labels) +
+    ggplot2::scale_size_area(max_size = 4.5, guide = "none") +
+    ggplot2::scale_alpha_continuous(
+      range = c(0.15, 0.9), limits = arrow_limits, guide = "none"
+    ) +
+    ggplot2::coord_equal() +
+    ggplot2::guides(
+      colour = ggplot2::guide_legend(override.aes = list(size = 2.2))
+    ) +
+    ggplot2::labs(
+      title = title, subtitle = eyesim_wrap(subtitle),
+      x = if (is.null(unit)) NULL else paste0("x (", unit, ")"),
+      y = if (is.null(unit)) NULL else paste0("y (", unit, ")")
+    ) +
+    theme_eyesim() +
+    ggplot2::theme(legend.position = "bottom",
+                   legend.key.width = ggplot2::unit(24, "pt"))
+}
+
+# Two-rail braid: reference on top, source below, ribbons for correspondence.
+# Width and opacity are proportional to mass (zero-anchored). Both rails use
+# point area for fixation mass; source points are filled in proportion to
+# the share of their mass that has a correspondence (`share`, 0-1), so
+# faint source points are unmatched (Transport) or background (Replay).
+gaze_braid_rails <- function(ribbons, reference, source,
+                             rail_labels, title, subtitle, x_label,
+                             share_note) {
+  col <- eyesim_colours()
+  source$fill <- scales::alpha(col[["source"]], 0.1 + 0.9 * pmin(pmax(source$share, 0), 1))
+  ggplot2::ggplot() +
+    ggplot2::geom_hline(yintercept = c(0, 1), colour = col[["rule"]], linewidth = 0.5) +
+    ggplot2::geom_segment(
+      data = ribbons,
+      ggplot2::aes(
+        x = .data[["x"]], y = .data[["y"]],
+        xend = .data[["xend"]], yend = .data[["yend"]],
+        linewidth = .data[["relative_mass"]],
+        alpha = .data[["relative_mass"]]
+      ),
+      colour = col[["correspondence"]], lineend = "butt"
     ) +
     ggplot2::geom_point(
       data = reference,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
+      ggplot2::aes(x = .data[["time"]], y = .data[["rail"]],
                    size = .data[["mass"]]),
-      colour = "#1B263B"
+      colour = col[["reference"]], shape = 16
     ) +
     ggplot2::geom_point(
-      data = registered,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
-                   size = .data[["mass"]]),
-      colour = "#D1495B"
+      data = source,
+      ggplot2::aes(x = .data[["time"]], y = .data[["rail"]],
+                   size = .data[["mass"]], fill = .data[["fill"]]),
+      colour = scales::alpha(col[["source"]], 0.6), shape = 24, stroke = 0.5
     ) +
-    ggplot2::scale_size_continuous(range = c(2, 6), guide = "none") +
-    ggplot2::scale_alpha_continuous(range = c(0.2, 0.8), guide = "none") +
-    ggplot2::coord_equal() +
+    ggplot2::scale_fill_identity() +
+    ggplot2::scale_linewidth_continuous(
+      range = c(0.2, 4.5), limits = c(0, NA), guide = "none"
+    ) +
+    ggplot2::scale_alpha_continuous(
+      range = c(0.2, 0.75), limits = c(0, NA), guide = "none"
+    ) +
+    ggplot2::scale_size_area(max_size = 4.5, guide = "none") +
+    ggplot2::scale_y_continuous(
+      breaks = c(0, 1), labels = rail_labels, limits = c(-0.12, 1.12)
+    ) +
+    ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.03)) +
     ggplot2::labs(
-      title = "Registered spatial overlay",
-      subtitle = paste0(
-        "reference (navy), raw source (grey), registered source (red); scale = ",
-        signif(warp_parameters(alignment$warp)$scale, 3)
-      ),
-      x = NULL,
-      y = NULL
+      title = title, subtitle = eyesim_wrap(subtitle),
+      caption = eyesim_wrap(paste0("Point area = fixation mass; ", rail_labels[[1]],
+                                   " fill = ", share_note, "."), width = 95),
+      x = x_label, y = NULL
     ) +
-    ggplot2::theme_minimal()
+    theme_eyesim() +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_text(
+        face = "bold", colour = col[["ink"]], size = ggplot2::rel(0.9)
+      )
+    )
+}
+
+# Horizontal bars for [0, 1] diagnostics with printed values.
+gaze_diagnostic_bars <- function(values, title, subtitle, x_label) {
+  col <- eyesim_colours()
+  values$label <- ifelse(
+    values$value > 0 & values$value < 0.005,
+    formatC(values$value, digits = 1, format = "e"),
+    ifelse(values$value < 1 & values$value >= 0.995,
+           ifelse(values$value >= 0.9995, ">0.999",
+                  formatC(values$value, digits = 3, format = "f")),
+           formatC(values$value, digits = 2, format = "f"))
+  )
+  values$inside <- values$value > 0.82
+  ggplot2::ggplot(
+    values,
+    ggplot2::aes(x = .data[["value"]], y = .data[["component"]])
+  ) +
+    ggplot2::geom_col(fill = col[["diagnostic"]], width = 0.62) +
+    ggplot2::geom_text(
+      data = values[!values$inside, , drop = FALSE],
+      ggplot2::aes(label = .data[["label"]]),
+      hjust = -0.2, size = 3, colour = col[["ink"]]
+    ) +
+    ggplot2::geom_text(
+      data = values[values$inside, , drop = FALSE],
+      ggplot2::aes(label = .data[["label"]]),
+      hjust = 1.2, size = 3, colour = "white"
+    ) +
+    ggplot2::scale_x_continuous(
+      limits = c(0, 1), breaks = seq(0, 1, 0.25),
+      expand = ggplot2::expansion(mult = c(0, 0.02))
+    ) +
+    ggplot2::labs(title = title, subtitle = eyesim_wrap(subtitle),
+                  x = x_label, y = NULL) +
+    theme_eyesim() +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_text(colour = col[["ink"]])
+    )
+}
+
+# Transport panels ---------------------------------------------------------
+
+gaze_overlay_plot <- function(alignment) {
+  source_mass <- colSums(alignment$coupling)
+  destinations <- t(alignment$coupling) %*% alignment$reference$coords
+  destinations <- sweep(destinations, 1, source_mass, FUN = "/")
+  arrows <- data.frame(
+    x = alignment$registered_source$coords[, 1],
+    y = alignment$registered_source$coords[, 2],
+    xend = destinations[, 1],
+    yend = destinations[, 2],
+    weight = source_mass
+  )
+  gaze_spatial_overlay(
+    alignment, arrows, arrow_limits = c(0, NA),
+    labels = gaze_path_labels("transport"),
+    title = "Registered spatial overlay",
+    subtitle = paste0(
+      "scale = ", signif(warp_parameters(alignment$warp)$scale, 3)
+    )
+  )
 }
 
 gaze_braid_plot <- function(alignment, coupling_threshold = 0.005,
@@ -159,73 +288,32 @@ gaze_braid_plot <- function(alignment, coupling_threshold = 0.005,
     rail = 1,
     mass = alignment$reference$mass
   )
+  source_mass <- alignment$registered_source$mass
   source <- data.frame(
     time = alignment$registered_source$time,
     rail = 0,
-    mass = alignment$registered_source$mass
+    mass = source_mass,
+    share = ifelse(source_mass > 0, colSums(coupling) / source_mass, 0)
   )
-
-  ggplot2::ggplot() +
-    ggplot2::geom_segment(
-      data = ribbons,
-      ggplot2::aes(
-        x = .data[["x"]], y = .data[["y"]],
-        xend = .data[["xend"]], yend = .data[["yend"]],
-        linewidth = .data[["relative_mass"]],
-        alpha = .data[["relative_mass"]]
-      ),
-      colour = "#6C5CE7",
-      lineend = "round"
-    ) +
-    ggplot2::geom_hline(yintercept = c(0, 1), colour = "grey55", linewidth = 0.35) +
-    ggplot2::geom_point(
-      data = reference,
-      ggplot2::aes(x = .data[["time"]], y = .data[["rail"]],
-                   size = .data[["mass"]]),
-      colour = "#1B263B"
-    ) +
-    ggplot2::geom_point(
-      data = source,
-      ggplot2::aes(x = .data[["time"]], y = .data[["rail"]],
-                   size = .data[["mass"]]),
-      colour = "#D1495B"
-    ) +
-    ggplot2::scale_linewidth_continuous(range = c(0.2, 4), guide = "none") +
-    ggplot2::scale_alpha_continuous(range = c(0.15, 0.8), guide = "none") +
-    ggplot2::scale_size_continuous(range = c(2, 6), guide = "none") +
-    ggplot2::scale_y_continuous(
-      breaks = c(0, 1),
-      labels = c("source", "reference"),
-      limits = c(-0.08, 1.08)
-    ) +
-    ggplot2::labs(
-      title = title,
-      subtitle = paste(
-        subtitle_prefix, "; connections shown above", coupling_threshold,
-        "of transported mass"
-      ),
-      x = "Normalized trial time",
-      y = NULL
-    ) +
-    ggplot2::theme_minimal()
+  gaze_braid_rails(
+    ribbons, reference, source,
+    rail_labels = c("source", "reference"),
+    share_note = paste0(
+      "share of the fixation's mass carried by the coupling (faint = ",
+      "little; MAP coverage ", signif(sum(coupling), 2), ")"
+    ),
+    title = title,
+    subtitle = paste0(
+      subtitle_prefix, "; connections shown above ", coupling_threshold,
+      " of transported mass"
+    ),
+    x_label = "Normalized trial time"
+  )
 }
 
+# Replay panels ------------------------------------------------------------
+
 gaze_replay_overlay_plot <- function(alignment) {
-  reference <- data.frame(
-    x = alignment$reference$coords[, 1],
-    y = alignment$reference$coords[, 2],
-    mass = alignment$reference$mass
-  )
-  source <- data.frame(
-    x = alignment$source$coords[, 1],
-    y = alignment$source$coords[, 2],
-    mass = alignment$source$mass
-  )
-  registered <- data.frame(
-    x = alignment$registered_source$coords[, 1],
-    y = alignment$registered_source$coords[, 2],
-    mass = alignment$registered_source$mass
-  )
   replay_probability <- rowSums(alignment$replay_posterior)
   keep <- replay_probability > 1e-8 & stats::complete.cases(alignment$barycentric)
   arrows <- data.frame(
@@ -233,76 +321,17 @@ gaze_replay_overlay_plot <- function(alignment) {
     y = alignment$grid$coords[keep, 2],
     xend = alignment$barycentric[keep, 1],
     yend = alignment$barycentric[keep, 2],
-    probability = replay_probability[keep]
+    weight = replay_probability[keep]
   )
-  grid <- gaze_warp_grid(alignment)
-
-  plot <- ggplot2::ggplot()
-  if (!is.null(grid)) {
-    plot <- plot + ggplot2::geom_path(
-      data = grid,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
-                   group = .data[["group"]]),
-      colour = "grey88",
-      linewidth = 0.3
+  gaze_spatial_overlay(
+    alignment, arrows, arrow_limits = c(0, 1),
+    labels = gaze_path_labels("replay"),
+    title = "Registered spatial overlay",
+    subtitle = paste0(
+      "arrows show posterior replay destinations; scale = ",
+      signif(warp_parameters(alignment$warp)$scale, 3)
     )
-  }
-  plot +
-    ggplot2::geom_path(
-      data = source,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]]),
-      colour = "grey65", linewidth = 0.7, linetype = 2
-    ) +
-    ggplot2::geom_path(
-      data = reference,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]]),
-      colour = "#1B263B", linewidth = 0.9
-    ) +
-    ggplot2::geom_path(
-      data = registered,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]]),
-      colour = "#D1495B", linewidth = 0.9
-    ) +
-    ggplot2::geom_segment(
-      data = arrows,
-      ggplot2::aes(
-        x = .data[["x"]], y = .data[["y"]],
-        xend = .data[["xend"]], yend = .data[["yend"]],
-        alpha = .data[["probability"]]
-      ),
-      colour = "#6C757D", linewidth = 0.3,
-      arrow = grid::arrow(length = grid::unit(0.06, "inches"))
-    ) +
-    ggplot2::geom_point(
-      data = source,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
-                   size = .data[["mass"]]),
-      colour = "grey65", shape = 1, stroke = 0.8
-    ) +
-    ggplot2::geom_point(
-      data = reference,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
-                   size = .data[["mass"]]),
-      colour = "#1B263B"
-    ) +
-    ggplot2::geom_point(
-      data = registered,
-      ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
-                   size = .data[["mass"]]),
-      colour = "#D1495B"
-    ) +
-    ggplot2::scale_size_continuous(range = c(2, 6), guide = "none") +
-    ggplot2::scale_alpha_continuous(range = c(0.08, 0.75), guide = "none") +
-    ggplot2::coord_equal() +
-    ggplot2::labs(
-      title = "Registered spatial overlay",
-      subtitle = paste0(
-        "arrows show posterior replay destinations; scale = ",
-        signif(warp_parameters(alignment$warp)$scale, 3)
-      ),
-      x = NULL, y = NULL
-    ) +
-    ggplot2::theme_minimal()
+  )
 }
 
 gaze_replay_braid_plot <- function(alignment, coupling_threshold = 0.005) {
@@ -324,52 +353,30 @@ gaze_replay_braid_plot <- function(alignment, coupling_threshold = 0.005) {
     rail = 1,
     mass = alignment$reference$mass
   )
+  replay <- rowSums(posterior)
+  n_grid <- length(alignment$grid$time)
+  recall_mass <- if (length(alignment$source$mass) == n_grid) {
+    alignment$source$mass
+  } else {
+    rep(1 / n_grid, n_grid)
+  }
   source <- data.frame(
     time = alignment$grid$time,
     rail = 0,
-    replay = rowSums(posterior)
+    mass = recall_mass,
+    share = replay
   )
-
-  ggplot2::ggplot() +
-    ggplot2::geom_segment(
-      data = ribbons,
-      ggplot2::aes(
-        x = .data[["x"]], y = .data[["y"]],
-        xend = .data[["xend"]], yend = .data[["yend"]],
-        linewidth = .data[["relative_mass"]],
-        alpha = .data[["relative_mass"]]
-      ),
-      colour = "#6C5CE7", lineend = "round"
-    ) +
-    ggplot2::geom_hline(yintercept = c(0, 1), colour = "grey55", linewidth = 0.35) +
-    ggplot2::geom_point(
-      data = reference,
-      ggplot2::aes(x = .data[["time"]], y = .data[["rail"]],
-                   size = .data[["mass"]]),
-      colour = "#1B263B"
-    ) +
-    ggplot2::geom_point(
-      data = source,
-      ggplot2::aes(x = .data[["time"]], y = .data[["rail"]],
-                   alpha = .data[["replay"]]),
-      colour = "#D1495B", size = 1.6
-    ) +
-    ggplot2::scale_linewidth_continuous(range = c(0.2, 4), guide = "none") +
-    ggplot2::scale_alpha_continuous(range = c(0.1, 0.85), guide = "none") +
-    ggplot2::scale_size_continuous(range = c(2, 6), guide = "none") +
-    ggplot2::scale_y_continuous(
-      breaks = c(0, 1), labels = c("recall", "encoding"),
-      limits = c(-0.08, 1.08)
-    ) +
-    ggplot2::labs(
-      title = "Posterior replay braid",
-      subtitle = paste(
-        "Ribbons are posterior correspondence mass; threshold =",
-        coupling_threshold
-      ),
-      x = "Normalized gaze time", y = NULL
-    ) +
-    ggplot2::theme_minimal()
+  gaze_braid_rails(
+    ribbons, reference, source,
+    rail_labels = c("recall", "encoding"),
+    share_note = "posterior replay probability (faint = mostly background)",
+    title = "Posterior replay braid",
+    subtitle = paste(
+      "Ribbons are posterior correspondence mass; threshold =",
+      coupling_threshold
+    ),
+    x_label = "Normalized gaze time"
+  )
 }
 
 gaze_replay_diagnostic_plot <- function(alignment) {
@@ -384,24 +391,20 @@ gaze_replay_diagnostic_plot <- function(alignment) {
   diagnostics$component <- factor(
     diagnostics$component, levels = rev(diagnostics$component)
   )
-  ggplot2::ggplot(
+  unit <- gaze_axis_unit(alignment$spec)
+  gaze_diagnostic_bars(
     diagnostics,
-    ggplot2::aes(x = .data[["component"]], y = .data[["value"]])
-  ) +
-    ggplot2::geom_col(fill = "#3A86FF") +
-    ggplot2::coord_flip() +
-    ggplot2::scale_y_continuous(limits = c(0, 1)) +
-    ggplot2::labs(
-      title = "Replay posterior diagnostics",
-      subtitle = paste0(
-        "spatial RMSE = ", signif(alignment$diagnostics$spatial_rmse, 4),
-        "; expected restarts = ",
-        signif(alignment$diagnostics$expected_restarts, 3)
-      ),
-      x = NULL, y = "Posterior expectation"
-    ) +
-    ggplot2::theme_minimal()
+    title = "Replay posterior diagnostics",
+    subtitle = paste0(
+      "spatial RMSE = ", signif(alignment$diagnostics$spatial_rmse, 4),
+      if (is.null(unit)) "" else paste0(" ", unit),
+      "; expected restarts = ",
+      signif(alignment$diagnostics$expected_restarts, 3)
+    ),
+    x_label = "Posterior expectation"
+  )
 }
+
 
 
 #' Plot a GazeWeave Replay alignment
@@ -478,12 +481,32 @@ autoplot_gaze_engine_fit <- function(object, row, key, type,
     return(plots)
   }
   title <- paste0(
-    "gaze_info_bits = ",
-    signif(object$results$gaze_info_bits[[selected]], 4),
-    " (", engine_label, ")"
+    engine_label, " evidence: gaze_info_bits = ",
+    signif(object$results$gaze_info_bits[[selected]], 3), " bits"
   )
-  patchwork::wrap_plots(plots, ncol = 1, heights = c(2, 1.3, 1)) +
-    patchwork::plot_annotation(title = title)
+  gaze_combine_panels(
+    plots, heights = c(2, 1.1, 0.8), title = title,
+    subtitle = paste(
+      "gaze_info_bits = log2(p_true / prior_true): information about the",
+      "true candidate beyond its prior; 0 means none, negative means p_true",
+      "fell below its prior."
+    )
+  )
+}
+
+# Stack panels into one figure with a shared legend and title block.
+gaze_combine_panels <- function(plots, heights, title, subtitle = NULL) {
+  patchwork::wrap_plots(plots, ncol = 1, heights = heights) +
+    patchwork::plot_layout(guides = "collect") +
+    patchwork::plot_annotation(
+      title = title,
+      subtitle = eyesim_wrap(subtitle, width = 105),
+      theme = theme_eyesim() +
+        ggplot2::theme(plot.title = ggplot2::element_text(
+          face = "bold", size = ggplot2::rel(1.3)
+        ))
+    ) &
+    ggplot2::theme(legend.position = "bottom")
 }
 
 #' Plot a fitted GazeWeave Replay analysis

@@ -65,12 +65,12 @@ fg <- fixation_group(
 )
 ```
 
-```{r plot-fixation-group, echo = FALSE, fig.cap = "Three fixations. Point size reflects duration; color reflects onset time (yellow = early, red = late)."}
+```{r plot-fixation-group, echo = FALSE, fig.cap = "Three fixations. Point size reflects duration; color reflects onset time (dark purple = early, green = late)."}
 plot(fg)
 ```
 
-Point size shows how long each fixation lasted. Color indicates when it
-occurred: yellow for early fixations, red for later ones.
+Point area is proportional to how long each fixation lasted. Color
+indicates when it occurred, from dark purple (early) to green (late).
 
 Here is a more realistic group with 25 randomly placed fixations:
 
