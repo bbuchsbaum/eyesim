@@ -53,6 +53,8 @@ reference:
   - gaze_replay_spec
   - fit_gaze_replay_model
   - gaze_replay_align
+  - gaze_replay_align_episode
+  - gaze_calibration_control
   - gaze_transport_cv
   - gaze_transport_spec
   - gaze_transport_prepare
@@ -71,6 +73,14 @@ reference:
   - autoplot.gaze_replay_fit
   - autoplot.gaze_transport_alignment
   - autoplot.gaze_transport_fit
+- title: GazeWeave comparators
+  desc: Fair comparator court for GazeWeave (nested cross-validated baselines).
+  contents:
+  - gaze_baseline_spec
+  - gaze_baseline_cv
+  - gaze_baseline_availability
+  - tidy.gaze_baseline_fit
+  - elastic_consensus_align
 - title: Latent transforms
   desc: Domain-adaptation transforms for use with template_similarity().
   contents:
@@ -85,7 +95,6 @@ reference:
   - add_scanpath.data.frame
   - add_scanpath.eye_table
   - scanpath.fixation_group
-  - anim_scanpath
   - calcangle
   - cart2pol
   - template_multireg
@@ -97,8 +106,16 @@ reference:
   - eye_table
   - simulate_eye_table
   - '[.eye_table'
-  - plot.eye_density
+- title: Plotting
+  desc: Scanpath and density plots, and the shared eyesim plot theme.
+  contents:
   - plot.fixation_group
+  - plot.eye_density
+  - anim_scanpath
+  - theme_eyesim
+  - eyesim_colours
+  - scale_fill_eyesim_density
+  - element_text_wrap
 - title: Density by Groups
   desc: Functions for density operations by groups.
   contents:
