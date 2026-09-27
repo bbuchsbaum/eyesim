@@ -92,10 +92,14 @@ visible extent (and the extent of `bg_image`) without dropping data.
 A ring marks the first fixation.
 }
 \details{
-With fewer than 50 fixations, fixation numbers are placed when the plot
-is drawn, using its actual size: next to their own fixation, or further
-out with a leader line, never covering another number or marker. Numbers
-that cannot be placed are omitted, and a note in the panel says how many.
+Fixations are numbered and joined in onset order, whatever the row order.
+With fewer than 50 fixations, the numbers are placed when the plot is
+drawn, using its actual size: next to their own fixation, or further out
+with a leader line that stays clear of every other fixation, never covering
+another number or marker. Fixations whose markers overlap are outlined as
+a group with one label listing their numbers. Any number still without a
+position is listed in a note inside the panel (or counted, if more than
+six).
 
 `type = "density"` and `type = "filled_contour"` draw non-overlapping
 density bands between evenly spaced edges from zero, each coloured at its
@@ -112,6 +116,7 @@ plot(fg)
 \seealso{
 Other visualization: 
 \code{\link{anim_scanpath}()},
+\code{\link{element_text_wrap}()},
 \code{\link{eyesim_colours}()},
 \code{\link{plot.eye_density}()},
 \code{\link{scale_fill_eyesim_density}()},

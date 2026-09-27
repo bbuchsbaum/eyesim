@@ -66,7 +66,7 @@ test_that("fixation numbers are unambiguous and never overlap at any panel size"
   }
 })
 
-test_that("omitted fixation numbers are noted inside the panel", {
+test_that("unlabelled fixation numbers are grouped or noted inside the panel", {
   set.seed(3)
   crowd <- fixation_group(x = stats::rnorm(40, 100, 2), y = stats::rnorm(40, 100, 2),
                           duration = rep(200, 40), onset = seq(0, 3900, by = 100))
@@ -79,7 +79,8 @@ test_that("omitted fixation numbers are noted inside the panel", {
     g <- tryCatch(grid::grid.get(n), error = function(e) NULL)
     if (inherits(g, "text")) g$label else NULL
   }))
-  expect_true(any(grepl("numbers omitted", texts)))
+  # every number is accounted for: in a group label or in the note
+  expect_true(any(grepl("not labelled", texts)) || any(grepl(", ", texts)))
   expect_true("mine" %in% texts)
 })
 
@@ -158,13 +159,31 @@ test_that("theme, colours and wrapping helpers behave", {
   expect_s3_class(theme_eyesim_spatial(), "theme")
   expect_named(eyesim_colours(c("reference", "source")), c("reference", "source"))
   expect_error(eyesim_colours("nope"), "Unknown")
-  wrapped <- eyesim_wrap(paste(rep("word", 30), collapse = " "),
-                         width = 20)
-  expect_true(all(nchar(strsplit(wrapped, "\n")[[1]]) <= 20))
-  kept <- eyesim_wrap("aaaa bbbb not a posterior cccc solver converged = TRUE", width = 12)
-  expect_match(gsub("\n", " ", kept), "not a posterior")
-  expect_true(any(grepl("not a posterior", strsplit(kept, "\n")[[1]])))
-  expect_true(any(grepl("converged = TRUE", strsplit(kept, "\n")[[1]])))
+})
+
+test_that("titles, subtitles and captions wrap to the drawn width", {
+  long <- paste(rep("a caption that keeps going", 12), collapse = " ")
+  p <- ggplot2::ggplot(data.frame(x = 1, y = 1), ggplot2::aes(x, y)) +
+    ggplot2::geom_point() + ggplot2::labs(caption = long) + theme_eyesim()
+  for (w in c(3, 8)) {
+    grDevices::pdf(NULL, width = w, height = 4)
+    print(p)
+    grid::grid.force()
+    texts <- list()
+    for (n in grid::grid.ls(print = FALSE, recursive = TRUE)$name) {
+      g <- tryCatch(grid::grid.get(n), error = function(e) NULL)
+      if (inherits(g, "text") && any(grepl("caption that keeps", g$label))) texts <- c(texts, list(g))
+    }
+    expect_true(length(texts) >= 1L)
+    lines <- strsplit(texts[[1]]$label, "\n")[[1]]
+    widest <- max(vapply(lines, function(l) {
+      grid::convertWidth(grid::grobWidth(grid::textGrob(l, gp = texts[[1]]$gp)), "in",
+                         valueOnly = TRUE)
+    }, numeric(1)))
+    grDevices::dev.off()
+    expect_gt(length(lines), 1L)
+    expect_lte(widest, w)
+  }
 })
 
 test_that("the stepped density bar shows the zero band as transparent", {
@@ -186,4 +205,58 @@ test_that("both braids size points by mass and fade by matched share", {
                 ggplot2::ggplot_build(p)$data)[[1]]
   expect_lt(opacity(pts$fill[[1]]), opacity(pts$fill[[2]]))
   expect_lt(pts$size[[1]], pts$size[[2]])
+})
+
+test_that("user theme tweaks merge into the wrapping text elements", {
+  p <- ggplot2::ggplot(data.frame(x = 1, y = 1), ggplot2::aes(x, y)) +
+    ggplot2::geom_point() + ggplot2::labs(title = "t") + theme_eyesim() +
+    ggplot2::theme(plot.title = ggplot2::element_text(size = 16, colour = "red"))
+  el <- ggplot2::calc_element("plot.title", ggplot2::complete_theme(p$theme))
+  expect_s3_class(el, "eyesim_element_text_wrap")
+  expect_equal(el@size, 16)
+  expect_equal(el@colour, "red")
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  expect_silent(print(p))
+})
+
+test_that("fixations are numbered and joined in onset order", {
+  fg <- fixation_group(x = c(10, 50, 90), y = c(10, 60, 20),
+                       duration = c(200, 200, 200), onset = c(400, 0, 200))
+  p <- plot(fg)
+  path <- Filter(function(d) "group" %in% names(d) && nrow(d) == 3L && !"size" %in% names(d),
+                 ggplot2::ggplot_build(p)$data)[[1]]
+  expect_equal(path$x, c(50, 90, 10))
+  lab <- Filter(function(d) "label" %in% names(d), ggplot2::ggplot_build(p)$data)[[1]]
+  expect_equal(as.integer(lab$label[match(c(50, 90, 10), lab$x)]), 1:3)
+})
+
+test_that("overlapping fixations are labelled as a group with a clear leader", {
+  set.seed(7)
+  px <- c(stats::rnorm(6, 40, 1.2), 90, 120)
+  py <- c(stats::rnorm(6, 40, 1.2), 70, 20)
+  n <- length(px)
+  r <- rep(2, n)
+  labels <- as.character(seq_len(n))
+  placed <- place_labels_mm(px, py, rep(4, n), rep(3.1, n), r, 150, 90,
+                            labels = labels)
+  groups <- attr(placed, "clusters")
+  grouped <- as.integer(unlist(strsplit(groups$members, ",")))
+  # every number is labelled or in a group label
+  expect_setequal(c(which(placed$shown), grouped), seq_len(n))
+  for (k in seq_len(nrow(groups))) {
+    members <- as.integer(strsplit(groups$members[k], ",")[[1]])
+    expect_identical(groups$text[k], paste(sort(members), collapse = ", "))
+    outside <- setdiff(seq_len(n), members)
+    clearance <- seg_point_dist(groups$x0[k], groups$y0[k], groups$lx[k], groups$ly[k],
+                                px[outside], py[outside])
+    expect_true(all(clearance >= r[outside]))
+  }
+})
+
+test_that("newlines in wrapped labels stay line breaks", {
+  gp <- grid::gpar(fontsize = 11)
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  expect_identical(wrap_to_width("Condition A\n(n = 20)", 5, gp), "Condition A\n(n = 20)")
 })

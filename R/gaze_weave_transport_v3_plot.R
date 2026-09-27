@@ -96,7 +96,7 @@ transport_v3_alignment_plot <- function(alignment, type,
   }
   plot <- gaze_overlay_plot(alignment)
   plot$labels$title <- "Transport registered overlay"
-  plot$labels$subtitle <- eyesim_wrap(paste0(
+  plot$labels$subtitle <- soft_wrap(paste0(
     gsub("\n", " ", plot$labels$subtitle, fixed = TRUE),
     "; arrows summarize optimized correspondence, not posterior probability"
   ))
@@ -177,15 +177,15 @@ transport_v3_evidence_plot <- function(record) {
     ggplot2::scale_x_continuous(limits = c(-span, span) * 1.1) +
     ggplot2::labs(
       title = "One-score evidence ledger",
-      subtitle = eyesim_wrap(paste0(
+      subtitle = paste0(
         "log2(p_true / prior_true); rank ", diagnostics$template_rank,
         " of ", diagnostics$candidate_count, "; ",
         diagnostics$episode_count, " equal-prior episode(s)"
-      )),
-      caption = eyesim_wrap(paste(
+      ),
+      caption = paste(
         "Candidate-dependent calibrated evidence; alignment diagnostics",
         "do not add to this score."
-      ), width = 80),
+      ),
       x = "Information relative to declared candidate prior (bits)", y = NULL
     ) +
     theme_eyesim() +
@@ -230,11 +230,11 @@ autoplot.gaze_transport_fit <- function(
     return(transport_v3_evidence_plot(record))
   }
   selected_episode <- transport_v3_select_episode(record, episode)
-  episode_note <- eyesim_wrap(paste0(
+  episode_note <- soft_wrap(paste0(
     "Alignment panel: episode ", selected_episode$id, " of ",
     selected_episode$count,
     ". gaze_info_bits retains the fixed equal-prior episode mixture."
-  ), width = 110)
+  ))
   if (type != "combined") {
     plot <- transport_v3_alignment_plot(
       selected_episode$alignment, type, coupling_threshold

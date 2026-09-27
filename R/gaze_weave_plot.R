@@ -133,7 +133,7 @@ gaze_spatial_overlay <- function(alignment, arrows, arrow_limits, labels,
       colour = ggplot2::guide_legend(override.aes = list(size = 2.2))
     ) +
     ggplot2::labs(
-      title = title, subtitle = eyesim_wrap(subtitle),
+      title = title, subtitle = soft_wrap(subtitle),
       x = if (is.null(unit)) NULL else paste0("x (", unit, ")"),
       y = if (is.null(unit)) NULL else paste0("y (", unit, ")")
     ) +
@@ -189,9 +189,9 @@ gaze_braid_rails <- function(ribbons, reference, source,
     ) +
     ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.03)) +
     ggplot2::labs(
-      title = title, subtitle = eyesim_wrap(subtitle),
-      caption = eyesim_wrap(paste0("Point area = fixation mass; ", rail_labels[[1]],
-                                   " fill = ", share_note, "."), width = 95),
+      title = title, subtitle = soft_wrap(subtitle),
+      caption = soft_wrap(paste0("Point area = fixation mass; ", rail_labels[[1]],
+                                 " fill = ", share_note, ".")),
       x = x_label, y = NULL
     ) +
     theme_eyesim() +
@@ -234,7 +234,7 @@ gaze_diagnostic_bars <- function(values, title, subtitle, x_label) {
       limits = c(0, 1), breaks = seq(0, 1, 0.25),
       expand = ggplot2::expansion(mult = c(0, 0.02))
     ) +
-    ggplot2::labs(title = title, subtitle = eyesim_wrap(subtitle),
+    ggplot2::labs(title = title, subtitle = soft_wrap(subtitle),
                   x = x_label, y = NULL) +
     theme_eyesim() +
     ggplot2::theme(
@@ -500,7 +500,7 @@ gaze_combine_panels <- function(plots, heights, title, subtitle = NULL) {
     patchwork::plot_layout(guides = "collect") +
     patchwork::plot_annotation(
       title = title,
-      subtitle = eyesim_wrap(subtitle, width = 105),
+      subtitle = soft_wrap(subtitle),
       theme = theme_eyesim() +
         ggplot2::theme(plot.title = ggplot2::element_text(
           face = "bold", size = ggplot2::rel(1.3)

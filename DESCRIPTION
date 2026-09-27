@@ -1,7 +1,7 @@
 Package: eyesim
 Type: Package
 Title: Analysis of Eye-Movement Data
-Version: 0.2.0
+Version: 0.2.0.9000
 Authors@R: person("Bradley", "Buchsbaum", email = "brad.buchsbaum@gmail.com",
     role = c("aut", "cre"))
 Description: Tools for analyzing eye-movement fixation data with a focus on
@@ -29,6 +29,7 @@ Imports:
     pracma,
     ks,
     rlang (>= 0.4.11),
+    S7,
     scales,
     viridisLite
 LinkingTo:

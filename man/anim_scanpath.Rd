@@ -50,6 +50,7 @@ if (requireNamespace("gganimate", quietly = TRUE)) {
 }
 \seealso{
 Other visualization: 
+\code{\link{element_text_wrap}()},
 \code{\link{eyesim_colours}()},
 \code{\link{plot.eye_density}()},
 \code{\link{plot.fixation_group}()},

@@ -12,7 +12,9 @@
 # line to its fixation. Boxes never overlap each other or other markers.
 place_labels_mm <- function(px, py, w, h, r, panel_w, panel_h,
                             gap = 0.6, ownership = 0.85, reserve = NULL,
-                            start = NULL, start_r = 0) {
+                            start = NULL, start_r = 0, labels = NULL,
+                            measure = function(s) 1 + 1.3 * nchar(s),
+                            label_h = NULL) {
   n <- length(px)
   out <- data.frame(lx = rep(NA_real_, n), ly = rep(NA_real_, n),
                     leader = rep(FALSE, n), shown = rep(FALSE, n),
@@ -139,7 +141,100 @@ place_labels_mm <- function(px, py, w, h, r, panel_w, panel_h,
       if (placed) break
     }
   }
+  attr(out, "clusters") <- place_cluster_labels(
+    out, px, py, r, labels, measure, label_h %||% (if (n > 0L) h[[1]] else 3),
+    boxes, leaders, panel_w, panel_h, gap
+  )
   out
+}
+
+# Numbers that could not be placed individually sit on markers overlapping
+# other markers. Such a group is outlined and labelled once ("4, 9, 17"),
+# with a leader from the outline that stays clear of every marker outside
+# the group. Returns one row per placed group label.
+place_cluster_labels <- function(out, px, py, r, labels, measure, label_h,
+                                 boxes, leaders, panel_w, panel_h, gap) {
+  n <- length(px)
+  empty <- data.frame(cx = numeric(0), cy = numeric(0), cr = numeric(0),
+                      lx = numeric(0), ly = numeric(0), x0 = numeric(0),
+                      y0 = numeric(0), w = numeric(0), text = character(0),
+                      members = character(0))
+  missing <- which(!out$shown)
+  if (length(missing) == 0L || is.null(labels)) {
+    return(empty)
+  }
+  # connected components of overlapping markers
+  touch <- outer(seq_len(n), seq_len(n), function(i, j) {
+    sqrt((px[i] - px[j])^2 + (py[i] - py[j])^2) < r[i] + r[j] + gap
+  })
+  group <- seq_len(n)
+  repeat {
+    new_group <- vapply(seq_len(n), function(i) min(group[touch[i, ]]), integer(1))
+    if (identical(new_group, group)) break
+    group <- new_group
+  }
+  angles <- seq(0, 2 * pi, length.out = 17L)[-17L] + pi / 4
+  dirs <- cbind(cos(angles), sin(angles))
+  rows <- list()
+  handled <- integer(0)
+  for (g in unique(group[missing])) {
+    members <- which(group == g)
+    todo <- setdiff(intersect(members, missing), handled)
+    if (length(members) < 2L || length(todo) == 0L) next
+    # The outline encloses only the unlabelled numbers it lists (a single
+    # number becomes a ring on its own marker). Any other unlabelled marker
+    # the outline would enclose joins the list, so none sits inside unnamed.
+    repeat {
+      cx <- mean(px[todo])
+      cy <- mean(py[todo])
+      cr <- max(sqrt((px[todo] - cx)^2 + (py[todo] - cy)^2) + r[todo]) + gap / 2
+      extra <- setdiff(missing, c(todo, handled))
+      extra <- extra[sqrt((px[extra] - cx)^2 + (py[extra] - cy)^2) < cr]
+      if (length(extra) == 0L) break
+      todo <- c(todo, extra)
+    }
+    handled <- c(handled, todo)
+    text <- paste(sort(as.integer(labels[todo])), collapse = ", ")
+    bw <- measure(text)
+    bh <- label_h
+    outside <- setdiff(seq_len(n), todo)
+    done <- FALSE
+    for (scale in c(1.3, 1.8, 2.5, 3.5, 5)) {
+      reach <- cr + gap + sqrt((bw / 2)^2 + (bh / 2)^2) * scale
+      for (d in seq_len(nrow(dirs))) {
+        lx <- cx + dirs[d, 1] * reach
+        ly <- cy + dirs[d, 2] * reach
+        b <- c(lx - bw / 2, lx + bw / 2, ly - bh / 2, ly + bh / 2)
+        if (b[[1]] < 0 || b[[2]] > panel_w || b[[3]] < 0 || b[[4]] > panel_h) next
+        if (nrow(boxes) > 0L && any(
+          boxes[, 1] < b[[2]] + gap & boxes[, 2] > b[[1]] - gap &
+            boxes[, 3] < b[[4]] + gap & boxes[, 4] > b[[3]] - gap
+        )) next
+        qx <- pmin(pmax(px, b[[1]]), b[[2]])
+        qy <- pmin(pmax(py, b[[3]]), b[[4]])
+        if (any(sqrt((qx - px)^2 + (qy - py)^2) < r + gap / 2)) next
+        x0 <- cx + dirs[d, 1] * cr
+        y0 <- cy + dirs[d, 2] * cr
+        if (length(outside) > 0L &&
+            any(seg_point_dist(x0, y0, lx, ly, px[outside], py[outside]) <
+                r[outside] + gap)) next
+        if (nrow(leaders) > 0L && any(vapply(seq_len(nrow(leaders)), function(k) {
+          segments_cross(x0, y0, lx, ly, leaders[k, 1], leaders[k, 2],
+                         leaders[k, 3], leaders[k, 4])
+        }, logical(1)))) next
+        boxes <- rbind(boxes, b)
+        leaders <- rbind(leaders, c(x0, y0, lx, ly))
+        rows[[length(rows) + 1L]] <- data.frame(
+          cx = cx, cy = cy, cr = cr, lx = lx, ly = ly, x0 = x0, y0 = y0,
+          w = bw, text = text, members = paste(todo, collapse = ",")
+        )
+        done <- TRUE
+        break
+      }
+      if (done) break
+    }
+  }
+  if (length(rows) == 0L) empty else do.call(rbind, rows)
 }
 
 # Distance from points (qx, qy) to the segment (x0, y0)-(x1, y1).
@@ -188,26 +283,41 @@ makeContent.eyesim_fixation_labels <- function(x) {
   fontsize <- pos$size[[1]] * ggplot2::.pt
   gp <- grid::gpar(fontsize = fontsize)
   pad <- 0.5
-  w <- vapply(pos$label, function(s) {
+  measure <- function(s) {
     grid::convertWidth(grid::grobWidth(grid::textGrob(s, gp = gp)), "mm",
-                       valueOnly = TRUE)
-  }, numeric(1)) + 2 * pad
-  h <- rep(fontsize / ggplot2::.pt * 1.15 + 2 * pad, nrow(pos))
+                       valueOnly = TRUE) + 2 * pad
+  }
+  w <- vapply(pos$label, measure, numeric(1))
+  label_h <- fontsize / ggplot2::.pt * 1.15 + 2 * pad
+  h <- rep(label_h, nrow(pos))
   px <- pos$x * pw
   py <- pos$y * ph
   start <- which(pos$start)[1]
   if (is.na(start)) start <- NULL
-  start_r <- x$start_r
-  placed <- place_labels_mm(px, py, w, h, pos$radius, pw, ph,
-                            start = start, start_r = start_r)
+  place <- function(reserve = NULL) {
+    place_labels_mm(px, py, w, h, pos$radius, pw, ph, reserve = reserve,
+                    start = start, start_r = x$start_r, labels = pos$label,
+                    measure = measure, label_h = label_h)
+  }
+  unlabelled <- function(placed) {
+    grouped <- as.integer(unlist(strsplit(attr(placed, "clusters")$members, ",")))
+    setdiff(which(!placed$shown), grouped)
+  }
   note_gp <- grid::gpar(fontsize = fontsize * 0.9, col = eyesim_colours("muted"))
-  note_text <- function(k) paste0(k, " of ", nrow(pos), " numbers omitted")
+  note_text <- function(missing) {
+    if (length(missing) <= 6L) {
+      paste0("not labelled: ", paste(sort(as.integer(pos$label[missing])), collapse = ", "))
+    } else {
+      paste0(length(missing), " of ", nrow(pos), " numbers not labelled")
+    }
+  }
+  placed <- place()
   note_w <- note_h <- 0
   note_x <- note_y <- 0.5
-  if (any(!placed$shown)) {
+  if (length(unlabelled(placed)) > 0L) {
     # Put the note in the corner with the fewest markers under it, reserve
     # that corner so it never covers a number, then re-place the labels.
-    probe <- grid::textGrob(note_text(nrow(pos)), gp = note_gp)
+    probe <- grid::textGrob(note_text(unlabelled(placed)), gp = note_gp)
     note_w <- grid::convertWidth(grid::grobWidth(probe), "mm", valueOnly = TRUE) + 2
     note_h <- grid::convertHeight(grid::grobHeight(probe), "mm", valueOnly = TRUE) + 1.5
     corners <- rbind(c(0.5, 0.5), c(pw - note_w - 0.5, 0.5),
@@ -220,37 +330,46 @@ makeContent.eyesim_fixation_labels <- function(x) {
     best <- which.min(covered)
     note_x <- corners[best, 1]
     note_y <- corners[best, 2]
-    placed <- place_labels_mm(px, py, w, h, pos$radius, pw, ph,
-                              reserve = c(note_x - 0.5, note_x + note_w + 0.5,
-                                          note_y - 0.5, note_y + note_h + 0.5),
-                              start = start, start_r = start_r)
+    placed <- place(reserve = c(note_x - 0.5, note_x + note_w + 0.5,
+                                note_y - 0.5, note_y + note_h + 0.5))
   }
   shown <- which(placed$shown)
-  omitted <- nrow(pos) - length(shown)
+  groups <- attr(placed, "clusters")
+  missing <- unlabelled(placed)
   kids <- list()
+  if (nrow(groups) > 0L) {
+    kids$groups <- grid::circleGrob(
+      x = grid::unit(groups$cx, "mm"), y = grid::unit(groups$cy, "mm"),
+      r = grid::unit(groups$cr, "mm"),
+      gp = grid::gpar(col = x$colour, fill = NA, lwd = 0.6, lty = "22", alpha = 0.8)
+    )
+  }
   lead <- shown[placed$leader[shown]]
-  if (length(lead) > 0L) {
+  lx0 <- c(placed$x0[lead], groups$x0)
+  if (length(lx0) > 0L) {
     kids$leaders <- grid::segmentsGrob(
-      x0 = grid::unit(placed$x0[lead], "mm"),
-      y0 = grid::unit(placed$y0[lead], "mm"),
-      x1 = grid::unit(placed$lx[lead], "mm"),
-      y1 = grid::unit(placed$ly[lead], "mm"),
+      x0 = grid::unit(lx0, "mm"),
+      y0 = grid::unit(c(placed$y0[lead], groups$y0), "mm"),
+      x1 = grid::unit(c(placed$lx[lead], groups$lx), "mm"),
+      y1 = grid::unit(c(placed$ly[lead], groups$ly), "mm"),
       gp = grid::gpar(col = x$colour, lwd = 0.5, alpha = 0.7)
     )
   }
-  if (length(shown) > 0L) {
+  box_x <- c(placed$lx[shown], groups$lx)
+  if (length(box_x) > 0L) {
     kids$boxes <- grid::rectGrob(
-      x = grid::unit(placed$lx[shown], "mm"), y = grid::unit(placed$ly[shown], "mm"),
-      width = grid::unit(w[shown], "mm"), height = grid::unit(h[shown], "mm"),
+      x = grid::unit(box_x, "mm"), y = grid::unit(c(placed$ly[shown], groups$ly), "mm"),
+      width = grid::unit(c(w[shown], groups$w), "mm"),
+      height = grid::unit(label_h, "mm"),
       gp = grid::gpar(fill = grDevices::adjustcolor("white", 0.85), col = NA)
     )
     kids$text <- grid::textGrob(
-      pos$label[shown], name = "eyesim_fixation_numbers",
-      x = grid::unit(placed$lx[shown], "mm"), y = grid::unit(placed$ly[shown], "mm"),
+      c(pos$label[shown], groups$text), name = "eyesim_fixation_numbers",
+      x = grid::unit(box_x, "mm"), y = grid::unit(c(placed$ly[shown], groups$ly), "mm"),
       gp = grid::gpar(fontsize = fontsize, col = x$colour)
     )
   }
-  if (omitted > 0L) {
+  if (length(missing) > 0L) {
     # The note lives in the panel, so a user caption cannot remove it.
     kids$note_bg <- grid::rectGrob(
       x = grid::unit(note_x, "mm"), y = grid::unit(note_y, "mm"),
@@ -258,7 +377,7 @@ makeContent.eyesim_fixation_labels <- function(x) {
       just = c(0, 0), gp = grid::gpar(fill = grDevices::adjustcolor("white", 0.9), col = NA)
     )
     kids$note <- grid::textGrob(
-      note_text(omitted),
+      note_text(missing),
       x = grid::unit(note_x + 1, "mm"), y = grid::unit(note_y + 0.7, "mm"), just = c(0, 0),
       gp = note_gp
     )

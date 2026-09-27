@@ -24,6 +24,7 @@ eyesim_colours(c("reference", "source"))
 \seealso{
 Other visualization: 
 \code{\link{anim_scanpath}()},
+\code{\link{element_text_wrap}()},
 \code{\link{plot.eye_density}()},
 \code{\link{plot.fixation_group}()},
 \code{\link{scale_fill_eyesim_density}()},

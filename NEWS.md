@@ -1,3 +1,30 @@
+# eyesim 0.2.0.9000
+
+* Plot titles, subtitles and captions wrap to the width they are drawn at,
+  in lines of even length (new `element_text_wrap()`, used by
+  `theme_eyesim()`), so long GazeWeave titles no longer run off narrow
+  figures. Where a layout (such as side-by-side patchwork) reserves less
+  height than the wrapped text needs, the text is set smaller to fit rather
+  than overprinting. Newlines in a label are kept as line breaks. A user's
+  `theme(plot.title = element_text(...))`
+  merges into it and keeps wrapping. The package's long GazeWeave labels also
+  carry line breaks, so they stay readable under other themes.
+
+* `plot.fixation_group()` numbers and joins fixations in onset order, even
+  when rows are not sorted by onset.
+
+* Fixations whose markers overlap, and so cannot be numbered individually,
+  are outlined together (a ring for a single fixation) and labelled once
+  ("4, 9, 17"), with a leader that stays clear of every other fixation.
+  Numbers still without a position are listed in the in-panel note (or
+  counted, when more than six).
+
+* With a finite upper `limit`, colour bars label the limit "≥ limit" (to
+  three significant digits), and density at or above it takes the top
+  colour. The scale is the same whether or not a plot's data exceed the
+  limit, so plots sharing `limits` share colours and one collected colour
+  bar.
+
 # eyesim 0.2.0
 
 * All plots share one visual system. New exports: `theme_eyesim()`,

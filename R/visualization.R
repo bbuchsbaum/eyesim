@@ -172,7 +172,8 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
   # it; the outer half of the edge raster cells is clipped.
   p <- p + geom_raster() +
     density_scale(colours, transform, alpha_range = c(0, alpha), limits = limits,
-                  title = density_legend_title(transform, eye_density_quantity(x))) +
+                  title = density_legend_title(transform, eye_density_quantity(x)),
+                  overflow = !is.null(limits) && is.finite(limits[[2]])) +
     coord_fixed(ratio = 1, expand = FALSE, xlim = xlim, ylim = ylim) +
     theme_eyesim_spatial()
   if (!is.null(bg_image)) {
@@ -199,10 +200,14 @@ plot.eye_density <- function(x, alpha=.8, bg_image=NULL,
 #' visible extent (and the extent of `bg_image`) without dropping data.
 #' A ring marks the first fixation.
 #'
-#' With fewer than 50 fixations, fixation numbers are placed when the plot
-#' is drawn, using its actual size: next to their own fixation, or further
-#' out with a leader line, never covering another number or marker. Numbers
-#' that cannot be placed are omitted, and a note in the panel says how many.
+#' Fixations are numbered and joined in onset order, whatever the row order.
+#' With fewer than 50 fixations, the numbers are placed when the plot is
+#' drawn, using its actual size: next to their own fixation, or further out
+#' with a leader line that stays clear of every other fixation, never covering
+#' another number or marker. Fixations whose markers overlap are outlined as
+#' a group with one label listing their numbers. Any number still without a
+#' position is listed in a note inside the panel (or counted, if more than
+#' six).
 #'
 #' `type = "density"` and `type = "filled_contour"` draw non-overlapping
 #' density bands between evenly spaced edges from zero, each coloured at its
@@ -278,11 +283,15 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
   density_type <- type != "points"
   col <- eyesim_colours()
 
+  # Fixation numbers and the scanpath follow onset order, whatever the row
+  # order; numbers refer to the whole sequence even under `window`.
+  x$index <- rank(x$onset, ties.method = "first")
   if (!is.null(window)) {
     assertthat::assert_that(length(window)==2)
     assertthat::assert_that(window[2] > window[1])
     x <- filter(x, onset >= window[1] & onset < window[2])
   }
+  x <- x[order(x$onset), , drop = FALSE]
 
   # Without a stimulus, pad default limits so density contours can close.
   if (density_type && is.null(bg_image)) {
@@ -306,7 +315,8 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
     p <- p + stat_density_2d(aes(colour = after_stat(level)), h = h,
                              linewidth = 0.45) +
       density_scale(colours, transform, alpha_range = c(0.5, 1),
-                    limits = limits, aesthetics = "colour")
+                    limits = limits, aesthetics = "colour",
+                    overflow = !is.null(limits) && is.finite(limits[[2]]))
   } else if (type %in% c("filled_contour", "density")) {
     # Non-overlapping density bands, each coloured at its band midpoint on
     # the continuous density scale, so the colour bar matches the pixels.
@@ -342,7 +352,9 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
       # the bands, with the transparent zero band as its first step.
       peak <- kde_peak(x$x, x$y, h, xlim + c(-1, 1) * bandwidth, ylim + c(-1, 1) * bandwidth)
       top <- if (!is.null(limits) && is.finite(limits[[2]])) limits[[2]] else peak
-      overflow <- peak > top
+      # With a finite limit the scale always carries the "at or above limit"
+      # step, so plots sharing limits share colours and one colour bar.
+      overflow <- !is.null(limits) && is.finite(limits[[2]])
       edges <- seq(0, top, length.out = n_bands + 1L)
       band_step <- edges[[2]]
       band_args$breaks <- c(edges, Inf)
@@ -363,7 +375,8 @@ plot.fixation_group <- function(x, type=c("points", "contour", "filled_contour",
   } else if (type == "raster") {
     p <- p + stat_density_2d(aes(fill = after_stat(density)),
                              geom = "raster", h = h, contour = FALSE, interpolate = TRUE) +
-      density_scale(colours, transform, alpha_range = alpha_range, limits = limits)
+      density_scale(colours, transform, alpha_range = alpha_range, limits = limits,
+                    overflow = !is.null(limits) && is.finite(limits[[2]]))
     if (!is.null(bg_image)) {
       # Halo levels follow the colour scale, so shared limits share them.
       top <- if (!is.null(limits) && is.finite(limits[[2]])) {

@@ -57,6 +57,7 @@ plot(ed)
 \seealso{
 Other visualization: 
 \code{\link{anim_scanpath}()},
+\code{\link{element_text_wrap}()},
 \code{\link{eyesim_colours}()},
 \code{\link{plot.fixation_group}()},
 \code{\link{scale_fill_eyesim_density}()},

@@ -73,15 +73,15 @@ theme_eyesim <- function(base_size = 10, base_family = "") {
   ggplot2::theme_minimal(base_size = base_size, base_family = base_family) +
     ggplot2::theme(
       text = ggplot2::element_text(colour = col[["ink"]]),
-      plot.title = ggplot2::element_text(
+      plot.title = element_text_wrap(
         face = "bold", size = ggplot2::rel(1.15), hjust = 0,
         margin = ggplot2::margin(b = 3)
       ),
-      plot.subtitle = ggplot2::element_text(
+      plot.subtitle = element_text_wrap(
         colour = col[["muted"]], size = ggplot2::rel(0.88), hjust = 0,
         lineheight = 1.1, margin = ggplot2::margin(b = 6)
       ),
-      plot.caption = ggplot2::element_text(
+      plot.caption = element_text_wrap(
         colour = col[["muted"]], size = ggplot2::rel(0.75), hjust = 0,
         lineheight = 1.1, margin = ggplot2::margin(t = 6)
       ),
@@ -233,15 +233,31 @@ density_scale <- function(colours = NULL, transform = "identity",
       keep <- (idx %% step == 0L & (last - idx >= step | idx == last)) | idx == last
       out[!keep] <- ""
       if (overflow) {
-        # one label for the limit: "> limit" at the end of the extra step
-        out[idx == last] <- ""
-        out[seq_along(x) == length(x)] <- paste0("> ", format_density(top_edge))
+        # the step from the limit up takes everything at or above it
+        out[idx == last] <- paste0("\u2265 ", format_limit(x[idx == last]))
+        out[seq_along(x) == length(x)] <- ""
       }
       out
     }
     args$guide <- ggplot2::guide_coloursteps(order = 1, show.limits = TRUE)
   } else {
     opacity <- alpha_range[[1]] + diff(alpha_range) * position^0.5
+    if (overflow && !is.null(limits) && is.finite(limits[[2]])) {
+      # Values above the limit take the top colour: label the top of the
+      # bar as ">= limit".
+      upper <- limits[[2]]
+      args$breaks <- function(lims) {
+        b <- scales::extended_breaks()(lims)
+        b <- b[b < upper * 0.85]
+        c(b, upper)
+      }
+      args$labels <- function(x) {
+        out <- format_density(x)
+        top <- !is.na(x) & abs(x - upper) <= upper * 1e-9
+        out[top] <- paste0("\u2265 ", format_limit(x[top]))
+        out
+      }
+    }
   }
   args$colours <- scales::alpha(ramp, opacity)
   args$values <- position
@@ -254,6 +270,13 @@ density_scale <- function(colours = NULL, transform = "identity",
     do.call(ggplot2::scale_fill_gradientn, args),
     do.call(ggplot2::labs, stats::setNames(list(title), aesthetics[[1]]))
   )
+}
+
+# A limit is shown to three significant digits, so ">= limit" is not
+# rounded across the true limit.
+format_limit <- function(x) {
+  if (length(x) == 0L) return(character(0))
+  if (abs(x[[1]]) < 1e-2) formatC(x, format = "e", digits = 2) else formatC(x, format = "g", digits = 3)
 }
 
 # One notation per scale: scientific when the values are small.
@@ -279,12 +302,14 @@ density_legend_title <- function(transform, base = "Fixation\ndensity") {
   )
 }
 
-# Wrap label text to `width` characters without splitting protected phrases
-# (phrases other code and tests rely on staying intact).
-eyesim_wrap <- function(text, width = 105,
-                        protect = c("not a posterior", "not posterior",
-                                    "posterior replay", "equal-prior episode",
-                                    "gaze_info_bits")) {
+# Fallback line breaks for long package labels, so they stay readable under
+# themes without wrapping elements. Under theme_eyesim(), element_text_wrap()
+# wraps each of these lines further when the drawn width is narrower.
+# Phrases that other code and tests rely on are never split.
+soft_wrap <- function(text, width = 90,
+                      protect = c("not a posterior", "not posterior",
+                                  "posterior replay", "equal-prior episode",
+                                  "gaze_info_bits")) {
   if (is.null(text) || !nzchar(text)) {
     return(text)
   }
@@ -293,6 +318,5 @@ eyesim_wrap <- function(text, width = 105,
     text <- gsub(phrase, gsub(" ", glue, phrase, fixed = TRUE), text, fixed = TRUE)
   }
   text <- gsub(" = ", paste0(glue, "=", glue), text, fixed = TRUE)
-  lines <- strwrap(text, width = width)
-  gsub(glue, " ", paste(lines, collapse = "\n"), fixed = TRUE)
+  gsub(glue, " ", paste(strwrap(text, width = width), collapse = "\n"), fixed = TRUE)
 }
