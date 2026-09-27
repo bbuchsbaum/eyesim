@@ -34,7 +34,9 @@ template_regression(
 
 - baseline_tab:
 
-  A data frame containing the baseline maps.
+  A data frame containing the baseline maps. Each `baseline_key` value
+  used by `source_tab` must appear in exactly one row; duplicated keys
+  are an error.
 
 - baseline_key:
 

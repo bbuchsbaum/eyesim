@@ -101,7 +101,10 @@ template_similarity_cv(
 
 - seed:
 
-  Random seed used for fold assignment.
+  Random seed for fold assignment and for the permutation draws that
+  follow it, so results are reproducible from `seed` alone. The caller's
+  random number state is restored on exit, so the call does not change
+  the session RNG stream.
 
 - fit_source_filter:
 
@@ -142,3 +145,11 @@ each fold, it:
     matched reference rows, and
 
 5.  computes similarity only on the held-out rows.
+
+Permutation controls are drawn only from the reference rows matched by
+the same held-out fold (and, if `permute_on` is given, the same
+stratum), not from the full reference table. Each row therefore has
+roughly `1/n_folds` as many candidates as in
+[`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md),
+and `n_perm` is correspondingly smaller. This holds with or without a
+`similarity_transform`.

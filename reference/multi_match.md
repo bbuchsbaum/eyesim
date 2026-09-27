@@ -54,8 +54,8 @@ A named numeric vector with the following elements:
 
 - mm_position_emd:
 
-  Order-insensitive similarity based on the Earth Mover's Distance (EMD)
-  between the spatial positions of fixations.
+  Order-insensitive similarity based on the duration-weighted Earth
+  Mover's Distance (EMD) between the spatial positions of all fixations.
 
 ## Details
 
@@ -75,7 +75,8 @@ scanpaths `x` and `y`:
 - `mm_duration`: Similarity based on the duration of fixations.
 
 - `mm_position_emd`: Order-insensitive similarity based on the Earth
-  Mover's Distance (EMD) between the spatial positions of fixations.
+  Mover's Distance (EMD) between the spatial positions of all fixations,
+  weighted by duration, as `1 - EMD / sqrt(width^2 + height^2)`.
 
 The function ensures that both scanpaths have strictly increasing onset
 times and contain at least three fixations. It also normalizes the
@@ -109,5 +110,5 @@ multi_match(sp1, sp2, screensize = c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.9608211       0.3854692       0.9858060       0.7861099       0.8232034 
 #> mm_position_emd 
-#>       0.8121610 
+#>       0.8191547 
 ```

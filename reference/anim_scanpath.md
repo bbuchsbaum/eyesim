@@ -1,7 +1,8 @@
 # Animate a Fixation Scanpath with gganimate
 
-This function creates an animated visualization of a fixation scanpath
-using gganimate.
+Creates an animated scanpath: fixations appear one at a time (by order
+or by onset), earlier fixations stay visible as faded marks, and colour
+encodes onset on the shared eyesim time scale.
 
 ## Usage
 
@@ -26,7 +27,7 @@ anim_scanpath(
 
 - bg_image:
 
-  An optional image file name to use as the background.
+  An optional image file name (or \`cimg\`) to use as the background.
 
 - xlim:
 
@@ -62,8 +63,12 @@ A gganimate object representing the animated scanpath.
 ## See also
 
 Other visualization:
+[`element_text_wrap()`](https://bbuchsbaum.github.io/eyesim/reference/element_text_wrap.md),
+[`eyesim_colours()`](https://bbuchsbaum.github.io/eyesim/reference/eyesim_colours.md),
 [`plot.eye_density()`](https://bbuchsbaum.github.io/eyesim/reference/plot.eye_density.md),
-[`plot.fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/plot.fixation_group.md)
+[`plot.fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/plot.fixation_group.md),
+[`scale_fill_eyesim_density()`](https://bbuchsbaum.github.io/eyesim/reference/scale_fill_eyesim_density.md),
+[`theme_eyesim()`](https://bbuchsbaum.github.io/eyesim/reference/theme_eyesim.md)
 
 ## Examples
 
@@ -71,5 +76,7 @@ Other visualization:
 # Create a fixation group
 fg <- fixation_group(x=c(.1,.5,1), y=c(1,.5,1), onset=1:3, duration=rep(1,3))
 # Animate the scanpath for the fixation group
-anim_sp <- anim_scanpath(fg)
+if (requireNamespace("gganimate", quietly = TRUE)) {
+  anim_sp <- anim_scanpath(fg)
+}
 ```

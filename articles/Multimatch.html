@@ -12,6 +12,8 @@
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <script src="../extra.js"></script><meta property="og:title" content="Comparing Scanpaths with MultiMatch">
+<link href="../albers.css" rel="stylesheet">
+<script>window.albersdownDefaults = window.albersdownDefaults || { family: "red", preset: "homage", style: "minimal" };</script><script src="../albers.js"></script>
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -21,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">eyesim</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +37,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+<li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+    <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul>
@@ -143,7 +146,7 @@ Two scanpaths generated from similar linear processes.
 <span><span class="co">#&gt;       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
 <span><span class="co">#&gt;       0.9944381       0.9824906       0.9924735       0.8774572       0.9194313 </span></span>
 <span><span class="co">#&gt; mm_position_emd </span></span>
-<span><span class="co">#&gt;       0.9646769</span></span></code></pre></div>
+<span><span class="co">#&gt;       0.9632978</span></span></code></pre></div>
 <p>All metrics are high, consistent with the known similarity of the two
 scanpaths.</p>
 </div>
@@ -165,7 +168,7 @@ scanpaths.</p>
 <span><span class="co">#&gt;       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
 <span><span class="co">#&gt;       0.9914539       0.9671332       0.9912823       0.6570499       0.9350000 </span></span>
 <span><span class="co">#&gt; mm_position_emd </span></span>
-<span><span class="co">#&gt;       0.6931491</span></span></code></pre></div>
+<span><span class="co">#&gt;       0.6572352</span></span></code></pre></div>
 <p>Notice how the <strong>direction</strong> metric drops substantially
 — the zigzag and linear paths follow very different angular
 trajectories.</p>
@@ -241,7 +244,7 @@ Original (left) vs. scaled (right) scanpath.
 <span><span class="co">#&gt;       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
 <span><span class="co">#&gt;       0.8831983       1.0000000       0.7663966       0.7237247       1.0000000 </span></span>
 <span><span class="co">#&gt; mm_position_emd </span></span>
-<span><span class="co">#&gt;       0.7575046</span></span></code></pre></div>
+<span><span class="co">#&gt;       0.7605673</span></span></code></pre></div>
 <p>As expected, <strong>direction</strong> stays at 1.0, but
 <strong>position</strong> drops.</p>
 </div>
@@ -269,7 +272,7 @@ different sequence.
 <span><span class="co">#&gt;       mm_vector    mm_direction       mm_length     mm_position     mm_duration </span></span>
 <span><span class="co">#&gt;       0.8565614       0.7687388       0.7836460       0.7816592       0.6363636 </span></span>
 <span><span class="co">#&gt; mm_position_emd </span></span>
-<span><span class="co">#&gt;       0.9710167</span></span></code></pre></div>
+<span><span class="co">#&gt;       1.0000000</span></span></code></pre></div>
 <p>The <strong>position_emd</strong> remains high (same spatial
 distribution), while <strong>direction</strong> drops (the trajectory
 has changed).</p>
@@ -294,7 +297,7 @@ approach. <em>Behavior Research Methods</em>, 44, 1079–1100.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

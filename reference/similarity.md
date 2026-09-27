@@ -32,6 +32,13 @@ similarity(x, y, method, ...)
 A numeric value representing the similarity between the two input
 objects.
 
+## Details
+
+Density maps are compared cell by cell, so two maps must share a
+lattice: the same `x` and `y` grid coordinates, as produced by the same
+bounds and `outdim`. Comparing maps on different lattices is an error. A
+plain numeric `y` must have one value per grid cell of `x`.
+
 ## See also
 
 Other similarity:

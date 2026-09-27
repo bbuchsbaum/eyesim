@@ -76,9 +76,9 @@ A table containing the computed similarities between fixation groups.
 
 Permutation handling and units follow `template_similarity`:
 
-- Candidate sets are defined by `permute_on`; sampling is without
-  replacement when `permutations` is smaller than the number of
-  candidates.
+- Candidate sets are defined by `permute_on`. Every copy of the true
+  match is removed first; sampling is then without replacement when
+  `permutations` is smaller than the number of remaining candidates.
 
 - When `permutations` is greater than or equal to the available
   non-matching candidates, all candidates are used (exhaustive
@@ -91,6 +91,10 @@ Permutation handling and units follow `template_similarity`:
   `perm_sim` for that row; `0` when no baseline could be computed). If
   `method = "fisherz"`, convert to correlations via
   [`tanh()`](https://rdrr.io/r/base/Hyperbolic.html) if desired.
+
+For `method = "overlap"`, pass `time_samples` through `...`; the
+distance threshold `dthresh` defaults to 60, as in
+[`fixation_overlap`](https://bbuchsbaum.github.io/eyesim/reference/fixation_overlap.md).
 
 ## Examples
 

@@ -38,6 +38,7 @@ fixation_entropy(
   outdim = c(50, 50),
   grid = c(10, 10),
   duration_weighted = FALSE,
+  aggregate = c("mean", "none"),
   ...
 )
 ```
@@ -65,8 +66,9 @@ fixation_entropy(
 
 - aggregate:
 
-  For multiscale density objects, one of \`"mean"\` (default) or
-  \`"none"\`.
+  For multiscale densities, one of \`"mean"\` (default) or \`"none"\`. A
+  fixation group gives a multiscale density when \`sigma\` is a vector
+  and \`method = "density"\`; otherwise \`aggregate\` has no effect.
 
 - method:
 
@@ -76,12 +78,18 @@ fixation_entropy(
 - sigma:
 
   Optional bandwidth for density-based entropy on fixation groups. If
-  \`NULL\`, \`suggest_sigma()\` is used.
+  \`NULL\`, \`suggest_sigma()\` is used. A group with fewer than two
+  fixations has no suggested bandwidth, so its density entropy is `NA`;
+  with an explicit `sigma` it is `NA` too unless `min_fixations` is
+  lowered through `...`. The `"grid"` method returns 0 for a single
+  fixation.
 
 - xbounds, ybounds:
 
   Optional display bounds for fixation groups. If not supplied, the
-  observed fixation ranges are used with a small padding.
+  observed fixation ranges are used with a small padding. With
+  `method = "grid"`, a fixation outside the bounds is counted in the
+  nearest edge cell rather than dropped.
 
 - outdim:
 
@@ -101,3 +109,9 @@ fixation_entropy(
 A numeric entropy value. Multiscale density objects return either the
 mean entropy across scales or a named numeric vector, depending on
 \`aggregate\`.
+
+## Details
+
+Entropy is defined only for non-negative mass. A map with any negative
+value, such as the difference of two densities, is an error. A map whose
+total mass is zero gives `NA`.

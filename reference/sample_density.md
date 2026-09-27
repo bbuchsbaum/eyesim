@@ -89,6 +89,15 @@ density map using the coordinates of the new fixation sequence. The
 result is a data frame containing the sampled density values and the
 corresponding time points.
 
+Each point is looked up at the nearest lattice point, separately in x
+and y; there is no interpolation. The nearest index is found with
+[`round()`](https://rdrr.io/r/base/Round.html), so a coordinate exactly
+midway between two grid points is resolved half to even on the index
+scale (on the grid 0, 25, 50, 75, 100, the value 12.5 maps to 25 and
+37.5 also maps to 25). Coordinates outside the lattice are clamped to
+the nearest edge point, so an off-grid fixation takes the edge value
+rather than `NA`.
+
 ## See also
 
 `sample_density.density` for an example of a specific method

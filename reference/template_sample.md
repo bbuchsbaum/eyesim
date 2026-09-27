@@ -40,3 +40,9 @@ template_sample(
 - outcol:
 
   the name of the output variable
+
+## Value
+
+`source_tab` with a list column `outcol` of sampled values. Rows whose
+template or fixation group is `NULL` cannot be sampled and are removed,
+with a warning.

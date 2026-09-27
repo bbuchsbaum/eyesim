@@ -84,6 +84,76 @@ Functions for computing similarity between objects.
 - [`install_multimatch()`](https://bbuchsbaum.github.io/eyesim/reference/install_multimatch.md)
   : Install Python multimatch_gaze Package
 
+## GazeWeave
+
+Cross-fitted probabilistic replay and registered temporal transport.
+
+- [`gaze_weave_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_weave_cv.md)
+  : Cross-fitted GazeWeave analysis
+- [`gaze_replay_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_cv.md)
+  : Cross-fitted directional GazeWeave Replay analysis
+- [`gaze_replay_spec()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_spec.md)
+  : Specify the directional GazeWeave replay model
+- [`fit_gaze_replay_model()`](https://bbuchsbaum.github.io/eyesim/reference/fit_gaze_replay_model.md)
+  : Fit a directional GazeWeave replay model on training trials
+- [`gaze_replay_align()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_align.md)
+  : Align recall gaze to an encoding path with a fitted Replay model
+- [`gaze_replay_align_episode()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_align_episode.md)
+  : Align recall gaze to a mixture of encoding presentations
+- [`gaze_calibration_control()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_calibration_control.md)
+  : Calibration controls for GazeWeave revision 2026.10
+- [`gaze_transport_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_cv.md)
+  : Nested-calibrated exhaustive-candidate Transport
+- [`gaze_transport_spec()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_spec.md)
+  : Specify edge-normalized GazeWeave Transport
+- [`gaze_transport_prepare()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_prepare.md)
+  : Prepare one immutable gaze path for repeated Transport scoring
+- [`gaze_transport_align()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_align.md)
+  : Align gaze paths with edge-normalized Transport
+- [`gaze_transport_align_batch()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_align_batch.md)
+  : Batch candidate alignments with Transport
+- [`gaze_transport_result()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_result.md)
+  : Extract one auditable Transport result
+- [`gaze_gaussian_mixture()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_gaussian_mixture.md)
+  : Declare a multiscale Gaussian spatial model for GazeWeave
+- [`gaze_local_order()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_local_order.md)
+  : Declare the local chronology model for GazeWeave
+- [`gaze_order_neighbours()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_order_neighbours.md)
+  : Declare fixed-neighbour ordinal chronology for Transport
+- [`gaze_warp_none()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_warp_none.md)
+  : Declare no geometric registration for GazeWeave
+- [`gaze_warp_contraction()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_warp_contraction.md)
+  : Declare cross-fitted contraction registration for GazeWeave
+- [`gaze_screen()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_screen.md)
+  : Declare screen geometry for GazeWeave
+- [`tidy(`*`<gaze_replay_fit>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/tidy.gaze_replay_fit.md)
+  : Tidy GazeWeave Replay results
+- [`tidy(`*`<gaze_transport_fit>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/tidy.gaze_transport_fit.md)
+  : Tidy a fitted Transport analysis
+- [`autoplot(`*`<gaze_replay_alignment>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/autoplot.gaze_replay_alignment.md)
+  : Plot a GazeWeave Replay alignment
+- [`autoplot(`*`<gaze_replay_fit>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/autoplot.gaze_replay_fit.md)
+  : Plot a fitted GazeWeave Replay analysis
+- [`autoplot(`*`<gaze_transport_alignment>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/autoplot.gaze_transport_alignment.md)
+  : Plot a Transport pair alignment
+- [`autoplot(`*`<gaze_transport_fit>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/autoplot.gaze_transport_fit.md)
+  : Plot one fitted Transport result
+
+## GazeWeave comparators
+
+Fair comparator court for GazeWeave (nested cross-validated baselines).
+
+- [`gaze_baseline_spec()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_spec.md)
+  : Specify the fair GazeWeave comparator court
+- [`gaze_baseline_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_cv.md)
+  : Nested cross-validated comparator court for GazeWeave
+- [`gaze_baseline_availability()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_availability.md)
+  : Report comparator availability
+- [`tidy(`*`<gaze_baseline_fit>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/tidy.gaze_baseline_fit.md)
+  : Tidy GazeWeave comparator results
+- [`elastic_consensus_align()`](https://bbuchsbaum.github.io/eyesim/reference/elastic_consensus_align.md)
+  : Elastic consensus matching for encoding and recall fixations
+
 ## Latent transforms
 
 Domain-adaptation transforms for use with template_similarity().
@@ -109,8 +179,6 @@ Functions for creating and adding scanpaths.
   : Add Scanpath to an Eye Table
 - [`scanpath(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/scanpath.fixation_group.md)
   : Create a Scanpath for a Fixation Group
-- [`anim_scanpath()`](https://bbuchsbaum.github.io/eyesim/reference/anim_scanpath.md)
-  : Animate a Fixation Scanpath with gganimate
 - [`calcangle()`](https://bbuchsbaum.github.io/eyesim/reference/calcangle.md)
   : Calculate the Angle Between Two Vectors
 - [`cart2pol()`](https://bbuchsbaum.github.io/eyesim/reference/cart2pol.md)
@@ -132,10 +200,27 @@ Functions for working with eye tables.
   : Generate a Simulated Eye-Movement Data Frame
 - [`` `[`( ``*`<eye_table>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/sub-.eye_table.md)
   : Subset an 'eye_table' Object
-- [`plot(`*`<eye_density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/plot.eye_density.md)
-  : Plot Eye Density
+
+## Plotting
+
+Scanpath and density plots, and the shared eyesim plot theme.
+
 - [`plot(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/plot.fixation_group.md)
   : Plot a fixation_group object
+- [`plot(`*`<eye_density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/plot.eye_density.md)
+  : Plot Eye Density
+- [`anim_scanpath()`](https://bbuchsbaum.github.io/eyesim/reference/anim_scanpath.md)
+  : Animate a Fixation Scanpath with gganimate
+- [`theme_eyesim()`](https://bbuchsbaum.github.io/eyesim/reference/theme_eyesim.md)
+  [`theme_eyesim_spatial()`](https://bbuchsbaum.github.io/eyesim/reference/theme_eyesim.md)
+  : eyesim ggplot2 theme
+- [`eyesim_colours()`](https://bbuchsbaum.github.io/eyesim/reference/eyesim_colours.md)
+  : eyesim plot colours
+- [`scale_fill_eyesim_density()`](https://bbuchsbaum.github.io/eyesim/reference/scale_fill_eyesim_density.md)
+  [`scale_colour_eyesim_time()`](https://bbuchsbaum.github.io/eyesim/reference/scale_fill_eyesim_density.md)
+  : eyesim colour scales
+- [`element_text_wrap()`](https://bbuchsbaum.github.io/eyesim/reference/element_text_wrap.md)
+  : Wrapping text element
 
 ## Density by Groups
 

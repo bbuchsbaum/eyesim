@@ -12,6 +12,8 @@
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <script src="../extra.js"></script><meta property="og:title" content="Comparing Eye-Movement Patterns">
+<link href="../albers.css" rel="stylesheet">
+<script>window.albersdownDefaults = window.albersdownDefaults || { family: "red", preset: "homage", style: "minimal" };</script><script src="../albers.js"></script>
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -21,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">eyesim</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +37,8 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+<li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+    <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul>
@@ -96,13 +99,14 @@ one directly:</p>
 <span>  duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">50</span>, <span class="fl">100</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="figure">
-<img src="eyesim_files/figure-html/plot-fixation-group-1.png" class="r-plt" alt="Three fixations. Point size reflects duration; color reflects onset time (yellow = early, red = late)." width="672"><p class="caption">
+<img src="eyesim_files/figure-html/plot-fixation-group-1.png" class="r-plt" alt="Three fixations. Point size reflects duration; color reflects onset time (dark purple = early, green = late)." width="672"><p class="caption">
 Three fixations. Point size reflects duration; color reflects onset time
-(yellow = early, red = late).
+(dark purple = early, green = late).
 </p>
 </div>
-<p>Point size shows how long each fixation lasted. Color indicates when
-it occurred: yellow for early fixations, red for later ones.</p>
+<p>Point area is proportional to how long each fixation lasted. Color
+indicates when it occurred, from dark purple (early) to green
+(late).</p>
 <p>Here is a more realistic group with 25 randomly placed fixations:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
@@ -186,7 +190,10 @@ Two fixation patterns sharing roughly half their locations.
 <p>The default metric is the Pearson correlation. Several alternatives
 are available:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">methods</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pearson"</span>, <span class="st">"spearman"</span>, <span class="st">"fisherz"</span>, <span class="st">"cosine"</span>, <span class="st">"l1"</span>, <span class="st">"jaccard"</span>, <span class="st">"dcov"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">methods</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pearson"</span>, <span class="st">"spearman"</span>, <span class="st">"fisherz"</span>, <span class="st">"cosine"</span>, <span class="st">"l1"</span>, <span class="st">"jaccard"</span><span class="op">)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"energy"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">methods</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">methods</span>, <span class="st">"dcov"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
 <span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">methods</span>, <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="fu"><a href="../reference/similarity.html">similarity</a></span><span class="op">(</span><span class="va">ed1</span>, <span class="va">ed2</span>, method <span class="op">=</span> <span class="va">m</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>method <span class="op">=</span> <span class="va">methods</span>, similarity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">results</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            method similarity</span></span>
@@ -308,13 +315,13 @@ baseline)</li>
 <span><span class="co">#&gt;  One Sample t-test</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; data:  simres$eye_sim_diff</span></span>
-<span><span class="co">#&gt; t = 0.78502, df = 59, p-value = 0.4356</span></span>
+<span><span class="co">#&gt; t = 0.71493, df = 59, p-value = 0.4775</span></span>
 <span><span class="co">#&gt; alternative hypothesis: true mean is not equal to 0</span></span>
 <span><span class="co">#&gt; 95 percent confidence interval:</span></span>
-<span><span class="co">#&gt;  -0.1021582  0.2340630</span></span>
+<span><span class="co">#&gt;  -0.1111827  0.2347954</span></span>
 <span><span class="co">#&gt; sample estimates:</span></span>
 <span><span class="co">#&gt;  mean of x </span></span>
-<span><span class="co">#&gt; 0.06595242</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.06180634</span></span></code></pre></div>
 <div class="figure">
 <img src="eyesim_files/figure-html/plot-similarity-1.png" class="r-plt" alt="Distribution of raw, permuted, and corrected similarity scores." width="864"><p class="caption">
 Distribution of raw, permuted, and corrected similarity scores.
@@ -352,9 +359,9 @@ density at multiple scales by passing a vector of sigma values:</p>
 <span>                                    permutations <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Single-scale mean:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">simres</span><span class="op">$</span><span class="va">eye_sim_diff</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Single-scale mean: 0.066</span></span>
+<span><span class="co">#&gt; Single-scale mean: 0.0618</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Multiscale mean:  "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">simres_multi</span><span class="op">$</span><span class="va">eye_sim_diff</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Multiscale mean:   0.0342</span></span></code></pre></div>
+<span><span class="co">#&gt; Multiscale mean:   0.0351</span></span></code></pre></div>
 <p>Multiscale analysis provides a more robust similarity estimate by
 averaging across spatial resolutions.</p>
 </div>
@@ -390,12 +397,12 @@ retrieval fixation locations at each time point:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 8</span></span></span>
 <span><span class="co">#&gt;   participant image    bin_1   bin_2 perm_bin_1 perm_bin_2 diff_bin_1 diff_bin_2</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> s1          img1  1.04 <span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 9.98<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">096</span>6  0.000<span style="text-decoration: underline;">099</span>3    7.85<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>    5.81<span style="color: #949494;">e</span><span style="color: #BB0000;">-7</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> s1          img10 1.05 <span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 9.64<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">102</span>   0.000<span style="text-decoration: underline;">104</span>     2.83<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">7.41</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> s1          img11 9.87 <span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 1.02<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">101</span>   0.000<span style="text-decoration: underline;">104</span>    -<span style="color: #BB0000;">2.43</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">1.87</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> s1          img12 1.000<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 1.07<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">093</span>5  0.000<span style="text-decoration: underline;">106</span>     6.45<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>    1.50<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> s1          img13 9.71 <span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 9.81<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">099</span>4  0.000<span style="text-decoration: underline;">099</span>6   -<span style="color: #BB0000;">2.28</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">1.51</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> s1          img14 8.88 <span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 9.64<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">097</span>9  0.000<span style="text-decoration: underline;">099</span>1   -<span style="color: #BB0000;">9.11</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">2.67</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> s1          img1  1.04 <span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 1.02<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">096</span>6  0.000<span style="text-decoration: underline;">099</span>2    7.85<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>    2.62<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> s1          img10 1.05 <span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 9.02<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">102</span>   0.000<span style="text-decoration: underline;">101</span>     2.83<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">1.06</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> s1          img11 9.87 <span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 1.02<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">101</span>   0.000<span style="text-decoration: underline;">104</span>    -<span style="color: #BB0000;">2.43</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">2.07</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> s1          img12 1.000<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 1.07<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">093</span>5  0.000<span style="text-decoration: underline;">106</span>     6.45<span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>    9.48<span style="color: #949494;">e</span><span style="color: #BB0000;">-7</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> s1          img13 9.71 <span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 1.00<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span>  0.000<span style="text-decoration: underline;">099</span>4  0.000<span style="text-decoration: underline;">100</span>    -<span style="color: #BB0000;">2.28</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">2.28</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-7</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> s1          img14 8.88 <span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 9.42<span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  0.000<span style="text-decoration: underline;">097</span>9  0.000<span style="text-decoration: underline;">097</span>7   -<span style="color: #BB0000;">9.11</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span>   -<span style="color: #BB0000;">3.46</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-6</span></span></span></code></pre></div>
 <div class="figure">
 <img src="eyesim_files/figure-html/plot-temporal-1.png" class="r-plt" alt="Encoding density sampled at retrieval fixation locations over time, for six example trials." width="768"><p class="caption">
 Encoding density sampled at retrieval fixation locations over time, for
@@ -434,7 +441,7 @@ cross-device or cross-participant comparisons</li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

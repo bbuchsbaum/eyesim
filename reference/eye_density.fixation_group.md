@@ -35,6 +35,13 @@ eye_density(
   The standard deviation(s) of the kernel. Can be a single numeric value
   or a numeric vector. If a vector is provided, a multiscale density
   object (\`eye_density_multiscale\`) will be created. Default is 50.
+  With `kde_pkg = "ks"`, `sigma` is the standard deviation of the
+  isotropic Gaussian kernel. With `kde_pkg = "MASS"`, `sigma` is passed
+  as the bandwidth `h` of
+  [`kde2d`](https://rdrr.io/pkg/MASS/man/kde2d.html), whose kernel
+  standard deviation is `h / 4`; the same `sigma` therefore gives a
+  kernel four times narrower. Use `4 * sigma` under MASS to approximate
+  the ks map.
 
 - xbounds:
 
@@ -52,9 +59,10 @@ eye_density(
 
 - weights:
 
-  Optional numeric vector of fixation weights. If NULL and
-  duration_weighted is TRUE, uses fixation durations as weights. Default
-  is NULL.
+  Optional numeric vector of non-negative fixation weights, one per row
+  of `x` (before any `window` filtering). Explicit weights take
+  precedence over `duration_weighted`. If NULL and duration_weighted is
+  TRUE, uses fixation durations as weights. Default is NULL.
 
 - normalize:
 
@@ -82,12 +90,21 @@ eye_density(
 - kde_pkg:
 
   A character string specifying which package to use for kernel density
-  estimation. Options are "ks" (default) or "MASS". The "ks" package
-  supports weighted density estimation.
+  estimation. Options are "ks" (default) or "MASS"; any other value is
+  an error. Both support weighted estimation; under "MASS" weights use
+  an internal weighted version of
+  [`MASS::kde2d`](https://rdrr.io/pkg/MASS/man/kde2d.html). Note the
+  different meaning of `sigma` under "MASS".
 
 - ...:
 
-  Additional arguments passed to the underlying KDE function.
+  Additional named arguments passed to
+  [`kde`](https://mvstat.net/ks/reference/kde.html), for example
+  `binned = FALSE`.
+  [`eye_density()`](https://bbuchsbaum.github.io/eyesim/reference/eye_density.md)
+  sets `x`, `H`, `gridsize`, `xmin`, `xmax`, `w`, and the evaluation
+  grid (`eval.points`) itself, so these cannot be supplied. Extra
+  arguments are an error when `kde_pkg = "MASS"`.
 
 ## Value
 
@@ -106,3 +123,11 @@ standard density map. If \`sigma\` is a vector, it computes a density
 map for each value in \`sigma\` and returns them packaged as an
 \`eye_density_multiscale\` object, which is a list of individual
 \`eye_density\` objects.
+
+After optional normalization, each map is passed through
+`zapsmall(z, digits = 7)`. The precision is fixed and does not depend on
+`options(digits)`. In R 4.5.1, where this was verified,
+[`zapsmall()`](https://rdrr.io/r/base/zapsmall.html) computes
+`round(z, max(0, 7 - log10(max(abs(z)))))`: values are rounded to 7
+significant digits relative to the map maximum, so values below roughly
+`max(z) * 5e-8` become zero.

@@ -5,7 +5,7 @@ normalized density surface. For fixation groups, entropy can be computed from
 either a derived density map or a discrete occupancy grid."><meta property="og:description" content="These methods quantify how concentrated or diffuse a fixation pattern is
 using Shannon entropy. For density maps, entropy is computed from the
 normalized density surface. For fixation groups, entropy can be computed from
-either a derived density map or a discrete occupancy grid."></head><body>
+either a derived density map or a discrete occupancy grid."><link href="../albers.css" rel="stylesheet"><script>window.albersdownDefaults = window.albersdownDefaults || { family: "red", preset: "homage", style: "minimal" };</script><script src="../albers.js"></script></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -13,7 +13,7 @@ either a derived density map or a discrete occupancy grid."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">eyesim</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,7 +25,8 @@ either a derived density map or a discrete occupancy grid."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+    <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul></li>
@@ -84,6 +85,7 @@ either a derived density map or a discrete occupancy grid.</p>
 <span>  outdim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">50</span><span class="op">)</span>,</span>
 <span>  grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">10</span><span class="op">)</span>,</span>
 <span>  duration_weighted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  aggregate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mean"</span>, <span class="st">"none"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -112,8 +114,9 @@ possible entropy for the number of valid bins so results lie in `[0, 1]`.</p></d
 
 
 <dt id="arg-aggregate">aggregate<a class="anchor" aria-label="anchor" href="#arg-aggregate"></a></dt>
-<dd><p>For multiscale density objects, one of `"mean"` (default)
-or `"none"`.</p></dd>
+<dd><p>For multiscale densities, one of `"mean"` (default) or
+`"none"`. A fixation group gives a multiscale density when `sigma` is a
+vector and `method = "density"`; otherwise `aggregate` has no effect.</p></dd>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
@@ -123,12 +126,18 @@ or `"none"`.</p></dd>
 
 <dt id="arg-sigma">sigma<a class="anchor" aria-label="anchor" href="#arg-sigma"></a></dt>
 <dd><p>Optional bandwidth for density-based entropy on fixation groups.
-If `NULL`, `suggest_sigma()` is used.</p></dd>
+If `NULL`, `suggest_sigma()` is used. A group with fewer than two fixations
+has no suggested bandwidth, so its density entropy is <code>NA</code>; with an
+explicit <code>sigma</code> it is <code>NA</code> too unless <code>min_fixations</code> is
+lowered through <code>...</code>. The <code>"grid"</code> method returns 0 for a single
+fixation.</p></dd>
 
 
 <dt id="arg-xbounds-ybounds">xbounds, ybounds<a class="anchor" aria-label="anchor" href="#arg-xbounds-ybounds"></a></dt>
 <dd><p>Optional display bounds for fixation groups. If not
-supplied, the observed fixation ranges are used with a small padding.</p></dd>
+supplied, the observed fixation ranges are used with a small padding. With
+<code>method = "grid"</code>, a fixation outside the bounds is counted in the
+nearest edge cell rather than dropped.</p></dd>
 
 
 <dt id="arg-outdim">outdim<a class="anchor" aria-label="anchor" href="#arg-outdim"></a></dt>
@@ -150,6 +159,12 @@ for density-based entropy.</p></dd>
   mean entropy across scales or a named numeric vector, depending on
   `aggregate`.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Entropy is defined only for non-negative mass. A map with any negative value,
+such as the difference of two densities, is an error. A map whose total mass
+is zero gives <code>NA</code>.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
@@ -160,7 +175,7 @@ for density-based entropy.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

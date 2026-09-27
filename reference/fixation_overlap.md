@@ -11,7 +11,7 @@ fixation_overlap(
   x,
   y,
   dthresh = 60,
-  time_samples = seq(0, max(x$onset), by = 20),
+  time_samples = seq(0, max(c(x$onset, y$onset)), by = 20),
   dist_method = c("euclidean", "manhattan")
 )
 ```
@@ -34,7 +34,9 @@ fixation_overlap(
 - time_samples:
 
   A numeric vector of points in time at which to evaluate the
-  overlapping fixations (default is \`seq(0, max(x\$onset), by = 20)\`).
+  overlapping fixations (default is \`seq(0, max(c(x\$onset, y\$onset)),
+  by = 20)\`, built from both groups so that the measure is symmetric in
+  \`x\` and \`y\`).
 
 - dist_method:
 

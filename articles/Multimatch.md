@@ -63,7 +63,7 @@ multi_match(sp1, sp2, screensize = c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.9944381       0.9824906       0.9924735       0.8774572       0.9194313 
 #> mm_position_emd 
-#>       0.9646769
+#>       0.9632978
 ```
 
 All metrics are high, consistent with the known similarity of the two
@@ -88,7 +88,7 @@ multi_match(sp_linear, sp_zigzag, screensize = c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.9914539       0.9671332       0.9912823       0.6570499       0.9350000 
 #> mm_position_emd 
-#>       0.6931491
+#>       0.6572352
 ```
 
 Notice how the **direction** metric drops substantially — the zigzag and
@@ -170,7 +170,7 @@ multi_match(scanpath(fg), scanpath(fg_scaled), c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.8831983       1.0000000       0.7663966       0.7237247       1.0000000 
 #> mm_position_emd 
-#>       0.7575046
+#>       0.7605673
 ```
 
 As expected, **direction** stays at 1.0, but **position** drops.
@@ -202,7 +202,7 @@ multi_match(scanpath(fg), scanpath(fg_shuffled), c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.8565614       0.7687388       0.7836460       0.7816592       0.6363636 
 #> mm_position_emd 
-#>       0.9710167
+#>       1.0000000
 ```
 
 The **position_emd** remains high (same spatial distribution), while

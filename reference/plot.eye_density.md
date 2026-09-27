@@ -1,6 +1,10 @@
 # Plot Eye Density
 
-This function creates a plot of the eye density using ggplot2.
+Draws a fixation density map on the shared eyesim density scale. Zero
+density is transparent, so a background stimulus shows through, and the
+map keeps the aspect ratio of its coordinate grid. Over a \`bg_image\`,
+thin white contour lines at five evenly spaced levels (from zero to the
+upper limit or the map's maximum) keep density edges visible.
 
 ## Usage
 
@@ -11,6 +15,9 @@ plot(
   alpha = 0.8,
   bg_image = NULL,
   transform = c("identity", "sqroot", "curoot", "rank"),
+  colours = NULL,
+  legend = TRUE,
+  limits = NULL,
   ...
 )
 ```
@@ -23,16 +30,32 @@ plot(
 
 - alpha:
 
-  The opacity level for the raster layer (default: 0.8).
+  Maximum opacity of the density layer (default: 0.8); lower densities
+  are progressively more transparent.
 
 - bg_image:
 
-  An optional image file name to use as the background.
+  An optional image file name (or \`cimg\`) to use as the background.
 
 - transform:
 
   The transformation to apply to the density values (default:
   c("identity", "sqroot", "curoot", "rank")).
+
+- colours:
+
+  Optional vector of colours for the density ramp (default: the eyesim
+  density ramp).
+
+- legend:
+
+  Whether to show the density colour bar (default: \`TRUE\`).
+
+- limits:
+
+  Optional density limits for the colour scale (default: from zero to
+  the map's maximum). Give several maps the same \`limits\` to compare
+  them on one scale.
 
 - ...:
 
@@ -46,7 +69,11 @@ A ggplot object representing the eye density plot.
 
 Other visualization:
 [`anim_scanpath()`](https://bbuchsbaum.github.io/eyesim/reference/anim_scanpath.md),
-[`plot.fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/plot.fixation_group.md)
+[`element_text_wrap()`](https://bbuchsbaum.github.io/eyesim/reference/element_text_wrap.md),
+[`eyesim_colours()`](https://bbuchsbaum.github.io/eyesim/reference/eyesim_colours.md),
+[`plot.fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/plot.fixation_group.md),
+[`scale_fill_eyesim_density()`](https://bbuchsbaum.github.io/eyesim/reference/scale_fill_eyesim_density.md),
+[`theme_eyesim()`](https://bbuchsbaum.github.io/eyesim/reference/theme_eyesim.md)
 
 ## Examples
 

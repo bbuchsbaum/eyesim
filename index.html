@@ -12,8 +12,10 @@
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><link href="extra.css" rel="stylesheet">
 <script src="extra.js"></script><meta property="og:title" content="Analysis of Eye-Movement Data">
-<meta name="description" content="Tools for analyzing eye-movement fixation data with a focus on computing fixation pattern similarity, density map generation, scanpath comparison, and recognition memory paradigms. Implements template-based similarity analysis, the MultiMatch algorithm for scanpath comparison, cross-recurrence quantification analysis (CRQA), Earth Mover's Distance (EMD) based similarity, and latent-space transforms (PCA, CORAL, CCA) for density map comparison.">
-<meta property="og:description" content="Tools for analyzing eye-movement fixation data with a focus on computing fixation pattern similarity, density map generation, scanpath comparison, and recognition memory paradigms. Implements template-based similarity analysis, the MultiMatch algorithm for scanpath comparison, cross-recurrence quantification analysis (CRQA), Earth Mover's Distance (EMD) based similarity, and latent-space transforms (PCA, CORAL, CCA) for density map comparison.">
+<meta name="description" content="Tools for analyzing eye-movement fixation data with a focus on computing fixation pattern similarity, density map generation, scanpath comparison, and recognition memory paradigms. Implements template-based similarity analysis, the MultiMatch algorithm for scanpath comparison, cross-recurrence quantification analysis (CRQA), Earth Mover's Distance (EMD) based similarity, GazeWeave probabilistic replay and registered coverage-conditioned temporal transport, and latent-space transforms (PCA, CORAL, CCA) for density map comparison.">
+<meta property="og:description" content="Tools for analyzing eye-movement fixation data with a focus on computing fixation pattern similarity, density map generation, scanpath comparison, and recognition memory paradigms. Implements template-based similarity analysis, the MultiMatch algorithm for scanpath comparison, cross-recurrence quantification analysis (CRQA), Earth Mover's Distance (EMD) based similarity, GazeWeave probabilistic replay and registered coverage-conditioned temporal transport, and latent-space transforms (PCA, CORAL, CCA) for density map comparison.">
+<link href="albers.css" rel="stylesheet">
+<script>window.albersdownDefaults = window.albersdownDefaults || { family: "red", preset: "homage", style: "minimal" };</script><script src="albers.js"></script>
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -23,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="index.html">eyesim</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,7 +39,8 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
+<li><a class="dropdown-item" href="articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+    <li><a class="dropdown-item" href="articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
   </ul>
@@ -64,14 +67,16 @@
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <p>You can install development version from <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co">#install.packages("remotes")</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"bbuchsbaum/eyesim"</span>)</span></code></pre></div>
+<pre><code><span><span class="co">#install.packages("remotes")</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"bbuchsbaum/eyesim"</span><span class="op">)</span></span></code></pre>
 </div>
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
 <p>Are two eye-movement fixation patterns similar? The goal of the <code>eyesim</code> package is to provide methods for answering this question.</p>
 <p>For example, in studies of recognition memory, we might ask whether the eye-movement fixation pattern during the first presentation of an image (“encoding”) is similar to the eye-movement fixation pattern during the second presentation of the same image (“recognition”). Furthermore, we can ask whether fixation similarity varies as a function of conditions in the experimental design or the behavioral responses (e.g. correct recognition or miss).</p>
+<p>The experimental GazeWeave workflow asks whether a held-out gaze path identifies its correct template among permitted nonmatches. Directional Replay is designed for encoding-to-recall studies. Edge-normalized Transport is the symmetric explanatory alignment engine for local order and partial coverage; its dedicated <code><a href="reference/gaze_transport_cv.html">gaze_transport_cv()</a></code> interface accepts one or several separate study presentations. Every engine returns one primary endpoint, <code>gaze_info_bits = log2(p_true / prior_true)</code>, using candidate calibration and warp estimation learned only from outer-training trials. Posterior Replay coverage and Transport’s optimized correspondence, coverage, chronology, spatial residuals, and contraction remain explanatory diagnostics rather than additional outcomes.</p>
+<p>Transport passed its frozen invariant, simulation, runtime, and full-cohort repeated-viewing gates. In the sealed 0–3000 ms court it had the largest response-blind retrieval point estimate, but the interval included zero and it did not improve held-out old-item response prediction. The package therefore makes no retrieval-prediction or general-superiority claim; Replay, registered density, and MultiMatch remain visible comparators. Earlier Transport v1/v2/v3 labels were internal development names: the edge-normalized estimator is now the sole public <code>gaze_transport_*</code> method. Version labels survive only in internal and frozen validation provenance; they are not selectable methods. See the <a href="vignettes/GazeWeave.Rmd">GazeWeave vignette</a> for the executable Transport example, episode normalization, plot semantics, validation evidence, and failure modes.</p>
 </div>
 <div class="section level2">
 <h2 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a>
@@ -79,17 +84,6 @@
 <p>See examples of use of <code>eyesim</code> in the <a href="https://bbuchsbaum.github.io/eyesim/articles/index.html">vignettes</a>.</p>
 <p>With some luck you might be able to make a cool image like the one below!</p>
 <p><img src="phelps.gif"></p>
-</div>
-<div class="section level2">
-<h2 id="albers-theme">Albers theme<a class="anchor" aria-label="anchor" href="#albers-theme"></a>
-</h2>
-<p>This package uses the albersdown theme. Vignettes are styled with <code>vignettes/albers.css</code> and a local <code>vignettes/albers.js</code>; the palette family is provided via <code>params$family</code> (default ‘red’). The pkgdown site uses <code>template: { package: albersdown }</code>.</p>
-<!-- albersdown:theme-note:start -->
-</div>
-<div class="section level2">
-<h2 id="albers-theme-1">Albers theme<a class="anchor" aria-label="anchor" href="#albers-theme-1"></a>
-</h2>
-<p>This package uses the albersdown theme. Existing vignette theme hooks are replaced so <code>albers.css</code> and local <code>albers.js</code> render consistently on CRAN and GitHub Pages. The palette family is provided via <code>params$family</code> (default ‘violet’). The pkgdown site uses <code>template: { package: albersdown }</code>. <!-- albersdown:theme-note:end --></p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="license">
@@ -132,7 +126,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

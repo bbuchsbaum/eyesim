@@ -49,7 +49,9 @@ sample_density_time(
 
   An optional numeric vector specifying bin boundaries for aggregating
   samples. For example, `c(0, 1000, 2000, 3000)` creates 3 bins:
-  \[0-1000), \[1000-2000), \[2000-3000). Default is NULL (no binning).
+  \[0-1000), \[1000-2000), \[2000-3000). Every bin is half-open,
+  including the last, so a time point equal to the final break (3000
+  here) is not assigned to any bin. Default is NULL (no binning).
 
 - template_var:
 
@@ -118,9 +120,14 @@ each bin using `aggregate_fun`. The result includes columns named
 `bin_1`, `bin_2`, etc.
 
 If `permutations > 0`, a baseline is computed by sampling from
-non-matching density maps. The result includes `perm_sampled` (mean
-permuted trajectory) and bin-specific permutation columns if binning is
-used.
+non-matching density maps. As in
+[`template_similarity`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md),
+the candidates are the distinct templates matched by other source rows
+(within the `permute_on` stratum, if given); every copy of the true
+match is excluded, each other template counts once, and up to
+`permutations` of them are drawn without replacement. The result
+includes `perm_sampled` (mean permuted trajectory) and bin-specific
+permutation columns if binning is used.
 
 ## Examples
 

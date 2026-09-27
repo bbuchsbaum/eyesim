@@ -4,6 +4,8 @@
 
 - [Comparing Eye-Movement
   Patterns](https://bbuchsbaum.github.io/eyesim/articles/eyesim.md):
+- [GazeWeave: Calibrated Item Information from Gaze
+  Paths](https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.md):
 - [Latent Transforms for Template
   Similarity](https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.md):
 - [Comparing Scanpaths with

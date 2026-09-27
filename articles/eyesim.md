@@ -35,14 +35,14 @@ fg <- fixation_group(
 ```
 
 ![Three fixations. Point size reflects duration; color reflects onset
-time (yellow = early, red =
+time (dark purple = early, green =
 late).](eyesim_files/figure-html/plot-fixation-group-1.png)
 
 Three fixations. Point size reflects duration; color reflects onset time
-(yellow = early, red = late).
+(dark purple = early, green = late).
 
-Point size shows how long each fixation lasted. Color indicates when it
-occurred: yellow for early fixations, red for later ones.
+Point area is proportional to how long each fixation lasted. Color
+indicates when it occurred, from dark purple (early) to green (late).
 
 Here is a more realistic group with 25 randomly placed fixations:
 
@@ -147,7 +147,10 @@ available:
 
 ``` r
 
-methods <- c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard", "dcov")
+methods <- c("pearson", "spearman", "fisherz", "cosine", "l1", "jaccard")
+if (requireNamespace("energy", quietly = TRUE)) {
+  methods <- c(methods, "dcov")
+}
 results <- sapply(methods, function(m) similarity(ed1, ed2, method = m))
 data.frame(method = methods, similarity = round(unlist(results), 4))
 #>            method similarity
@@ -283,13 +286,13 @@ t.test(simres$eye_sim_diff)
 #>  One Sample t-test
 #> 
 #> data:  simres$eye_sim_diff
-#> t = 0.78502, df = 59, p-value = 0.4356
+#> t = 0.71493, df = 59, p-value = 0.4775
 #> alternative hypothesis: true mean is not equal to 0
 #> 95 percent confidence interval:
-#>  -0.1021582  0.2340630
+#>  -0.1111827  0.2347954
 #> sample estimates:
 #>  mean of x 
-#> 0.06595242
+#> 0.06180634
 ```
 
 ![Distribution of raw, permuted, and corrected similarity
@@ -329,9 +332,9 @@ simres_multi <- template_similarity(enc_multi, ret_multi,
                                     permutations = 50)
 
 cat("Single-scale mean:", round(mean(simres$eye_sim_diff), 4), "\n")
-#> Single-scale mean: 0.066
+#> Single-scale mean: 0.0618
 cat("Multiscale mean:  ", round(mean(simres_multi$eye_sim_diff), 4), "\n")
-#> Multiscale mean:   0.0342
+#> Multiscale mean:   0.0351
 ```
 
 Multiscale analysis provides a more robust similarity estimate by
@@ -374,12 +377,12 @@ temporal %>%
 #> # A tibble: 6 × 8
 #>   participant image    bin_1   bin_2 perm_bin_1 perm_bin_2 diff_bin_1 diff_bin_2
 #>   <chr>       <chr>    <dbl>   <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
-#> 1 s1          img1  1.04 e-4 9.98e-5  0.0000966  0.0000993    7.85e-6    5.81e-7
-#> 2 s1          img10 1.05 e-4 9.64e-5  0.000102   0.000104     2.83e-6   -7.41e-6
-#> 3 s1          img11 9.87 e-5 1.02e-4  0.000101   0.000104    -2.43e-6   -1.87e-6
-#> 4 s1          img12 1.000e-4 1.07e-4  0.0000935  0.000106     6.45e-6    1.50e-6
-#> 5 s1          img13 9.71 e-5 9.81e-5  0.0000994  0.0000996   -2.28e-6   -1.51e-6
-#> 6 s1          img14 8.88 e-5 9.64e-5  0.0000979  0.0000991   -9.11e-6   -2.67e-6
+#> 1 s1          img1  1.04 e-4 1.02e-4  0.0000966  0.0000992    7.85e-6    2.62e-6
+#> 2 s1          img10 1.05 e-4 9.02e-5  0.000102   0.000101     2.83e-6   -1.06e-5
+#> 3 s1          img11 9.87 e-5 1.02e-4  0.000101   0.000104    -2.43e-6   -2.07e-6
+#> 4 s1          img12 1.000e-4 1.07e-4  0.0000935  0.000106     6.45e-6    9.48e-7
+#> 5 s1          img13 9.71 e-5 1.00e-4  0.0000994  0.000100    -2.28e-6   -2.28e-7
+#> 6 s1          img14 8.88 e-5 9.42e-5  0.0000979  0.0000977   -9.11e-6   -3.46e-6
 ```
 
 ![Encoding density sampled at retrieval fixation locations over time,

@@ -97,15 +97,34 @@ columns with the similarity scores and permutation results.
 
 Permutation baseline and exhaustive behavior:
 
-- The set of permutation candidates is determined by `permute_on`. If
-  `permute_on` is provided, candidates are restricted within that
-  stratum (e.g., within-participant); otherwise all reference items are
-  candidates.
+- The set of permutation candidates is determined by `permute_on`.
+  Candidates are the distinct reference rows matched by at least one
+  source row, within the same `permute_on` stratum if given (e.g.,
+  within-participant). Each candidate counts once, however many source
+  rows match it, so `n_perm` counts distinct templates. A reference row
+  that no source row matches is never a candidate.
+
+- The true match is removed from the candidate set before any sampling.
+  If several source rows share the same `match_on` key, every copy of
+  that key is removed, so a row is never compared with its own template
+  in the baseline.
 
 - If `permutations` is less than the number of available non-matching
   candidates, a random subset of that size is drawn (without
-  replacement) for each trial. Internally, sampling is performed with a
-  fixed future seed to aid reproducibility.
+  replacement) for each trial.
+
+- Sampling uses the session random number generator; there is no
+  internal fixed seed. Call
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) immediately before
+  the call to make the baseline reproducible. The call advances the
+  session RNG. With `method = "cosine"`, the default
+  `multiscale_aggregation = "mean"`, no `window` or extra arguments, and
+  every reference and source map on one lattice, a vectorized path
+  samples with [`sample()`](https://rdrr.io/r/base/sample.html)
+  directly; other methods draw per-row streams through
+  `furrr::furrr_options(seed = TRUE)`, which are derived from the
+  session RNG. The same seed can therefore select different controls for
+  different methods.
 
 - If `permutations` is greater than or equal to the number of available
   non-matching candidates, the procedure uses all candidates (excluding
@@ -139,7 +158,12 @@ Notes on `method` and interpretation:
 
 - If `method = "fisherz"`, values are Fisher z (atanh of Pearson *r*).
   Convert back to *r* via `tanh(z)` for reporting on the correlation
-  scale.
+  scale. To keep z finite, *r* is clamped to
+  `[-1 + .Machine$double.eps, 1 - .Machine$double.eps]`. Identical maps,
+  whether constant or not, and any *r* within `64 * .Machine$double.eps`
+  of 1 (for example a rescaled copy of a map) are treated as *r* = 1 and
+  give `atanh(1 - .Machine$double.eps)` (about 18.37) rather than `Inf`;
+  *r* near -1 is handled symmetrically.
 
 - If `method = "pearson"` or `"spearman"`, values are correlations
   (roughly in `[-1, 1]`).
