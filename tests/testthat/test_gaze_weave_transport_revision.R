@@ -88,8 +88,8 @@ test_that("a specification saved at the base commit scores exactly as legacy", {
     pair <- pairs[[name]]
     from_frozen <- gaze_transport_align(pair[[1]], pair[[2]], frozen)
     from_pinned <- gaze_transport_align(pair[[1]], pair[[2]], pinned)
-    expect_identical(from_frozen$log_score, base_scores[[name]])
-    expect_identical(from_pinned$log_score, base_scores[[name]])
+    expect_frozen(from_frozen$log_score, base_scores[[name]])
+    expect_frozen(from_pinned$log_score, base_scores[[name]])
     expect_identical(from_frozen$convergence$revision, "2026.08")
   }
 })

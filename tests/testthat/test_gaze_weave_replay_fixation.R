@@ -517,7 +517,7 @@ test_that("revision 2026.08 reproduces its frozen cross-fitted fit exactly", {
   golden <- readRDS(test_path("fixtures", "replay_legacy_2026_08.rds"))
   current <- legacy_replay_fixture_fit()
 
-  expect_identical(current, golden)
+  expect_frozen(current, golden)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

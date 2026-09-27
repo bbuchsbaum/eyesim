@@ -813,9 +813,9 @@ test_that("revision 2026.08 and the global method reproduce pre-A3 fits exactly"
     replay_10 = calibration_replay_spec(calibration_control = global)
   )
 
-  expect_identical(current$transport_08, golden$transport_08)
-  expect_identical(current$transport_10, golden$transport_10)
-  expect_identical(current$replay_10, golden$replay_10)
+  expect_frozen(current$transport_08, golden$transport_08)
+  expect_frozen(current$transport_10, golden$transport_10)
+  expect_frozen(current$replay_10, golden$replay_10)
   expect_null(gaze_transport_spec(revision = "2026.08")$calibration$control)
   expect_null(gaze_replay_spec(revision = "2026.08")$calibration$control)
 })

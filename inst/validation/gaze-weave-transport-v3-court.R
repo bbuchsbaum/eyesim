@@ -142,7 +142,7 @@ v3_court_profile <- function(label, expression) {
     resources = data.frame(
       method = label, elapsed_seconds = unname(elapsed),
       gc_used_mb = sum(memory[, 2L]),
-      gc_high_water_mb = sum(memory[, 7L]),
+      gc_high_water_mb = sum(memory[, ncol(memory)]),  # "max used (Mb)"; gc() has 6 columns on Linux, 7 on macOS
       fit_size_mb = as.numeric(utils::object.size(value)) / 1024^2,
       stringsAsFactors = FALSE
     )
