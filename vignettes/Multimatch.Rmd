@@ -82,7 +82,7 @@ fg2 <- simulate_linear(12)
 ```
 
 ```{r plot-linear, echo = FALSE, fig.cap = "Two scanpaths generated from similar linear processes."}
-plot(fg1) + plot(fg2)
+plot(fg1, legend = FALSE) + plot(fg2, legend = FALSE)
 ```
 
 ```{r compare-linear}
@@ -134,29 +134,31 @@ ssdf <- lapply(fgs, function(x) {
 }) %>% bind_rows()
 ```
 
-```{r plot-distributions, fig.height = 10, echo = FALSE, fig.cap = "Distribution of each MultiMatch metric across 500 random scanpath pairs."}
-metrics <- c("mm_vector", "mm_direction", "mm_length",
-             "mm_position", "mm_duration", "mm_position_emd")
-labels <- c("Vector", "Direction", "Length",
-            "Position", "Duration", "EMD")
-colors <- c("blue", "green", "red", "purple", "orange", "cyan")
+```{r plot-distributions, fig.height = 4.5, echo = FALSE, fig.cap = "Distribution of each MultiMatch metric across 500 random scanpath pairs, on a common 0 to 1 scale. Vertical lines mark the medians."}
+metric_labels <- c(mm_vector = "Vector", mm_direction = "Direction",
+                   mm_length = "Length", mm_position = "Position",
+                   mm_duration = "Duration", mm_position_emd = "Position (EMD)")
+long <- tidyr::pivot_longer(ssdf[names(metric_labels)], dplyr::everything(),
+                            names_to = "metric", values_to = "similarity")
+long$metric <- factor(metric_labels[long$metric], levels = rev(metric_labels))
+medians <- tapply(long$similarity, long$metric, stats::median)
 
-plots <- lapply(seq_along(metrics), function(i) {
-  ggplot(ssdf, aes(x = .data[[metrics[i]]],
-                   y = factor(1, labels = paste(labels[i], "Similarity")))) +
-    geom_density_ridges(scale = 3, rel_min_height = 0.01, bandwidth = 0.05,
-                        fill = colors[i], alpha = 0.7) +
-    labs(x = "Similarity", y = "") +
-    theme_ridges() +
-    theme(axis.title.y = element_blank())
-})
-
-Reduce("/", plots)
+ggplot(long, aes(x = similarity, y = metric)) +
+  geom_density_ridges(scale = 0.9, rel_min_height = 0.01, bandwidth = 0.03,
+                      fill = eyesim_colours("correspondence"), alpha = 0.35,
+                      colour = eyesim_colours("correspondence"),
+                      quantile_lines = TRUE, quantiles = 2) +
+  scale_x_continuous(limits = c(0, 1), expand = expansion(mult = 0.01)) +
+  labs(x = "Similarity (1 = identical)", y = NULL) +
+  theme_eyesim()
 ```
 
-Each metric has a distinct baseline distribution. Direction similarity, for
-instance, clusters near 0.5 for random pairs, while position similarity is
-typically lower.
+None of the metrics sits near zero for unrelated scanpaths. Median
+similarity for random pairs ranges from
+`r round(min(medians), 2)` (`r names(which.min(medians))`) to
+`r round(max(medians), 2)` (`r names(which.max(medians))`), so a
+single similarity value has to be read against this baseline, not against
+zero.
 
 ## What do extreme matches look like?
 
@@ -164,44 +166,58 @@ Examining the highest- and lowest-scoring pairs for each metric gives concrete
 insight into what each dimension captures:
 
 ```{r compute-extremes, include = FALSE}
-metric_names <- c("vector", "direction", "length",
-                  "position", "duration", "position_emd")
+metric_names <- c(vector = "Vector", direction = "Direction", length = "Length",
+                  position = "Position", duration = "Duration",
+                  position_emd = "Position (EMD)")
 
-extremes <- lapply(metric_names, function(m) {
+# One row per fixation: metric, which extreme (highest or lowest scoring
+# pair) and which scanpath of the pair.
+extreme_fixations <- do.call(rbind, lapply(names(metric_names), function(m) {
   col <- paste0("mm_", m)
-  list(high = which.max(ssdf[[col]]), low = which.min(ssdf[[col]]))
-})
-names(extremes) <- metric_names
-
-plot_fg <- function(fg, title, score) {
-  plot(fg) +
-    ggtitle(title) +
-    annotate("text", x = Inf, y = -Inf,
-             label = paste("score:", round(score, 2)),
-             hjust = 1.1, vjust = -1.1, size = 2, color = "blue")
-}
-
-plots <- lapply(metric_names, function(m) {
-  hi <- extremes[[m]]$high
-  lo <- extremes[[m]]$low
-  col <- paste0("mm_", m)
-
-  list(
-    high_plot = plot_fg(fgs[[hi]]$fg1, paste(m, "High(1)"), ssdf[hi, col]) +
-                plot_fg(fgs[[hi]]$fg2, paste(m, "High(2)"), ssdf[hi, col]),
-    low_plot  = plot_fg(fgs[[lo]]$fg1, paste(m, "Low(1)"), ssdf[lo, col]) +
-                plot_fg(fgs[[lo]]$fg2, paste(m, "Low(2)"), ssdf[lo, col])
-  )
-})
+  do.call(rbind, lapply(c(Highest = "which.max", Lowest = "which.min"), function(f) {
+    i <- match.fun(f)(ssdf[[col]])
+    extreme <- if (f == "which.max") "Highest" else "Lowest"
+    do.call(rbind, lapply(1:2, function(k) {
+      fg <- fgs[[i]][[k]]
+      data.frame(
+        metric = sprintf("%s\n%s %.2f / %s %.2f", metric_names[[m]],
+                         "high", max(ssdf[[col]]), "low", min(ssdf[[col]])),
+        panel = paste(extreme, "pair, scanpath", c("A", "B")[k]),
+        x = fg$x, y = fg$y, onset = fg$onset, duration = fg$duration,
+        order = rank(fg$onset, ties.method = "first")
+      )
+    }))
+  }))
+}))
+extreme_fixations$metric <- factor(extreme_fixations$metric,
+                                   levels = unique(extreme_fixations$metric))
 ```
 
-```{r plot-high-extremes, fig.height = 11, echo = FALSE, fig.cap = "Highest-scoring pairs for each MultiMatch metric. Each row shows the two scanpaths that scored highest on that dimension."}
-wrap_plots(lapply(plots, `[[`, "high_plot"), nrow = 6)
+```{r plot-extremes, fig.height = 11, echo = FALSE, fig.cap = "The highest- and lowest-scoring random pairs for each MultiMatch metric (rows). Each pair is shown as its two scanpaths side by side; colour is fixation order and point area is duration. Row labels give the high and low scores."}
+extreme_fixations <- extreme_fixations[order(extreme_fixations$order), ]
+ggplot(extreme_fixations, aes(x, y)) +
+  geom_path(aes(colour = order), linewidth = 0.4, alpha = 0.8) +
+  geom_point(aes(fill = order, size = duration), shape = 21,
+             colour = "white", stroke = 0.3) +
+  geom_point(data = subset(extreme_fixations, order == 1), shape = 21,
+             size = 4, fill = NA, colour = eyesim_colours("ink"), stroke = 0.5) +
+  facet_grid(metric ~ panel, switch = "y") +
+  scale_colour_eyesim_time(aesthetics = c("colour", "fill"), name = "Fixation\norder",
+                           breaks = c(1, 4, 7, 10)) +
+  scale_size_area(max_size = 2.8, name = "Duration",
+                  guide = guide_legend(override.aes = list(fill = "grey45"))) +
+  coord_fixed(xlim = c(0, 500), ylim = c(0, 500), expand = TRUE) +
+  labs(caption = "The ringed point is each scanpath's first fixation.") +
+  theme_eyesim_spatial(base_size = 9) +
+  theme(strip.text.y.left = element_text(angle = 0, hjust = 1),
+        strip.placement = "outside", panel.spacing = unit(4, "pt"),
+        legend.position = "bottom")
 ```
 
-```{r plot-low-extremes, fig.height = 11, echo = FALSE, fig.cap = "Lowest-scoring pairs for each metric."}
-wrap_plots(lapply(plots, `[[`, "low_plot"), nrow = 6)
-```
+The highest-scoring pairs are not visibly similar scanpaths: with ten random
+fixations each, a pair can score highly on one dimension (for example,
+similar saccade lengths) while differing everywhere else. This is why the
+five dimensions are reported separately rather than averaged.
 
 ## How do transformations affect the metrics?
 
@@ -231,7 +247,8 @@ fg_scaled$y <- fg_scaled$y * 0.5
 ```
 
 ```{r plot-scale, echo = FALSE, fig.cap = "Original (left) vs. scaled (right) scanpath."}
-(plot(fg) + ylim(0, 500)) + (plot(fg_scaled) + ylim(0, 500))
+plot(fg, xlim = c(0, 500), ylim = c(0, 500), legend = FALSE) +
+  plot(fg_scaled, xlim = c(0, 500), ylim = c(0, 500), legend = FALSE)
 ```
 
 ```{r compare-scale}
@@ -255,7 +272,8 @@ fg_shuffled$duration <- fg_shuffled$duration[ord]
 ```
 
 ```{r plot-shuffle, echo = FALSE, fig.cap = "Original (left) vs. order-shuffled (right) scanpath. Same locations, different sequence."}
-(plot(fg) + ylim(0, 500)) + (plot(fg_shuffled) + ylim(0, 500))
+plot(fg, xlim = c(0, 500), ylim = c(0, 500), legend = FALSE) +
+  plot(fg_shuffled, xlim = c(0, 500), ylim = c(0, 500), legend = FALSE)
 ```
 
 ```{r compare-shuffle}
