@@ -1765,11 +1765,14 @@ ol > li::marker {
 
 dl {
   display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  /* The term column fits its content but never takes more than 40% of the
+     row, so one long term (for example a pkgdown reference entry listing
+     many S3 methods) cannot squeeze every description to a sliver. */
+  grid-template-columns: fit-content(40%) minmax(0, 1fr);
   gap: 0.5rem 1.4rem;
   margin: 1rem 0 1.4rem;
 }
-dt { font-weight: 600; }
+dt { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 dd { margin: 0; }
 
 @media (max-width: 620px) {
