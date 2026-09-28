@@ -100,30 +100,36 @@ To build intuition about each metric’s range and distribution, let’s
 simulate 500 pairs of random scanpaths and plot the results:
 
 ![Distribution of each MultiMatch metric across 500 random scanpath
-pairs.](Multimatch_files/figure-html/plot-distributions-1.png)
+pairs, on a common 0 to 1 scale. Vertical lines mark the
+medians.](Multimatch_files/figure-html/plot-distributions-1.png)
 
-Distribution of each MultiMatch metric across 500 random scanpath pairs.
+Distribution of each MultiMatch metric across 500 random scanpath pairs,
+on a common 0 to 1 scale. Vertical lines mark the medians.
 
-Each metric has a distinct baseline distribution. Direction similarity,
-for instance, clusters near 0.5 for random pairs, while position
-similarity is typically lower.
+None of the metrics sits near zero for unrelated scanpaths. Median
+similarity for random pairs ranges from 0.57 (Duration) to 0.84
+(Length), so a single similarity value has to be read against this
+baseline, not against zero.
 
 ## What do extreme matches look like?
 
 Examining the highest- and lowest-scoring pairs for each metric gives
 concrete insight into what each dimension captures:
 
-![Highest-scoring pairs for each MultiMatch metric. Each row shows the
-two scanpaths that scored highest on that
-dimension.](Multimatch_files/figure-html/plot-high-extremes-1.png)
+![The highest- and lowest-scoring random pairs for each MultiMatch
+metric (rows). Each pair is shown as its two scanpaths side by side;
+colour is fixation order and point area is duration. Row labels give the
+high and low scores.](Multimatch_files/figure-html/plot-extremes-1.png)
 
-Highest-scoring pairs for each MultiMatch metric. Each row shows the two
-scanpaths that scored highest on that dimension.
+The highest- and lowest-scoring random pairs for each MultiMatch metric
+(rows). Each pair is shown as its two scanpaths side by side; colour is
+fixation order and point area is duration. Row labels give the high and
+low scores.
 
-![Lowest-scoring pairs for each
-metric.](Multimatch_files/figure-html/plot-low-extremes-1.png)
-
-Lowest-scoring pairs for each metric.
+The highest-scoring pairs are not visibly similar scanpaths: with ten
+random fixations each, a pair can score highly on one dimension (for
+example, similar saccade lengths) while differing everywhere else. This
+is why the five dimensions are reported separately rather than averaged.
 
 ## How do transformations affect the metrics?
 

@@ -179,13 +179,15 @@ trajectories.</p>
 <p>To build intuition about each metric’s range and distribution, let’s
 simulate 500 pairs of random scanpaths and plot the results:</p>
 <div class="figure">
-<img src="Multimatch_files/figure-html/plot-distributions-1.png" class="r-plt" alt="Distribution of each MultiMatch metric across 500 random scanpath pairs." width="768"><p class="caption">
-Distribution of each MultiMatch metric across 500 random scanpath pairs.
+<img src="Multimatch_files/figure-html/plot-distributions-1.png" class="r-plt" alt="Distribution of each MultiMatch metric across 500 random scanpath pairs, on a common 0 to 1 scale. Vertical lines mark the medians." width="768"><p class="caption">
+Distribution of each MultiMatch metric across 500 random scanpath pairs,
+on a common 0 to 1 scale. Vertical lines mark the medians.
 </p>
 </div>
-<p>Each metric has a distinct baseline distribution. Direction
-similarity, for instance, clusters near 0.5 for random pairs, while
-position similarity is typically lower.</p>
+<p>None of the metrics sits near zero for unrelated scanpaths. Median
+similarity for random pairs ranges from 0.57 (Duration) to 0.84
+(Length), so a single similarity value has to be read against this
+baseline, not against zero.</p>
 </div>
 <div class="section level2">
 <h2 id="what-do-extreme-matches-look-like">What do extreme matches look like?<a class="anchor" aria-label="anchor" href="#what-do-extreme-matches-look-like"></a>
@@ -193,16 +195,18 @@ position similarity is typically lower.</p>
 <p>Examining the highest- and lowest-scoring pairs for each metric gives
 concrete insight into what each dimension captures:</p>
 <div class="figure">
-<img src="Multimatch_files/figure-html/plot-high-extremes-1.png" class="r-plt" alt="Highest-scoring pairs for each MultiMatch metric. Each row shows the two scanpaths that scored highest on that dimension." width="768"><p class="caption">
-Highest-scoring pairs for each MultiMatch metric. Each row shows the two
-scanpaths that scored highest on that dimension.
+<img src="Multimatch_files/figure-html/plot-extremes-1.png" class="r-plt" alt="The highest- and lowest-scoring random pairs for each MultiMatch metric (rows). Each pair is shown as its two scanpaths side by side; colour is fixation order and point area is duration. Row labels give the high and low scores." width="768"><p class="caption">
+The highest- and lowest-scoring random pairs for each MultiMatch metric
+(rows). Each pair is shown as its two scanpaths side by side; colour is
+fixation order and point area is duration. Row labels give the high and
+low scores.
 </p>
 </div>
-<div class="figure">
-<img src="Multimatch_files/figure-html/plot-low-extremes-1.png" class="r-plt" alt="Lowest-scoring pairs for each metric." width="768"><p class="caption">
-Lowest-scoring pairs for each metric.
-</p>
-</div>
+<p>The highest-scoring pairs are not visibly similar scanpaths: with ten
+random fixations each, a pair can score highly on one dimension (for
+example, similar saccade lengths) while differing everywhere else. This
+is why the five dimensions are reported separately rather than
+averaged.</p>
 </div>
 <div class="section level2">
 <h2 id="how-do-transformations-affect-the-metrics">How do transformations affect the metrics?<a class="anchor" aria-label="anchor" href="#how-do-transformations-affect-the-metrics"></a>
