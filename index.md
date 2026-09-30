@@ -58,4 +58,4 @@ See examples of use of `eyesim` in the
 With some luck you might be able to make a cool image like the one
 below!
 
-![](phelps.gif)
+![](reference/figures/phelps.gif)
