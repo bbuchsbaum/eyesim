@@ -65,4 +65,4 @@ See examples of use of `eyesim` in the [vignettes](https://bbuchsbaum.github.io/
 
 With some luck you might be able to make a cool image like the one below!
 
-![](phelps.gif)
+![](man/figures/phelps.gif)
