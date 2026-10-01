@@ -1765,10 +1765,12 @@ ol > li::marker {
 
 dl {
   display: grid;
-  /* The term column fits its content but never takes more than 40% of the
+  /* The term column fits its content but never takes more than 45% of the
      row, so one long term (for example a pkgdown reference entry listing
-     many S3 methods) cannot squeeze every description to a sliver. */
-  grid-template-columns: fit-content(40%) minmax(0, 1fr);
+     many S3 methods) cannot squeeze every description to a sliver. 45%
+     leaves room for a typical method call such as
+     fixation_entropy(<fixation_group>) on one line. */
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
   gap: 0.5rem 1.4rem;
   margin: 1rem 0 1.4rem;
 }
@@ -2117,6 +2119,9 @@ body :not(pre) > code:not(.sourceCode) { white-space: pre-wrap; overflow-wrap: a
 /* in a table cell, "anywhere" would shrink the column to a character and
    split calls such as f(); the table scrolls instead */
 body :is(td, th) code:not(.sourceCode) { overflow-wrap: break-word; }
+/* in a definition term, break between calls; split a call only when it
+   is wider than the term column */
+body dt code:not(.sourceCode) { overflow-wrap: break-word; }
 
 /* Inline code: an ink chip. The accent is reserved for links. */
 :not(pre) > code {
@@ -2372,6 +2377,10 @@ table.table { width: auto; margin-bottom: 2rem; border-top-color: var(--ink); bo
 /* -- Figures ------------------------------------------------------------- */
 figure,
 div.figure {
+  /* Bootstrap's .figure is inline-block, which pkgdown applies to knitr's
+     div.figure: its margins then add to the code block's instead of
+     collapsing, leaving a wide gap above every plot */
+  display: block;
   margin: 2rem 0 2.2rem;
   padding: 0;
   border: 0;
