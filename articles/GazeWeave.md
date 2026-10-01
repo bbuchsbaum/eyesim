@@ -7,13 +7,42 @@ library(dplyr)
 library(ggplot2)
 ```
 
-## The inferential object
+## The question GazeWeave answers
 
-GazeWeave asks whether a held-out gaze path identifies its study item.
-It does not average several similarity dimensions. For each permitted
-candidate template it fits the same declared registration policy,
-obtains a candidate score, calibrates candidate probabilities on inner
-held-out partitions of the outer-training trials, and reports
+Suppose a participant studies a series of images and later recalls each
+one while looking at a blank screen. If recall reinstates the way the
+image was viewed, the recall gaze path should carry information about
+which image is being remembered. GazeWeave measures how much.
+
+It treats this as an identification problem. For each recall path:
+
+1.  **Compare it with every candidate.** The candidates are a declared
+    pool of study images, typically all items studied by the same
+    participant (the *contrast*, set by `contrast_on`). Each candidate’s
+    encoding path is compared with the recall path, giving a score for
+    how well that candidate explains the recall.
+2.  **Turn the scores into probabilities.** The scores are converted
+    into one probability per candidate. Calibration decides how far the
+    scores are trusted, so that the probabilities are neither
+    overconfident nor timid.
+3.  **Ask how much the correct image gained.** The result is the
+    probability given to the correct image relative to the probability
+    it had before gaze was considered.
+
+Recall gaze is often shrunk and shifted relative to encoding gaze. You
+can declare a warp that corrects this before scoring; none is applied by
+default. Any warp, and the calibration, are learned from other trials,
+never from the recall being scored, and the same warp is applied to
+every candidate. Fitting on some trials and scoring others
+(cross-fitting) makes the final number an out-of-sample measure: a
+method that merely fits noise scores no better than zero on average.
+
+GazeWeave does not combine several similarity dimensions into a profile,
+as MultiMatch does. It produces one number per recall.
+
+## Scoring in bits
+
+The gain for the correct image is reported on a log scale:
 
 ``` math
 \mathrm{gaze\_info\_bits}
@@ -28,50 +57,30 @@ relative to its prior. With $`K`$ equally likely candidates, the maximum
 is $`\log_2 K`$. Negative values mean that gaze made the correct item
 less plausible.
 
-Replay (revision `"2026.10"`, the default) observes each recall fixation
-once, with its position and its duration, and scores a candidate by the
-total log likelihood of the recall. Evidence therefore grows with the
-number of recall fixations; there is no duration grid to choose. The
-frozen revision `"2026.08"` instead divided a duration-grid log
-likelihood by the number of grid bins.
-
-Under revision `"2026.10"` both engines calibrate candidate
-probabilities the same way (see
-[`?gaze_calibration_control`](https://bbuchsbaum.github.io/eyesim/reference/gaze_calibration_control.md)).
-Each held-out row gets its own temperature,
-$`T_i = T(\bar n / n_i)^\gamma`$, where $`n_i`$ counts the row’s
-evidence (Transport: duration-effective recall fixations; Replay: recall
-fixations). $`T`$ and $`\gamma \in [0, 1]`$ are fitted on inner held-out
-rows of the outer-training trials only. One global temperature made
-sparse recalls overconfident and rich recalls underconfident. This is
-calibration: it never changes the ranking of candidates within a row.
-The fit’s prior pulls only toward the declared candidate prior (less
-confidence), never toward a fixed temperature. A typicality offset (the
-default for Transport, opt-in for Replay) standardizes each candidate’s
-score against its scores on training recalls of other items, so that
-candidates which match generic, centre-biased gaze do not win by
-default; the adjusted scores are ranking scores, not normalised
-likelihoods. If a training contrast has fewer than four candidate items,
-Replay returns the declared prior (no inner calibration estimate) under
-`"2026.10"`, and temperature one under `"2026.08"`.
-
 `gaze_info_bits` is the sole primary endpoint. Coverage, spatial error,
-chronology, contraction, rank, and alignment stability are nested
-diagnostics that explain the score; they are not additional normalized
-outcomes.
+chronology, contraction, rank, and alignment stability are diagnostics
+nested within that score: they help explain it, but they are not further
+outcomes to test.
 
 ## Choose an engine deliberately
 
-The public workflows make two roles explicit:
+The two engines differ in how they compare a recall path with a
+candidate.
 
-- `"replay"` is the directional engine for encoding-to-recall studies.
-  It is a directional probability model in which recall is a mixture of
-  locally ordered replay, chunk restarts, and candidate-independent
-  background gaze.
-- Transport is the symmetric explanatory alignment engine. Use
-  [`gaze_transport_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_cv.md)
-  when neither path has a privileged direction and when one or several
-  separate study presentations may inform each candidate.
+- **Replay** (`engine = "replay"`) is directional. It models recall as a
+  replay of the encoding path: recall fixations mostly step forward
+  through the encoding sequence, sometimes restart at a new point, and
+  sometimes fall on background locations unrelated to the candidate. A
+  candidate’s score is the likelihood of the whole recall under this
+  model, so evidence accumulates with every recall fixation. Use it for
+  encoding-to-recall studies.
+- **Transport**
+  ([`gaze_transport_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_cv.md))
+  is symmetric. It finds the best alignment between the two paths,
+  matching fixations by position, penalizing disagreement in the order
+  of neighbouring fixations, and allowing only part of each path to be
+  matched. Use it when neither path has a privileged direction, or when
+  several study presentations should inform each candidate.
 
 There is no universal engine default. The common
 [`gaze_weave_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_weave_cv.md)
@@ -83,13 +92,6 @@ or
 Transport has a dedicated entry point because its episode identifiers
 and declared candidate priors are part of its estimand rather than
 optional plotting metadata.
-
-Earlier internal experiments were labelled Transport v1, v2, and v3.
-Those were development names, never released APIs. The edge-normalized
-estimator formerly labelled v3 is now simply Transport; the older
-implementations have been removed. Version labels remain in internal and
-frozen validation provenance so the historical evidence stays auditable;
-they do not identify selectable methods.
 
 The distinction affects interpretation. Replay’s braid contains
 posterior correspondence probabilities. Transport’s braid contains a
@@ -228,12 +230,27 @@ quantities explain the fitted replay but do not add up to
 
 ## Fit symmetric Transport
 
-Transport replaces path-length-diluted chronology with bounded directed
-local-edge disagreement. It integrates matched coverage under a fixed
-prior, separates source and reference selection from correspondence, and
-applies one candidate-invariant warp to every candidate in a held-out
-set. Its coupling is an optimized alignment correspondence. It is never
-a posterior replay probability.
+Transport aligns two paths by finding the cheapest way to match the
+fixations of one with the fixations of the other, with each fixation
+weighted by its duration. Three things enter the cost:
+
+- **Where.** Matched fixations should be close in space.
+- **Order.** Each fixation’s next few fixations (two by default; see
+  [`gaze_order_neighbours()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_order_neighbours.md))
+  should be matched to fixations that are also among the next few in the
+  other path; nearer neighbours count more. The order penalty is
+  averaged over these local links and bounded, so its weight does not
+  change with path length.
+- **How much.** Only part of each path needs to be matched. Which
+  fixations take part is chosen separately from how they correspond.
+  Rather than fixing the matched fraction, Transport integrates over a
+  range of fractions under a fixed prior (`coverage_prior`), so the
+  fractions that fit well dominate the result.
+
+As with Replay, any warp is learned out of fold and applied identically
+to every candidate. The resulting correspondence is the best alignment
+under this cost. It is not a posterior probability that one fixation
+replays another, which is what Replay’s braid shows.
 
 The example below turns each encoding path into two separate study
 presentations. The presentations are not concatenated: each candidate
@@ -415,7 +432,66 @@ installed package; the executable vignette above uses only generated
 paths. The `v3` in those frozen paths identifies the development court,
 not a selectable method.
 
+## How scores become probabilities
+
+Both engines convert candidate scores into probabilities the same way.
+This section describes the current model revision,
+`revision = "2026.10"`, the default in
+[`gaze_replay_spec()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_spec.md)
+and
+[`gaze_transport_spec()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_spec.md).
+The calibration controls are documented in
+[`?gaze_calibration_control`](https://bbuchsbaum.github.io/eyesim/reference/gaze_calibration_control.md).
+
+**Replay scores.** Replay observes each recall fixation once, with its
+position and its duration, and scores a candidate by the total log
+likelihood of the recall. Evidence therefore grows with the number of
+recall fixations, and there is no duration grid to choose. The frozen
+revision `"2026.08"` instead divided a duration-grid log likelihood by
+the number of grid bins.
+
+**Temperature.** Scores become probabilities through a softmax whose
+temperature sets how confident the probabilities are. One global
+temperature made sparse recalls overconfident and rich recalls
+underconfident, so each held-out row gets its own:
+
+``` math
+T_i = T\left(\frac{\bar n}{n_i}\right)^\gamma ,
+```
+
+where a row is one held-out recall, $`n_i`$ counts its evidence (Replay:
+the number of recall fixations; Transport: an effective count that
+equals the number of fixations when durations are equal and falls when a
+few long fixations dominate), and $`\bar n`$ is the geometric mean of
+that count over the calibration rows. $`T`$ and $`\gamma \in [0, 1]`$
+are fitted only on training trials, by a second cross-validation nested
+inside each training set. The fit is regularized toward the declared
+candidate prior, that is, toward less confidence, never toward a fixed
+temperature. Calibration changes how confident the probabilities are; it
+never changes the reported ranking of candidates (`template_rank`,
+`top1_credit`).
+
+**Typicality.** Some candidates match generic, centre-biased gaze well
+and would otherwise win by default. The typicality offset standardizes
+each candidate’s score against its scores on training recalls of other
+items. It is the default for Transport and opt-in for Replay. Adjusted
+scores are ranking scores, not normalized likelihoods, so do not read
+them as probabilities of the recall.
+
+**Small contrasts.** Inner calibration needs at least twice as many
+items per contrast as calibration folds (four with the default two
+folds). With fewer, or when the inner folds cannot be built, the engine
+returns the declared prior and the row scores zero bits. Under
+`"2026.08"`, Replay instead used temperature one.
+
 ## What the Transport courts support
+
+Earlier internal experiments were labelled Transport v1, v2, and v3.
+Those were development names, never released APIs. The estimator
+formerly labelled v3 is now simply Transport; the older implementations
+have been removed. Version labels remain in internal and frozen
+validation provenance so the historical evidence stays auditable; they
+do not identify selectable methods.
 
 The public frozen court passed representation, null calibration,
 chronology, coverage-refinement, registration, convergence, and

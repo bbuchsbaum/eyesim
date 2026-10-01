@@ -75,13 +75,45 @@
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
-<h2 id="the-inferential-object">The inferential object<a class="anchor" aria-label="anchor" href="#the-inferential-object"></a>
+<h2 id="the-question-gazeweave-answers">The question GazeWeave answers<a class="anchor" aria-label="anchor" href="#the-question-gazeweave-answers"></a>
 </h2>
-<p>GazeWeave asks whether a held-out gaze path identifies its study
-item. It does not average several similarity dimensions. For each
-permitted candidate template it fits the same declared registration
-policy, obtains a candidate score, calibrates candidate probabilities on
-inner held-out partitions of the outer-training trials, and reports</p>
+<p>Suppose a participant studies a series of images and later recalls
+each one while looking at a blank screen. If recall reinstates the way
+the image was viewed, the recall gaze path should carry information
+about which image is being remembered. GazeWeave measures how much.</p>
+<p>It treats this as an identification problem. For each recall
+path:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Compare it with every candidate.</strong> The candidates are
+a declared pool of study images, typically all items studied by the same
+participant (the <em>contrast</em>, set by <code>contrast_on</code>).
+Each candidate’s encoding path is compared with the recall path, giving
+a score for how well that candidate explains the recall.</li>
+<li>
+<strong>Turn the scores into probabilities.</strong> The scores are
+converted into one probability per candidate. Calibration decides how
+far the scores are trusted, so that the probabilities are neither
+overconfident nor timid.</li>
+<li>
+<strong>Ask how much the correct image gained.</strong> The result
+is the probability given to the correct image relative to the
+probability it had before gaze was considered.</li>
+</ol>
+<p>Recall gaze is often shrunk and shifted relative to encoding gaze.
+You can declare a warp that corrects this before scoring; none is
+applied by default. Any warp, and the calibration, are learned from
+other trials, never from the recall being scored, and the same warp is
+applied to every candidate. Fitting on some trials and scoring others
+(cross-fitting) makes the final number an out-of-sample measure: a
+method that merely fits noise scores no better than zero on average.</p>
+<p>GazeWeave does not combine several similarity dimensions into a
+profile, as MultiMatch does. It produces one number per recall.</p>
+</div>
+<div class="section level2">
+<h2 id="scoring-in-bits">Scoring in bits<a class="anchor" aria-label="anchor" href="#scoring-in-bits"></a>
+</h2>
+<p>The gain for the correct image is reported on a log scale:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">z</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">b</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">s</mi></mrow><mo>=</mo><msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>2</mn></msub><mfrac><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">t</mi></mrow><mo>∣</mo><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">z</mi><mi mathvariant="normal">e</mi></mrow><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">t</mi></mrow><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \mathrm{gaze\_info\_bits}
 =
@@ -95,56 +127,32 @@ relative to its prior. With
 equally likely candidates, the maximum is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>2</mn></msub><mi>K</mi></mrow><annotation encoding="application/x-tex">\log_2 K</annotation></semantics></math>.
 Negative values mean that gaze made the correct item less plausible.</p>
-<p>Replay (revision <code>"2026.10"</code>, the default) observes each
-recall fixation once, with its position and its duration, and scores a
-candidate by the total log likelihood of the recall. Evidence therefore
-grows with the number of recall fixations; there is no duration grid to
-choose. The frozen revision <code>"2026.08"</code> instead divided a
-duration-grid log likelihood by the number of grid bins.</p>
-<p>Under revision <code>"2026.10"</code> both engines calibrate
-candidate probabilities the same way (see
-<code><a href="../reference/gaze_calibration_control.html">?gaze_calibration_control</a></code>). Each held-out row gets its own
-temperature,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>i</mi></msub><mo>=</mo><mi>T</mi><mo stretchy="false" form="prefix">(</mo><mover><mi>n</mi><mo accent="true">‾</mo></mover><mi>/</mi><msub><mi>n</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mi>γ</mi></msup></mrow><annotation encoding="application/x-tex">T_i = T(\bar n / n_i)^\gamma</annotation></semantics></math>,
-where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>i</mi></msub><annotation encoding="application/x-tex">n_i</annotation></semantics></math>
-counts the row’s evidence (Transport: duration-effective recall
-fixations; Replay: recall fixations).
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>∈</mo><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\gamma \in [0, 1]</annotation></semantics></math>
-are fitted on inner held-out rows of the outer-training trials only. One
-global temperature made sparse recalls overconfident and rich recalls
-underconfident. This is calibration: it never changes the ranking of
-candidates within a row. The fit’s prior pulls only toward the declared
-candidate prior (less confidence), never toward a fixed temperature. A
-typicality offset (the default for Transport, opt-in for Replay)
-standardizes each candidate’s score against its scores on training
-recalls of other items, so that candidates which match generic,
-centre-biased gaze do not win by default; the adjusted scores are
-ranking scores, not normalised likelihoods. If a training contrast has
-fewer than four candidate items, Replay returns the declared prior (no
-inner calibration estimate) under <code>"2026.10"</code>, and
-temperature one under <code>"2026.08"</code>.</p>
 <p><code>gaze_info_bits</code> is the sole primary endpoint. Coverage,
 spatial error, chronology, contraction, rank, and alignment stability
-are nested diagnostics that explain the score; they are not additional
-normalized outcomes.</p>
+are diagnostics nested within that score: they help explain it, but they
+are not further outcomes to test.</p>
 </div>
 <div class="section level2">
 <h2 id="choose-an-engine-deliberately">Choose an engine deliberately<a class="anchor" aria-label="anchor" href="#choose-an-engine-deliberately"></a>
 </h2>
-<p>The public workflows make two roles explicit:</p>
+<p>The two engines differ in how they compare a recall path with a
+candidate.</p>
 <ul>
 <li>
-<code>"replay"</code> is the directional engine for
-encoding-to-recall studies. It is a directional probability model in
-which recall is a mixture of locally ordered replay, chunk restarts, and
-candidate-independent background gaze.</li>
-<li>Transport is the symmetric explanatory alignment engine. Use
-<code><a href="../reference/gaze_transport_cv.html">gaze_transport_cv()</a></code> when neither path has a privileged
-direction and when one or several separate study presentations may
-inform each candidate.</li>
+<strong>Replay</strong> (<code>engine = "replay"</code>) is
+directional. It models recall as a replay of the encoding path: recall
+fixations mostly step forward through the encoding sequence, sometimes
+restart at a new point, and sometimes fall on background locations
+unrelated to the candidate. A candidate’s score is the likelihood of the
+whole recall under this model, so evidence accumulates with every recall
+fixation. Use it for encoding-to-recall studies.</li>
+<li>
+<strong>Transport</strong> (<code><a href="../reference/gaze_transport_cv.html">gaze_transport_cv()</a></code>) is
+symmetric. It finds the best alignment between the two paths, matching
+fixations by position, penalizing disagreement in the order of
+neighbouring fixations, and allowing only part of each path to be
+matched. Use it when neither path has a privileged direction, or when
+several study presentations should inform each candidate.</li>
 </ul>
 <p>There is no universal engine default. The common
 <code><a href="../reference/gaze_weave_cv.html">gaze_weave_cv()</a></code> dispatcher accepts
@@ -153,12 +161,6 @@ also infers the engine from <code><a href="../reference/gaze_replay_spec.html">g
 <code><a href="../reference/gaze_transport_spec.html">gaze_transport_spec()</a></code>. Transport has a dedicated entry
 point because its episode identifiers and declared candidate priors are
 part of its estimand rather than optional plotting metadata.</p>
-<p>Earlier internal experiments were labelled Transport v1, v2, and v3.
-Those were development names, never released APIs. The edge-normalized
-estimator formerly labelled v3 is now simply Transport; the older
-implementations have been removed. Version labels remain in internal and
-frozen validation provenance so the historical evidence stays auditable;
-they do not identify selectable methods.</p>
 <p>The distinction affects interpretation. Replay’s braid contains
 posterior correspondence probabilities. Transport’s braid contains a
 regularized optimum; its diffuseness is partly controlled by numerical
@@ -288,12 +290,31 @@ templates.</p>
 <div class="section level2">
 <h2 id="fit-symmetric-transport">Fit symmetric Transport<a class="anchor" aria-label="anchor" href="#fit-symmetric-transport"></a>
 </h2>
-<p>Transport replaces path-length-diluted chronology with bounded
-directed local-edge disagreement. It integrates matched coverage under a
-fixed prior, separates source and reference selection from
-correspondence, and applies one candidate-invariant warp to every
-candidate in a held-out set. Its coupling is an optimized alignment
-correspondence. It is never a posterior replay probability.</p>
+<p>Transport aligns two paths by finding the cheapest way to match the
+fixations of one with the fixations of the other, with each fixation
+weighted by its duration. Three things enter the cost:</p>
+<ul>
+<li>
+<strong>Where.</strong> Matched fixations should be close in
+space.</li>
+<li>
+<strong>Order.</strong> Each fixation’s next few fixations (two by
+default; see <code><a href="../reference/gaze_order_neighbours.html">gaze_order_neighbours()</a></code>) should be matched to
+fixations that are also among the next few in the other path; nearer
+neighbours count more. The order penalty is averaged over these local
+links and bounded, so its weight does not change with path length.</li>
+<li>
+<strong>How much.</strong> Only part of each path needs to be
+matched. Which fixations take part is chosen separately from how they
+correspond. Rather than fixing the matched fraction, Transport
+integrates over a range of fractions under a fixed prior
+(<code>coverage_prior</code>), so the fractions that fit well dominate
+the result.</li>
+</ul>
+<p>As with Replay, any warp is learned out of fold and applied
+identically to every candidate. The resulting correspondence is the best
+alignment under this cost. It is not a posterior probability that one
+fixation replays another, which is what Replay’s braid shows.</p>
 <p>The example below turns each encoding path into two separate study
 presentations. The presentations are not concatenated: each candidate
 receives the mean of its two calibrated episode likelihoods. The
@@ -456,8 +477,64 @@ generated paths. The <code>v3</code> in those frozen paths identifies
 the development court, not a selectable method.</p>
 </div>
 <div class="section level2">
+<h2 id="how-scores-become-probabilities">How scores become probabilities<a class="anchor" aria-label="anchor" href="#how-scores-become-probabilities"></a>
+</h2>
+<p>Both engines convert candidate scores into probabilities the same
+way. This section describes the current model revision,
+<code>revision = "2026.10"</code>, the default in
+<code><a href="../reference/gaze_replay_spec.html">gaze_replay_spec()</a></code> and <code><a href="../reference/gaze_transport_spec.html">gaze_transport_spec()</a></code>.
+The calibration controls are documented in
+<code><a href="../reference/gaze_calibration_control.html">?gaze_calibration_control</a></code>.</p>
+<p><strong>Replay scores.</strong> Replay observes each recall fixation
+once, with its position and its duration, and scores a candidate by the
+total log likelihood of the recall. Evidence therefore grows with the
+number of recall fixations, and there is no duration grid to choose. The
+frozen revision <code>"2026.08"</code> instead divided a duration-grid
+log likelihood by the number of grid bins.</p>
+<p><strong>Temperature.</strong> Scores become probabilities through a
+softmax whose temperature sets how confident the probabilities are. One
+global temperature made sparse recalls overconfident and rich recalls
+underconfident, so each held-out row gets its own:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>i</mi></msub><mo>=</mo><mi>T</mi><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mover><mi>n</mi><mo accent="true">‾</mo></mover><msub><mi>n</mi><mi>i</mi></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>γ</mi></msup><mo>,</mo></mrow><annotation encoding="application/x-tex">
+T_i = T\left(\frac{\bar n}{n_i}\right)^\gamma ,
+</annotation></semantics></math></p>
+<p>where a row is one held-out recall,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>i</mi></msub><annotation encoding="application/x-tex">n_i</annotation></semantics></math>
+counts its evidence (Replay: the number of recall fixations; Transport:
+an effective count that equals the number of fixations when durations
+are equal and falls when a few long fixations dominate), and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>n</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar n</annotation></semantics></math>
+is the geometric mean of that count over the calibration rows.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>∈</mo><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\gamma \in [0, 1]</annotation></semantics></math>
+are fitted only on training trials, by a second cross-validation nested
+inside each training set. The fit is regularized toward the declared
+candidate prior, that is, toward less confidence, never toward a fixed
+temperature. Calibration changes how confident the probabilities are; it
+never changes the reported ranking of candidates
+(<code>template_rank</code>, <code>top1_credit</code>).</p>
+<p><strong>Typicality.</strong> Some candidates match generic,
+centre-biased gaze well and would otherwise win by default. The
+typicality offset standardizes each candidate’s score against its scores
+on training recalls of other items. It is the default for Transport and
+opt-in for Replay. Adjusted scores are ranking scores, not normalized
+likelihoods, so do not read them as probabilities of the recall.</p>
+<p><strong>Small contrasts.</strong> Inner calibration needs at least
+twice as many items per contrast as calibration folds (four with the
+default two folds). With fewer, or when the inner folds cannot be built,
+the engine returns the declared prior and the row scores zero bits.
+Under <code>"2026.08"</code>, Replay instead used temperature one.</p>
+</div>
+<div class="section level2">
 <h2 id="what-the-transport-courts-support">What the Transport courts support<a class="anchor" aria-label="anchor" href="#what-the-transport-courts-support"></a>
 </h2>
+<p>Earlier internal experiments were labelled Transport v1, v2, and v3.
+Those were development names, never released APIs. The estimator
+formerly labelled v3 is now simply Transport; the older implementations
+have been removed. Version labels remain in internal and frozen
+validation provenance so the historical evidence stays auditable; they
+do not identify selectable methods.</p>
 <p>The public frozen court passed representation, null calibration,
 chronology, coverage-refinement, registration, convergence, and
 perturbation gates. Reversal sensitivity stayed stable across the
