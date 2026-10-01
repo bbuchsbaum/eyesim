@@ -65,7 +65,7 @@ fg <- fixation_group(
 )
 ```
 
-```{r plot-fixation-group, echo = FALSE, fig.cap = "Three fixations. Point size reflects duration; color reflects onset time (dark purple = early, green = late)."}
+```{r plot-fixation-group, fig.height = 3.4, echo = FALSE, fig.cap = "Three fixations. Point size reflects duration; color reflects onset time (dark purple = early, green = late)."}
 plot(fg)
 ```
 
@@ -84,7 +84,7 @@ fg <- fixation_group(
 )
 ```
 
-```{r plot-random-fixations, echo = FALSE, fig.cap = "25 randomly placed fixations."}
+```{r plot-random-fixations, fig.width = 5.6, echo = FALSE, fig.cap = "25 randomly placed fixations."}
 plot(fg)
 ```
 
@@ -93,7 +93,7 @@ plot(fg)
 Individual points can be hard to interpret. Density maps show you where
 fixations cluster. The `plot()` method supports several display styles:
 
-```{r density-types, fig.width = 9, fig.cap = "Three density visualizations: contour, raster, and filled contour."}
+```{r density-types, fig.width = 9, fig.height = 2.5, fig.cap = "Three density visualizations: contour, raster, and filled contour."}
 p1 <- plot(fg, typ = "contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
 p2 <- plot(fg, typ = "raster", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
 p3 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 35)
@@ -103,7 +103,7 @@ p1 + p2 + p3
 The `bandwidth` parameter controls the smoothing level. Higher values blur
 out fine detail and emphasize broad patterns:
 
-```{r density-bandwidth, fig.width = 9, fig.cap = "Effect of bandwidth: narrow (20), medium (60), and wide (100)."}
+```{r density-bandwidth, fig.width = 9, fig.height = 2.5, fig.cap = "Effect of bandwidth: narrow (20), medium (60), and wide (100)."}
 p1 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 20)
 p2 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 60)
 p3 <- plot(fg, typ = "filled_contour", xlim = c(-10, 110), ylim = c(-10, 110), bandwidth = 100)
@@ -136,7 +136,7 @@ fg2 <- fixation_group(
 )
 ```
 
-```{r plot-pair, fig.width = 8, echo = FALSE, fig.cap = "Two fixation patterns sharing roughly half their locations."}
+```{r plot-pair, fig.width = 8, fig.height = 3.6, echo = FALSE, fig.cap = "Two fixation patterns sharing roughly half their locations."}
 plot(fg1) + plot(fg2)
 ```
 

@@ -30,3 +30,4 @@ test_data
 ^inst/validation/gaze-weave-transport-v3-retrieval-results$
 vignettes/Overview\.html$
 ^inst/validation/gaze-weave-density-delta-results$
+^\.albersdown\.bak$

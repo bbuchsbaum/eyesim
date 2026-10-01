@@ -71,4 +71,5 @@ Suggests:
     transport
 VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/
-Config/Needs/website: albersdown
+Config/Needs/website:
+    bbuchsbaum/albersdown
