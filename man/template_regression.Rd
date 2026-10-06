@@ -10,7 +10,8 @@ template_regression(
   match_on,
   baseline_tab,
   baseline_key,
-  method = c("lm", "rlm", "rank")
+  method = c("lm", "rlm", "rank"),
+  density_var = "density"
 )
 }
 \arguments{
@@ -33,6 +34,9 @@ The selected method will be used for the regression analysis.
 - "lm": Linear regression (default).
 - "rlm": Robust linear regression.
 - "rank": Rank-based correlation.}
+
+\item{density_var}{Name of the column holding the density maps in all three
+tables (default `"density"`, the `result_name` used by \code{\link{density_by}}).}
 }
 \value{
 A data frame with the source table augmented with two new columns, beta_baseline and beta_source,

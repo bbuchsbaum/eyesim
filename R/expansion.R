@@ -14,7 +14,7 @@
 #' @keywords internal
 #' @importFrom pracma hausdorff_dist
 #' @importFrom stats optim
-estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
+estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window=NULL) {
 
   if (!is.null(window)) {
     y <- subset(y, onset >= window[1] & onset < window[2])
@@ -27,15 +27,15 @@ estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
   #  x <- subset(y, onset >= window_y[1] & onset < window_y[2])
   #}
 
-  cx <- as.matrix(x[,1:2])
-  cy <- as.matrix(y[,1:2])
+  cx <- as.matrix(x[, c("x", "y")])
+  cy <- as.matrix(y[, c("x", "y")])
   par <- c(1,1)
   f <- function(p) {
     newy <- cy %*% diag(c(p[1],p[2]))
     pracma::hausdorff_dist(newy,cx)
   }
 
-  ret <- optim(par, f, lower=lower, upper=upper, method="L-BFGS")
+  ret <- optim(par, f, lower=lower, upper=upper, method="L-BFGS-B")
 }
 
 
@@ -64,7 +64,7 @@ estimate_scale <- function(x, y, lower=c(.1,.1), upper=c(10,10), window) {
 #' @importFrom purrr pmap
 match_scale <- function(ref_tab, source_tab, match_on,
                         refvar="fixgroup",sourcevar="fixgroup",
-                        window,...) {
+                        window=NULL,...) {
   if (!is.null(window) ) {
     assertthat::assert_that(window[2] > window[1])
   }
@@ -82,7 +82,7 @@ match_scale <- function(ref_tab, source_tab, match_on,
     . <- list(...)
     d1 <- ref_tab[[refvar]][[.$matchind]]
     d2 <- .[[sourcevar]]
-    res=estimate_scale(d1, d2, window=window)
+    res <- estimate_scale(d1, d2, window=window, ...)
     tibble(scale_x=res$par[1], scale_y=res$par[2])
   }) %>% bind_rows()
 

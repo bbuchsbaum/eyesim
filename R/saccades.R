@@ -33,7 +33,10 @@ rad2deg <- function(rad) {(rad * 180) / (pi)}
 #' @examples
 #' calcangle(c(1, 2), c(2, 2))
 calcangle <- function(x1, x2) {
-  rad2deg(acos(sum(x1 * x2) / (norm(x1, "2") * norm(x2, "2"))))
+  # Clamp: rounding can push the cosine of (anti)parallel vectors just past
+  # +/-1, where acos() returns NaN.
+  cosang <- sum(x1 * x2) / (norm(x1, "2") * norm(x2, "2"))
+  rad2deg(acos(pmin(1, pmax(-1, cosang))))
 }
 
 
@@ -93,6 +96,11 @@ add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...)
 #' # Create a scanpath for the fixation group using the S3 generic
 #' scanpath_obj <- scanpath(fg)
 scanpath.fixation_group <- function(x,...) {
+  # Saccades join consecutive fixations in time, so order rows by onset first
+  # (stable, so tied onsets keep their input order).
+  if (is.unsorted(x$onset, na.rm = TRUE)) {
+    x <- x[order(x$onset), , drop = FALSE]
+  }
 
   lenx <- diff(x$x)
   leny <- diff(x$y)

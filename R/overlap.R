@@ -16,7 +16,8 @@
 #' @return A list containing the following elements:
 #' \describe{
 #'   \item{overlap}{The number of overlapping fixations between the two fixation groups.}
-#'   \item{perc}{The percentage of overlapping fixations.}
+#'   \item{perc}{The proportion of time points at which both groups have a fixation that
+#'     overlap (time points before either group's first fixation are not counted).}
 #' }
 #'
 #' @examples
@@ -43,6 +44,9 @@ fixation_overlap <- function(x, y, dthresh=60, time_samples=seq(0, max(c(x$onset
 
   d <- proxy::dist(fx1[,1:2], fx2[,1:2], pairwise=TRUE, method=method)
   overlap <- sum(d[!is.na(d)] < dthresh)
-  perc <- overlap/length(d)
+  # Time points before either group's first fixation have no gaze position to
+  # compare, so they are left out of the denominator.
+  n_compared <- sum(!is.na(d))
+  perc <- if (n_compared > 0) overlap/n_compared else NA_real_
   list(overlap = overlap, perc = perc)
 }

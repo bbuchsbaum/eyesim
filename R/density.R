@@ -4,6 +4,7 @@
 #'
 #' @param x A data frame containing fixations and additional grouping variables.
 #' @param groups A character vector specifying the grouping variables to use.
+#'   If `NULL` (the default), a single density map is computed over all rows.
 #' @param sigma A numeric value or a numeric vector specifying the bandwidth(s) for the kernel density estimation. If a vector is provided, multiscale densities are computed. Default is 50.
 #' @param xbounds A numeric vector of length 2 specifying the x-axis bounds for the density calculation (default is c(0, 1000)).
 #' @param ybounds A numeric vector of length 2 specifying the y-axis bounds for the density calculation (default is c(0, 1000)).
@@ -38,7 +39,7 @@
 #' @import rlang
 #' @importFrom dplyr group_by group_split bind_rows
 #' @importFrom tibble as_tibble
-density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
+density_by <- function(x, groups=NULL, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
                        duration_weighted=TRUE, window=NULL, min_fixations=2,
                        keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
 
@@ -50,7 +51,7 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
   rname <- rlang::sym(result_name)
   vars <- c(groups, keep_vars)
 
-  if (!missing(groups) && !is.null(groups) ) {
+  if (!is.null(groups)) {
     ret_list <- x %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(groups))) %>%
       dplyr::group_split() %>%
@@ -103,7 +104,8 @@ density_by <- function(x, groups, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 100
 #'   bounds. Used to scale the estimate relative to display size.
 #'
 #' @return A single numeric value representing the suggested sigma
-#'   (kernel standard deviation in coordinate units).
+#'   (kernel standard deviation in coordinate units), or `NA` when there are
+#'   fewer than two fixations or, without display bounds, no spread.
 #'
 #' @details
 #' The function uses a 2D Silverman rule: \eqn{\sigma = n^{-1/6} \cdot
@@ -134,7 +136,7 @@ suggest_sigma <- function(x, y = NULL, xbounds = NULL, ybounds = NULL) {
   iqr_x <- IQR(xvals)
   iqr_y <- IQR(yvals)
 
-  # 2D Silverman rule: use geometric mean of IQRs, scaled by n^{-1/6}
+  # 2D Silverman rule: use the quadratic mean of the IQRs, scaled by n^{-1/6}
   spread <- sqrt((iqr_x^2 + iqr_y^2) / 2) / 1.349
   sigma <- spread * n^(-1/6)
 
@@ -144,6 +146,10 @@ suggest_sigma <- function(x, y = NULL, xbounds = NULL, ybounds = NULL) {
     sigma <- max(sigma, display_scale * 0.01)  # at least 1% of display
     sigma <- min(sigma, display_scale * 0.15)  # at most 15% of display
   }
+
+  # Without bounds to clamp against, coincident fixations give a zero spread,
+  # which is not a usable bandwidth.
+  if (!is.finite(sigma) || sigma <= 0) return(NA_real_)
 
   sigma
 }

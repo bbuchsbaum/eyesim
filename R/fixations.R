@@ -39,7 +39,7 @@ fixation_group <- function(x, y, duration, onset, group=0) {
 
   assert_that(length(x) == length(duration))
 
-  ret <- tibble(index=1:length(x),
+  ret <- tibble(index=seq_along(x),
                 x=x,y=y, duration=duration,
                 onset=onset, group_index=group)
   class(ret) <- c("fixation_group", class(ret))
@@ -55,7 +55,7 @@ rep_fixations.fixation_group <- function(x, resolution=100) {
   counts <- x$duration * resolution
   nreps <- as.integer(floor(counts + sqrt(.Machine$double.eps) * pmax(1, abs(counts))))
   nreps[nreps < 1] <- 1L
-  x <- x[rep(1:nrow(x), nreps),]
+  x <- x[rep(seq_len(nrow(x)), nreps),]
   x
 }
 

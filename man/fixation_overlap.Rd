@@ -27,7 +27,8 @@ fixation_overlap(
 A list containing the following elements:
 \describe{
   \item{overlap}{The number of overlapping fixations between the two fixation groups.}
-  \item{perc}{The percentage of overlapping fixations.}
+  \item{perc}{The proportion of time points at which both groups have a fixation that
+    overlap (time points before either group's first fixation are not counted).}
 }
 }
 \description{
