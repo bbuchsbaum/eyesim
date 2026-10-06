@@ -507,9 +507,14 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
           augmented, reference, source, spatial_cost, coverage, spec, entropy
         )
         augmented <- stage$augmented
-        final_change <- stage$final_change
-        final_objective_change <- stage$final_objective_change
-        final_step <- stage$final_step
+        # Keep the last accepted step across stages, as the native backend
+        # does: a stage that takes no step (stationary at its input plan)
+        # leaves final_step NA, which would make the residual NA.
+        if (is.finite(stage$final_step)) {
+          final_change <- stage$final_change
+          final_objective_change <- stage$final_objective_change
+          final_step <- stage$final_step
+        }
         history[[length(history) + 1L]] <- c(
           stage$history, list(start = start_name)
         )

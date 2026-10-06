@@ -2,7 +2,6 @@
 #include <string>
 
 // [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp11)]]
 
 namespace {
 
@@ -919,7 +918,8 @@ Rcpp::List transport_v3_profile_native_cpp(
         any_maxit = any_maxit || (!stage_converged && !stalled);
         Rcpp::List entry = Rcpp::List::create(
           Rcpp::Named("entropy") = entropy,
-          Rcpp::Named("iterations") = iteration,
+          // A loop that runs to maxit leaves iteration at maxit + 1.
+          Rcpp::Named("iterations") = std::min(iteration, maxit),
           Rcpp::Named("converged") = stage_converged,
           Rcpp::Named("coupling_change") = final_change,
           Rcpp::Named("relative_objective_change") = final_objective_change,

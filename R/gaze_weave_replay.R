@@ -1001,7 +1001,10 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
       stop("Replay contrast_on columns must exist in both training tables.")
     }
     source_contrast <- gaze_key(source_tab, contrast_on, "contrast_on")
-    groups_per_stratum <- table(source_contrast)
+    # Inner folds split on match_on, so count distinct items, not rows.
+    groups_per_stratum <- tapply(
+      source_key, source_contrast, function(key) length(unique(key))
+    )
     calibration_folds <- spec$calibration$folds
     enough_for_inner_candidates <- all(
       groups_per_stratum >= 2L * calibration_folds
@@ -1823,8 +1826,8 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
   }
   fit_mask <- resolve_gaze_weave_filter(source_tab, fit_source_filter, "fit_source_filter")
   eval_mask <- resolve_gaze_weave_filter(source_tab, eval_source_filter, "eval_source_filter")
-  folds <- make_gaze_weave_folds(
-    source_tab, split_on, contrast_on, n_folds, seed
+  folds <- make_gaze_weave_candidate_folds(
+    source_tab, split_on, contrast_on, n_folds, seed, match_on, eval_mask
   )
 
   fold_results <- vector("list", folds$n_folds)

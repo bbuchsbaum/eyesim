@@ -28,17 +28,13 @@ transport_v3_linear_oracle <- function(gradient, reference_mass, source_mass,
   }
   n_reference <- length(reference_mass)
   n_source <- length(source_mass)
-  n_variables <- n_reference * n_source
-  constraints <- matrix(0, n_reference + n_source + 1L, n_variables)
-  for (reference_index in seq_len(n_reference)) {
-    indices <- reference_index + (seq_len(n_source) - 1L) * n_reference
-    constraints[reference_index, indices] <- 1
-  }
-  for (source_index in seq_len(n_source)) {
-    indices <- seq_len(n_reference) + (source_index - 1L) * n_reference
-    constraints[n_reference + source_index, indices] <- 1
-  }
-  constraints[n_reference + n_source + 1L, ] <- 1
+  # Rows: reference marginals, source marginals, total mass. Variables are the
+  # coupling in column-major order, so variable r + (s - 1) * n_reference.
+  constraints <- rbind(
+    kronecker(matrix(1, 1L, n_source), diag(n_reference)),
+    kronecker(diag(n_source), matrix(1, 1L, n_reference)),
+    1
+  )
   solution <- lpSolve::lp(
     direction = "min",
     objective.in = as.vector(gradient),
