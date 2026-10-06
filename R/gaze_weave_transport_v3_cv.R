@@ -318,18 +318,116 @@ transport_v3_row_warp <- function(warp, source_row, spec) {
   subset_gaze_warp_model(warp, group)
 }
 
-score_transport_v3_cv_row <- function(
-    source_row, ref_tab, match_on, contrast_on, refvar, sourcevar,
-    episode_on, priorvar, spec, warp, temperature = 1, kappa = 0) {
-  bank <- transport_v3_reference_bank(
-    ref_tab, source_row, match_on, contrast_on, refvar, episode_on, priorvar
+# Memo for one gaze_transport_cv() call ------------------------------------
+#
+# Under the identity warp, aligning a source row to a reference episode reads
+# nothing fold-specific, yet every outer fold's inner calibration and
+# typicality re-solve the same pairs. `alignments` keeps the first solution,
+# bucketed by source row and candidate and matched on identical reference,
+# source and warp. A fitted warp changes by fold, so it gets no alignment memo.
+# `episodes` keeps each candidate's prepared reference episodes, which never
+# depend on the fold.
+new_transport_v3_cv_cache <- function(spec) {
+  list(
+    episodes = new.env(parent = emptyenv()),
+    alignments = if (identical(spec$warp$type, "none")) {
+      new.env(parent = emptyenv())
+    }
   )
-  row_warp <- transport_v3_row_warp(warp, source_row, spec)
+}
+
+transport_v3_cached_episodes <- function(episodes, candidate_key, chronology,
+                                         cache = NULL) {
+  if (is.null(cache)) {
+    return(prepare_transport_v3_episodes(episodes, chronology))
+  }
+  entry <- cache$episodes[[candidate_key]]
+  if (!is.null(entry) && identical(entry$episodes, episodes)) {
+    return(entry$prepared)
+  }
+  prepared <- prepare_transport_v3_episodes(episodes, chronology)
+  cache$episodes[[candidate_key]] <- list(
+    episodes = episodes, prepared = prepared
+  )
+  prepared
+}
+
+# Re-signal what a memoized solve signalled (a backend fallback record and
+# warning), so fallback counts and warnings match an unmemoized run.
+transport_v3_replay_conditions <- function(conditions) {
+  for (condition in conditions) {
+    if (inherits(condition, "warning")) {
+      warning(condition)
+    } else if (inherits(condition, "message")) {
+      message(condition)
+    } else {
+      signalCondition(condition)
+    }
+  }
+  invisible(NULL)
+}
+
+transport_v3_row_aligner <- function(row_warp, row_id = NULL, cache = NULL) {
   aligner <- function(reference, source, spec, candidate_key) {
     gaze_transport_align(
       reference, source, spec, warp_model = row_warp,
       candidate_key = candidate_key
     )
+  }
+  memo <- cache$alignments
+  if (is.null(memo) || length(row_id) != 1L ||
+      !identical(row_warp$type, "none")) {
+    return(aligner)
+  }
+  function(reference, source, spec, candidate_key) {
+    bucket <- paste(row_id, candidate_key, sep = "\r")
+    entries <- memo[[bucket]]
+    for (entry in entries) {
+      if (identical(entry$reference, reference) &&
+          identical(entry$source, source) &&
+          identical(entry$warp, row_warp)) {
+        transport_v3_replay_conditions(entry$conditions)
+        return(entry$result)
+      }
+    }
+    conditions <- list()
+    result <- withCallingHandlers(
+      aligner(reference, source, spec, candidate_key),
+      condition = function(condition) {
+        if (!inherits(condition, c("error", "interrupt"))) {
+          conditions[[length(conditions) + 1L]] <<- condition
+        }
+      }
+    )
+    memo[[bucket]] <- c(entries, list(list(
+      reference = reference, source = source, warp = row_warp,
+      result = result, conditions = conditions
+    )))
+    result
+  }
+}
+
+score_transport_v3_cv_row <- function(
+    source_row, ref_tab, match_on, contrast_on, refvar, sourcevar,
+    episode_on, priorvar, spec, warp, temperature = 1, kappa = 0,
+    cache = NULL) {
+  bank <- transport_v3_reference_bank(
+    ref_tab, source_row, match_on, contrast_on, refvar, episode_on, priorvar
+  )
+  row_warp <- transport_v3_row_warp(warp, source_row, spec)
+  aligner <- transport_v3_row_aligner(
+    row_warp, source_row$..gaze_row_id, cache
+  )
+  reference_candidates <- bank$candidates
+  if (!is.null(cache)) {
+    reference_candidates <- stats::setNames(lapply(
+      bank$candidate_keys, function(candidate_key) {
+        transport_v3_cached_episodes(
+          bank$candidates[[candidate_key]], candidate_key, spec$chronology,
+          cache
+        )
+      }
+    ), bank$candidate_keys)
   }
   quality <- transport_v3_path_quality(source_row[[sourcevar]][[1L]])
   reliability <- if (identical(spec$reliability, "effective_fixations")) {
@@ -339,7 +437,7 @@ score_transport_v3_cv_row <- function(
   }
   scored <- score_transport_v3_episode_candidates(
     source = source_row[[sourcevar]][[1L]],
-    reference_candidates = bank$candidates,
+    reference_candidates = reference_candidates,
     chronology = spec$chronology,
     spec = spec,
     true_key = bank$true_key,
@@ -430,7 +528,7 @@ transport_v3_identity_calibration <- function(spec, reason) {
 # held-out label.
 transport_v3_typicality <- function(
     candidate_keys, ref_tab, train_source, match_on, contrast_on, refvar,
-    sourcevar, episode_on, spec, warp) {
+    sourcevar, episode_on, spec, warp, cache = NULL) {
   control <- spec$calibration$control
   item_on <- gaze_typicality_item_on(control, match_on, contrast_on)
   ref_key <- gaze_key(ref_tab, match_on, "match_on")
@@ -443,8 +541,11 @@ transport_v3_typicality <- function(
   source_item <- train_item[source_rows]
   source_measure <- lapply(sources[[sourcevar]], as_gaze_measure,
                            chronology = spec$chronology)
-  source_warp <- lapply(seq_len(nrow(sources)), function(j) {
-    transport_v3_row_warp(warp, sources[j, , drop = FALSE], spec)
+  source_aligner <- lapply(seq_len(nrow(sources)), function(j) {
+    transport_v3_row_aligner(
+      transport_v3_row_warp(warp, sources[j, , drop = FALSE], spec),
+      sources$..gaze_row_id[[j]], cache
+    )
   })
   offsets <- vector("list", length(candidate_keys))
   names(offsets) <- candidate_keys
@@ -457,8 +558,9 @@ transport_v3_typicality <- function(
     } else {
       gaze_key(ref_tab[rows, , drop = FALSE], episode_on, "episode_on")
     }
-    prepared <- prepare_transport_v3_episodes(
-      stats::setNames(ref_tab[[refvar]][rows], episode_id), spec$chronology
+    prepared <- transport_v3_cached_episodes(
+      stats::setNames(ref_tab[[refvar]][rows], episode_id),
+      candidate_keys[[index]], spec$chronology, cache
     )
     item <- unique(ref_item[rows])
     episode_scores <- list()
@@ -467,11 +569,7 @@ transport_v3_typicality <- function(
       result <- score_transport_v3_episode_candidate(
         source_measure[[j]], prepared, spec,
         candidate_key = candidate_keys[[index]],
-        aligner = function(reference, source, spec, candidate_key) {
-          gaze_transport_align(reference, source, spec,
-                               warp_model = source_warp[[j]],
-                               candidate_key = candidate_key)
-        }
+        aligner = source_aligner[[j]]
       )
       scores <- result$diagnostics$episode_scores
       episode_scores[[as.character(j)]] <- scores
@@ -584,7 +682,8 @@ transport_v3_reference_rank <- function(scored) {
 
 fit_transport_v3_inner_calibration <- function(
     ref_tab, source_tab, match_on, contrast_on, refvar, sourcevar,
-    episode_on, priorvar, spec, fold_contrast_on = contrast_on) {
+    episode_on, priorvar, spec, fold_contrast_on = contrast_on,
+    cache = NULL) {
   source_key <- gaze_key(source_tab, match_on, "match_on")
   inner <- tryCatch(
     make_gaze_weave_folds(
@@ -633,7 +732,7 @@ fit_transport_v3_inner_calibration <- function(
     for (row in eval_rows) {
       scored <- score_transport_v3_cv_row(
         source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
-        refvar, sourcevar, episode_on, priorvar, spec, warp
+        refvar, sourcevar, episode_on, priorvar, spec, warp, cache = cache
       )
       profiles[[row]] <- scored$profile
       true_index[[row]] <- scored$true_index
@@ -646,7 +745,8 @@ fit_transport_v3_inner_calibration <- function(
       candidate_keys <- unique(unlist(lapply(profiles[eval_rows], names)))
       offsets <- transport_v3_typicality(
         candidate_keys, ref_tab, source_tab[train_rows, , drop = FALSE],
-        match_on, contrast_on, refvar, sourcevar, episode_on, spec, warp
+        match_on, contrast_on, refvar, sourcevar, episode_on, spec, warp,
+        cache = cache
       )
       for (row in eval_rows) {
         profiles[[row]] <- gaze_typicality_adjust(profiles[[row]], offsets)
@@ -783,6 +883,7 @@ gaze_transport_cv <- function(
   folds <- make_gaze_weave_folds(
     source_tab, split_on, contrast_on, n_folds, seed
   )
+  cache <- new_transport_v3_cv_cache(spec)
   fold_results <- vector("list", folds$n_folds)
   fold_info <- vector("list", folds$n_folds)
   all_evidence <- list()
@@ -817,7 +918,8 @@ gaze_transport_cv <- function(
     )
     inner <- fit_transport_v3_inner_calibration(
       ref_tab, source_tab[train_rows, , drop = FALSE], match_on,
-      contrast_on, refvar, sourcevar, episode_on, priorvar, spec
+      contrast_on, refvar, sourcevar, episode_on, priorvar, spec,
+      cache = cache
     )
     calibration <- inner$calibration
     typicality_fold <- NULL
@@ -830,14 +932,15 @@ gaze_transport_cv <- function(
       })))
       typicality_fold <- transport_v3_typicality(
         candidate_keys, ref_tab, source_tab[train_rows, , drop = FALSE],
-        match_on, contrast_on, refvar, sourcevar, episode_on, spec, warp
+        match_on, contrast_on, refvar, sourcevar, episode_on, spec, warp,
+        cache = cache
       )
     }
     scored <- lapply(eval_rows, function(row) {
       if (evidence_scaled) {
         row_scored <- score_transport_v3_cv_row(
           source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
-          refvar, sourcevar, episode_on, priorvar, spec, warp
+          refvar, sourcevar, episode_on, priorvar, spec, warp, cache = cache
         )
         return(transport_v3_calibrated_evidence(
           row_scored, calibration, typicality_fold,
@@ -848,7 +951,7 @@ gaze_transport_cv <- function(
         source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
         refvar, sourcevar, episode_on, priorvar, spec, warp,
         temperature = calibration$temperature,
-        kappa = calibration$kappa
+        kappa = calibration$kappa, cache = cache
       )
       if (reference_rank) {
         row_scored <- transport_v3_reference_rank(row_scored)
