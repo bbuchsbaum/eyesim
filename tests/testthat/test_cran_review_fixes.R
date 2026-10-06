@@ -25,14 +25,6 @@ test_that("density_by works without groups", {
   expect_s3_class(res$density[[1]], "eye_density")
 })
 
-test_that("scanpath orders fixations by onset", {
-  sorted <- fixation_group(x = c(0, 100, 100), y = c(0, 0, 100),
-                           onset = c(0, 200, 400), duration = rep(200, 3))
-  shuffled <- sorted[c(3, 1, 2), ]
-  expect_equal(scanpath(shuffled)$lenx, scanpath(sorted)$lenx)
-  expect_equal(scanpath(shuffled)$theta, scanpath(sorted)$theta)
-})
-
 test_that("fixation_overlap ignores time before the first fixation", {
   fg <- fixation_group(x = c(100, 200, 300), y = c(100, 200, 300),
                        onset = c(1000, 2000, 3000), duration = rep(1000, 3))

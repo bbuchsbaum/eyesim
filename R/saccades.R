@@ -83,7 +83,10 @@ add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...)
 
 #' Create a Scanpath for a Fixation Group
 #'
-#' This function creates a scanpath for a fixation group.
+#' This function creates a scanpath for a fixation group. Saccades join
+#' consecutive rows, so rows should be in temporal order. Rows are not
+#' re-sorted by onset: a group that pools several viewings (onsets restarting
+#' at each viewing) keeps each viewing's fixations together.
 #'
 #' @param x A fixation group object.
 #' @param ... Additional arguments (currently unused).
@@ -96,12 +99,6 @@ add_scanpath.eye_table <- function(x, outvar="scanpath", fixvar="fixgroup", ...)
 #' # Create a scanpath for the fixation group using the S3 generic
 #' scanpath_obj <- scanpath(fg)
 scanpath.fixation_group <- function(x,...) {
-  # Saccades join consecutive fixations in time, so order rows by onset first
-  # (stable, so tied onsets keep their input order).
-  if (is.unsorted(x$onset, na.rm = TRUE)) {
-    x <- x[order(x$onset), , drop = FALSE]
-  }
-
   lenx <- diff(x$x)
   leny <- diff(x$y)
 

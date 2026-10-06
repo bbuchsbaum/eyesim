@@ -18,8 +18,6 @@
   emdist.
 * The internal CRQA wrapper passed the fixation index instead of `y` to
   `crqa::crqa()` and ignored `delay`, `embed`, `rescale` and `metric`.
-* `scanpath()` orders fixations by onset before computing saccades, so
-  unsorted fixation groups give correct saccade vectors and MultiMatch scores.
 * `fixation_overlap()` (and `similarity(method = "overlap")`) no longer counts
   time points before the first fixation in the denominator of `perc`.
 * `density_by()` works without `groups` (default `NULL`).
