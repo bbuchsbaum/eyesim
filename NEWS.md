@@ -43,6 +43,14 @@
 * Density legend labels fall back to `>=` in non-UTF-8 locales instead of
   erroring.
 
+## Performance
+
+* `template_similarity()`, `fixation_similarity()` and the other similarity
+  wrappers no longer run future's automatic globals scan over the whole
+  source table on every call (about 0.4 s per call, even under the default
+  sequential plan). Results and random streams are unchanged, including under
+  parallel `future` plans.
+
 ## Packaging
 
 * `src/Makevars` links LAPACK/BLAS (`arma::solve` needs them) and no longer

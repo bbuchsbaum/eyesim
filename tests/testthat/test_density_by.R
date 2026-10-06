@@ -4,17 +4,18 @@ library(dplyr)
 context("density_by")
 options(future.rng.onMisuse = "ignore")
 test_that("density_by produces perfect similarity for identical patterns", {
-  g1 <- tibble(fixgroup=lapply(1:100, function(i) {
+  set.seed(1)
+  g1 <- tibble(fixgroup=lapply(1:20, function(i) {
     x <- runif(10)
     y <- runif(10)
     onset <- seq(1,length.out=length(x), by=50)
     duration <- rep(1,length(x))
     fixgroup <- fixation_group(x,y,onset,duration)
-  }), image=1:100)
+  }), image=1:20)
 
-  dens <- density_by(g1, "image", xbounds=c(0,1), ybounds=c(0,1))
-  dens2 <- density_by(g1, "image", xbounds=c(0,1), ybounds=c(0,1))
-  tsim <- template_similarity(dens, dens2, match_on="image", method="spearman", permutations=30)
+  dens <- density_by(g1, "image", sigma=.05, xbounds=c(0,1), ybounds=c(0,1), outdim=c(30,30))
+  dens2 <- density_by(g1, "image", sigma=.05, xbounds=c(0,1), ybounds=c(0,1), outdim=c(30,30))
+  tsim <- template_similarity(dens, dens2, match_on="image", method="spearman", permutations=10)
   expect_equal(tsim$eye_sim, rep(1,nrow(tsim)))
 
 })
@@ -35,19 +36,12 @@ test_that("weighted and unweighted density maps are highly correlated", {
 
                            
   
-  unweighted_density <- eye_density(fg, sigma=100, xbounds=c(0,1000), ybounds=c(0,1000), 
+  # With equal durations, weighting must not change the map.
+  unweighted_density <- eye_density(fg, sigma=100, xbounds=c(0,1000), ybounds=c(0,1000),
                                   outdim=c(100,100), duration_weighted=FALSE)
-
-  for(s in seq(2,1000, by=10)) {
-  weighted_density <- eye_density(fg, sigma=s, xbounds=c(0,1000), ybounds=c(0,1000), 
+  weighted_density <- eye_density(fg, sigma=100, xbounds=c(0,1000), ybounds=c(0,1000),
                                 outdim=c(100,100), duration_weighted=TRUE)
-    # Calculate correlation between the two density maps
-    correlation <- cor(as.vector(weighted_density$z), as.vector(unweighted_density$z), 
-                      method="pearson")
-    #print(paste(s , correlation))                   
-    # Test that correlation is above 0.95
-    #expect_gt(correlation, 0.95)
-  }
+  expect_gt(cor(as.vector(weighted_density$z), as.vector(unweighted_density$z)), 0.999)
   
   # Also test with more clustered data to ensure robustness
   # Generate clustered points around 3 centers

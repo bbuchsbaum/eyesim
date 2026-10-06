@@ -231,7 +231,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       # If no permutation tests, return the observed similarity in scalar or expanded-vector form.
       format_similarity_result(sim, expand_vector = expand_vector_output)
     }
-  }, .options=furrr::furrr_options(seed = TRUE)) %>% dplyr::bind_rows() # Combine the results of each row in the source table into a single tibble
+  }, .options=furrr::furrr_options(seed = TRUE, globals = FALSE)) %>% dplyr::bind_rows() # Combine the results of each row in the source table into a single tibble
 
   # Bind the calculated similarity values to the source table and return the result
   source_tab %>% bind_cols(ret)
