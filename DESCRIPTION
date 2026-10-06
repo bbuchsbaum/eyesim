@@ -31,22 +31,21 @@ Imports:
     rlang (>= 0.4.11),
     S7,
     scales,
-    viridisLite
+    viridisLite,
+    grDevices,
+    grid,
+    stats,
+    utils
 LinkingTo:
     Rcpp,
     RcppArmadillo
-SystemRequirements: C++14
 Encoding: UTF-8
 LazyData: true
 LazyDataCompression: xz
-RoxygenNote: 7.3.3
-Remotes:
-    bbuchsbaum/colorplane
 Depends: 
     R (>= 3.5.0)
 Suggests:
     albersdown,
-    colorplane,
     covr,
     crqa,
     emdist,
@@ -73,3 +72,4 @@ VignetteBuilder: knitr
 URL: https://bbuchsbaum.github.io/eyesim/
 Config/Needs/website:
     bbuchsbaum/albersdown
+Config/roxygen2/version: 8.1.0
