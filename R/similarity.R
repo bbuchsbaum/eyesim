@@ -409,9 +409,8 @@ fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
   if (!is.null(window) ) {
     assertthat::assert_that(window[2] > window[1])
   }
-  message("fixation_similarity: similarity metric is ", method)
-
   method <- match.arg(method)
+  message("fixation_similarity: similarity metric is ", method)
   run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on, method, refvar, sourcevar, window, ...)
 
 }
@@ -1462,13 +1461,11 @@ eye_density.fixation_group <- function(x, sigma = 50,
     if (length(kde_args) > 0L) {
       stop("Additional arguments in `...` are passed to ks::kde() and are not supported when kde_pkg = \"MASS\".")
     }
-    message("ks package not found or not selected. Using MASS::kde2d (or custom kde2d_weighted if applicable).")
 
     # Check if weights are non-uniform (relevant if duration_weighted was TRUE)
     is_weighted_fallback <- length(unique(final_weights)) > 1
 
     if (is_weighted_fallback && exists("kde2d_weighted", mode = "function")) {
-        message("Using custom kde2d_weighted(). Ensure it handles weights appropriately.")
          kde_result <- tryCatch({
             kde2d_weighted(data_matrix[,1], data_matrix[,2], h = current_sigma, n = outdim, lims = c(xbounds, ybounds), w = final_weights) # Pass original determined weights
          }, error = function(e) {
@@ -1770,8 +1767,10 @@ compute_similarity <- function(x, y,
       r2 <- y$z - s_mat
       pos1 <- pmax(r1, 0); neg1 <- pmax(-r1, 0)
       pos2 <- pmax(r2, 0); neg2 <- pmax(-r2, 0)
-      emd_pos <- emdw(coords, as.vector(pos1), coords, as.vector(pos2))
-      emd_neg <- emdw(coords, as.vector(neg1), coords, as.vector(neg2))
+      # The residual masses differ between maps, so these are partial-matching
+      # EMDs on the raw masses (requires emdist).
+      emd_pos <- emdw(coords, as.vector(pos1), coords, as.vector(pos2), normalize = FALSE)
+      emd_neg <- emdw(coords, as.vector(neg1), coords, as.vector(neg2), normalize = FALSE)
       return(-(emd_pos + emd_neg))
     } else {
       emd_dist <- emdw(coords, wx, coords, wy)

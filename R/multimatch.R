@@ -1,5 +1,6 @@
-#' @noRd
-mmgaze <- NULL
+# Cache for the Python `multimatch_gaze` module, imported on first use.
+.mm_cache <- new.env(parent = emptyenv())
+
 emd_position_similarity <- function(fg1, fg2, screensize) {
   # Extract x and y coordinates
   points1 <- as.matrix(fg1[, c("x", "y")])
@@ -291,16 +292,18 @@ py_multi_match <- function(fg1, fg2,
                         tdur=.05,
                         tamp=100) {
 
-  if (!requireNamespace("reticulate")) {
+  if (!requireNamespace("reticulate", quietly = TRUE)) {
     stop("multi_match requires access to python library `multimatch_gaze` via `reticulate`, please install")
   }
 
-  if (!exists("mmgaze")) {
-    mmgaze <<- try(reticulate::import("multimatch_gaze"))
-    if (inherits(mmgaze, "try-error")) {
+  if (is.null(.mm_cache$mmgaze)) {
+    mod <- tryCatch(reticulate::import("multimatch_gaze"), error = function(e) NULL)
+    if (is.null(mod)) {
       stop("cannot load python module `multimatch_gaze`")
     }
+    .mm_cache$mmgaze <- mod
   }
+  mmgaze <- .mm_cache$mmgaze
 
   fg1 <- fg1 %>% arrange(onset)
   fg2 <- fg2 %>% arrange(onset)
@@ -321,39 +324,66 @@ py_multi_match <- function(fg1, fg2,
 
 #' Compute weighted Earth Mover's Distance (Wasserstein-1) between two 2-D point clouds.
 #'
-#' This helper tries to use the T4transport package (preferred) and falls back to the
-#' transport package if available. Points are supplied as two-column matrices with
-#' corresponding non-negative weights that need not sum to one (they will be
-#' normalised internally).
+#' Uses the exact solvers in emdist or transport when available, falling back
+#' to an entropic approximation from T4transport. Points are supplied as
+#' two-column matrices with corresponding non-negative weights. By default the
+#' weights need not sum to one: they are normalised internally, so every
+#' backend returns the same distance between the two distributions.
 #'
-#' @param x Matrix of coordinates (n \times 2).
+#' @param x Matrix of coordinates (n x 2).
 #' @param wx Numeric vector of weights for `x` (length n).
-#' @param y Matrix of coordinates (m \times 2).
+#' @param y Matrix of coordinates (m x 2).
 #' @param wy Numeric vector of weights for `y` (length m).
-#' @return A single numeric value – the Earth Mover's Distance.
+#' @param lambda Entropic regularisation, used only by the T4transport fallback.
+#' @param normalize If `FALSE`, keep the raw masses; unequal totals then give
+#'   Rubner's partial-matching EMD, which only emdist computes.
+#' @return A single numeric value: the Earth Mover's Distance (`NA` when one
+#'   side has no mass and the other does).
 #' @keywords internal
 #' @noRd
-emdw <- function(x, wx, y, wy, lambda = 0.01) {
-  # Prefer emdist::emdw if available
+emdw <- function(x, wx, y, wy, lambda = 0.01, normalize = TRUE) {
+  x <- as.matrix(x)
+  y <- as.matrix(y)
+  sx <- sum(wx)
+  sy <- sum(wy)
+  if (!is.finite(sx) || !is.finite(sy)) {
+    return(NA_real_)
+  }
+  if (sx <= 0 || sy <= 0) {
+    return(if (sx <= 0 && sy <= 0) 0 else NA_real_)
+  }
+
+  # Zero-mass points do not change the distance; dropping them keeps the
+  # cost matrix small (dense density grids are mostly near-zero cells).
+  kx <- wx > 0
+  ky <- wy > 0
+  x <- x[kx, , drop = FALSE]
+  y <- y[ky, , drop = FALSE]
+  wx <- wx[kx]
+  wy <- wy[ky]
+
+  if (!normalize) {
+    if (!requireNamespace("emdist", quietly = TRUE)) {
+      stop("Partial-matching EMD (normalize = FALSE) requires the 'emdist' package.")
+    }
+    return(emdist::emdw(x, wx, y, wy))
+  }
+
+  wx <- wx / sx
+  wy <- wy / sy
+
   if (requireNamespace("emdist", quietly = TRUE)) {
     return(emdist::emdw(x, wx, y, wy))
   }
 
-  # Fall back to T4transport if available
-  if (requireNamespace("T4transport", quietly = TRUE)) {
-    dmat <- proxy::dist(x, y)
-    wx <- wx / sum(wx)
-    wy <- wy / sum(wy)
-    return(T4transport::sinkhornD(dmat, wx = wx, wy = wy, lambda = lambda)$distance)
-  }
-
-  # Finally, attempt with transport package
   if (requireNamespace("transport", quietly = TRUE)) {
-    df1 <- data.frame(x = x[, 1], y = x[, 2], mass = wx / sum(wx))
-    df2 <- data.frame(x = y[, 1], y = y[, 2], mass = wy / sum(wy))
-    res <- transport::transport(df1, df2, p = 1)
-    return(sum(res$dist * res$mass))
+    return(transport::wasserstein(transport::wpp(x, wx), transport::wpp(y, wy), p = 1))
   }
 
-  stop("Could not compute EMD: please install the 'emdist', 'T4transport', or 'transport' package.")
+  if (requireNamespace("T4transport", quietly = TRUE)) {
+    dmat <- as.matrix(proxy::dist(x, y))
+    return(T4transport::sinkhornD(dmat, p = 1, wx = wx, wy = wy, lambda = lambda)$distance)
+  }
+
+  stop("Could not compute EMD: please install the 'emdist', 'transport', or 'T4transport' package.")
 }

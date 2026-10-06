@@ -195,7 +195,9 @@ apply_similarity_transform_model <- function(model, ref_tab, source_tab) {
         }
 
         src_rows <- which(group_keys$source == group_key)
-        adapted_src[src_rows, seq_len(group_model$k)] <- t(group_model$adapt %*% t(src_scores[src_rows, seq_len(group_model$k), drop = FALSE]))
+        # Scores are rows, so CORAL maps X -> X %*% Cs^{-1/2} %*% Ct^{1/2}, which
+        # gives the adapted scores the target covariance.
+        adapted_src[src_rows, seq_len(group_model$k)] <- src_scores[src_rows, seq_len(group_model$k), drop = FALSE] %*% group_model$adapt
       }
     }
 
@@ -544,6 +546,7 @@ fit_cca_model <- function(ref_tab, source_tab, match_on, refvar = "density", sou
 
     group_models[[group_label]] <- list(
       k = k_group,
+      k_in = k_use,
       ref_fit = ref_fit,
       src_fit = src_fit,
       xcoef = cca_fit$xcoef[, seq_len(k_group), drop = FALSE],
@@ -586,30 +589,46 @@ fit_cca_model <- function(ref_tab, source_tab, match_on, refvar = "density", sou
 apply_cca_model <- function(model, ref_tab, source_tab) {
   ref_scores <- project_transform_scores(model$pca_model, ref_tab, model$refvar)
   src_scores <- project_transform_scores(model$pca_model, source_tab, model$sourcevar)
+  # Fitted rows hold their group's canonical variates followed by zeros, so
+  # the output keeps the PCA width but similarity is never computed over a
+  # mix of canonical and PCA coordinates.
   ref_latent <- ref_scores
   src_latent <- src_scores
   group_keys <- transform_group_keys(ref_tab, source_tab, model$fit_by)
   group_levels <- union(unique(group_keys$ref), unique(group_keys$source))
+  unfitted <- character(0)
 
   for (group_key in group_levels) {
     group_label <- if (identical(group_key, "__all__")) "all" else group_key
     group_model <- model$group_models[[group_label]]
     if (is.null(group_model)) {
+      if (any(group_keys$source == group_key)) {
+        unfitted <- c(unfitted, group_label)
+      }
       next
     }
 
     ref_rows <- which(group_keys$ref == group_key)
     src_rows <- which(group_keys$source == group_key)
+    k_in <- if (is.null(group_model$k_in)) nrow(group_model$xcoef) else group_model$k_in
 
     if (length(ref_rows) > 0L) {
-      ref_all <- apply_scale_with_shrink(ref_scores[ref_rows, seq_len(group_model$k), drop = FALSE], group_model$ref_fit)
+      ref_all <- apply_scale_with_shrink(ref_scores[ref_rows, seq_len(k_in), drop = FALSE], group_model$ref_fit)
+      ref_latent[ref_rows, ] <- 0
       ref_latent[ref_rows, seq_len(group_model$k)] <- ref_all %*% group_model$xcoef
     }
 
     if (length(src_rows) > 0L) {
-      src_all <- apply_scale_with_shrink(src_scores[src_rows, seq_len(group_model$k), drop = FALSE], group_model$src_fit)
+      src_all <- apply_scale_with_shrink(src_scores[src_rows, seq_len(k_in), drop = FALSE], group_model$src_fit)
+      src_latent[src_rows, ] <- 0
       src_latent[src_rows, seq_len(group_model$k)] <- src_all %*% group_model$ycoef
     }
+  }
+
+  if (length(unfitted) > 0L) {
+    warning("cca_transform: no CCA model for group(s) ",
+            paste(unique(unfitted), collapse = ", "),
+            "; their rows keep PCA scores.", call. = FALSE)
   }
 
   ref_tab[[model$refvar]] <- split_rows(ref_latent)
@@ -662,12 +681,12 @@ vectorize_density_tab <- function(tab, var, expected_len = NULL) {
 
 mat_sqrt <- function(m) {
   ev <- eigen(m)
-  ev$vectors %*% diag(sqrt(pmax(ev$values, 0))) %*% t(ev$vectors)
+  ev$vectors %*% diag(sqrt(pmax(ev$values, 0)), nrow = length(ev$values)) %*% t(ev$vectors)
 }
 
 mat_inv_sqrt <- function(m, shrink) {
   ev <- eigen(m)
-  ev$vectors %*% diag(1 / sqrt(pmax(ev$values, shrink))) %*% t(ev$vectors)
+  ev$vectors %*% diag(1 / sqrt(pmax(ev$values, shrink)), nrow = length(ev$values)) %*% t(ev$vectors)
 }
 
 vectorize_density <- function(obj) {

@@ -598,7 +598,7 @@ test_that("cca_transform strict mode records insufficient groups without breakin
     )
   )
 
-  res <- cca_transform(
+  expect_warning(res <- cca_transform(
     ref_tab,
     source_tab,
     match_on = "id",
@@ -606,7 +606,7 @@ test_that("cca_transform strict mode records insufficient groups without breakin
     fit_by = "phase",
     unique_match_only = TRUE,
     shrink = 1e-6
-  )
+  ), "no CCA model for group\\(s\\) delay")
 
   group_notes <- stats::setNames(
     vapply(res$info$groups, `[[`, character(1), "note"),

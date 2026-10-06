@@ -21,7 +21,7 @@ globalVariables(unique(c(
   "duration", "index", "label", "level", "level_high", "level_low", "level_mid", "onset",
   "psize", "y",
   # py_multi_match:
-  "mmgaze", "onset",
+  "onset",
   # rescale.fixation_group:
   "y",
   # similarity.fixation_group:
