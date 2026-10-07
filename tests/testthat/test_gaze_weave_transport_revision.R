@@ -84,6 +84,8 @@ test_that("a specification saved at the base commit scores exactly as legacy", {
     stationary = -0.58519445915782109
   )
   pairs <- list(simple = simple, stationary = stationary)
+  # The stationary pair runs the legacy solver to its limit (~12 s per spec).
+  if (eyesim_on_cran()) pairs <- pairs["simple"]
   for (name in names(pairs)) {
     pair <- pairs[[name]]
     from_frozen <- gaze_transport_align(pair[[1]], pair[[2]], frozen)
@@ -230,6 +232,7 @@ transport_revision_pair118 <- function() {
 }
 
 test_that("a saturated mirror step never certifies a non-stationary node", {
+  skip_on_cran()
   skip_if_not(eyesim:::transport_v3_native_available())
   pair <- transport_revision_pair134()
   for (backend in c("optimized", "reference")) {
@@ -243,6 +246,7 @@ test_that("a saturated mirror step never certifies a non-stationary node", {
 })
 
 test_that("review pair 118 scores agree across mirror step sizes", {
+  skip_on_cran()
   # A regression check on one pair only; in general scores still depend on
   # step_size through the local optimum reached (see NEWS).
   skip_if_not(eyesim:::transport_v3_native_available())
@@ -342,6 +346,7 @@ test_that("an uncertifiable residual is recorded as a projection-limited stall",
 })
 
 test_that("auto records the backend and never falls back silently", {
+  skip_on_cran()
   skip_if_not(eyesim:::transport_v3_native_available())
   reference <- transport_revision_path(c(2, 5, 9), c(3, 7, 4))
   source <- transport_revision_path(c(2.4, 5.3, 8.6), c(3.2, 6.5, 4.4))
@@ -455,6 +460,7 @@ transport_revision_pair94 <- function() {
 }
 
 test_that("a plan with a zeroed support cell is not certified in place", {
+  skip_on_cran()
   pairs <- list(
     transport_revision_pair94(),
     list(
@@ -531,6 +537,7 @@ test_that("a plan with a zeroed support cell is not certified in place", {
 })
 
 test_that("cross-validation reports backend fallback counts", {
+  skip_on_cran()
   skip_if_not(eyesim:::transport_v3_native_available())
   make_path <- function(anchor, source = FALSE) {
     offset <- if (source) c(0.1, 0.05) else c(0, 0)
@@ -596,6 +603,7 @@ test_that("cross-validation reports backend fallback counts", {
 test_that("native and reference backends agree on random synthetic pairs", {
   skip_if_not(eyesim:::transport_v3_native_available())
   pairs <- transport_revision_pairs(10L, 2:5, seed = 20260924L)
+  pairs <- pairs[seq_len(cran_sample_size(10L, 3L))]
   optimized <- gaze_transport_spec(backend = "optimized")
   reference <- gaze_transport_spec(backend = "reference")
   for (pair in pairs) {
