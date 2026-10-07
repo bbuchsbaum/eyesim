@@ -32,7 +32,8 @@ wynn_study_image <- eye_table("CURRENT_FIX_X", "CURRENT_FIX_Y", duration="CURREN
 
 
 usethis::use_data(wynn_study, overwrite=TRUE)
-usethis::use_data(wynn_study_image, overwrite=TRUE)
+# wynn_study_image (study fixations pooled by image version, used by
+# pairsim.R) is no longer shipped: it is rebuilt here when needed.
 
 
 

@@ -126,5 +126,4 @@ reference:
   desc: Example datasets included with the package.
   contents:
   - wynn_study
-  - wynn_study_image
   - wynn_test

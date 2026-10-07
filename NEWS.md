@@ -64,6 +64,11 @@
 
 ## Packaging
 
+* The `wynn_study_image` dataset is removed to keep the package within CRAN's
+  size limit. It was unused, was documented as an image although it held
+  study fixations pooled by image version, and can be rebuilt from
+  `wynn_study` (see `data-raw/process_dat.R`).
+
 * `src/Makevars` links LAPACK/BLAS (`arma::solve` needs them) and no longer
   forces C++14; `SystemRequirements`, `Remotes` and the unused `colorplane`
   suggestion are removed; base packages used via `::` are declared.
