@@ -199,6 +199,7 @@ test_that("the inverse-temperature prior only pulls toward the declared prior", 
 })
 
 test_that("score-level nulls are neither above chance nor overconfident", {
+  skip_on_cran()
   # Inner calibration sets as small as a Replay fold's (16 rows, pools of
   # two); held-out pools of four.
   outcome <- calibration_with_seed(5, {
@@ -376,6 +377,7 @@ transport_small <- function() {
 }
 
 test_that("Transport fits the calibration on inner rows and scales by evidence", {
+  skip_on_cran()
   data <- transport_small()
   fit <- run_calibration_transport(data)
   results <- fit$results
@@ -399,6 +401,7 @@ test_that("Transport fits the calibration on inner rows and scales by evidence",
 })
 
 test_that("held-out labels never enter the Transport calibration", {
+  skip_on_cran()
   data <- transport_small()
   fit <- run_calibration_transport(data)
   # Swap the recalls of two held-out rows of the same participant and fold:
@@ -468,6 +471,7 @@ simulate_two_episode_transport <- function(seed, n_participants = 3,
 }
 
 test_that("multi-episode Transport top-1 and AUC do not depend on the calibration", {
+  skip_on_cran()
   data <- simulate_two_episode_transport(2)
   run <- function(control, reliability = "none") {
     gaze_transport_cv(
@@ -518,6 +522,7 @@ test_that("multi-episode Transport top-1 and AUC do not depend on the calibratio
 })
 
 test_that("typicality offsets use training recalls of other items only", {
+  skip_on_cran()
   data <- simulate_calibration_transport(4, 6, recall = "centre",
                                          layout = "mixed", seed = 3)
   fit <- run_calibration_transport(
@@ -689,6 +694,7 @@ run_calibration_replay <- function(data, ..., seed = 1) {
 }
 
 test_that("Replay fits an evidence-scaled calibration on recall fixation counts", {
+  skip_on_cran()
   data <- simulate_calibration_replay(3, 8, seed = 6)
   fit <- run_calibration_replay(data)
   results <- fit$results
@@ -707,6 +713,7 @@ test_that("Replay fits an evidence-scaled calibration on recall fixation counts"
 })
 
 test_that("relabelling a held-out row leaves Replay candidate scores unchanged", {
+  skip_on_cran()
   data <- simulate_calibration_replay(3, 8, recall = "centre",
                                       layout = "mixed", seed = 7)
   spec <- calibration_replay_spec(

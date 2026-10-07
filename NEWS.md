@@ -50,6 +50,17 @@
   source table on every call (about 0.4 s per call, even under the default
   sequential plan). Results and random streams are unchanged, including under
   parallel `future` plans.
+* `gaze_transport_cv()` solves each (source row, candidate) alignment once per
+  call under the identity warp instead of once per fold, and prepares each
+  candidate's reference episodes once (2.4-4x faster; results identical).
+* Replay's inner calibration fit prepares each row's loss once instead of on
+  every optimiser step (about 5x faster), and the revision 2026.08 transition
+  grid search builds each pair's emissions once rather than once per grid
+  point (about 3x faster). Results are identical.
+* `sample_density_time()` normalises each template and looks up each source
+  row's grid cells once, then reuses them for the observed value and every
+  permutation (about 25x faster on 200 rows x 100 permutations; results and
+  random streams identical).
 
 ## Packaging
 

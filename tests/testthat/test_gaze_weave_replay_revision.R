@@ -159,6 +159,7 @@ signal_model <- function() {
 }
 
 test_that("every Replay emission state integrates to one over the screen", {
+  skip_on_cran()
   model <- signal_model()
   nx <- 512L
   ny <- 384L
@@ -247,6 +248,7 @@ null_model <- function() {
 }
 
 test_that("a full null is fitted as background", {
+  skip_on_cran()
   data <- null_data()
   model <- null_model()
   # Long-run background share implied by the fitted two-level chain
@@ -423,6 +425,7 @@ ambiguous_null_fixture <- function(n_items = 2L, seed = 11L) {
 }
 
 test_that("scoring backgrounds never depend on which candidate is true", {
+  skip_on_cran()
   fixture <- ambiguous_null_fixture()
   all_layout <- do.call(rbind, fixture$layout)
   score_as <- function(recall, target) {
@@ -534,6 +537,7 @@ uniform_null_model <- function(grid_size, seed = 6L) {
 }
 
 test_that("a uniform on-screen null is fitted as background", {
+  skip_on_cran()
   model <- uniform_null_model(grid_size = 12L)
   bound <- min(revision_screen_w, revision_screen_h) / 6
 
@@ -542,6 +546,7 @@ test_that("a uniform on-screen null is fitted as background", {
 })
 
 test_that("a grid longer than the recalls no longer unidentifies the null", {
+  skip_on_cran()
   # Under the former duration-bin observation model a grid of 24 bins for
   # 12-fixation recalls repeated every fixation, and the uniform null was
   # fitted with a background share below 0.8. The fixation-level model
@@ -584,6 +589,7 @@ held_out_protocol_data <- function() {
 }
 
 test_that("participant holdout uses the population background and says so", {
+  skip_on_cran()
   data <- held_out_protocol_data()
   expect_message(
     fit <- gaze_replay_cv(
@@ -601,6 +607,7 @@ test_that("participant holdout uses the population background and says so", {
 })
 
 test_that("held-out support uses only non-candidate recalls of the participant", {
+  skip_on_cran()
   data <- held_out_protocol_data()
   spec <- gaze_replay_spec(
     grid_size = 16L, max_skip = 2L, student_df = 4, scale_floor = 6,
@@ -744,6 +751,7 @@ test_that("grids longer than the recall's fixation count change nothing", {
 })
 
 test_that("the participant-holdout message does not recommend held-out support", {
+  skip_on_cran()
   data <- held_out_protocol_data()
   messages <- character()
   withCallingHandlers(

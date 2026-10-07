@@ -306,6 +306,7 @@ test_that("training EM recovers spatial, occupancy and duration parameters", {
 })
 
 test_that("a uniform null at typical recall lengths is fitted as background", {
+  skip_on_cran()
   model <- fixation_uniform_model()
   signal_model <- fixation_signal_model()
   signal <- fixation_signal()
@@ -431,6 +432,7 @@ relabel_fixture <- function() {
 }
 
 test_that("candidate scores do not depend on which candidate is labelled true", {
+  skip_on_cran()
   fixture <- relabel_fixture()
   all_layout <- do.call(rbind, fixture$layout)
   score_as <- function(recall, target) {
