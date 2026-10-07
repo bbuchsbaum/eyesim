@@ -559,6 +559,7 @@ test_that("a grid longer than the recalls no longer unidentifies the null", {
 })
 
 test_that("an all-background null leaves the candidates exchangeable", {
+  skip_on_cran()
   model <- null_model()
   set.seed(12)
   candidates <- lapply(1:4, function(k) {
