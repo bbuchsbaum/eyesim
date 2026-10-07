@@ -289,6 +289,7 @@ test_that("episode template keys must be complete and unique", {
 })
 
 test_that("cross-fitted episode Replay keeps items disjoint and templates grouped", {
+  skip_on_cran()
   tabs <- make_gaze_weave_cv_tables()
   references <- dplyr::bind_rows(lapply(1:4, function(presentation) {
     part <- tabs$ref_tab

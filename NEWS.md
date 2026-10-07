@@ -1,5 +1,75 @@
 # eyesim 0.2.0.9000
 
+## Bug fixes (pre-CRAN review)
+
+* `coral_transform()` applied the CORAL map in the wrong order
+  (`X Ct^1/2 Cs^-1/2` instead of `X Cs^-1/2 Ct^1/2`), so adapted source scores
+  did not take on the reference covariance. Results from CORAL change.
+* `cca_transform()` left raw PCA scores in the columns after the canonical
+  variates, so similarity mixed two coordinate systems; those columns are now
+  zero. Rows of a group with no fitted CCA model keep PCA scores and now
+  raise a warning. Single-component latent models no longer build the wrong
+  matrix square root.
+* `emdw()` (EMD used by `similarity(method = "emd")` and MultiMatch position
+  EMD) now normalises weights for every backend, so emdist, transport and
+  T4transport agree; zero-mass cells are dropped first, which makes EMD on
+  density grids much cheaper. The transport fallback, which errored, works.
+  The saliency-residual EMD keeps raw masses (partial matching) and requires
+  emdist.
+* The internal CRQA wrapper passed the fixation index instead of `y` to
+  `crqa::crqa()` and ignored `delay`, `embed`, `rescale` and `metric`.
+* `fixation_overlap()` (and `similarity(method = "overlap")`) no longer counts
+  time points before the first fixation in the denominator of `perc`.
+* `density_by()` works without `groups` (default `NULL`).
+* `calcangle()` no longer returns `NaN` for (anti)parallel vectors.
+* `suggest_sigma()` returns `NA` rather than `0` when coincident fixations give
+  no spread and no display bounds are supplied.
+* `template_regression()` gains `density_var` and gives a clear error when a
+  source row has no baseline map.
+* `fixation_group()` and `rep_fixations()` accept empty groups.
+* `gaze_replay_cv()` and `gaze_baseline_cv()` lower the default `n_folds`
+  when a fold would otherwise hold fewer than two candidate items in a
+  contrast stratum (previously an error), and give a clear error for an
+  explicit `n_folds` that does. Replay's inner calibration counts distinct
+  items, not rows, when deciding whether inner folds are possible.
+* Transport: the native backend no longer accepts a log-domain fallback plan
+  under `projection_method = "standard"` (such specifications now use the
+  reference backend, as `"log"` does); reference-backend stationarity is no
+  longer `NA` when the last entropy stage takes no step; native iteration
+  counts no longer report `maxit + 1`; prepared paths built under a different
+  chronology are rejected.
+* The Python MultiMatch bridge (`multimatch_gaze`) now actually imports the
+  module.
+* Density legend labels fall back to `>=` in non-UTF-8 locales instead of
+  erroring.
+
+## Performance
+
+* `template_similarity()`, `fixation_similarity()` and the other similarity
+  wrappers no longer run future's automatic globals scan over the whole
+  source table on every call (about 0.4 s per call, even under the default
+  sequential plan). Results and random streams are unchanged, including under
+  parallel `future` plans.
+* `gaze_transport_cv()` solves each (source row, candidate) alignment once per
+  call under the identity warp instead of once per fold, and prepares each
+  candidate's reference episodes once (2.4-4x faster; results identical).
+* Replay's inner calibration fit prepares each row's loss once instead of on
+  every optimiser step (about 5x faster), and the revision 2026.08 transition
+  grid search builds each pair's emissions once rather than once per grid
+  point (about 3x faster). Results are identical.
+* `sample_density_time()` normalises each template and looks up each source
+  row's grid cells once, then reuses them for the observed value and every
+  permutation (about 25x faster on 200 rows x 100 permutations; results and
+  random streams identical).
+
+## Packaging
+
+* `src/Makevars` links LAPACK/BLAS (`arma::solve` needs them) and no longer
+  forces C++14; `SystemRequirements`, `Remotes` and the unused `colorplane`
+  suggestion are removed; base packages used via `::` are declared.
+
+## Other changes
+
 * Plot titles, subtitles and captions wrap to the width they are drawn at,
   in lines of even length (new `element_text_wrap()`, used by
   `theme_eyesim()`), so long GazeWeave titles no longer run off narrow

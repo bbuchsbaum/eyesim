@@ -626,9 +626,22 @@ gaze_hmm_forward_backward <- function(log_emission, initial, transition) {
   )
 }
 
-gaze_replay_forward_backward <- function(log_emission, replay_transition) {
-  n_time <- nrow(log_emission)
-  n_states <- ncol(log_emission)
+# Row-scaled emissions: they depend only on the emissions, not on the
+# transition, so a transition grid search computes them once per pair.
+gaze_replay_scale_emissions <- function(log_emission) {
+  emission_max <- apply(log_emission, 1, max)
+  list(
+    max = emission_max,
+    scaled = exp(sweep(log_emission, 1, emission_max, FUN = "-"))
+  )
+}
+
+# Scaled forward pass; its log likelihood is the full-data log likelihood.
+gaze_replay_forward <- function(emission, replay_transition) {
+  emission_max <- emission$max
+  emission_scaled <- emission$scaled
+  n_time <- nrow(emission_scaled)
+  n_states <- ncol(emission_scaled)
   n_reference <- n_states - 1L
   reference_mass <- replay_transition$reference_mass
   parameters <- replay_transition$parameters
@@ -639,8 +652,6 @@ gaze_replay_forward_backward <- function(log_emission, replay_transition) {
   }
 
   forward <- matrix(0, n_time, n_states)
-  emission_max <- apply(log_emission, 1, max)
-  emission_scaled <- exp(sweep(log_emission, 1, emission_max, FUN = "-"))
   scale <- numeric(n_time)
 
   unnormalized <- replay_transition$initial * emission_scaled[1, ]
@@ -665,6 +676,31 @@ gaze_replay_forward_backward <- function(log_emission, replay_transition) {
       log_likelihood <- log_likelihood + emission_max[[time]] + log(scale[[time]])
     }
   }
+
+  list(
+    log_likelihood = log_likelihood,
+    forward = forward,
+    scaling = scale,
+    emission_scaled = emission_scaled,
+    reference_mass = reference_mass,
+    parameters = parameters,
+    local = local
+  )
+}
+
+gaze_replay_forward_backward <- function(log_emission, replay_transition) {
+  pass <- gaze_replay_forward(
+    gaze_replay_scale_emissions(log_emission), replay_transition
+  )
+  n_time <- nrow(log_emission)
+  n_states <- ncol(log_emission)
+  forward <- pass$forward
+  scale <- pass$scaling
+  log_likelihood <- pass$log_likelihood
+  emission_scaled <- pass$emission_scaled
+  reference_mass <- pass$reference_mass
+  parameters <- pass$parameters
+  local <- pass$local
 
   backward <- matrix(1, n_time, n_states)
   expected_restart <- numeric(max(n_time - 1L, 0L))
@@ -726,16 +762,30 @@ fit_gaze_replay_emission <- function(pairs, grid_size, scale_floor) {
   )
 }
 
-gaze_replay_pair_alignment <- function(reference, registered_source,
-                                       emission_model, parameters, spec,
-                                       grid = NULL) {
+# The duration grid and emissions of a pair do not depend on the transition
+# parameters, so the transition grid search prepares them once per pair.
+gaze_replay_pair_emissions <- function(reference, registered_source,
+                                       emission_model, spec, grid = NULL) {
   if (is.null(grid)) {
     grid <- gaze_duration_grid(registered_source, spec$grid_size)
   }
-  transition <- gaze_replay_transition(reference$mass, parameters, spec$max_skip)
-  log_emission <- gaze_replay_emissions(
-    reference, grid, emission_model, spec$student_df
+  list(
+    grid = grid,
+    log_emission = gaze_replay_emissions(
+      reference, grid, emission_model, spec$student_df
+    )
   )
+}
+
+gaze_replay_pair_alignment <- function(reference, registered_source,
+                                       emission_model, parameters, spec,
+                                       grid = NULL) {
+  prepared <- gaze_replay_pair_emissions(
+    reference, registered_source, emission_model, spec, grid
+  )
+  grid <- prepared$grid
+  log_emission <- prepared$log_emission
+  transition <- gaze_replay_transition(reference$mass, parameters, spec$max_skip)
   fit <- gaze_replay_forward_backward(log_emission, transition)
 
   replay_posterior <- fit$posterior[, -1, drop = FALSE]
@@ -959,17 +1009,34 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
       KEEP.OUT.ATTRS = FALSE,
       stringsAsFactors = FALSE
     )
+    # Emissions do not depend on the transition candidate, and the mean log
+    # score needs only the forward pass: prepare the emissions once per pair.
+    episode_emissions <- lapply(episodes, function(episode) {
+      grid <- gaze_duration_grid(episode$source, spec$grid_size)
+      lapply(episode$references, function(reference) {
+        gaze_replay_scale_emissions(gaze_replay_pair_emissions(
+          reference,
+          episode$source,
+          emission_models[[episode$group]],
+          spec,
+          grid = grid
+        )$log_emission)
+      })
+    })
     candidate_log_likelihood <- vapply(seq_len(nrow(candidates)), function(index) {
       parameters <- as.list(candidates[index, , drop = FALSE])
-      sum(vapply(episodes, function(episode) {
-        component_score <- vapply(episode$references, function(reference) {
-          gaze_replay_pair_alignment(
-            reference,
-            episode$source,
-            emission_models[[episode$group]],
-            parameters,
-            spec
-          )$mean_log_score
+      sum(vapply(seq_along(episodes), function(e) {
+        references <- episodes[[e]]$references
+        component_score <- vapply(seq_along(references), function(r) {
+          transition <- gaze_replay_transition(
+            references[[r]]$mass, parameters, spec$max_skip
+          )
+          gaze_replay_mean_log_score(
+            gaze_replay_forward(
+              episode_emissions[[e]][[r]], transition
+            )$log_likelihood,
+            spec$grid_size
+          )
         }, numeric(1))
         gaze_replay_log_mixture(component_score)$log_score
       }, numeric(1)))
@@ -1001,7 +1068,10 @@ fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
       stop("Replay contrast_on columns must exist in both training tables.")
     }
     source_contrast <- gaze_key(source_tab, contrast_on, "contrast_on")
-    groups_per_stratum <- table(source_contrast)
+    # Inner folds split on match_on, so count distinct items, not rows.
+    groups_per_stratum <- tapply(
+      source_key, source_contrast, function(key) length(unique(key))
+    )
     calibration_folds <- spec$calibration$folds
     enough_for_inner_candidates <- all(
       groups_per_stratum >= 2L * calibration_folds
@@ -1823,8 +1893,8 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
   }
   fit_mask <- resolve_gaze_weave_filter(source_tab, fit_source_filter, "fit_source_filter")
   eval_mask <- resolve_gaze_weave_filter(source_tab, eval_source_filter, "eval_source_filter")
-  folds <- make_gaze_weave_folds(
-    source_tab, split_on, contrast_on, n_folds, seed
+  folds <- make_gaze_weave_candidate_folds(
+    source_tab, split_on, contrast_on, n_folds, seed, match_on, eval_mask
   )
 
   fold_results <- vector("list", folds$n_folds)

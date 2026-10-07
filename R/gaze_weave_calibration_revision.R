@@ -344,6 +344,25 @@ gaze_calibration_row_loss <- function(profile, beta, prior, true_index) {
   -log_posterior[[true_index]]
 }
 
+# gaze_calibration_row_loss() as a function of beta for one fixed row. The
+# calibration fit evaluates each row's loss hundreds of times, so when every
+# candidate has one finite score (the logit is then beta * score exactly and
+# input checks always pass) the prior and scores are prepared once. Other
+# rows use gaze_calibration_row_loss() itself. Both give the same value.
+gaze_calibration_row_loss_fn <- function(profile, prior, true_index) {
+  scores <- if (all(lengths(profile) == 1L)) unlist(profile, use.names = FALSE)
+  if (is.null(scores) || !is.numeric(scores) || any(!is.finite(scores))) {
+    return(function(beta) {
+      gaze_calibration_row_loss(profile, beta, prior, true_index)
+    })
+  }
+  log_prior <- log(normalize_gaze_prior(prior, length(scores)))
+  function(beta) {
+    log_weight <- log_prior + if (beta == 0) 0 else beta * scores
+    -(log_weight[[true_index]] - gaze_log_sum_exp(log_weight))
+  }
+}
+
 # Fit (beta, gamma) on inner out-of-fold rows.
 #
 # profiles: list over rows of lists over candidates of numeric scores
@@ -375,13 +394,15 @@ fit_gaze_evidence_calibration <- function(profiles, true_index, evidence,
   prior_sd <- control$inverse_temperature_prior_sd
   penalty_scale <- if (is.infinite(prior_sd)) 0 else 1 / (2 * n * prior_sd^2)
 
+  row_losses <- lapply(seq_len(n), function(i) {
+    gaze_calibration_row_loss_fn(profiles[[i]], prior_sets[[i]],
+                                 true_index[[i]])
+  })
   loss <- function(standard_beta, gamma) {
     beta <- pmin(standard_beta / score_scale * relative^gamma,
                  1 / temperature_bounds[[1L]])
-    mean(vapply(seq_len(n), function(i) {
-      gaze_calibration_row_loss(profiles[[i]], beta[[i]], prior_sets[[i]],
-                                true_index[[i]])
-    }, numeric(1)))
+    mean(vapply(seq_len(n), function(i) row_losses[[i]](beta[[i]]),
+                numeric(1)))
   }
   objective <- function(standard_beta, gamma) {
     loss(standard_beta, gamma) + penalty_scale * standard_beta^2

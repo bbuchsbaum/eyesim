@@ -234,7 +234,7 @@ density_scale <- function(colours = NULL, transform = "identity",
       out[!keep] <- ""
       if (overflow) {
         # the step from the limit up takes everything at or above it
-        out[idx == last] <- paste0("\u2265 ", format_limit(x[idx == last]))
+        out[idx == last] <- paste0(geq_symbol(), format_limit(x[idx == last]))
         out[seq_along(x) == length(x)] <- ""
       }
       out
@@ -254,7 +254,7 @@ density_scale <- function(colours = NULL, transform = "identity",
       args$labels <- function(x) {
         out <- format_density(x)
         top <- !is.na(x) & abs(x - upper) <= upper * 1e-9
-        out[top] <- paste0("\u2265 ", format_limit(x[top]))
+        out[top] <- paste0(geq_symbol(), format_limit(x[top]))
         out
       }
     }
@@ -319,4 +319,10 @@ soft_wrap <- function(text, width = 90,
   }
   text <- gsub(" = ", paste0(glue, "=", glue), text, fixed = TRUE)
   gsub(glue, " ", paste(strwrap(text, width = width), collapse = "\n"), fixed = TRUE)
+}
+
+# ">=" sign for legend labels. The Unicode sign cannot be drawn in a
+# non-UTF-8 locale (grid errors converting it), so fall back to ASCII there.
+geq_symbol <- function() {
+  if (isTRUE(l10n_info()[["UTF-8"]])) "\u2265 " else ">= "
 }

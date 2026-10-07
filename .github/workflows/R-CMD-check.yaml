@@ -15,6 +15,8 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       _R_CHECK_FORCE_SUGGESTS_: false
+      # Run the full suite in CI, including tests marked skip_on_cran().
+      NOT_CRAN: true
     steps:
       - uses: actions/checkout@v4
 

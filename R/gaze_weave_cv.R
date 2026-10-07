@@ -81,6 +81,45 @@ make_gaze_weave_folds <- function(source_tab, split_on, contrast_on = NULL,
   )
 }
 
+# Folds for methods that score each held-out row only against the candidates
+# in its own fold (Replay and the baseline court): every fold x contrast
+# stratum holding evaluation rows needs the true candidate and at least one
+# nonmatch, i.e. two distinct match_on keys. With `n_folds = NULL`, the
+# default is lowered until that holds; an explicit `n_folds` that violates it
+# is an error naming the problem.
+make_gaze_weave_candidate_folds <- function(source_tab, split_on, contrast_on,
+                                            n_folds, seed, match_on,
+                                            eval_mask) {
+  match_key <- gaze_key(source_tab, match_on, "match_on")[eval_mask]
+  stratum_key <- if (is.null(contrast_on)) {
+    rep("all", sum(eval_mask))
+  } else {
+    gaze_key(source_tab, contrast_on, "contrast_on")[eval_mask]
+  }
+  enough_candidates <- function(folds) {
+    if (length(match_key) == 0L) return(TRUE)
+    cell <- paste(folds$fold_id[eval_mask], stratum_key, sep = "\r")
+    counts <- tapply(match_key, cell, function(key) length(unique(key)))
+    all(counts >= 2L)
+  }
+  folds <- make_gaze_weave_folds(source_tab, split_on, contrast_on, n_folds, seed)
+  if (is.null(n_folds)) {
+    while (!enough_candidates(folds) && folds$n_folds > 2L) {
+      folds <- make_gaze_weave_folds(
+        source_tab, split_on, contrast_on, folds$n_folds - 1L, seed
+      )
+    }
+  }
+  if (!enough_candidates(folds)) {
+    stop(
+      "With ", folds$n_folds, " folds, some fold has fewer than two ",
+      "candidate items (the true match and a nonmatch) in a contrast ",
+      "stratum. Use fewer folds or larger contrast strata."
+    )
+  }
+  folds
+}
+
 #' Cross-fitted GazeWeave analysis
 #'
 #' `gaze_weave_cv()` is the common entry point for the two GazeWeave engines.
@@ -101,7 +140,10 @@ make_gaze_weave_folds <- function(source_tab, split_on, contrast_on = NULL,
 #' @param engine Either `"transport"` or `"replay"`. When omitted, it is
 #'   inferred from `spec`.
 #' @param split_on Columns defining the held-out unit. Defaults to `match_on`.
-#' @param n_folds Number of cross-fitting folds.
+#' @param n_folds Number of cross-fitting folds. `NULL` uses up to five; for
+#'   Replay, which scores each held-out row against the candidates in its own
+#'   fold, the default is lowered when needed so that every fold keeps a true
+#'   candidate and a nonmatch in each contrast stratum.
 #' @param seed Fold-assignment seed. `NULL` uses the engine-specific default.
 #'   Folds depend on `seed` alone; the caller's random number stream is left
 #'   unchanged.

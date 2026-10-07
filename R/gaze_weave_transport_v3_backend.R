@@ -18,6 +18,14 @@ transport_v3_native_unsupported <- function(spec) {
       "The native backend does not replace the log-domain projection oracle."
     )
   }
+  # The native revised projection always ends in the log-domain fallback, so
+  # it matches the reference only for projection_method = "auto".
+  if (transport_v3_revised(spec) &&
+      identical(spec$control$projection_method, "standard")) {
+    return(
+      "The native backend implements only projection_method = \"auto\" under revision 2026.10."
+    )
+  }
   NULL
 }
 
@@ -244,14 +252,22 @@ gaze_transport_align_batch <- function(references, source, spec,
   if (length(batch_size) != 1L || is.na(batch_size) || batch_size < 1L) {
     stop("batch_size must be a positive integer.")
   }
+  check_prepared <- function(prepared) {
+    if (!identical(prepared$chronology$neighbours, spec$chronology$neighbours) ||
+        !identical(prepared$chronology$clock, spec$chronology$clock)) {
+      stop("A prepared path was built under a different chronology than spec; ",
+           "prepare it again with gaze_transport_prepare(path, spec).")
+    }
+    prepared
+  }
   prepared_source <- if (inherits(source, "gaze_transport_prepared")) {
-    source
+    check_prepared(source)
   } else {
     gaze_transport_prepare(source, spec)
   }
   prepared_references <- lapply(references, function(reference) {
     if (inherits(reference, "gaze_transport_prepared")) {
-      reference
+      check_prepared(reference)
     } else {
       gaze_transport_prepare(reference, spec)
     }

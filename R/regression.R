@@ -88,6 +88,8 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #'   - "lm": Linear regression (default).
 #'   - "rlm": Robust linear regression.
 #'   - "rank": Rank-based correlation.
+#' @param density_var Name of the column holding the density maps in all three
+#'   tables (default `"density"`, the `result_name` used by \code{\link{density_by}}).
 #'
 #' @return A data frame with the source table augmented with two new columns, beta_baseline and beta_source,
 #'   representing the estimated beta weights for the baseline and source maps, respectively.
@@ -97,7 +99,8 @@ template_multireg <- function(source_tab, response, covars, method=c("lm", "rlm"
 #' @export
 template_regression <- function(ref_tab, source_tab, match_on,
                                 baseline_tab, baseline_key,
-                                method=c("lm", "rlm", "rank")) {
+                                method=c("lm", "rlm", "rank"),
+                                density_var="density") {
   method <- match.arg(method)
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
@@ -117,13 +120,18 @@ template_regression <- function(ref_tab, source_tab, match_on,
          baseline_key, " = ", paste(dup_keys, collapse = ", "),
          ". Each baseline key must identify exactly one baseline map.")
   }
+  missing_keys <- setdiff(used_keys, baseline_keys)
+  if (length(missing_keys) > 0L) {
+    stop("template_regression(): baseline_tab has no row for ",
+         baseline_key, " = ", paste(missing_keys, collapse = ", "), ".")
+  }
 
   rows <- lapply(seq_len(nrow(source_tab)), function(i) {
     row <- source_tab[i, ]
     id <- which(baseline_tab[[baseline_key]] == row[[baseline_key]][[1]])
-    bdens <- baseline_tab$density[[id]]
-    d1 <- ref_tab$density[[row$matchind]]
-    d2 <- row$density[[1]]
+    bdens <- baseline_tab[[density_var]][[id]]
+    d1 <- ref_tab[[density_var]][[row$matchind]]
+    d2 <- row[[density_var]][[1]]
 
     df1 <- data.frame(y=as.vector(d2$z), baseline=as.vector(bdens$z), x2=as.vector(d1$z))
 

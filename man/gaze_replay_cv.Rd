@@ -33,7 +33,10 @@ gaze_replay_cv(
 
 \item{split_on}{Columns defining the held-out unit. Defaults to `match_on`.}
 
-\item{n_folds}{Number of cross-fitting folds.}
+\item{n_folds}{Number of cross-fitting folds. `NULL` uses up to five; for
+Replay, which scores each held-out row against the candidates in its own
+fold, the default is lowered when needed so that every fold keeps a true
+candidate and a nonmatch in each contrast stratum.}
 
 \item{seed}{Fold-assignment seed. `NULL` uses the engine-specific default.
 Folds depend on `seed` alone; the caller's random number stream is left

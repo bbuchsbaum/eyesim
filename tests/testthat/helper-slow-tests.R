@@ -12,3 +12,15 @@ skip_unless_slow_tests <- function(what = "slow check") {
     paste0(what, " (set EYESIM_SLOW_TESTS=true)")
   )
 }
+
+# CRAN tier. testthat and devtools::test() set NOT_CRAN=true, and so does the
+# GitHub Actions check, so everything below runs in full there. On CRAN the
+# heavy statistical and integration checks are skipped, and cross-platform
+# parity checks run on a smaller sample so they still cover CRAN's platforms.
+eyesim_on_cran <- function() {
+  !identical(tolower(Sys.getenv("NOT_CRAN")), "true")
+}
+
+cran_sample_size <- function(full, cran) {
+  if (eyesim_on_cran()) cran else full
+}

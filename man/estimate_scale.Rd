@@ -4,7 +4,7 @@
 \alias{estimate_scale}
 \title{Estimate Scaling Parameters for Fixation Data}
 \usage{
-estimate_scale(x, y, lower = c(0.1, 0.1), upper = c(10, 10), window)
+estimate_scale(x, y, lower = c(0.1, 0.1), upper = c(10, 10), window = NULL)
 }
 \arguments{
 \item{x}{A data frame or matrix containing the x coordinates of the first set of fixations.}

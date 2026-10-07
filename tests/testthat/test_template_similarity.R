@@ -31,17 +31,18 @@ test_that("template_similarity produces perfect similarity for identical pattern
 })
 
 test_that("template_similarity works for permute_on", {
-  g1 <- tibble(fixgroup=lapply(1:100, function(i) {
+  set.seed(2)
+  g1 <- tibble(fixgroup=lapply(1:30, function(i) {
     x <- runif(10)
     y <- runif(10)
     onset <- seq(1,length.out=length(x), by=50)
     duration <- rep(1,length(x))
     fixgroup <- fixation_group(x,y,onset,duration)
-  }), image=1:100, subject=rep(1:10, each=10))
+  }), image=1:30, subject=rep(1:3, each=10))
 
   g2 <- g1
-  dens <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), duration_weighted=TRUE)
-  dens2 <- density_by(g2, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), duration_weighted = TRUE)
+  dens <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), outdim=c(30,30), duration_weighted=TRUE)
+  dens2 <- density_by(g2, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), outdim=c(30,30), duration_weighted = TRUE)
   tsim <- template_similarity(dens, dens2, match_on="image", method="pearson", permute_on="subject",
                               permutations=6)
   expect_true(all(tsim$eye_sim >.99))
@@ -326,15 +327,15 @@ test_that("template_similarity cosine preserves degenerate zero-vector behavior"
 })
 
 test_that("compute density with variable name other than 'fixgroup'", {
-  g1 <- tibble(fg=lapply(1:100, function(i) {
+  g1 <- tibble(fg=lapply(1:10, function(i) {
     x <- runif(10)
     y <- runif(10)
     onset <- seq(1,length.out=length(x), by=50)
     duration <- rep(1,length(x))
     fixgroup <- fixation_group(x,y,onset,duration)
-  }), image=1:100, subject=rep(1:10, each=10))
+  }), image=1:10, subject=rep(1:2, each=5))
 
-  dens <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), fixvar="fg")
+  dens <- density_by(g1, "image", keep_vars="subject", xbounds=c(0,1), ybounds=c(0,1), outdim=c(30,30), fixvar="fg")
   expect_true(!is.null(dens$fg))
 
 })

@@ -967,8 +967,8 @@ gaze_baseline_cv <- function(ref_tab, source_tab, match_on,
   eval_mask <- resolve_gaze_weave_filter(
     source_tab, eval_source_filter, "eval_source_filter"
   )
-  folds <- make_gaze_weave_folds(
-    source_tab, split_on, contrast_on, n_folds, seed
+  folds <- make_gaze_weave_candidate_folds(
+    source_tab, split_on, contrast_on, n_folds, seed, match_on, eval_mask
   )
   id_columns <- unique(c(match_on, contrast_on, split_on))
   result_rows <- list()

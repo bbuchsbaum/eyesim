@@ -20,7 +20,8 @@ bounds. Used to scale the estimate relative to display size.}
 }
 \value{
 A single numeric value representing the suggested sigma
-  (kernel standard deviation in coordinate units).
+  (kernel standard deviation in coordinate units), or `NA` when there are
+  fewer than two fixations or, without display bounds, no spread.
 }
 \description{
 Estimates a reasonable kernel bandwidth (sigma) for fixation density maps

@@ -231,7 +231,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       # If no permutation tests, return the observed similarity in scalar or expanded-vector form.
       format_similarity_result(sim, expand_vector = expand_vector_output)
     }
-  }, .options=furrr::furrr_options(seed = TRUE)) %>% dplyr::bind_rows() # Combine the results of each row in the source table into a single tibble
+  }, .options=furrr::furrr_options(seed = TRUE, globals = FALSE)) %>% dplyr::bind_rows() # Combine the results of each row in the source table into a single tibble
 
   # Bind the calculated similarity values to the source table and return the result
   source_tab %>% bind_cols(ret)
@@ -409,9 +409,8 @@ fixation_similarity <- function(ref_tab, source_tab, match_on, permutations=0, p
   if (!is.null(window) ) {
     assertthat::assert_that(window[2] > window[1])
   }
-  message("fixation_similarity: similarity metric is ", method)
-
   method <- match.arg(method)
+  message("fixation_similarity: similarity metric is ", method)
   run_similarity_analysis(ref_tab,source_tab, match_on, permutations, permute_on, method, refvar, sourcevar, window, ...)
 
 }
@@ -794,15 +793,20 @@ transform_name <- function(similarity_transform) {
 sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "max", "sum", "zscore"), ...) {
   normalize <- match.arg(normalize)
 
-  nearest_index <- function(coord, grid) {
-    ind <- round(approx(grid, seq_along(grid), coord, rule = 2)$y)
-    ind[ind < 1L] <- 1L
-    ind[ind > length(grid)] <- length(grid)
-    ind
-  }
+  zmat <- normalize_density_values(x$z, normalize)
 
-  # Normalize the density matrix
-  zmat <- x$z
+  if (is.null(times)) {
+    idx <- density_grid_index(fix, x$x, x$y)
+    data.frame(z = zmat[idx], time = fix$onset)
+  } else {
+    fg <- sample_fixations(fix, times)
+    idx <- density_grid_index(fg, x$x, x$y)
+    data.frame(z = zmat[idx], time = times)
+  }
+}
+
+# Normalize a density matrix as described in sample_density.density().
+normalize_density_values <- function(zmat, normalize) {
   if (normalize == "max") {
     mx <- max(zmat, na.rm = TRUE)
     if (mx > 0) zmat <- zmat / mx
@@ -814,19 +818,65 @@ sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "
     sd_val <- stats::sd(as.vector(zmat), na.rm = TRUE)
     if (sd_val > 0) zmat <- (zmat - mu) / sd_val
   }
+  zmat
+}
 
-  if (is.null(times)) {
-    cds <- cbind(fix$x, fix$y)
-    ix <- nearest_index(cds[, 1], x$x)
-    iy <- nearest_index(cds[, 2], x$y)
-    data.frame(z = zmat[cbind(ix, iy)], time = fix$onset)
-  } else {
-    fg <- sample_fixations(fix, times)
-    cds <- cbind(fg$x, fg$y)
-    ix <- nearest_index(cds[, 1], x$x)
-    iy <- nearest_index(cds[, 2], x$y)
-    data.frame(z = zmat[cbind(ix, iy)], time = times)
+# Two-column (ix, iy) matrix index of the grid cells nearest to the x/y
+# coordinates of `fix`, clamped to the grid.
+density_grid_index <- function(fix, grid_x, grid_y) {
+  nearest_index <- function(coord, grid) {
+    ind <- round(approx(grid, seq_along(grid), coord, rule = 2)$y)
+    ind[ind < 1L] <- 1L
+    ind[ind > length(grid)] <- length(grid)
+    ind
   }
+
+  cds <- cbind(fix$x, fix$y)
+  ix <- nearest_index(cds[, 1], grid_x)
+  iy <- nearest_index(cds[, 2], grid_y)
+  cbind(ix, iy)
+}
+
+# Pre-normalized maps for the templates in `dens_list` (restricted to `which`)
+# that sample_density() would send to sample_density.density() and that lie on
+# the lattice of the first such template. Returns list(x, y, z): the shared
+# grid vectors and a list with the normalized matrix for each eligible
+# template, NULL elsewhere. x and y are NULL when no template is eligible.
+density_lookup_maps <- function(dens_list, normalize, which = seq_along(dens_list), enabled = TRUE) {
+  ret <- list(x = NULL, y = NULL, z = vector("list", length(dens_list)))
+  if (!enabled) {
+    return(ret)
+  }
+
+  uses_density_method <- function(obj) {
+    for (cl in class(obj)) {
+      if (!is.null(utils::getS3method("sample_density", cl, optional = TRUE))) {
+        return(identical(cl, "density"))
+      }
+    }
+    FALSE
+  }
+
+  for (j in unique(which)) {
+    obj <- dens_list[[j]]
+    if (!is.list(obj) || !uses_density_method(obj) ||
+        !is.numeric(obj$x) || !is.numeric(obj$y) || !is.matrix(obj$z) ||
+        !identical(dim(obj$z), c(length(obj$x), length(obj$y)))) {
+      next
+    }
+    if (is.null(ret$x)) {
+      ret$x <- obj$x
+      ret$y <- obj$y
+    } else if (!identical(obj$x, ret$x) || !identical(obj$y, ret$y)) {
+      next
+    }
+    # Maps whose normalization warns or fails keep the per-call path, which
+    # reports the condition as before.
+    ret$z[j] <- list(tryCatch(normalize_density_values(obj$z, normalize),
+                              warning = function(w) NULL,
+                              error = function(e) NULL))
+  }
+  ret
 }
 
 
@@ -1007,13 +1057,33 @@ sample_density_time <- function(template_tab,
   template_data <- template_tab[[template_var]]
   source_data <- source_tab[[source_var]]
 
+  # Fast path: templates handled by sample_density.density() that share one
+  # lattice are normalized once here, and each source row's sampled grid
+  # indices are computed once, so the observed value and every permutation are
+  # plain lookups. Any other template (or a row whose indices cannot be
+  # computed cleanly) goes through sample_density() exactly as before.
+  lookup <- density_lookup_maps(template_data, normalize, which = matchind,
+                                enabled = !is.null(times))
+
   results <- lapply(seq_along(matchind), function(i) {
     template_dens <- template_data[[matchind[i]]]
     source_fix <- source_data[[i]]
 
+    idx <- NULL
+    if (!is.null(lookup$x) && !is.null(source_fix)) {
+      # Warnings and errors are left to the per-call path to report as before.
+      idx <- tryCatch(
+        density_grid_index(sample_fixations(source_fix, times), lookup$x, lookup$y),
+        warning = function(w) NULL,
+        error = function(e) NULL
+      )
+    }
+
     # Check for valid inputs
     if (is.null(template_dens) || is.null(source_fix)) {
       sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
+    } else if (!is.null(lookup$z[[matchind[i]]]) && !is.null(idx)) {
+      sampled <- data.frame(z = lookup$z[[matchind[i]]][idx], time = times)
     } else {
       sampled <- tryCatch({
         sample_density(template_dens, source_fix, times = times, normalize = normalize)
@@ -1064,6 +1134,10 @@ sample_density_time <- function(template_tab,
 
         # Compute permuted samples
         perm_samples <- lapply(mind, function(j) {
+          zmat <- lookup$z[[j]]
+          if (!is.null(zmat) && !is.null(idx)) {
+            return(zmat[idx])
+          }
           perm_dens <- template_data[[j]]
           if (is.null(perm_dens) || is.null(source_fix)) {
             return(rep(NA_real_, length(times)))
@@ -1462,13 +1536,11 @@ eye_density.fixation_group <- function(x, sigma = 50,
     if (length(kde_args) > 0L) {
       stop("Additional arguments in `...` are passed to ks::kde() and are not supported when kde_pkg = \"MASS\".")
     }
-    message("ks package not found or not selected. Using MASS::kde2d (or custom kde2d_weighted if applicable).")
 
     # Check if weights are non-uniform (relevant if duration_weighted was TRUE)
     is_weighted_fallback <- length(unique(final_weights)) > 1
 
     if (is_weighted_fallback && exists("kde2d_weighted", mode = "function")) {
-        message("Using custom kde2d_weighted(). Ensure it handles weights appropriately.")
          kde_result <- tryCatch({
             kde2d_weighted(data_matrix[,1], data_matrix[,2], h = current_sigma, n = outdim, lims = c(xbounds, ybounds), w = final_weights) # Pass original determined weights
          }, error = function(e) {
@@ -1770,8 +1842,10 @@ compute_similarity <- function(x, y,
       r2 <- y$z - s_mat
       pos1 <- pmax(r1, 0); neg1 <- pmax(-r1, 0)
       pos2 <- pmax(r2, 0); neg2 <- pmax(-r2, 0)
-      emd_pos <- emdw(coords, as.vector(pos1), coords, as.vector(pos2))
-      emd_neg <- emdw(coords, as.vector(neg1), coords, as.vector(neg2))
+      # The residual masses differ between maps, so these are partial-matching
+      # EMDs on the raw masses (requires emdist).
+      emd_pos <- emdw(coords, as.vector(pos1), coords, as.vector(pos2), normalize = FALSE)
+      emd_neg <- emdw(coords, as.vector(neg1), coords, as.vector(neg2), normalize = FALSE)
       return(-(emd_pos + emd_neg))
     } else {
       emd_dist <- emdw(coords, wx, coords, wy)

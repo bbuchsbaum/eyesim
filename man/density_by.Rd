@@ -6,7 +6,7 @@
 \usage{
 density_by(
   x,
-  groups,
+  groups = NULL,
   sigma = 50,
   xbounds = c(0, 1000),
   ybounds = c(0, 1000),
@@ -23,7 +23,8 @@ density_by(
 \arguments{
 \item{x}{A data frame containing fixations and additional grouping variables.}
 
-\item{groups}{A character vector specifying the grouping variables to use.}
+\item{groups}{A character vector specifying the grouping variables to use.
+If `NULL` (the default), a single density map is computed over all rows.}
 
 \item{sigma}{A numeric value or a numeric vector specifying the bandwidth(s) for the kernel density estimation. If a vector is provided, multiscale densities are computed. Default is 50.}
 
