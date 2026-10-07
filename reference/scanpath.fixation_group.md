@@ -1,6 +1,9 @@
 # Create a Scanpath for a Fixation Group
 
-This function creates a scanpath for a fixation group.
+This function creates a scanpath for a fixation group. Saccades join
+consecutive rows, so rows should be in temporal order. Rows are not
+re-sorted by onset: a group that pools several viewings (onsets
+restarting at each viewing) keeps each viewing's fixations together.
 
 ## Usage
 

@@ -13,7 +13,8 @@ template_regression(
   match_on,
   baseline_tab,
   baseline_key,
-  method = c("lm", "rlm", "rank")
+  method = c("lm", "rlm", "rank"),
+  density_var = "density"
 )
 ```
 
@@ -49,6 +50,12 @@ template_regression(
   "rlm", "rank"). The selected method will be used for the regression
   analysis. - "lm": Linear regression (default). - "rlm": Robust linear
   regression. - "rank": Rank-based correlation.
+
+- density_var:
+
+  Name of the column holding the density maps in all three tables
+  (default \`"density"\`, the \`result_name\` used by
+  [`density_by`](https://bbuchsbaum.github.io/eyesim/reference/density_by.md)).
 
 ## Value
 

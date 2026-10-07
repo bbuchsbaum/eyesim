@@ -63,7 +63,7 @@ multi_match(sp1, sp2, screensize = c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.9944381       0.9824906       0.9924735       0.8774572       0.9194313 
 #> mm_position_emd 
-#>       0.9632978
+#>       0.8946239
 ```
 
 All metrics are high, consistent with the known similarity of the two
@@ -88,7 +88,7 @@ multi_match(sp_linear, sp_zigzag, screensize = c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.9914539       0.9671332       0.9912823       0.6570499       0.9350000 
 #> mm_position_emd 
-#>       0.6572352
+#>       0.6558473
 ```
 
 Notice how the **direction** metric drops substantially — the zigzag and

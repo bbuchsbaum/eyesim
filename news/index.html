@@ -41,11 +41,56 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0.9000" id="eyesim-0209000">eyesim 0.2.0.9000<a class="anchor" aria-label="anchor" href="#eyesim-0209000"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-pre-cran-review-0-2-0-9000">Bug fixes (pre-CRAN review)<a class="anchor" aria-label="anchor" href="#bug-fixes-pre-cran-review-0-2-0-9000"></a></h3>
+<ul><li>
+<code><a href="../reference/latent_pca_transform.html">coral_transform()</a></code> applied the CORAL map in the wrong order (<code>X Ct^1/2 Cs^-1/2</code> instead of <code>X Cs^-1/2 Ct^1/2</code>), so adapted source scores did not take on the reference covariance. Results from CORAL change.</li>
+<li>
+<code><a href="../reference/latent_pca_transform.html">cca_transform()</a></code> left raw PCA scores in the columns after the canonical variates, so similarity mixed two coordinate systems; those columns are now zero. Rows of a group with no fitted CCA model keep PCA scores and now raise a warning. Single-component latent models no longer build the wrong matrix square root.</li>
+<li>
+<code>emdw()</code> (EMD used by <code>similarity(method = "emd")</code> and MultiMatch position EMD) now normalises weights for every backend, so emdist, transport and T4transport agree; zero-mass cells are dropped first, which makes EMD on density grids much cheaper. The transport fallback, which errored, works. The saliency-residual EMD keeps raw masses (partial matching) and requires emdist.</li>
+<li>The internal CRQA wrapper passed the fixation index instead of <code>y</code> to <code><a href="https://rdrr.io/pkg/crqa/man/crqa.html" class="external-link">crqa::crqa()</a></code> and ignored <code>delay</code>, <code>embed</code>, <code>rescale</code> and <code>metric</code>.</li>
+<li>
+<code><a href="../reference/fixation_overlap.html">fixation_overlap()</a></code> (and <code>similarity(method = "overlap")</code>) no longer counts time points before the first fixation in the denominator of <code>perc</code>.</li>
+<li>
+<code><a href="../reference/density_by.html">density_by()</a></code> works without <code>groups</code> (default <code>NULL</code>).</li>
+<li>
+<code><a href="../reference/calcangle.html">calcangle()</a></code> no longer returns <code>NaN</code> for (anti)parallel vectors.</li>
+<li>
+<code><a href="../reference/suggest_sigma.html">suggest_sigma()</a></code> returns <code>NA</code> rather than <code>0</code> when coincident fixations give no spread and no display bounds are supplied.</li>
+<li>
+<code><a href="../reference/template_regression.html">template_regression()</a></code> gains <code>density_var</code> and gives a clear error when a source row has no baseline map.</li>
+<li>
+<code><a href="../reference/fixation_group.html">fixation_group()</a></code> and <code><a href="../reference/rep_fixations.html">rep_fixations()</a></code> accept empty groups.</li>
+<li>
+<code><a href="../reference/gaze_replay_cv.html">gaze_replay_cv()</a></code> and <code><a href="../reference/gaze_baseline_cv.html">gaze_baseline_cv()</a></code> lower the default <code>n_folds</code> when a fold would otherwise hold fewer than two candidate items in a contrast stratum (previously an error), and give a clear error for an explicit <code>n_folds</code> that does. Replay’s inner calibration counts distinct items, not rows, when deciding whether inner folds are possible.</li>
+<li>Transport: the native backend no longer accepts a log-domain fallback plan under <code>projection_method = "standard"</code> (such specifications now use the reference backend, as <code>"log"</code> does); reference-backend stationarity is no longer <code>NA</code> when the last entropy stage takes no step; native iteration counts no longer report <code>maxit + 1</code>; prepared paths built under a different chronology are rejected.</li>
+<li>The Python MultiMatch bridge (<code>multimatch_gaze</code>) now actually imports the module.</li>
+<li>Density legend labels fall back to <code>&gt;=</code> in non-UTF-8 locales instead of erroring.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-0-2-0-9000">Performance<a class="anchor" aria-label="anchor" href="#performance-0-2-0-9000"></a></h3>
+<ul><li>
+<code><a href="../reference/template_similarity.html">template_similarity()</a></code>, <code><a href="../reference/fixation_similarity.html">fixation_similarity()</a></code> and the other similarity wrappers no longer run future’s automatic globals scan over the whole source table on every call (about 0.4 s per call, even under the default sequential plan). Results and random streams are unchanged, including under parallel <code>future</code> plans.</li>
+<li>
+<code><a href="../reference/gaze_transport_cv.html">gaze_transport_cv()</a></code> solves each (source row, candidate) alignment once per call under the identity warp instead of once per fold, and prepares each candidate’s reference episodes once (2.4-4x faster; results identical).</li>
+<li>Replay’s inner calibration fit prepares each row’s loss once instead of on every optimiser step (about 5x faster), and the revision 2026.08 transition grid search builds each pair’s emissions once rather than once per grid point (about 3x faster). Results are identical.</li>
+<li>
+<code><a href="../reference/sample_density_time.html">sample_density_time()</a></code> normalises each template and looks up each source row’s grid cells once, then reuses them for the observed value and every permutation (about 25x faster on 200 rows x 100 permutations; results and random streams identical).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="packaging-0-2-0-9000">Packaging<a class="anchor" aria-label="anchor" href="#packaging-0-2-0-9000"></a></h3>
+<ul><li>
+<code>src/Makevars</code> links LAPACK/BLAS (<code>arma::solve</code> needs them) and no longer forces C++14; <code>SystemRequirements</code>, <code>Remotes</code> and the unused <code>colorplane</code> suggestion are removed; base packages used via <code>::</code> are declared.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-0-2-0-9000">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-2-0-9000"></a></h3>
 <ul><li><p>Plot titles, subtitles and captions wrap to the width they are drawn at, in lines of even length (new <code><a href="../reference/element_text_wrap.html">element_text_wrap()</a></code>, used by <code><a href="../reference/theme_eyesim.html">theme_eyesim()</a></code>), so long GazeWeave titles no longer run off narrow figures. Where a layout (such as side-by-side patchwork) reserves less height than the wrapped text needs, the text is set smaller to fit rather than overprinting. Newlines in a label are kept as line breaks. A user’s <code>theme(plot.title = element_text(...))</code> merges into it and keeps wrapping. The package’s long GazeWeave labels also carry line breaks, so they stay readable under other themes.</p></li>
 <li><p><code><a href="../reference/plot.fixation_group.html">plot.fixation_group()</a></code> numbers and joins fixations in onset order, even when rows are not sorted by onset.</p></li>
 <li><p>Fixations whose markers overlap, and so cannot be numbered individually, are outlined together (a ring for a single fixation) and labelled once (“4, 9, 17”), with a leader that stays clear of every other fixation. Numbers still without a position are listed in the in-panel note (or counted, when more than six).</p></li>
 <li><p>With a finite upper <code>limit</code>, colour bars label the limit “≥ limit” (to three significant digits), and density at or above it takes the top colour. The scale is the same whether or not a plot’s data exceed the limit, so plots sharing <code>limits</code> share colours and one collected colour bar.</p></li>
 </ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="eyesim-020">eyesim 0.2.0<a class="anchor" aria-label="anchor" href="#eyesim-020"></a></h2>
 <ul><li>

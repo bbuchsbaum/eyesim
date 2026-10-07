@@ -110,5 +110,5 @@ multi_match(sp1, sp2, screensize = c(500, 500))
 #>       mm_vector    mm_direction       mm_length     mm_position     mm_duration 
 #>       0.9608211       0.3854692       0.9858060       0.7861099       0.8232034 
 #> mm_position_emd 
-#>       0.8191547 
+#>       0.8160965 
 ```

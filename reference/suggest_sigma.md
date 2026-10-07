@@ -35,7 +35,8 @@ suggest_sigma(x, y = NULL, xbounds = NULL, ybounds = NULL)
 ## Value
 
 A single numeric value representing the suggested sigma (kernel standard
-deviation in coordinate units).
+deviation in coordinate units), or \`NA\` when there are fewer than two
+fixations or, without display bounds, no spread.
 
 ## Details
 

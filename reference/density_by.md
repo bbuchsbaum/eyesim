@@ -8,7 +8,7 @@ specified variables.
 ``` r
 density_by(
   x,
-  groups,
+  groups = NULL,
   sigma = 50,
   xbounds = c(0, 1000),
   ybounds = c(0, 1000),
@@ -31,7 +31,9 @@ density_by(
 
 - groups:
 
-  A character vector specifying the grouping variables to use.
+  A character vector specifying the grouping variables to use. If
+  \`NULL\` (the default), a single density map is computed over all
+  rows.
 
 - sigma:
 

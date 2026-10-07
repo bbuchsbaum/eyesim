@@ -121,10 +121,10 @@ gaze_transport_spec(
   \`"optimized"\` uses the estimator-preserving batched implementation;
   \`"auto"\` uses the optimized backend with a reference fallback. Under
   revision \`"2026.10"\`, a specification the native backend cannot
-  solve (\`projection_method = "log"\`) is routed to the reference
-  backend for every pair, a node that reaches \`maxit\` is recorded as
-  \`"not_converged"\` and scored rather than raising an error, and a
-  per-pair numerical fallback raises a warning of class
+  solve (\`projection_method = "log"\` or \`"standard"\`) is routed to
+  the reference backend for every pair, a node that reaches \`maxit\` is
+  recorded as \`"not_converged"\` and scored rather than raising an
+  error, and a per-pair numerical fallback raises a warning of class
   \`gaze_transport_backend_fallback\`. The backend used is recorded in
   every alignment's \`convergence\` element.
 

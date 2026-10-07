@@ -56,7 +56,10 @@ gaze_transport_cv(
 
 - n_folds:
 
-  Number of cross-fitting folds.
+  Number of cross-fitting folds. \`NULL\` uses up to five; for Replay,
+  which scores each held-out row against the candidates in its own fold,
+  the default is lowered when needed so that every fold keeps a true
+  candidate and a nonmatch in each contrast stratum.
 
 - seed:
 

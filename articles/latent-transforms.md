@@ -210,7 +210,7 @@ stopifnot(
 cat("Raw CORAL toy mean similarity:", round(raw_coral_mean, 3), "\n")
 #> Raw CORAL toy mean similarity: 0.928
 cat("CORAL toy mean similarity:", round(coral_positive_mean, 3), "\n")
-#> CORAL toy mean similarity: 0.996
+#> CORAL toy mean similarity: 0.998
 ```
 
 Here CORAL does help, because the source shift is an exact linear

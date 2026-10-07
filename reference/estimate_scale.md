@@ -6,7 +6,7 @@ data using the Hausdorff distance as an optimization objective.
 ## Usage
 
 ``` r
-estimate_scale(x, y, lower = c(0.1, 0.1), upper = c(10, 10), window)
+estimate_scale(x, y, lower = c(0.1, 0.1), upper = c(10, 10), window = NULL)
 ```
 
 ## Arguments

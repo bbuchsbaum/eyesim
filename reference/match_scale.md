@@ -12,7 +12,7 @@ match_scale(
   match_on,
   refvar = "fixgroup",
   sourcevar = "fixgroup",
-  window,
+  window = NULL,
   ...
 )
 ```

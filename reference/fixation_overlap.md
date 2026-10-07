@@ -54,7 +54,9 @@ A list containing the following elements:
 
 - perc:
 
-  The percentage of overlapping fixations.
+  The proportion of time points at which both groups have a fixation
+  that overlap (time points before either group's first fixation are not
+  counted).
 
 ## Details
 

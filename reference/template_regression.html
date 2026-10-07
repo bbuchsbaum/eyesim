@@ -55,7 +55,8 @@ the beta weights for the baseline and source maps.</p>
 <span>  <span class="va">match_on</span>,</span>
 <span>  <span class="va">baseline_tab</span>,</span>
 <span>  <span class="va">baseline_key</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lm"</span>, <span class="st">"rlm"</span>, <span class="st">"rank"</span><span class="op">)</span></span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lm"</span>, <span class="st">"rlm"</span>, <span class="st">"rank"</span><span class="op">)</span>,</span>
+<span>  density_var <span class="op">=</span> <span class="st">"density"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -93,6 +94,11 @@ The selected method will be used for the regression analysis.
 - "lm": Linear regression (default).
 - "rlm": Robust linear regression.
 - "rank": Rank-based correlation.</p></dd>
+
+
+<dt id="arg-density-var">density_var<a class="anchor" aria-label="anchor" href="#arg-density-var"></a></dt>
+<dd><p>Name of the column holding the density maps in all three
+tables (default `"density"`, the `result_name` used by <code><a href="density_by.html">density_by</a></code>).</p></dd>
 
 </dl></div>
     <div class="section level2">
