@@ -49,11 +49,13 @@ full_recognition_model_file <- system.file(
 )
 if (!nzchar(full_recognition_probe_file)) {
   full_recognition_probe_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-probe-delay.R"
   )
 }
 if (!nzchar(full_recognition_model_file)) {
   full_recognition_model_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-recognition-sensitivity.R"
   )
 }

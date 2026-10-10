@@ -27,6 +27,7 @@ v3_repeated_followup_file <- system.file(
 )
 if (!nzchar(v3_repeated_followup_file)) {
   v3_repeated_followup_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-followup-full-cohort.R"
   )
 }

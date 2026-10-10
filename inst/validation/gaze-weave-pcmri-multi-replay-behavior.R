@@ -26,6 +26,7 @@ multi_replay_behavior_measurement_file <- system.file(
 )
 if (!nzchar(multi_replay_behavior_measurement_file)) {
   multi_replay_behavior_measurement_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-pcmri-multi-replay.R"
   )
 }

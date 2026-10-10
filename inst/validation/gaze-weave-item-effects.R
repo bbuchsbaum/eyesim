@@ -16,6 +16,7 @@ item_effect_dependency <- system.file(
 )
 if (!nzchar(item_effect_dependency)) {
   item_effect_dependency <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-transport-density-diagnostic.R"
   )
 }

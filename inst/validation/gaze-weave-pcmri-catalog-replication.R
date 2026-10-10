@@ -28,6 +28,7 @@ if (!nzchar(pcmri_catalog_full_file) && nzchar(pcmri_catalog_this_file)) {
 }
 if (!nzchar(pcmri_catalog_full_file)) {
   pcmri_catalog_full_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-recognition-full-cohort.R"
   )
 }

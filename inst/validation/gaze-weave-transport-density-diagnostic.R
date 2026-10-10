@@ -18,6 +18,7 @@ transport_density_dependency <- system.file(
 )
 if (!nzchar(transport_density_dependency)) {
   transport_density_dependency <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-transport-exploratory.R"
   )
 }
@@ -69,6 +70,7 @@ transport_density_read_panel <- function(
   )
   if (!nzchar(full_file)) {
     full_file <- file.path(
+      if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
       "inst", "validation", "gaze-weave-recognition-full-cohort.R"
     )
   }
