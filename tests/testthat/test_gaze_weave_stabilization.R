@@ -25,11 +25,11 @@ test_that("fold assignment does not depend on RNGkind or collation", {
   expect_identical(RNGkind()[[3]], "Rounding")
   RNGkind("default", "default", "default")
 
-  skip_if_not_installed("withr")
+  old_collate <- Sys.getlocale("LC_COLLATE")
+  on.exit(Sys.setlocale("LC_COLLATE", old_collate), add = TRUE)
+  Sys.setlocale("LC_COLLATE", "C")
   expect_identical(
-    withr::with_collate("C", make_gaze_weave_folds(tab, "item", "stratum", 2,
-                                                   seed = 3)$fold_id),
-    reference
+    make_gaze_weave_folds(tab, "item", "stratum", 2, seed = 3)$fold_id, reference
   )
 })
 
