@@ -11,12 +11,16 @@ df1 <- read.table("data-raw/study_fix_report_all.xls", header=TRUE) %>% filter(i
   ImageVersion=paste0(imagenumberstudy, "_", sapply(strsplit(as.character(imagestudy), "_"), "[[", 2))
 ) %>% as_tibble()
 
-## create table for each test trial
+## One row per participant and image. Each image was studied once in each of
+## four blocks (blockstudy 1-4), and a row pools the fixations of all four
+## viewings (onsets restart at each viewing); Trial and blockstudy are those of
+## the first viewing. Grouping by blockstudy as well would give one row per
+## viewing. This grouping reproduces data/wynn_study.rda exactly.
 wynn_study <- eye_table("CURRENT_FIX_X", "CURRENT_FIX_Y", duration="CURRENT_FIX_DURATION", onset="CURRENT_FIX_START",
-                      groupvar=c("ImageNumber", "Subject", "blockstudy"), data=df1,
+                      groupvar=c("ImageNumber", "Subject"), data=df1,
                       clip_bounds=c(112, (112+800), 684, 84),
                       vars=c("ImageVersion",
-                             "Version", "Trial", "ImageNumber"))
+                             "Version", "Trial", "blockstudy"))
 
 
 wynn_study <- sticky(wynn_study) %>% mutate(ImageNumberS = paste0(Subject, "_", ImageNumber)) #%>% as_eye_table()

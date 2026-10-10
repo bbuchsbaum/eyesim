@@ -21,6 +21,8 @@ This function adds a scanpath to the input dataset.
 fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
                      onset = c(0, 200, 400), duration = c(200, 200, 200))
 tab <- tibble::tibble(trial = 1, fixgroup = list(fg))
-add_scanpath(tab)$scanpath[[1]]
+sp <- add_scanpath(tab)$scanpath[[1]]
+# Saccade amplitude (rho) and direction (theta) from each fixation to the next
+as.data.frame(sp)[, c("x", "y", "rho", "theta")]
 
 }

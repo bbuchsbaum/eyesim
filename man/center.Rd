@@ -27,7 +27,7 @@ fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
                      onset = c(0, 200, 400), duration = c(200, 200, 200))
 # Centre on the mean fixation position (the default) ...
 center(fg)
-# ... or on a chosen origin, such as the screen centre.
-center(fg, origin = c(200, 150))
+# ... or on a chosen origin, such as the centre of an 800 x 600 screen.
+center(fg, origin = c(400, 300))
 
 }

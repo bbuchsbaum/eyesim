@@ -3,24 +3,46 @@
 \docType{data}
 \name{wynn_test}
 \alias{wynn_test}
-\title{Eye-tracking test data from Wynn et al.}
+\title{Test-phase fixations from Wynn et al.}
 \format{
-A data frame or tibble containing eye-tracking fixation data with
-  columns for x/y coordinates, fixation duration, onset times, and
-  subject/trial identifiers.
+A grouped tibble (grouped by \code{ImageNumber} and \code{Subject}) with 12,240 rows and 11 columns:
+\describe{
+  \item{Subject}{Participant number.}
+  \item{fixgroup}{A \code{\link{fixation_group}} with the test fixations
+    (\code{x}, \code{y} in pixels; \code{duration} and \code{onset} in ms).}
+  \item{ImageVersion}{Image and version shown at test.}
+  \item{Saliency}{Saliency condition of the test image.}
+  \item{Accuracy}{Response accuracy (1 correct, 0 incorrect).}
+  \item{Version}{Image version (\code{"A"} or \code{"B"}).}
+  \item{Trial}{Test trial index.}
+  \item{Duration}{Duration condition of the test trial in ms (250, 500 or
+    750).}
+  \item{ImageNumber}{Image identifier.}
+  \item{ImageNumberS}{Participant-image key, matching
+    \code{wynn_study$ImageNumberS}.}
+  \item{probe_type}{\code{"old"} if the test image is the studied version,
+    \code{"lure"} otherwise.}
+}
 }
 \source{
-Wynn et al. eye-tracking study.
+Wynn et al. eye-tracking study; built from the raw fixation report
+  by \code{data-raw/process_dat.R} in the source repository.
 }
 \usage{
 wynn_test
 }
 \description{
-Eye-tracking fixation data from a test phase experiment.
+Fixations recorded during the recognition test of the same experiment as
+\code{\link{wynn_study}}, one row per participant and test image (a single
+viewing). Each probe is either the studied version of an image
+(\code{"old"}) or the other version (\code{"lure"}).
 }
 \examples{
 data(wynn_test)
-head(wynn_test)
+table(wynn_test$probe_type)
 
+}
+\seealso{
+\code{\link{wynn_study}}
 }
 \keyword{datasets}
