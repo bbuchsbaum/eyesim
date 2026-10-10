@@ -57,3 +57,9 @@ Fits warp, background, emission, and transition parameters on training
 items, then scores every held-out source path against its permitted encoding
 candidates.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

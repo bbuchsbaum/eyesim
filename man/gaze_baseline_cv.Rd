@@ -62,3 +62,9 @@ candidate priors, and cross-fitted warp. Registered ridge composites select
 their penalty using inner folds only. Frozen scores remain explicitly
 uncalibrated compatibility scores.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

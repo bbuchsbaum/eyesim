@@ -61,6 +61,10 @@
   row's grid cells once, then reuses them for the observed value and every
   permutation (about 25x faster on 200 rows x 100 permutations; results and
   random streams identical).
+* `similarity(method = "dcov")` computes distance correlation with the
+  O(n log n) univariate algorithm (`energy::dcor2d()` on standardised maps)
+  instead of the O(n^2) one: a pair of 100 x 100 maps takes 0.04 s instead of
+  about a minute, with the same value to within 1e-12.
 
 ## Packaging
 
@@ -75,6 +79,20 @@
 
 ## Other changes
 
+* GazeWeave (`gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`,
+  `gaze_baseline_cv()` and their specifications) is documented as
+  experimental: its interface and result columns may still change.
+* `density_matrix()`, an exported generic with no methods, is removed.
+* Examples for `similarity()`, `fixation_similarity()`,
+  `sample_density_time()`, `center()`, `normalize()`, `add_scanpath()`,
+  `coords()`, `get_density()` and `sample_fixations()` now run, and the
+  datasets document every column. `wynn_study` pools each participant's four
+  study viewings of an image into one row; `data-raw/process_dat.R` now
+  reproduces it.
+* `print.fixation_group()` ignores missing coordinates and handles empty
+  groups.
+* The research validation material in `inst/validation` stays in the source
+  repository but is no longer part of the package.
 * Plot titles, subtitles and captions wrap to the width they are drawn at,
   in lines of even length (new `element_text_wrap()`, used by
   `theme_eyesim()`), so long GazeWeave titles no longer run off narrow

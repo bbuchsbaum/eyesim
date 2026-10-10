@@ -72,3 +72,9 @@ Both engines return held-out candidate probabilities and
 posterior probability. Transport correspondence is an optimized alignment
 and must not be interpreted as statistical uncertainty.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

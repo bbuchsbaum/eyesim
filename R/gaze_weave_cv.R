@@ -156,6 +156,9 @@ make_gaze_weave_candidate_folds <- function(source_tab, split_on, contrast_on,
 #'
 #' @return An engine-specific fitted object. Use `broom::tidy()` for the sole
 #'   primary endpoint, `gaze_info_bits`.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_weave_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,

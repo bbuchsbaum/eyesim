@@ -169,6 +169,9 @@ transport_v3_revised <- function(spec) {
 #'   [gaze_calibration_control()]. `NULL` uses its defaults.
 #'
 #' @return A frozen `gaze_transport_spec`.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_transport_spec <- function(
     spatial = gaze_gaussian_mixture(c(0.75, 1.5), weights = c(0.7, 0.3)),

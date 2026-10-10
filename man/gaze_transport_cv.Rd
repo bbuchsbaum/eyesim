@@ -73,3 +73,9 @@ repeated on item-grouped inner folds. Every held-out row is scored against
 every permitted candidate in its contrast stratum with the actual declared
 candidate prior and one common solver, warp, and equal-episode policy.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

@@ -151,3 +151,9 @@ selected source and target mass, spatial fidelity, directed local order,
 correspondence smoothing, and candidate-invariant registration. Coverage
 is integrated by Gauss-Legendre quadrature under a fixed beta prior.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

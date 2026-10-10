@@ -110,6 +110,9 @@ validate_replay_probability_grid <- function(grid) {
 #'   "effective_fixations"` then requires `method = "global"`.
 #'
 #' @return A frozen `gaze_replay_spec`.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_replay_spec <- function(
     grid_size = 64L,
@@ -1860,6 +1863,9 @@ replay_typicality <- function(model, ref_eval, train_source, match_on,
 #'   [fit_gaze_replay_model()].
 #'
 #' @return A `gaze_replay_fit` with `gaze_info_bits` as its primary endpoint.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_replay_cv <- function(ref_tab, source_tab, match_on,
                            contrast_on = NULL,

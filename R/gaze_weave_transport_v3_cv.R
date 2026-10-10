@@ -827,6 +827,9 @@ transport_v3_expected_calibration_error <- function(reliability_table) {
 #'   solver revision, the backends used, and these counts (including inner
 #'   calibration alignments in `backend_fallback_count`). Per-alignment
 #'   fallback warnings are replaced by one summary warning.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_transport_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,

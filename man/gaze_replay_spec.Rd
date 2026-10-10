@@ -128,3 +128,9 @@ Under `"2026.08"` it observes a normalized gaze-time grid. Transition and
 emission parameters are selected using training trials only by
 [fit_gaze_replay_model()].
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

@@ -48,6 +48,10 @@ library(ggplot2)
 
 ## The question GazeWeave answers
 
+> **Experimental.** GazeWeave is under active development. Its interface,
+> defaults and result columns may change in future releases, so record the
+> eyesim version alongside any results.
+
 Suppose a participant studies a series of images and later recalls each one
 while looking at a blank screen. If recall reinstates the way the image was
 viewed, the recall gaze path should carry information about which image is

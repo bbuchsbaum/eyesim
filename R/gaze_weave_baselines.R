@@ -25,6 +25,9 @@ gaze_namespace_available <- function(package) {
 #' @param elastic_tolerance Convergence tolerance in screen coordinates.
 #'
 #' @return A frozen `gaze_baseline_spec`.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_baseline_spec <- function(
     screen,
@@ -933,6 +936,9 @@ score_gaze_baseline_sets <- function(sets, model) {
 #'
 #' @return A `gaze_baseline_fit` with one long-format row per held-out trial and
 #'   comparator.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_baseline_cv <- function(ref_tab, source_tab, match_on,
                              contrast_on = NULL,
