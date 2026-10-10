@@ -1949,7 +1949,22 @@ compute_similarity <- function(x, y,
     if (!requireNamespace("energy", quietly = TRUE)) {
       stop("Package 'energy' is required for method='dcov'. Install it with install.packages('energy').")
     }
-    energy::dcor(x1, x2)
+    # dcor2d() is the O(n log n) algorithm for univariate samples; its
+    # V-statistic is the squared distance correlation that dcor() returns in
+    # O(n^2) time and memory (a 100 x 100 map has 10,000 cells). Distance
+    # correlation is scale-invariant, and dcor2d() needs standardized input:
+    # on raw map values (~1e-4) it returns 0.
+    sd1 <- stats::sd(x1)
+    sd2 <- stats::sd(x2)
+    v <- if (is.finite(sd1) && is.finite(sd2) && sd1 > 0 && sd2 > 0) {
+      tryCatch(
+        energy::dcor2d((x1 - mean(x1)) / sd1, (x2 - mean(x2)) / sd2, type = "V"),
+        error = function(e) NA_real_
+      )
+    } else {
+      NA_real_
+    }
+    if (is.finite(v)) sqrt(max(v, 0)) else energy::dcor(x1, x2)
   }
 
 }

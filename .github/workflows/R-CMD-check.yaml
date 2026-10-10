@@ -17,6 +17,9 @@ jobs:
       _R_CHECK_FORCE_SUGGESTS_: false
       # Run the full suite in CI, including tests marked skip_on_cran().
       NOT_CRAN: true
+      # inst/validation is not in the built package; point its tests at the
+      # checkout so CI still runs them.
+      EYESIM_SOURCE_DIR: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
 

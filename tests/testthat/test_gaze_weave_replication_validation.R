@@ -1,12 +1,8 @@
+skip_if_no_validation()
+
 replication_result_path <- function(name) {
-  installed <- system.file(
-    "validation", "gaze-weave-replication-results", name,
-    package = "eyesim"
-  )
-  if (nzchar(installed)) return(installed)
-  testthat::test_path(
-    "..", "..", "inst", "validation",
-    "gaze-weave-replication-results", name
+  gaze_weave_test_inst_path(
+    "validation", "gaze-weave-replication-results", name
   )
 }
 

@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 source(
   gaze_weave_test_inst_path(
     "validation", "gaze-weave-transport-v3-repeated-viewing.R"

@@ -1,11 +1,8 @@
-validation_script <- system.file(
-  "validation", "gaze-weave-comparison.R", package = "eyesim"
+skip_if_no_validation()
+
+validation_script <- gaze_weave_test_inst_path(
+  "validation", "gaze-weave-comparison.R"
 )
-if (!nzchar(validation_script)) {
-  validation_script <- testthat::test_path(
-    "..", "..", "inst", "validation", "gaze-weave-comparison.R"
-  )
-}
 source(validation_script, local = TRUE)
 
 test_that("retrieval statistics give fractional credit under complete ties", {

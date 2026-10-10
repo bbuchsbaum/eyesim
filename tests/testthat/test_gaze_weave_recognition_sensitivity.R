@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 recognition_sensitivity_source <- function() {
   environment <- new.env(parent = globalenv())
   sys.source(

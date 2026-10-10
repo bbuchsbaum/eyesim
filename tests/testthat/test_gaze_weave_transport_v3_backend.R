@@ -115,9 +115,9 @@ test_that("native backend matches the R oracle across fixture classes", {
 
 test_that("native backend matches the public Transport-v2 path bank", {
   skip_if_not(eyesim:::transport_v3_native_available())
-  input_path <- gaze_weave_test_inst_path(
-    "validation", "gaze-weave-transport-v3-golden", "inputs.csv"
-  )
+  # A copy of inst/validation/gaze-weave-transport-v3-golden/inputs.csv, kept
+  # with the tests so this parity check also runs on CRAN.
+  input_path <- test_path("fixtures", "transport-v3-golden-inputs.csv")
   inputs <- utils::read.csv(input_path, stringsAsFactors = FALSE)
   fixture <- inputs[inputs$fixture_id == "partial_with_intrusions", ]
   make_role <- function(role) {

@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 probe_delay_validation_path <- function(...) {
   gaze_weave_test_inst_path("validation", ...)
 }

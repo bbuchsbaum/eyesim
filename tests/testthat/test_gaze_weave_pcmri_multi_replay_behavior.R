@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 source(
   gaze_weave_test_inst_path(
     "validation", "gaze-weave-pcmri-multi-replay-behavior.R"

@@ -26,6 +26,10 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
     requireNamespace("albersdown", quietly = TRUE))
   ggplot2::theme_set(albersdown::theme_albers(params$family))
 
+# Package vignettes embed their figures, so CRAN copies use a lower
+# resolution to keep the package small; the pkgdown site keeps the default.
+if (!identical(Sys.getenv("IN_PKGDOWN"), "true")) knitr::opts_chunk$set(dpi = 72)
+
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -359,8 +363,9 @@ Use `type = "overlay"`, `"raw_registered"`, or `"diagnostics"` for the
 registered spatial overlay, the raw-versus-registered path comparison, or the
 bounded diagnostic ledger. The public deterministic path fixtures and their
 MD5 manifest live under
-`inst/validation/gaze-weave-transport-v3-golden` in the source and installed
-package; the executable vignette above uses only generated paths. The `v3` in
+`inst/validation/gaze-weave-transport-v3-golden` in the
+[source repository](https://github.com/bbuchsbaum/eyesim); the executable
+vignette above uses only generated paths. The `v3` in
 those frozen paths identifies the development court, not a selectable method.
 
 ## How scores become probabilities
@@ -449,9 +454,10 @@ The resulting product role is bounded: Transport is the symmetric
 explanatory alignment engine for order- and partial-replay questions. It is not
 a default retrieval predictor and is not known to outperform Replay,
 registered density, or MultiMatch generally. The complete public
-protocols, aggregate reports, and freeze receipts are installed under
-`inst/validation`; trial-linked private outputs are excluded from Git and
-package artifacts.
+protocols, aggregate reports, and freeze receipts are under
+`inst/validation` in the [source repository](https://github.com/bbuchsbaum/eyesim)
+(they are not part of the CRAN package); trial-linked private outputs are
+excluded from Git and package artifacts.
 
 ## Invariance contract
 

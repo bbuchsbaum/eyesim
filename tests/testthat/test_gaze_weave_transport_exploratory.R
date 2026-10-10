@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 transport_exploratory_source <- function() {
   environment <- new.env(parent = globalenv())
   sys.source(

@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 transport_v3_court_result_path <- function(file) {
   gaze_weave_test_inst_path(
     "validation", "gaze-weave-transport-v3-court-results", file
