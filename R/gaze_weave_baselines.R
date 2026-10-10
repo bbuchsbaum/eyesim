@@ -254,7 +254,7 @@ baseline_mls_relocate <- function(recall, targets, rigidity_radius) {
 #'   trajectories of visually guided eye movements can be used to recover the
 #'   spatial location of previously attended objects. *Attention, Perception,
 #'   & Psychophysics*, 83, 1700-1716.
-#' @export
+#' @keywords internal
 elastic_consensus_align <- function(reference, source, spec) {
   if (!inherits(spec, "gaze_baseline_spec")) {
     stop("spec must be created by gaze_baseline_spec().")

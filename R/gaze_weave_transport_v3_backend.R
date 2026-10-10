@@ -206,7 +206,7 @@ solve_transport_v3_profile_ordered <- function(reference, source, spec,
 #' @param spec A [gaze_transport_spec()].
 #'
 #' @return A prepared path with duration mass and local-edge terms.
-#' @export
+#' @keywords internal
 gaze_transport_prepare <- function(path, spec) {
   if (!inherits(spec, "gaze_transport_spec")) {
     stop("spec must be created by gaze_transport_spec().")
@@ -237,7 +237,7 @@ gaze_transport_prepare <- function(path, spec) {
 #' @param batch_size Positive number of candidates scheduled per batch.
 #'
 #' @return Named candidate `gaze_engine_result` objects in input order.
-#' @export
+#' @keywords internal
 gaze_transport_align_batch <- function(references, source, spec,
                                           batch_size = length(references)) {
   if (!is.list(references) || length(references) == 0L) {

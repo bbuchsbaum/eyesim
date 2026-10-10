@@ -522,6 +522,61 @@ gaze_evidence_calibration_fallback <- function(control, temperature_bounds,
   )
 }
 
+# Calibration schemes that mean "no calibration could be fitted": the fold
+# scores with the declared prior (0 bits) or with temperature 1.
+gaze_calibration_fallback_schemes <- c(
+  "declared_prior_fallback", "identity_fallback", "identity_boundary_fallback"
+)
+
+gaze_calibration_fallback_folds <- function(fold_info) {
+  as.integer(sum(vapply(fold_info, function(info) {
+    !is.null(info) &&
+      isTRUE(info$calibration$scheme %in% gaze_calibration_fallback_schemes)
+  }, logical(1))))
+}
+
+# One warning per fit, of class gaze_calibration_fallback, when any outer fold
+# could not fit its calibration. Silent fallbacks made small designs look like
+# "no evidence" (0 bits under the declared-prior fallback).
+warn_gaze_calibration_fallback <- function(engine, fold_info) {
+  n_fallback <- gaze_calibration_fallback_folds(fold_info)
+  if (n_fallback == 0L) return(invisible(0L))
+  schemes <- unique(unlist(lapply(fold_info, function(info) {
+    scheme <- info$calibration$scheme
+    if (isTRUE(scheme %in% gaze_calibration_fallback_schemes)) scheme
+  })))
+  reasons <- unique(unlist(lapply(fold_info, function(info) {
+    if (isTRUE(info$calibration$scheme %in% gaze_calibration_fallback_schemes)) {
+      info$calibration$reason
+    }
+  })))
+  consequence <- if ("declared_prior_fallback" %in% schemes) {
+    "their rows are scored with the declared prior (gaze_info_bits = 0)"
+  } else {
+    "their rows are scored at temperature 1 (uncalibrated)"
+  }
+  message <- paste0(
+    engine, ": the temperature calibration could not be fitted in ",
+    n_fallback, " of ", length(fold_info), " outer folds, so ", consequence,
+    ". Reason: ", paste(reasons, collapse = "; "),
+    ". Use fewer folds or more items per contrast stratum."
+  )
+  warning(structure(
+    class = c("gaze_calibration_fallback", "warning", "condition"),
+    list(message = message, call = NULL, folds = n_fallback)
+  ))
+  invisible(n_fallback)
+}
+
+print_gaze_calibration_fallback <- function(x) {
+  n_fallback <- x$calibration_fallback_folds
+  if (length(n_fallback) == 1L && n_fallback > 0L) {
+    cat("  calibration fallback: ", n_fallback, " of ", length(x$folds),
+        " folds (see the gaze_calibration_fallback warning)\n", sep = "")
+  }
+  invisible(x)
+}
+
 # Held-out evidence for one row under a fitted evidence calibration. The
 # calibration sets the probabilities and bits; rank and top-1 always come
 # from the fixed reference ranking (see gaze_reference_rank()).
@@ -668,10 +723,8 @@ gaze_typicality_item_on <- function(control, match_on, contrast_on) {
 gaze_typicality_source_rows <- function(source_item, cap, seed) {
   n_train <- length(source_item)
   if (n_train <= cap) return(seq_len(n_train))
-  restore_session_rng <- snapshot_session_rng()
-  on.exit(restore_session_rng(), add = TRUE)
-  set.seed(seed)
-  items <- sort(unique(source_item))
+  local_gaze_weave_seed(seed)
+  items <- sort(unique(source_item), method = "radix")
   items <- items[sample.int(length(items))]
   queues <- lapply(items, function(item) {
     rows <- which(source_item == item)

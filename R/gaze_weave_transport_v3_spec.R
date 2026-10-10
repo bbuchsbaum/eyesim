@@ -250,6 +250,11 @@ gaze_transport_spec <- function(
   if (!is.null(screen) && !inherits(screen, "gaze_screen")) {
     stop("screen must be NULL or created by gaze_screen().")
   }
+  if (!is.null(screen) && !identical(spatial$unit, "native") &&
+      !identical(spatial$unit, screen$unit)) {
+    stop("The spatial model is in '", spatial$unit, "' but the screen is in '",
+         screen$unit, "'; give both in the units of the fixation coordinates.")
+  }
   if (identical(warp$type, "contraction") &&
       is.character(warp$center) && is.null(screen)) {
     stop("screen-centred contraction requires a screen specification.")

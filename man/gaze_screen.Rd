@@ -11,12 +11,19 @@ gaze_screen(width, height, unit = c("px", "deg", "normalized"), center = NULL)
 
 \item{unit}{Coordinate unit. One of `"px"`, `"deg"`, or `"normalized"`.}
 
-\item{center}{Optional two-element screen centre. Defaults to half the screen
-dimensions.}
+\item{center}{Optional two-element screen centre, in data coordinates.
+Defaults to half the screen dimensions, so the screen spans
+`[0, width] x [0, height]`; with a centre such as `c(0, 0)` (for example
+degrees of visual angle measured from fixation) it spans
+`center +/- dimensions / 2`.}
 }
 \value{
 A `gaze_screen` specification.
 }
 \description{
 Declare screen geometry for GazeWeave
+}
+\examples{
+gaze_screen(1024, 768)                                # pixels, origin at a corner
+gaze_screen(30, 20, unit = "deg", center = c(0, 0))   # degrees from centre
 }

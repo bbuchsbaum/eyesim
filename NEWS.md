@@ -79,6 +79,35 @@
 
 ## Other changes
 
+* GazeWeave stabilization:
+  * Fold assignment and the typicality subsample use R's default generator
+    and locale-independent (radix) ordering whatever `RNGkind()` and locale
+    are in effect, so a seed gives the same folds everywhere; the caller's
+    generator and stream are still restored. With non-default generator
+    settings or locales, folds can differ from earlier versions. A `NULL`
+    seed passed directly to `gaze_transport_cv()` or `gaze_replay_cv()` is an
+    error rather than a random fold assignment.
+  * When an outer fold cannot fit its temperature calibration (too few items
+    per contrast stratum), Replay and Transport now raise one warning of
+    class `gaze_calibration_fallback` per fit, record the count in
+    `calibration_fallback_folds`, and show it in `print()`. Previously such
+    fits silently returned 0 bits (declared-prior fallback) or uncalibrated
+    scores.
+  * `gaze_transport_spec()` rejects a spatial model whose unit contradicts the
+    screen's, and `gaze_transport_cv()` warns (class `gaze_spatial_scale`)
+    when fixation coordinates are far coarser than the spatial kernel, as
+    with pixel data and the degree-scale default bandwidths.
+  * `gaze_screen(center = )` now sets the screen limits around the centre
+    (e.g. `c(-15, 15)` for a 30-degree screen centred on 0); previously the
+    limits were always `[0, width]`, so centred coordinates were clamped.
+    Replay warns (class `gaze_screen_clamping`) when more than 5% of
+    fixations lie off the declared screen.
+  * Errors about missing columns name the columns.
+  * `gaze_weave_cv()` gains `template_on`, passed to Replay.
+  * `gaze_local_order()`, `gaze_transport_prepare()`,
+    `gaze_transport_align_batch()` and `elastic_consensus_align()` are no
+    longer exported; they were internal plumbing.
+  * Long native Transport solves can be interrupted.
 * GazeWeave (`gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`,
   `gaze_baseline_cv()` and their specifications) is documented as
   experimental: its interface and result columns may still change.

@@ -26,3 +26,4 @@ Named candidate `gaze_engine_result` objects in input order.
 \description{
 Batch candidate alignments with Transport
 }
+\keyword{internal}

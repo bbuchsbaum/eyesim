@@ -1885,10 +1885,10 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
     match_on, contrast_on, split_on, spec$warp$fit_by, spec$background_by,
     sourcevar
   ))
-  if (!all(required_ref %in% names(ref_tab)) ||
-      !all(required_source %in% names(source_tab))) {
-    stop("Replay matching, split, warp, and fixation columns must exist.")
-  }
+  stop_if_missing_gaze_columns("Replay", ref_tab, required_ref,
+                               source_tab, required_source)
+  check_gaze_screen_clamping(ref_tab[[refvar]], source_tab[[sourcevar]],
+                             spec$screen)
   ref_match_key <- gaze_key(ref_tab, match_on, "match_on")
   replay_template_structure(ref_tab, source_tab, match_on, template_on)
   source_tab <- dplyr::ungroup(source_tab)
@@ -2113,11 +2113,13 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
       gaze_calibration_fit_summary(fold_info, results, typicality)
     )
   }
+  calibration_fallback_folds <- warn_gaze_calibration_fallback("Replay", fold_info)
   fit <- structure(
     list(
       results = results,
       spec = spec,
       folds = fold_info,
+      calibration_fallback_folds = calibration_fallback_folds,
       keys = list(
         match_on = match_on,
         contrast_on = contrast_on,
@@ -2140,6 +2142,7 @@ print.gaze_replay_fit <- function(x, ...) {
   cat("  folds:", x$provenance$n_folds, "\n")
   cat("  mean gaze_info_bits:",
       signif(mean(x$results$gaze_info_bits, na.rm = TRUE), 5), "\n")
+  print_gaze_calibration_fallback(x)
   invisible(x)
 }
 

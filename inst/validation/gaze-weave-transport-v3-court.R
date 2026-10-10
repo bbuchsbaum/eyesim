@@ -407,7 +407,7 @@ v3_court_bootstrap <- function(scored, seed = 20260822L,
 
 v3_court_score_candidates <- function(references, source, spec,
                                       batch_size = length(references)) {
-  results <- gaze_transport_align_batch(
+  results <- eyesim:::gaze_transport_align_batch(
     references, source, spec, batch_size = batch_size
   )
   eyesim:::score_gaze_engine_results(

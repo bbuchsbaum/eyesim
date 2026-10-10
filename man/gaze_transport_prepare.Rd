@@ -17,3 +17,4 @@ A prepared path with duration mass and local-edge terms.
 \description{
 Prepare one immutable gaze path for repeated Transport scoring
 }
+\keyword{internal}

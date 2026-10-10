@@ -847,10 +847,10 @@ gaze_transport_cv <- function(
   required_source <- unique(c(
     match_on, contrast_on, split_on, spec$warp$fit_by, sourcevar
   ))
-  if (!all(required_ref %in% names(ref_tab)) ||
-      !all(required_source %in% names(source_tab))) {
-    stop("Transport matching, episode, prior, warp, and path columns must exist.")
-  }
+  stop_if_missing_gaze_columns("Transport", ref_tab, required_ref,
+                               source_tab, required_source)
+  check_gaze_spatial_scale(ref_tab[[refvar]], source_tab[[sourcevar]],
+                           spec$spatial)
   if (is.null(episode_on) && anyDuplicated(gaze_key(
     ref_tab, match_on, "match_on"
   ))) {
@@ -1094,12 +1094,14 @@ gaze_transport_cv <- function(
       if (typicality) paste0("+typicality_", spec$calibration$control$typicality) else ""
     )
   }
+  calibration_fallback_folds <- warn_gaze_calibration_fallback("Transport", fold_info)
   structure(
     list(
       results = results,
       spec = spec,
       solver = solver,
       folds = fold_info,
+      calibration_fallback_folds = calibration_fallback_folds,
       calibration = calibration_summary,
       keys = list(
         match_on = match_on,

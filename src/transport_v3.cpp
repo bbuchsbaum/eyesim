@@ -732,6 +732,8 @@ Rcpp::List transport_v3_profile_native_cpp(
         if (revised) {
           used_newton = 3;  // no step taken yet: the stage's input plan
           for (iteration = 1; iteration <= maxit; ++iteration) {
+            // Let a long solve be interrupted from R.
+            if (iteration % 16 == 0) Rcpp::checkUserInterrupt();
             arma::mat coupling = augmented.submat(0, 0, nr - 1, ns - 1);
             ObjectiveV3 current = objective_v3(
               coupling, reference_mass, source_mass,
@@ -850,6 +852,8 @@ Rcpp::List transport_v3_profile_native_cpp(
           }
         } else {
       for (iteration = 1; iteration <= maxit; ++iteration) {
+        // Let a long solve be interrupted from R.
+        if (iteration % 16 == 0) Rcpp::checkUserInterrupt();
         arma::mat coupling = augmented.submat(0, 0, nr - 1, ns - 1);
         ObjectiveV3 current = objective_v3(
           coupling, reference_mass, source_mass,
