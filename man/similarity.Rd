@@ -28,10 +28,16 @@ same bounds and \code{outdim}. Comparing maps on different lattices is an
 error. A plain numeric \code{y} must have one value per grid cell of \code{x}.
 }
 \examples{
-\dontrun{
-# Example usage of the similarity function
-similarity_value <- similarity(object1, object2, method = "pearson")
-}
+fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                     onset = c(0, 200, 400), duration = c(200, 200, 200))
+fg2 <- fixation_group(x = c(110, 190, 320), y = c(90, 160, 210),
+                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+d1 <- eye_density(fg, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300),
+                  outdim = c(40, 30))
+d2 <- eye_density(fg2, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300),
+                  outdim = c(40, 30))
+similarity(d1, d2, method = "pearson")
+similarity(d1, d2, method = "cosine")
 
 }
 \seealso{

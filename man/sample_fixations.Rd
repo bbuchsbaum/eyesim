@@ -22,6 +22,11 @@ onset (keeping the input order among tied onsets) and drop fixations with a
 missing onset, so they return the same coordinates for any input order; of
 tied onsets, the last one is used.}
 }
+\value{
+A data frame of class \code{sampled_fixation_group} with one row per
+  time point and columns \code{x}, \code{y} (\code{NA} before the first
+  onset), \code{onset} (the time point) and \code{duration} (1).
+}
 \description{
 Sample fixation coordinates at arbitrary time points.
 }
@@ -30,4 +35,9 @@ Each time point takes the coordinates of the most recent fixation whose onset
 is at or before it. Fixation durations are not used: gaze during a saccade is
 attributed to the preceding fixation, and the last fixation is held for all
 later time points. Time points before the first onset give \code{NA}.
+}
+\examples{
+fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                     onset = c(0, 200, 400), duration = c(200, 200, 200))
+sample_fixations(fg, time = c(-50, 0, 250, 500))
 }

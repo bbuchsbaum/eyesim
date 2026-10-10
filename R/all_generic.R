@@ -32,6 +32,14 @@ eye_density <- function(x, sigma, xbounds, ybounds, outdim, weights, normalize,.
 #' @family get_density
 #' @param x the object
 #' @param ... additional arguments
+#' @return The density values as a numeric matrix (for an \code{eye_density},
+#'   its \code{z} component, with rows indexing \code{x} and columns \code{y}).
+#' @examples
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' ed <- eye_density(fg, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300),
+#'                   outdim = c(40, 30))
+#' dim(get_density(ed))
 get_density <- function(x,...) {
   UseMethod("get_density", x)
 }
@@ -61,6 +69,12 @@ sample_density <- function(x,fix,...) {
 #' extract coordinates
 #'
 #' @param x the object
+#' @return A two-column numeric matrix with columns \code{x} and \code{y},
+#'   one row per fixation.
+#' @examples
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' coords(fg)
 #' @export
 coords <- function(x) {
   UseMethod("coords", x)
@@ -120,6 +134,13 @@ rep_fixations <- function(x, resolution) {
 #' @param x the fixation group
 #' @param time the continuous time points to sample
 #' @param ... Additional arguments passed to methods.
+#' @return A data frame of class \code{sampled_fixation_group} with one row per
+#'   time point and columns \code{x}, \code{y} (\code{NA} before the first
+#'   onset), \code{onset} (the time point) and \code{duration} (1).
+#' @examples
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' sample_fixations(fg, time = c(-50, 0, 250, 500))
 #' @export
 sample_fixations <- function(x, time, ...) {
   UseMethod("sample_fixations", x)
@@ -142,10 +163,16 @@ sample_fixations <- function(x, time, ...) {
 #' @return A numeric value representing the similarity between the two input objects.
 #'
 #' @examples
-#' \dontrun{
-#' # Example usage of the similarity function
-#' similarity_value <- similarity(object1, object2, method = "pearson")
-#' }
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' fg2 <- fixation_group(x = c(110, 190, 320), y = c(90, 160, 210),
+#'                       onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' d1 <- eye_density(fg, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300),
+#'                   outdim = c(40, 30))
+#' d2 <- eye_density(fg2, sigma = 50, xbounds = c(0, 400), ybounds = c(0, 300),
+#'                   outdim = c(40, 30))
+#' similarity(d1, d2, method = "pearson")
+#' similarity(d1, d2, method = "cosine")
 #'
 #' @family similarity
 #' @export
@@ -168,27 +195,6 @@ fixation_entropy <- function(x, ...) {
   UseMethod("fixation_entropy", x)
 }
 
-#' Compute Density Matrix for a Given Object
-#'
-#' This function computes the density matrix for a given object, optionally taking into account a grouping variable.
-#'
-#' @param x The input object for which the density matrix should be computed.
-#' @param groups An optional grouping variable to consider when computing the density matrix.
-#' @param ... Additional arguments to be passed to the density matrix computation method.
-#'
-#' @return A density matrix representing the input object, taking into account the specified grouping variable if provided.
-#'
-#' @examples
-#' \dontrun{
-#' # Example usage of the density_matrix function
-#' result_density_matrix <- density_matrix(input_object, groups = grouping_variable)
-#' }
-#'
-#' @export
-density_matrix <- function(x, groups,...) {
-  UseMethod("density_matrix", x)
-}
-
 #' Center Eye-Movements in a New Coordinate System
 #'
 #' This function centers the eye-movements in a new coordinate system with the specified origin.
@@ -200,11 +206,12 @@ density_matrix <- function(x, groups,...) {
 #' @return An object containing the centered eye-movements in the new coordinate system.
 #'
 #' @examples
-#' \dontrun{
-#' # Example usage of the center function
-#' new_origin <- c(500, 500) # New coordinate system origin
-#' centered_object <- center(input_object, origin = new_origin)
-#' }
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' # Centre on the mean fixation position (the default) ...
+#' center(fg)
+#' # ... or on a chosen origin, such as the centre of an 800 x 600 screen.
+#' center(fg, origin = c(400, 300))
 #'
 #' @export
 center <- function(x, origin, ...) {
@@ -224,13 +231,9 @@ center <- function(x, origin, ...) {
 #' @return An object containing the normalized eye-movements in the unit range.
 #'
 #' @examples
-#' \dontrun{
-#' # Example usage of the normalize function
-#' # input_object <- eye-movement data object
-#' x_bounds <- c(0, 1000) # X bounds for normalization
-#' y_bounds <- c(0, 1000) # Y bounds for normalization
-#' normalized_object <- normalize(input_object, xbounds = x_bounds, ybounds = y_bounds)
-#' }
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' normalize(fg, xbounds = c(0, 400), ybounds = c(0, 300))
 #'
 #' @export
 normalize <- function(x, xbounds, ybounds, ...) {
@@ -266,10 +269,12 @@ scanpath <- function(x, ...) {
 #' @return A dataset with the added scanpath.
 #'
 #' @examples
-#' \dontrun{
-#' # Example usage of the add_scanpath function
-#' updated_dataset <- add_scanpath(input_dataset)
-#' }
+#' fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+#'                      onset = c(0, 200, 400), duration = c(200, 200, 200))
+#' tab <- tibble::tibble(trial = 1, fixgroup = list(fg))
+#' sp <- add_scanpath(tab)$scanpath[[1]]
+#' # Saccade amplitude (rho) and direction (theta) from each fixation to the next
+#' as.data.frame(sp)[, c("x", "y", "rho", "theta")]
 #'
 #' @export
 add_scanpath <- function(x, ...) {

@@ -56,10 +56,17 @@ For \code{method = "overlap"}, pass \code{time_samples} through \code{...}; the
 distance threshold \code{dthresh} defaults to 60, as in \code{\link{fixation_overlap}}.
 }
 \examples{
-\dontrun{
-# Example usage of the fixation_similarity function
-# ref_table and source_table should be eye_table objects with fixation groups
-similarity_results <- fixation_similarity(ref_table, source_table, match_column = "trial")
+set.seed(1)
+make_tab <- function(jitter) {
+  tibble::tibble(trial = 1:3, fixgroup = lapply(1:3, function(i) {
+    fixation_group(x = c(100, 200, 300) * i + rnorm(3, 0, jitter),
+                   y = c(100, 150, 200) + rnorm(3, 0, jitter),
+                   onset = c(0, 200, 400), duration = c(200, 200, 200))
+  }))
 }
+ref <- make_tab(0)
+src <- make_tab(20)
+fixation_similarity(ref, src, match_on = "trial", method = "overlap",
+                    time_samples = seq(0, 600, by = 20), permutations = 2)
 
 }

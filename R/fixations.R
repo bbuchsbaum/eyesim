@@ -122,10 +122,11 @@ normalize.fixation_group <- function(x, xbounds, ybounds, ...) {
 #' @export
 print.fixation_group <- function(x, ...) {
   cat("Fixation group:", nrow(x), "fixations\n")
-  cat("  x range: [", round(min(x$x), 1), ", ", round(max(x$x), 1), "]\n", sep = "")
-  cat("  y range: [", round(min(x$y), 1), ", ", round(max(x$y), 1), "]\n", sep = "")
-  cat("  duration range: [", round(min(x$duration), 1), ", ", round(max(x$duration), 1), "]\n", sep = "")
-  cat("  onset range: [", round(min(x$onset), 1), ", ", round(max(x$onset), 1), "]\n", sep = "")
+  if (nrow(x) == 0L) return(invisible(x))
+  cat("  x range: [", round(min(x$x, na.rm = TRUE), 1), ", ", round(max(x$x, na.rm = TRUE), 1), "]\n", sep = "")
+  cat("  y range: [", round(min(x$y, na.rm = TRUE), 1), ", ", round(max(x$y, na.rm = TRUE), 1), "]\n", sep = "")
+  cat("  duration range: [", round(min(x$duration, na.rm = TRUE), 1), ", ", round(max(x$duration, na.rm = TRUE), 1), "]\n", sep = "")
+  cat("  onset range: [", round(min(x$onset, na.rm = TRUE), 1), ", ", round(max(x$onset, na.rm = TRUE), 1), "]\n", sep = "")
   invisible(x)
 }
 

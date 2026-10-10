@@ -1,4 +1,4 @@
-# eyesim 0.2.0.9000
+# eyesim 0.3.0
 
 ## Bug fixes (pre-CRAN review)
 

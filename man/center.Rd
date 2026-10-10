@@ -23,10 +23,11 @@ An object containing the centered eye-movements in the new coordinate system.
 This function centers the eye-movements in a new coordinate system with the specified origin.
 }
 \examples{
-\dontrun{
-# Example usage of the center function
-new_origin <- c(500, 500) # New coordinate system origin
-centered_object <- center(input_object, origin = new_origin)
-}
+fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                     onset = c(0, 200, 400), duration = c(200, 200, 200))
+# Centre on the mean fixation position (the default) ...
+center(fg)
+# ... or on a chosen origin, such as the screen centre.
+center(fg, origin = c(200, 150))
 
 }

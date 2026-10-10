@@ -9,7 +9,6 @@ reference:
   - eye_density
   - get_density
   - sample_density
-  - density_matrix
   - eye_density.fixation_group
   - gen_density
   - as.data.frame.eye_density

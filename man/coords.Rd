@@ -9,6 +9,15 @@ coords(x)
 \arguments{
 \item{x}{the object}
 }
+\value{
+A two-column numeric matrix with columns \code{x} and \code{y},
+  one row per fixation.
+}
 \description{
 extract coordinates
+}
+\examples{
+fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                     onset = c(0, 200, 400), duration = c(200, 200, 200))
+coords(fg)
 }
