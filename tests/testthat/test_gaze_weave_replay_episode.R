@@ -1,7 +1,5 @@
-make_episode_test_spec <- function(reliability = "none", grid_size = 12L,
-                                   revision = "2026.10") {
+make_episode_test_spec <- function(reliability = "none") {
   gaze_replay_spec(
-    grid_size = grid_size,
     max_skip = 2L,
     student_df = 4,
     scale_floor = 0.08,
@@ -13,10 +11,8 @@ make_episode_test_spec <- function(reliability = "none", grid_size = 12L,
     ),
     reliability = reliability,
     reliability_kappa_bounds = c(0, 100),
-    revision = revision,
-    # The kappa shrink needs the pre-A3 global calibration under 2026.10.
-    calibration_control = if (identical(revision, "2026.10") &&
-                              identical(reliability, "effective_fixations")) {
+    # The kappa shrink needs the pre-A3 global calibration.
+    calibration_control = if (identical(reliability, "effective_fixations")) {
       gaze_calibration_control(method = "global")
     }
   )
@@ -189,7 +185,7 @@ test_that("four-presentation episodes preserve separate paths", {
   model <- fit_gaze_replay_model(
     tabs$reference, tabs$source,
     match_on = "item", template_on = "presentation",
-    spec = make_episode_test_spec(revision = "2026.08")
+    spec = make_episode_test_spec()
   )
   episode <- gaze_replay_align_episode(
     tabs$a, tabs$a[[4L]], model,
@@ -197,7 +193,7 @@ test_that("four-presentation episodes preserve separate paths", {
   )
 
   expect_identical(model$template_on, "presentation")
-  expect_identical(model$version, 4L)
+  expect_identical(model$version, 5L)
   expect_identical(episode$alignment$template_count, 4L)
   expect_length(episode$alignment$components, 4L)
   expect_equal(sum(episode$alignment$template_posterior), 1,
@@ -311,9 +307,7 @@ test_that("cross-fitted episode Replay keeps items disjoint and templates groupe
     template_on = "presentation",
     n_folds = 2,
     seed = 41,
-    spec = make_episode_test_spec(
-      reliability = "effective_fixations", grid_size = 8L
-    )
+    spec = make_episode_test_spec(reliability = "effective_fixations")
   )
 
   expect_s3_class(fit, "gaze_replay_fit")

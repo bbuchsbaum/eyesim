@@ -54,9 +54,7 @@
   call under the identity warp instead of once per fold, and prepares each
   candidate's reference episodes once (2.4-4x faster; results identical).
 * Replay's inner calibration fit prepares each row's loss once instead of on
-  every optimiser step (about 5x faster), and the revision 2026.08 transition
-  grid search builds each pair's emissions once rather than once per grid
-  point (about 3x faster). Results are identical.
+  every optimiser step (about 5x faster). Results are identical.
 * `sample_density_time()` normalises each template and looks up each source
   row's grid cells once, then reuses them for the observed value and every
   permutation (about 25x faster on 200 rows x 100 permutations; results and
@@ -115,6 +113,22 @@
     scores agree with the previous solver to about 1e-8. A looser stopping
     tolerance was rejected: at `tolerance >= 1e-5` some nodes stop at a worse
     local solution (0.015 nats on real data).
+  * The Replay estimator revision `"2026.08"` is retired because of its
+    documented defects: unnormalised screen emissions, a single Student
+    background density, an inflated replay scale, and a duration grid under
+    which the no-replay null was not identifiable.
+    `gaze_replay_spec()` still takes and records `revision`, but `"2026.10"`
+    is the only accepted value; `revision = "2026.08"` is an error that names
+    the git tag `gazeweave-2026.08-frozen`, from which 2026.08 can be
+    reproduced. Replay specifications, models and fits saved without a
+    revision used to be read silently as `"2026.08"`; they are now an error
+    asking you to re-create the specification with `gaze_replay_spec()`. The
+    `grid_size` argument of `gaze_replay_spec()`, which `"2026.10"` ignored,
+    is removed, as is the `grid_size` element of Replay specifications. The
+    unused transition grid-search fields (`transition_candidates`,
+    `candidate_log_likelihood`, `selected_candidate`) are removed from
+    fitted models' `training` element. Revision `"2026.10"` results are
+    unchanged. Transport keeps revision `"2026.08"` for now.
 * GazeWeave (`gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`,
   `gaze_baseline_cv()` and their specifications) is documented as
   experimental: its interface and result columns may still change.
@@ -297,7 +311,8 @@
     only.
 
 * GazeWeave Replay gains `gaze_replay_spec(revision = c("2026.10",
-  "2026.08"))`. The new default, `"2026.10"`, changes Replay as follows:
+  "2026.08"))`. (Replay `"2026.08"` was retired in eyesim 0.3.0; see
+  above.) The new default, `"2026.10"`, changes Replay as follows:
   - The observation unit is one recall fixation. The HMM makes exactly one
     hidden-state visit per recall fixation (background, or one state per
     encoding fixation, with the same transition structure as before), and
@@ -366,8 +381,8 @@
   - `gaze_replay_align()` and `gaze_replay_align_episode()` gain
     `background_key`. Revision `"2026.08"` reproduces the earlier fits and
     scores bit for bit. The frozen validation court scripts pin it.
-  - Specs and models saved without a revision are treated as `"2026.08"`.
-    An unknown revision is an error. Multi-presentation court checkpoints
+  - Specs and models saved without a revision are treated as `"2026.08"`
+    (an error since eyesim 0.3.0). An unknown revision is an error. Multi-presentation court checkpoints
     record the Replay revision.
 
 * Shared candidate calibration for Transport and Replay under revision

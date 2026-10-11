@@ -82,16 +82,16 @@ sparse_rich_fixture <- function() {
 
 test_that("specifications carry a calibration control only under 2026.10", {
   expect_null(gaze_transport_spec(revision = "2026.08")$calibration$control)
-  expect_null(gaze_replay_spec(revision = "2026.08")$calibration$control)
   expect_error(
     gaze_transport_spec(revision = "2026.08",
                         calibration_control = gaze_calibration_control()),
     "requires revision"
   )
+  # Replay 2026.08 is retired outright.
   expect_error(
     gaze_replay_spec(revision = "2026.08",
                      calibration_control = gaze_calibration_control()),
-    "requires revision"
+    "gazeweave-2026.08-frozen", fixed = TRUE
   )
   control <- gaze_transport_spec()$calibration$control
   expect_s3_class(control, "gaze_calibration_control")
@@ -833,7 +833,6 @@ test_that("revision 2026.08 and the global method reproduce pre-A3 fits exactly"
   # frozen platform.
   expect_frozen(current$replay_10, golden$replay_10, tolerance = 1e-7)
   expect_null(gaze_transport_spec(revision = "2026.08")$calibration$control)
-  expect_null(gaze_replay_spec(revision = "2026.08")$calibration$control)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

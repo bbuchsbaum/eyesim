@@ -5,24 +5,44 @@
 # a participant-level out-of-fold background density) and its duration
 # (log-normal; replay mean a + b log(encoding duration), plus a background
 # log-normal). All parameters are fitted by Baum-Welch (EM) on training rows.
-# Revision "2026.08" keeps the frozen duration-grid behaviour in
-# gaze_weave_replay.R.
 
-# Objects saved before revisions existed carry no revision and are frozen
-# revision 2026.08; any other unknown revision is refused.
-gaze_replay_revision_of <- function(x) {
-  revision <- x$revision
-  if (is.null(revision)) return("2026.08")
-  if (!is.character(revision) || length(revision) != 1L ||
-      !revision %in% c("2026.08", "2026.10")) {
-    stop("Unknown Replay revision '", paste(revision, collapse = ", "),
-         "'; this eyesim supports \"2026.08\" and \"2026.10\".")
-  }
-  revision
+gaze_replay_revisions <- "2026.10"
+
+gaze_replay_retired_message <- function() {
+  paste0(
+    "Replay revision \"2026.08\" was retired in eyesim 0.3.0 because of ",
+    "documented defects (unnormalised screen emissions, a single-Student ",
+    "background, an inflated replay scale, and a duration grid under which ",
+    "the no-replay null was not identifiable). Use revision \"2026.10\". To ",
+    "reproduce 2026.08 results, install the git tag ",
+    "`gazeweave-2026.08-frozen`, e.g. ",
+    "remotes::install_github(\"bbuchsbaum/eyesim@gazeweave-2026.08-frozen\")."
+  )
 }
 
-gaze_replay_is_legacy <- function(spec) {
-  identical(gaze_replay_revision_of(spec), "2026.08")
+# Replay specs and models must carry a supported revision. Objects saved
+# before revisions existed (no revision field) used to be read silently as
+# 2026.08, which is retired; they are now refused rather than reinterpreted.
+gaze_replay_revision_of <- function(x) {
+  revision <- x$revision
+  if (is.null(revision)) {
+    stop(
+      "This Replay specification or model carries no revision: it predates ",
+      "revisions and was read as the retired revision \"2026.08\". ",
+      "Re-create the specification with gaze_replay_spec() and refit. ",
+      gaze_replay_retired_message(),
+      call. = FALSE
+    )
+  }
+  if (identical(revision, "2026.08")) {
+    stop(gaze_replay_retired_message(), call. = FALSE)
+  }
+  if (!is.character(revision) || length(revision) != 1L ||
+      !revision %in% gaze_replay_revisions) {
+    stop("Unknown Replay revision '", paste(revision, collapse = ", "),
+         "'; this eyesim supports \"2026.10\".", call. = FALSE)
+  }
+  revision
 }
 
 gaze_replay_em_control <- function() {
@@ -51,8 +71,7 @@ reset_gaze_replay_notices <- function() {
 }
 
 note_gaze_replay_plane <- function(spec) {
-  if (gaze_replay_is_legacy(spec) || !is.null(spec$screen) ||
-      isTRUE(gaze_replay_notices$plane)) {
+  if (!is.null(spec$screen) || isTRUE(gaze_replay_notices$plane)) {
     return(invisible(FALSE))
   }
   assign("plane", TRUE, envir = gaze_replay_notices)
@@ -64,22 +83,11 @@ note_gaze_replay_plane <- function(spec) {
   invisible(TRUE)
 }
 
-note_gaze_replay_grid_size <- function() {
-  if (isTRUE(gaze_replay_notices$grid_size)) return(invisible(FALSE))
-  assign("grid_size", TRUE, envir = gaze_replay_notices)
-  message(
-    "Replay revision 2026.10: grid_size is ignored. The model observes each ",
-    "recall fixation once (position and duration); grid_size applies only ",
-    "to revision \"2026.08\". (Shown once per session.)"
-  )
-  invisible(TRUE)
-}
-
 # Fixation-level observations -------------------------------------------------
 
-# One observation per recall fixation, in temporal order. Field names follow
-# the legacy duration grid (coords, fixation_index, time) so alignment
-# consumers such as the plots work unchanged.
+# One observation per recall fixation, in temporal order. The fields coords,
+# fixation_index and time are what alignment consumers such as the plots
+# read.
 gaze_replay_fixation_observation <- function(measure) {
   if (!inherits(measure, "gaze_measure")) {
     stop("measure must be a gaze_measure.")
@@ -984,9 +992,7 @@ gaze_replay_prepare_background <- function(grid, model, background_key = NULL,
 # with the same key encoding used during fitting.
 encode_gaze_replay_background_key <- function(model, value) {
   if (is.null(value)) return(NULL)
-  if (!identical(model$revision, "2026.10")) {
-    stop("background_key applies only to revision 2026.10 Replay models.")
-  }
+  gaze_replay_revision_of(model)
   by <- model$background$background_by
   if (is.null(by)) {
     stop("This Replay model was fitted without background_by.")

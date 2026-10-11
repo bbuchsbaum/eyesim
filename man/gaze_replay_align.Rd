@@ -25,16 +25,14 @@ gaze_replay_align(
 \item{warp_group}{Required fitted group key for grouped models.}
 
 \item{background_key}{Optional values of the `background_by` columns (in
-their declared order) for the recall path; revision `"2026.10"` models
-fitted with `background_by` only. `NULL` uses the pooled training
-background density.}
+their declared order) for the recall path; models fitted with
+`background_by` only. `NULL` uses the pooled training background
+density.}
 }
 \value{
 A `gaze_engine_result` and a `gaze_replay_alignment` posterior
-  object. Under revision `"2026.10"` the score is the total trial log
-  likelihood over recall fixations. Under `"2026.08"` it is the mean log
-  predictive density per normalized duration bin, and the alignment
-  retains the raw total HMM log likelihood as a diagnostic.
+  object. The score is the total trial log likelihood over recall
+  fixations.
 }
 \description{
 Align recall gaze to an encoding path with a fitted Replay model

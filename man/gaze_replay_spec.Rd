@@ -5,7 +5,6 @@
 \title{Specify the directional GazeWeave replay model}
 \usage{
 gaze_replay_spec(
-  grid_size = 64L,
   max_skip = 2L,
   student_df = 4,
   scale_floor = 0.05,
@@ -16,27 +15,22 @@ gaze_replay_spec(
   reliability_kappa_bounds = c(0, 100),
   warp = gaze_warp_none(),
   screen = NULL,
-  revision = c("2026.10", "2026.08"),
+  revision = "2026.10",
   background_by = NULL,
   background_support = c("training", "held_out"),
   calibration_control = NULL
 )
 }
 \arguments{
-\item{grid_size}{Revision `"2026.08"` only: the number of normalized
-duration-mass observations per recall trial. Revision `"2026.10"`
-ignores it (a one-time message says so when it is supplied), because
-the model observes each recall fixation once instead of a duration
-grid.}
-
 \item{max_skip}{Maximum forward encoding-state jump in a local transition.}
 
 \item{student_df}{Degrees of freedom for robust bivariate Student emissions.}
 
 \item{scale_floor}{Positive lower bound for fitted spatial scales.}
 
-\item{transition_grid}{Named list of candidate probabilities for background
-entry, chunk restart, local advance, and background persistence.}
+\item{transition_grid}{Named list of probabilities for background entry,
+chunk restart, local advance, and background persistence. Their medians
+are the starting values of the Baum-Welch fit.}
 
 \item{temperature_bounds}{Positive lower and upper bounds for training-only
 calibration of candidate likelihoods. Direct one-template fits retain
@@ -52,12 +46,13 @@ half-saturation parameter. The lower bound must be zero.}
 
 \item{warp}{Cross-fitted warp specification.}
 
-\item{screen}{Optional screen geometry. Under revision `"2026.10"` every
-emission density is truncated to and normalised over this rectangle.
-When it is `NULL`, emissions are normalised over the whole plane (a
-one-time message says so).}
+\item{screen}{Optional screen geometry. Every emission density is
+truncated to and normalised over this rectangle. When it is `NULL`,
+emissions are normalised over the whole plane (a one-time message says
+so).}
 
-\item{revision}{Model revision. `"2026.10"` (default) is a
+\item{revision}{Model revision, recorded in the specification and in
+every fit. The only supported revision is `"2026.10"`, a
 fixation-level HMM with one hidden-state visit per recall fixation. Each
 fixation emits a position and a duration. Positions follow
 screen-truncated Student densities for replay states and, for the
@@ -71,15 +66,16 @@ evidence grows with the number of recall fixations. The replay scale,
 duration parameters,
 background floor weight, and all transition probabilities are fitted by
 Baum-Welch (EM) on training rows, with `transition_grid` medians used
-only as starting values. `"2026.08"` reproduces the frozen behaviour:
-a duration grid of `grid_size` bins scored by mean log likelihood per
-bin, untruncated emissions, a single Student background at the training
-recall mean, a median nearest-neighbour replay scale, and grid search
-over `transition_grid`.}
+only as starting values. The earlier duration-grid revision `"2026.08"`
+was retired in eyesim 0.3.0 because of documented defects
+(unnormalised screen emissions, a single-Student background, an
+inflated replay scale, and a duration grid under which the no-replay
+null was not identifiable); requesting it is an error. Install the git
+tag `gazeweave-2026.08-frozen` to reproduce 2026.08 results.}
 
 \item{background_by}{Optional source-table columns (for example the
 participant identifier) defining the level at which the background
-density is estimated under revision `"2026.10"`. `NULL` pools all
+density is estimated. `NULL` pools all
 training recalls. Levels with fewer than three other training trials fall
 back to the pooled density; fitting reports this with a message and
 [gaze_replay_cv()] records the count in `provenance$background_fallback`.
@@ -91,8 +87,8 @@ part of `match_on` (or is `NULL`), that key still contains the
 participant, so other participants' recalls of the candidate items stay
 in the background.}
 
-\item{background_support}{Background evaluation protocol under revision
-`"2026.10"`. `"training"` (default) estimates every background from
+\item{background_support}{Background evaluation protocol. `"training"`
+(default) estimates every background from
 training recalls only: the `background_by` level when it has at least
 three training trials outside the candidate pool, otherwise the
 population (pooled) density. Under participant holdout every evaluation
@@ -110,8 +106,7 @@ evaluation rows to decide which recalls lie outside the pool, so it
 cannot be used on unlabelled recalls. Training fits always use the other
 training trials of the same level, excluding the fitted item.}
 
-\item{calibration_control}{Revision `"2026.10"` only: a
-[gaze_calibration_control()]. `NULL` uses its defaults: an
+\item{calibration_control}{A [gaze_calibration_control()]. `NULL` uses its defaults: an
 evidence-scaled temperature whose evidence count is the number of recall
 fixations, fitted on inner out-of-fold rows. `reliability =
 "effective_fixations"` then requires `method = "global"`.}
@@ -122,10 +117,9 @@ A frozen `gaze_replay_spec`.
 \description{
 Replay models a recall path as a sequence generated by local traversal of
 encoding fixations, occasional chunk restarts, and a candidate-independent
-background state. Under revision `"2026.10"` the hidden-Markov model
-observes each recall fixation exactly once: its position and its duration.
-Under `"2026.08"` it observes a normalized gaze-time grid. Transition and
-emission parameters are selected using training trials only by
+background state. The hidden-Markov model observes each recall fixation
+exactly once: its position and its duration. Transition and emission
+parameters are fitted using training trials only by
 [fit_gaze_replay_model()].
 }
 \section{Experimental}{

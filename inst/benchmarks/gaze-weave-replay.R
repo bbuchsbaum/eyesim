@@ -13,13 +13,11 @@ benchmark_replay_path <- function(n, offset = 0) {
 }
 
 benchmark_gaze_replay <- function(sizes = c(20L, 100L),
-                                  grid_size = 64L,
                                   repetitions = 5L) {
   results <- lapply(sizes, function(n) {
     reference <- benchmark_replay_path(n)
     source <- benchmark_replay_path(n, offset = 0.05)
     spec <- gaze_replay_spec(
-      grid_size = grid_size,
       max_skip = 2,
       transition_grid = list(
         background = 0.03,
@@ -42,7 +40,6 @@ benchmark_gaze_replay <- function(sizes = c(20L, 100L),
     data.frame(
       encoding_fixations = n,
       recall_fixations = n,
-      grid_size = grid_size,
       max_skip = spec$max_skip,
       repetitions = repetitions,
       median_seconds = stats::median(elapsed),

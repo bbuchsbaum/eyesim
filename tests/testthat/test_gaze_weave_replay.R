@@ -1,8 +1,7 @@
-make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L,
+make_replay_test_spec <- function(warp = gaze_warp_none(),
                                   revision = "2026.10",
                                   calibration_control = NULL) {
   gaze_replay_spec(
-    grid_size = grid_size,
     max_skip = 2L,
     student_df = 4,
     scale_floor = 0.08,
@@ -18,59 +17,12 @@ make_replay_test_spec <- function(warp = gaze_warp_none(), grid_size = 16L,
   )
 }
 
-test_that("duration grids are invariant to adjacent identical splitting", {
-  original <- make_gaze_fixations(
-    rbind(c(0, 0), c(2, 1)),
-    duration = c(2, 2),
-    onset = c(0, 2)
-  )
-  split <- make_gaze_fixations(
-    rbind(c(0, 0), c(0, 0), c(2, 1)),
-    duration = c(1, 1, 2),
-    onset = c(0, 1, 2)
-  )
-  chronology <- gaze_local_order()
-  original_grid <- eyesim:::gaze_duration_grid(
-    eyesim:::as_gaze_measure(original, chronology), 32
-  )
-  split_grid <- eyesim:::gaze_duration_grid(
-    eyesim:::as_gaze_measure(split, chronology), 32
-  )
-
-  expect_equal(original_grid$coords, split_grid$coords, tolerance = 0)
-  expect_equal(original_grid$time, split_grid$time, tolerance = 0)
-})
-
-test_that("Replay evidence scale is invariant to duration-grid replication", {
-  base_scores <- list(
-    c(-0.4, -0.9, -1.2),
-    c(-1.1, -0.3, -0.8),
-    c(-0.7, -1.0, -0.2),
-    c(-0.2, -0.6, -1.3)
-  )
-  truth <- c(1L, 2L, 3L, 1L)
-  normalized_16 <- lapply(base_scores, function(score) {
-    vapply(score * 16, eyesim:::gaze_replay_mean_log_score,
-           numeric(1), grid_size = 16)
-  })
-  normalized_64 <- lapply(base_scores, function(score) {
-    vapply(score * 64, eyesim:::gaze_replay_mean_log_score,
-           numeric(1), grid_size = 64)
-  })
-
-  expect_equal(normalized_16, base_scores, tolerance = 0)
-  expect_equal(normalized_64, base_scores, tolerance = 0)
-  fit_16 <- eyesim:::fit_gaze_temperature(normalized_16, truth)
-  fit_64 <- eyesim:::fit_gaze_temperature(normalized_64, truth)
-  expect_equal(fit_16$temperature, fit_64$temperature, tolerance = 1e-12)
-})
-
 test_that("revision 2026.10 scores the total trial log likelihood", {
   reference <- make_gaze_fixations(rbind(c(0, 0), c(1, 1), c(2, 0)))
   training <- tibble::tibble(image_id = 1L, fixgroup = list(reference))
   model <- suppressMessages(fit_gaze_replay_model(
     training, training, match_on = "image_id",
-    spec = suppressMessages(make_replay_test_spec(grid_size = 20))
+    spec = make_replay_test_spec()
   ))
   result <- gaze_replay_align(reference, reference, model)
 
@@ -80,31 +32,6 @@ test_that("revision 2026.10 scores the total trial log likelihood", {
   expect_identical(
     result$provenance$score_semantics,
     "total_trial_log_likelihood"
-  )
-})
-
-test_that("Replay 2026.08 retains raw likelihood while scoring mean log density", {
-  reference <- make_gaze_fixations(rbind(c(0, 0), c(1, 1), c(2, 0)))
-  training <- tibble::tibble(image_id = 1L, fixgroup = list(reference))
-  model <- fit_gaze_replay_model(
-    training, training, match_on = "image_id",
-    spec = make_replay_test_spec(grid_size = 20, revision = "2026.08")
-  )
-  result <- gaze_replay_align(reference, reference, model)
-
-  expect_equal(
-    result$log_score,
-    result$alignment$log_likelihood / model$spec$grid_size,
-    tolerance = 0
-  )
-  expect_equal(
-    result$provenance$raw_log_likelihood,
-    result$alignment$log_likelihood,
-    tolerance = 0
-  )
-  expect_identical(
-    result$provenance$score_semantics,
-    "mean_log_likelihood_per_duration_bin"
   )
 })
 
@@ -137,7 +64,7 @@ test_that("log-space forward likelihood matches exhaustive state enumeration", {
     0.4, 0.8,
     0.9, 0.3
   ), 3, 2, byrow = TRUE))
-  fit <- eyesim:::gaze_hmm_forward_backward(log_emission, initial, transition)
+  fit <- gaze_hmm_forward_backward(log_emission, initial, transition)
   paths <- expand.grid(rep(list(1:2), 3))
   path_probability <- apply(paths, 1, function(states) {
     probability <- initial[[states[[1]]]] * exp(log_emission[1, states[[1]]])
@@ -170,7 +97,7 @@ test_that("low-rank Replay recursion matches the dense HMM oracle", {
   )
   set.seed(33)
   log_emission <- matrix(stats::rnorm(28), nrow = 7, ncol = 4)
-  dense <- eyesim:::gaze_hmm_forward_backward(
+  dense <- gaze_hmm_forward_backward(
     log_emission, transition$initial, transition$transition
   )
   low_rank <- eyesim:::gaze_replay_forward_backward(log_emission, transition)
@@ -194,7 +121,7 @@ test_that("Replay is directional and penalizes complete reversal", {
     ref_tab,
     source_tab,
     match_on = "image_id",
-    spec = make_replay_test_spec(grid_size = 24)
+    spec = make_replay_test_spec()
   )
   forward <- gaze_replay_align(reference, reference, model, "forward")
   reverse_path <- make_gaze_fixations(
@@ -214,7 +141,7 @@ test_that("Replay background absorbs gaze far from every encoding state", {
     tibble::tibble(image_id = 1L, fixgroup = list(reference)),
     tibble::tibble(image_id = 1L, fixgroup = list(background_training)),
     match_on = "image_id",
-    spec = make_replay_test_spec(grid_size = 20)
+    spec = make_replay_test_spec()
   )
   result <- gaze_replay_align(reference, background_training, model)
 
@@ -256,7 +183,11 @@ test_that("Replay uses an explicit identity fallback for tiny calibration sets",
     reference, source,
     match_on = c("participant", "item"),
     contrast_on = "participant",
-    spec = make_replay_test_spec(revision = "2026.08")
+    # The global method keeps the plain temperature fit, whose fallback is
+    # the explicit identity calibration.
+    spec = make_replay_test_spec(
+      calibration_control = gaze_calibration_control(method = "global")
+    )
   )
   results <- list(
     gaze_replay_align(first, first, model, "a"),
@@ -270,7 +201,7 @@ test_that("Replay uses an explicit identity fallback for tiny calibration sets",
   expect_identical(model$calibration$scheme, "identity_fallback")
   expect_equal(model$temperature, 1)
   expect_equal(evidence$temperature, model$temperature)
-  expect_equal(model$version, 3L)
+  expect_equal(model$version, 5L)
 })
 
 test_that("Replay temperature calibration is inner-cross-fitted by item", {
@@ -284,7 +215,6 @@ test_that("Replay temperature calibration is inner-cross-fitted by item", {
     # The pre-A3 global temperature calibration (see
     # test_gaze_weave_calibration_revision.R for the default).
     spec = make_replay_test_spec(
-      grid_size = 12,
       calibration_control = gaze_calibration_control(method = "global")
     )
   )
@@ -308,7 +238,6 @@ test_that("cross-fitted Replay uses disjoint item keys and normalized candidates
       translation = TRUE,
       fit_by = "participant"
     ),
-    grid_size = 12,
     calibration_control = gaze_calibration_control(method = "global")
   )
   fit <- gaze_replay_cv(
@@ -340,32 +269,6 @@ test_that("cross-fitted Replay uses disjoint item keys and normalized candidates
     vapply(fold$warp$groups, `[[`, numeric(1), "scale")
   }))
   expect_equal(scales, rep(tabs$scale, length(scales)), tolerance = 1e-5)
-})
-
-test_that("ordered training selects the lower restart candidate (2026.08 grid)", {
-  path <- make_gaze_fixations(rbind(
-    c(0, 0), c(1, 0.8), c(2, 0.1), c(3, 1), c(4, 0.2)
-  ))
-  spec <- gaze_replay_spec(
-    grid_size = 30,
-    max_skip = 2,
-    scale_floor = 0.05,
-    transition_grid = list(
-      background = 0.02,
-      restart = c(0.01, 0.4),
-      advance = 0.5,
-      background_stay = 0.9
-    ),
-    revision = "2026.08"
-  )
-  model <- fit_gaze_replay_model(
-    tibble::tibble(image_id = 1L, fixgroup = list(path)),
-    tibble::tibble(image_id = 1L, fixgroup = list(path)),
-    match_on = "image_id",
-    spec = spec
-  )
-
-  expect_equal(model$parameters$restart, 0.01)
 })
 
 test_that("splitting an identical initial state preserves one-step evidence", {

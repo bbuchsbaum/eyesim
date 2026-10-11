@@ -196,7 +196,6 @@ test_that("each recall fixation is one observation with position and duration", 
                tolerance = 0)
   expect_identical(result$provenance$score_semantics,
                    "total_trial_log_likelihood")
-  expect_null(model$training$em$repeated_grid_rows)
 })
 
 test_that("spatial and duration emissions are normalised densities", {
@@ -345,49 +344,6 @@ test_that("a uniform null at typical recall lengths is fitted as background", {
   expect_lt(max(null_spread), 0.1 * stats::median(signal_margin))
 })
 
-test_that("grid_size is ignored under revision 2026.10, with a one-time message", {
-  data <- simulate_fixation_replay(n_participants = 2L, n_items = 4L,
-                                   n_fixations = 12L, seed = 4L)
-  reset_gaze_replay_notices()
-  expect_message(
-    coarse <- gaze_replay_spec(
-      grid_size = 16L, scale_floor = 6, background_by = "participant",
-      screen = gaze_screen(fixation_screen_w, fixation_screen_h)
-    ),
-    "grid_size is ignored"
-  )
-  expect_silent(
-    fine <- gaze_replay_spec(
-      grid_size = 128L, scale_floor = 6, background_by = "participant",
-      screen = gaze_screen(fixation_screen_w, fixation_screen_h)
-    )
-  )
-  expect_silent(gaze_replay_spec(scale_floor = 6))
-  messages <- character()
-  first <- withCallingHandlers(
-    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
-                          spec = coarse),
-    message = function(m) {
-      messages <<- c(messages, conditionMessage(m))
-      invokeRestart("muffleMessage")
-    }
-  )
-  second <- suppressMessages(fit_gaze_replay_model(
-    data$ref, data$src, c("participant", "image_id"), spec = fine
-  ))
-
-  expect_false(any(grepl("repeat", messages)))
-  expect_identical(first$parameters, second$parameters)
-  expect_identical(first$emission_models, second$emission_models)
-  fit <- suppressMessages(gaze_replay_cv(
-    data$ref, data$src, match_on = c("participant", "image_id"),
-    contrast_on = "participant", n_folds = 2, seed = 2, spec = coarse
-  ))
-  expect_null(fit$provenance$repeated_grid_rows)
-  expect_identical(fit$provenance$score_semantics,
-                   "total_trial_log_likelihood")
-})
-
 relabel_fixture <- function() {
   fixation_cache("relabel", function() {
     set.seed(11)
@@ -458,68 +414,6 @@ test_that("candidate scores do not depend on which candidate is labelled true", 
 
   expect_lt(max(outcomes[, "invariant"]), 1e-12)
   expect_lt(abs(mean(outcomes[, "top1"]) - 0.5), 3 * sqrt(0.25 / 30))
-})
-
-# Legacy revision 2026.08 ------------------------------------------------------
-
-# A full cross-fitted 2026.08 analysis. The golden fixture was produced by
-# this function at commit 1934252 (before the fixation-level model); the
-# frozen revision must reproduce it bit for bit.
-legacy_replay_fixture_fit <- function() {
-  set.seed(21)
-  w <- 1024
-  h <- 768
-  fg <- function(xy, dur) {
-    fixation_group(x = xy[, 1], y = xy[, 2], duration = dur,
-                   onset = c(0, cumsum(dur)[-length(dur)]))
-  }
-  rows <- expand.grid(image_id = 1:6, participant = c("p1", "p2"),
-                      stringsAsFactors = FALSE)
-  ref <- lapply(seq_len(nrow(rows)), function(i) {
-    fg(cbind(stats::runif(6, 50, w - 50), stats::runif(6, 50, h - 50)),
-       stats::rgamma(6, 4, 4 / 250))
-  })
-  src <- lapply(ref, function(r) {
-    fg(cbind(r$x[c(2, 3, 5)] + stats::rnorm(3, 0, 40),
-             r$y[c(2, 3, 5)] + stats::rnorm(3, 0, 40)),
-       stats::rgamma(3, 4, 4 / 250))
-  })
-  spec <- gaze_replay_spec(
-    grid_size = 16L, max_skip = 2L, student_df = 4, scale_floor = 6,
-    transition_grid = list(background = c(0.03, 0.10), restart = 0.05,
-                           advance = c(0.25, 0.55), background_stay = 0.9),
-    screen = gaze_screen(w, h), reliability = "effective_fixations",
-    warp = gaze_warp_contraction(center = "screen", translation = TRUE),
-    revision = "2026.08"
-  )
-  fit <- gaze_replay_cv(
-    tibble::tibble(participant = rows$participant, image_id = rows$image_id,
-                   fixgroup = ref),
-    tibble::tibble(participant = rows$participant, image_id = rows$image_id,
-                   fixgroup = src),
-    match_on = c("participant", "image_id"), contrast_on = "participant",
-    n_folds = 2, seed = 3, spec = spec
-  )
-  list(
-    results = fit$results[, c("gaze_info_bits", "posterior_true", "log_loss",
-                              "reliability", "top1_credit")],
-    candidate_scores = lapply(fit$results$candidates, `[[`, "log_score"),
-    posteriors = lapply(fit$results$alignment, `[[`, "posterior"),
-    folds = lapply(fit$folds, function(fold) {
-      fold[c("transition_parameters", "emission_models")]
-    }),
-    temperature = lapply(fit$folds, function(fold) {
-      fold$calibration$temperature
-    }),
-    provenance = fit$provenance
-  )
-}
-
-test_that("revision 2026.08 reproduces its frozen cross-fitted fit exactly", {
-  golden <- readRDS(test_path("fixtures", "replay_legacy_2026_08.rds"))
-  current <- legacy_replay_fixture_fit()
-
-  expect_frozen(current, golden)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

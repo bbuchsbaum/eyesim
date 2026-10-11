@@ -382,8 +382,9 @@ controls are documented in `?gaze_calibration_control`.
 **Replay scores.** Replay observes each recall fixation once, with its position
 and its duration, and scores a candidate by the total log likelihood of the
 recall. Evidence therefore grows with the number of recall fixations, and there
-is no duration grid to choose. The frozen revision `"2026.08"` instead divided
-a duration-grid log likelihood by the number of grid bins.
+is no duration grid to choose. The earlier Replay revision `"2026.08"`, which
+divided a duration-grid log likelihood by the number of grid bins, was retired
+in eyesim 0.3.0; the git tag `gazeweave-2026.08-frozen` reproduces it.
 
 **Temperature.** Scores become probabilities through a softmax whose
 temperature sets how confident the probabilities are. One global temperature
@@ -416,8 +417,7 @@ recall.
 **Small contrasts.** Inner calibration needs at least twice as many items per
 contrast as calibration folds (four with the default two folds). With fewer,
 or when the inner folds cannot be built, the engine returns the declared prior
-and the row scores zero bits. Under `"2026.08"`, Replay instead used
-temperature one.
+and the row scores zero bits.
 
 ## What the Transport courts support
 

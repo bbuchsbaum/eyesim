@@ -36,7 +36,6 @@ skip_if_no_validation <- function() {
 
 make_small_gaze_replay_spec <- function() {
   gaze_replay_spec(
-    grid_size = 8,
     transition_grid = list(
       background = 0.05,
       restart = 0.05,

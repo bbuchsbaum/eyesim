@@ -16,17 +16,18 @@ changes on a stable runner and keep numerical-correctness tests separate.
 
 ## Directional Replay
 
-Run `gaze-weave-replay.R` after loading or installing `eyesim`. Replay uses a
-fixed 64-point duration grid and a low-rank restart decomposition. Its
-forward-backward recursion is `O(grid_size * encoding_fixations * max_skip)`;
-the dense transition matrix is constructed only for inspection and tiny-oracle
-tests.
+Run `gaze-weave-replay.R` after loading or installing `eyesim`. Replay
+observes each recall fixation once and uses a low-rank restart decomposition.
+Its forward-backward recursion is
+`O(recall_fixations * encoding_fixations * max_skip)`; the dense transition
+matrix is constructed only for inspection and tiny-oracle tests.
 
 Record scoring-only timings separately for 20- and 100-fixation templates. The
 benchmark fits the training model once before timing repeated held-out pair
 scores. Treat these as runner-specific baselines, not package pass/fail limits.
 
-Initial local baseline on 2026-08-15 (macOS arm64, R 4.5.1, five repetitions):
+Initial local baseline on 2026-08-15 (macOS arm64, R 4.5.1, five
+repetitions), measured with the retired revision 2026.08 duration grid:
 
 | Encoding fixations | Recall fixations | Grid points | Median seconds |
 |---:|---:|---:|---:|
