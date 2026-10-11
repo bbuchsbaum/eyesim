@@ -70,7 +70,8 @@ the R implementation when native policy or numerical support is unavailable.
 The package registers native routines and uses no GPU or platform-specific
 instruction set. CRAN and sanitizer checks remain release gates.
 
-Frozen local baseline on 2026-08-20 (macOS arm64, R 4.5.1):
+Frozen local baseline on 2026-08-20 (macOS arm64, R 4.5.1), measured with
+the retired solver revision 2026.08:
 
 | Scope | Evaluations | R reference median | Optimized median | Speedup |
 |---|---:|---:|---:|---:|

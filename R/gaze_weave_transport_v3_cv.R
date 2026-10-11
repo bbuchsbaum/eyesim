@@ -552,7 +552,7 @@ transport_v3_inner_scorer <- function(ref_tab, match_on, contrast_on, refvar,
 transport_v3_outer_scorer <- function(ref_tab, match_on, contrast_on, refvar,
                                       sourcevar, episode_on, priorvar, spec,
                                       warp, calibration, typicality,
-                                      evidence_scaled, reference_rank) {
+                                      evidence_scaled) {
   function(source_row, cache = NULL) {
     if (evidence_scaled) {
       row_scored <- score_transport_v3_cv_row(
@@ -569,10 +569,9 @@ transport_v3_outer_scorer <- function(ref_tab, match_on, contrast_on, refvar,
       temperature = calibration$temperature,
       kappa = calibration$kappa, cache = cache
     )
-    if (reference_rank) {
-      row_scored <- transport_v3_reference_rank(row_scored)
-    }
-    row_scored
+    # Rank and top-1 never depend on the calibration (also for the
+    # "global" method).
+    transport_v3_reference_rank(row_scored)
   }
 }
 
@@ -1057,6 +1056,7 @@ gaze_transport_cv <- function(
   if (!inherits(spec, "gaze_transport_spec")) {
     stop("spec must be created by gaze_transport_spec().")
   }
+  revision <- transport_v3_revision(spec)
   required_ref <- unique(c(
     match_on, contrast_on, episode_on, priorvar, spec$warp$fit_by, refvar
   ))
@@ -1073,9 +1073,6 @@ gaze_transport_cv <- function(
     stop("Duplicate reference candidates require episode_on.")
   }
   evidence_scaled <- gaze_calibration_evidence_scaled(spec)
-  # Under revision 2026.10 rank and top-1 never depend on the calibration
-  # (also for the "global" method); revision 2026.08 is left unchanged.
-  reference_rank <- identical(transport_v3_revision(spec), "2026.10")
   typicality <- gaze_calibration_typicality(spec)
   if (typicality) {
     item_on <- gaze_typicality_item_on(
@@ -1160,7 +1157,7 @@ gaze_transport_cv <- function(
       transport_v3_outer_scorer(
         ref_tab, match_on, contrast_on, refvar, sourcevar, episode_on,
         priorvar, spec, warp, calibration, typicality_fold,
-        evidence_scaled, reference_rank
+        evidence_scaled
       ),
       cache = cache, buckets = transport_v3_row_buckets
     )
@@ -1255,7 +1252,7 @@ gaze_transport_cv <- function(
     }
   )))
   solver <- list(
-    revision = transport_v3_revision(spec),
+    revision = revision,
     backend = spec$control$backend,
     heldout_backends = sort(heldout_backends),
     backend_fallback_count = fallback_records,
@@ -1316,7 +1313,7 @@ gaze_transport_cv <- function(
       ),
       provenance = list(
         engine = "transport",
-        solver_revision = transport_v3_revision(spec),
+        solver_revision = revision,
         primary_score = "gaze_info_bits=log2(p_true/prior_true)",
         candidate_pool = "exhaustive_permitted_within_contrast",
         candidate_prior = if (is.null(priorvar)) {

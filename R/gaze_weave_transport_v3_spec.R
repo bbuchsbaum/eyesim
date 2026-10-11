@@ -46,36 +46,50 @@ transport_v3_coverage_quadrature <- function(n = 8L,
   )
 }
 
+gaze_transport_revisions <- "2026.10"
+
+gaze_transport_retired_message <- function() {
+  paste0(
+    "Transport solver revision \"2026.08\" was retired in eyesim 0.3.0 ",
+    "because of documented defects (a chronology residual that jumped as ",
+    "selected edge mass vanished and was 0/0 for one-fixation sources, a ",
+    "relative-change stopping rule that could stop after one heavily ",
+    "backtracked step, and silent backend fallbacks and cold restarts). ",
+    "Use revision \"2026.10\". To reproduce ",
+    "2026.08 results, install the git tag `gazeweave-2026.08-frozen`, e.g. ",
+    "remotes::install_github(\"bbuchsbaum/eyesim@gazeweave-2026.08-frozen\")."
+  )
+}
+
 # Solver revision of a Transport specification. Specifications serialised
 # before revisions existed carry no revision or, from 2026-08 onwards, the
-# estimand name in the `revision` slot; both are solved with the frozen
-# 2026.08 rules. Any other value is rejected.
+# estimand name in the `revision` slot. Both used to be solved silently as
+# 2026.08, which is retired; they are now refused rather than reinterpreted.
 transport_v3_revision <- function(spec) {
   revision <- spec$revision
   if (is.null(revision) ||
       identical(revision, "edge_normalized_episode_transport")) {
-    return("2026.08")
+    stop(
+      "This Transport specification carries no solver revision: it ",
+      "predates revisions and was solved as the retired revision ",
+      "\"2026.08\". Re-create the specification with gaze_transport_spec(). ",
+      gaze_transport_retired_message(),
+      call. = FALSE
+    )
   }
-  if (identical(revision, "2026.08") || identical(revision, "2026.10")) {
-    return(revision)
+  if (identical(revision, "2026.08")) {
+    stop(gaze_transport_retired_message(), call. = FALSE)
   }
-  stop(
-    "Unknown Transport solver revision: ",
-    paste(format(revision), collapse = ", "),
-    ". Supported revisions are \"2026.10\" and \"2026.08\"."
-  )
-}
-
-# Default revision 2026.10 stopping tolerance (predicted remaining decrease,
-# nats). On the 60-pair review set, a tight continuation of certified nodes
-# found a further decrease of at most 1e-6 at the 95th percentile, but more
-# than 1e-5 on 9 of 692 nodes (up to 1.4e-3, slow directions and saddles
-# that a first-order rule cannot detect). Tightening to 1e-7..1e-9 did not
-# remove those nodes and multiplied projection-limited stalls.
-transport_v3_default_tolerance <- 1e-6
-
-transport_v3_revised <- function(spec) {
-  identical(transport_v3_revision(spec), "2026.10")
+  if (!is.character(revision) || length(revision) != 1L ||
+      !revision %in% gaze_transport_revisions) {
+    stop(
+      "Unknown Transport solver revision: ",
+      paste(format(revision), collapse = ", "),
+      ". This eyesim supports \"2026.10\".",
+      call. = FALSE
+    )
+  }
+  revision
 }
 
 #' Specify edge-normalized GazeWeave Transport
@@ -92,32 +106,33 @@ transport_v3_revised <- function(spec) {
 #' @param temporal_weight Non-negative directed local-order weight.
 #' @param selection_weights Non-negative reference and source selection weights.
 #' @param entropy_schedule Positive correspondence-smoothing continuation
-#'   values; the last value defines the optimized objective. `NULL` (the
-#'   default) uses `c(0.15, 0.05, 0.015)` under revision `"2026.10"` and
-#'   `c(0.05, 0.015)` under `"2026.08"`. The extra, smoother first stage
-#'   reduces, but does not remove, the dependence of the local optimum
-#'   reached on `step_size`.
+#'   values; the last value defines the optimized objective. The smooth first
+#'   stage of the default reduces, but does not remove, the dependence of the
+#'   local optimum reached on `step_size`.
 #' @param temperature_bounds Calibration temperature bounds.
 #' @param warp Candidate-invariant cross-fitted warp specification.
 #' @param screen Optional screen geometry.
 #' @param maxit,step_size Mirror-descent iteration limit and largest step.
-#' @param tolerance Stopping tolerance. Under revision `"2026.10"` its unit is
-#'   the regularized objective (nats): a stage stops when a first-order model
-#'   predicts at most `tolerance` of remaining decrease at the current plan
-#'   (see `revision`). `NULL` (the default) uses `1e-6` under `"2026.10"` and
-#'   the relative objective change `5e-5` under `"2026.08"`.
+#' @param tolerance Stopping tolerance in units of the regularized objective
+#'   (nats): a stage stops when a first-order model predicts at most
+#'   `tolerance` of remaining decrease at the current plan (see `revision`).
+#'   On a 60-pair review set, a tight continuation of nodes stopped at the
+#'   default `1e-6` found a further decrease of at most `1e-6` at the 95th
+#'   percentile; tighter values did not remove the rare slow nodes and
+#'   multiplied projection-limited stalls, and looser ones (`1e-5` or more)
+#'   stopped some nodes at worse local solutions.
 #' @param projection_maxit,projection_tolerance,projection_method Fixed-mass
 #'   projection controls.
-#' @param multistart One or two common structural starts. Under revision
-#'   `"2026.10"` both backends always add the adjacent-coverage continuation,
-#'   and `2` adds a spatial start (natively supported). On the review set,
+#' @param multistart One or two common structural starts. Both backends
+#'   always add the adjacent-coverage continuation, and `2` adds a spatial
+#'   start (natively supported). On the review set,
 #'   `2` lowered the 95th-percentile gap to a multistart oracle only from
 #'   0.0056 to 0.0053 nats at 1.48 times the runtime, and on a second review
 #'   set it never moved a score by more than 2e-5, so it is opt-in.
 #' @param backend Pair solver backend. `"reference"` is the readable R oracle;
 #'   `"optimized"` uses the estimator-preserving batched implementation;
-#'   `"auto"` uses the optimized backend with a reference fallback. Under
-#'   revision `"2026.10"`, a specification the native backend cannot solve
+#'   `"auto"` uses the optimized backend with a reference fallback. A
+#'   specification the native backend cannot solve
 #'   (`projection_method = "log"` or `"standard"`) is routed to the reference backend for
 #'   every pair, a node that reaches `maxit` is recorded as
 #'   `"not_converged"` and scored rather than raising an error, and a
@@ -128,8 +143,9 @@ transport_v3_revised <- function(spec) {
 #'   keeps the entropic solution; `"audit"` polishes every coverage node.
 #' @param polish_maxit,polish_gap_tolerance,polish_relative_tolerance
 #'   Conditional-gradient stopping controls.
-#' @param revision Solver revision. `"2026.10"` (the default) is the
-#'   corrected solver and estimand. The chronology residual is
+#' @param revision Solver revision, recorded in the specification and in
+#'   every alignment and fit. The only supported revision is `"2026.10"`,
+#'   the corrected solver and estimand. The chronology residual is
 #'   `1 - 2A / (R + S + 1e-3)`, continuous as the selected edge mass
 #'   vanishes. The stopping rule is first-order: a stage stops when the plan
 #'   is feasible, no cell outside the support is trapped, and a first-order
@@ -149,24 +165,27 @@ transport_v3_revised <- function(spec) {
 #'   up to 0.117 with 95th percentile 0.023 (null pairs 0.033, matched 0.006)
 #'   on a second 88-pair, half-null set. `backend = "auto"` warns about and records
 #'   every numerical fallback. The polish Frank-Wolfe gap is `NA` with a
-#'   reason on a selection boundary. `"2026.08"` reproduces the frozen August
-#'   2026 solver exactly; the frozen validation courts pin it.
-#'   Specifications saved before revisions existed are solved as
-#'   `"2026.08"`.
+#'   reason on a selection boundary. The earlier solver revision `"2026.08"`
+#'   was retired in eyesim 0.3.0 because of documented defects (a
+#'   discontinuous chronology residual, a relative-change stopping rule, and
+#'   silent backend fallbacks and cold restarts); requesting it is an error.
+#'   Specifications saved before revisions existed, which were solved as
+#'   `"2026.08"`, are an error too: re-create them with
+#'   `gaze_transport_spec()`. Install the git tag `gazeweave-2026.08-frozen`
+#'   to reproduce 2026.08 results, including the frozen validation courts.
 #' @param reliability Response-blind calibration policy.
 #'   `"effective_fixations"` learns effective-fixation shrinkage (kappa) on
 #'   inner out-of-fold predictions and includes the temperature-only solution
-#'   as an exact boundary. `NULL` (the default) uses `"effective_fixations"`
-#'   under revision `"2026.08"` and `"none"` under `"2026.10"`, whose
-#'   evidence-scaled temperature replaces the shrink (see
+#'   as an exact boundary. It requires
+#'   `gaze_calibration_control(method = "global")`. The default, `"none"`,
+#'   leaves sparse rows to the evidence-scaled temperature (see
 #'   [gaze_calibration_control()]).
 #' @param reliability_kappa_bounds Non-negative bounds for the shrinkage scale.
 #' @param calibration_folds,calibration_seed Inner calibration-fold policy.
 #' @param log_temperature_prior_sd,log1p_kappa_prior_sd Penalties of the
-#'   frozen calibration (revision `"2026.08"`, or revision `"2026.10"` with
-#'   `gaze_calibration_control(method = "global")`).
-#' @param calibration_control Revision `"2026.10"` only: a
-#'   [gaze_calibration_control()]. `NULL` uses its defaults.
+#'   global calibration (`gaze_calibration_control(method = "global")`).
+#' @param calibration_control A [gaze_calibration_control()]. `NULL` uses its
+#'   defaults.
 #'
 #' @return A frozen `gaze_transport_spec`.
 #' @section Experimental:
@@ -178,29 +197,22 @@ gaze_transport_spec <- function(
     chronology = gaze_order_neighbours(neighbours = 2),
     coverage_prior = c(2, 2), coverage_nodes = 12L,
     temporal_weight = 2, selection_weights = c(0.5, 0.5),
-    entropy_schedule = NULL,
+    entropy_schedule = c(0.15, 0.05, 0.015),
     temperature_bounds = c(0.05, 20),
     warp = gaze_warp_none(), screen = NULL,
-    maxit = 1000L, step_size = 2, tolerance = NULL,
+    maxit = 1000L, step_size = 2, tolerance = 1e-6,
     projection_maxit = 1000L, projection_tolerance = 1e-8,
     projection_method = c("auto", "standard", "log"),
     multistart = 1L, backend = c("auto", "optimized", "reference"),
     polish = c("none", "audit"), polish_maxit = 200L,
     polish_gap_tolerance = 1e-7, polish_relative_tolerance = 1e-8,
-    reliability = NULL,
+    reliability = c("none", "effective_fixations"),
     reliability_kappa_bounds = c(0, 100),
     calibration_folds = 2L, calibration_seed = 20260822L,
     log_temperature_prior_sd = 1, log1p_kappa_prior_sd = 1,
-    revision = c("2026.10", "2026.08"),
+    revision = "2026.10",
     calibration_control = NULL) {
-  revision <- match.arg(revision)
-  if (is.null(reliability)) {
-    reliability <- if (identical(revision, "2026.08")) {
-      "effective_fixations"
-    } else {
-      "none"
-    }
-  }
+  revision <- transport_v3_revision(list(revision = revision))
   if (!inherits(spatial, "gaze_spatial_spec")) {
     stop("spatial must be created by gaze_gaussian_mixture().")
   }
@@ -227,13 +239,6 @@ gaze_transport_spec <- function(
   }
   if (abs(selection_weights[[1]] - selection_weights[[2]]) > 1e-14) {
     stop("Symmetric Transport requires equal reference and source selection weights.")
-  }
-  if (is.null(entropy_schedule)) {
-    entropy_schedule <- if (identical(revision, "2026.10")) {
-      c(0.15, 0.05, 0.015)
-    } else {
-      c(0.05, 0.015)
-    }
   }
   if (!is.numeric(entropy_schedule) || length(entropy_schedule) == 0L ||
       any(!is.finite(entropy_schedule)) || any(entropy_schedule <= 0)) {
@@ -271,28 +276,28 @@ gaze_transport_spec <- function(
       !integer_controls$multistart %in% 1:2) {
     stop("Invalid Transport integer solver controls.")
   }
-  if (is.null(tolerance)) {
-    tolerance <- if (identical(revision, "2026.10")) {
-      transport_v3_default_tolerance
-    } else {
-      5e-5
-    }
-  }
+  # Default tolerance 1e-6 (predicted remaining decrease, nats). On the
+  # 60-pair review set, a tight continuation of certified nodes found a
+  # further decrease of at most 1e-6 at the 95th percentile, but more than
+  # 1e-5 on 9 of 692 nodes (up to 1.4e-3, slow directions and saddles that a
+  # first-order rule cannot detect). Tightening to 1e-7..1e-9 did not remove
+  # those nodes and multiplied projection-limited stalls.
   numeric_controls <- c(
     step_size = step_size,
     tolerance = tolerance,
     projection_tolerance = projection_tolerance
   )
-  if (any(!is.finite(numeric_controls)) || any(numeric_controls <= 0)) {
+  if (length(numeric_controls) != 3L || any(!is.finite(numeric_controls)) ||
+      any(numeric_controls <= 0)) {
     stop("Transport numeric solver controls must be finite and positive.")
   }
 
   projection_method <- match.arg(projection_method)
   backend <- match.arg(backend)
   polish <- match.arg(polish)
-  reliability <- match.arg(reliability, c("effective_fixations", "none"))
+  reliability <- match.arg(reliability)
   calibration_control <- resolve_gaze_calibration_control(
-    calibration_control, revision, reliability, "transport"
+    calibration_control, reliability, "transport"
   )
   polish_maxit <- as.integer(polish_maxit)
   if (length(polish_maxit) != 1L || is.na(polish_maxit) || polish_maxit < 1L) {
@@ -334,10 +339,9 @@ gaze_transport_spec <- function(
     folds = calibration_folds,
     seed = calibration_seed,
     log_temperature_prior_sd = as.numeric(log_temperature_prior_sd),
-    log1p_kappa_prior_sd = as.numeric(log1p_kappa_prior_sd)
+    log1p_kappa_prior_sd = as.numeric(log1p_kappa_prior_sd),
+    control = calibration_control
   )
-  # Frozen revision 2026.08 specifications carry no calibration control.
-  if (!is.null(calibration_control)) calibration$control <- calibration_control
   structure(
     list(
       spatial = spatial,

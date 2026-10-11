@@ -10,8 +10,7 @@
 # calibration rows. For Transport, whose candidate score is a log mean over
 # study episodes, beta_i multiplies each episode score inside the log mean,
 # exactly as the temperature did before. gamma = 0 is one global temperature.
-# (beta, gamma) are fitted on inner out-of-fold rows only. Revision 2026.08
-# never reaches this file.
+# (beta, gamma) are fitted on inner out-of-fold rows only.
 
 #' Calibration controls for GazeWeave revision 2026.10
 #'
@@ -232,15 +231,9 @@ print.gaze_calibration_control <- function(x, ...) {
 # Engine defaults for the typicality offset (see gaze_calibration_control()).
 gaze_default_typicality <- c(transport = "standardized", replay = "none")
 
-# Resolve a spec's calibration control. Revision 2026.08 specs have none.
-resolve_gaze_calibration_control <- function(calibration_control, revision,
+# Resolve a spec's calibration control.
+resolve_gaze_calibration_control <- function(calibration_control,
                                              reliability, engine) {
-  if (identical(revision, "2026.08")) {
-    if (!is.null(calibration_control)) {
-      stop("calibration_control requires revision \"2026.10\".")
-    }
-    return(NULL)
-  }
   if (is.null(calibration_control)) {
     calibration_control <- gaze_calibration_control()
   }

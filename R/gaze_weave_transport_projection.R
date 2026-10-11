@@ -1,18 +1,5 @@
 # Fixed-mass transport projection primitives -------------------------------
 
-gaze_mutual_information <- function(correspondence) {
-  if (!is.matrix(correspondence) || any(!is.finite(correspondence)) ||
-      any(correspondence < 0) || abs(sum(correspondence) - 1) > 1e-8) {
-    stop("correspondence must be a finite non-negative unit-mass matrix.")
-  }
-  alpha <- rowSums(correspondence)
-  beta <- colSums(correspondence)
-  reference <- outer(alpha, beta)
-  positive <- correspondence > 0
-  sum(correspondence[positive] *
-        log(correspondence[positive] / reference[positive]))
-}
-
 gaze_mutual_information_gradient <- function(correspondence) {
   alpha <- rowSums(correspondence)
   beta <- colSums(correspondence)
@@ -173,30 +160,8 @@ masked_sinkhorn_projection_standard <- function(
   )
 }
 
-masked_sinkhorn_projection <- function(kernel, row_target, column_target, mask,
-                                       maxit, tolerance,
-                                       method = c("auto", "standard", "log")) {
-  method <- match.arg(method)
-  if (identical(method, "log")) {
-    return(masked_sinkhorn_projection_log(
-      kernel, row_target, column_target, mask, maxit, tolerance
-    ))
-  }
-  standard <- masked_sinkhorn_projection_standard(
-    kernel, row_target, column_target, mask, maxit, tolerance
-  )
-  if (identical(method, "standard") || standard$converged) {
-    return(standard)
-  }
-  fallback <- masked_sinkhorn_projection_log(
-    kernel, row_target, column_target, mask, maxit, tolerance
-  )
-  fallback$fallback_from_standard <- TRUE
-  fallback
-}
-
 # Damped Newton ascent on the dual of the masked KL projection. Used by the
-# Transport revision 2026.10 solver as a finisher when standard Sinkhorn
+# Transport solver as a finisher when standard Sinkhorn
 # exhausts its iterations: when the plan's support splits into blocks joined
 # only by small entries, Sinkhorn's slowest mode (the relative scaling of the
 # blocks) contracts arbitrarily slowly, whereas Newton resolves it directly.
@@ -311,9 +276,10 @@ masked_newton_projection <- function(kernel, row_target, column_target, mask,
   )
 }
 
-# Revision 2026.10 fixed-mass projection: standard Sinkhorn, then the Newton
-# finisher when Sinkhorn exhausts its iterations, then (for the "auto"
-# method only) the log-domain oracle.
+# Fixed-mass projection: standard Sinkhorn, then the Newton finisher when
+# Sinkhorn exhausts its iterations, then (for the "auto" method only) the
+# log-domain oracle. projection_method = "log" uses the log-domain oracle
+# alone.
 project_partial_coupling_revised <- function(augmented_kernel, reference_mass,
                                              source_mass, coverage, control) {
   method <- if (is.null(control$projection_method)) {
@@ -321,17 +287,18 @@ project_partial_coupling_revised <- function(augmented_kernel, reference_mass,
   } else {
     control$projection_method
   }
-  if (identical(method, "log")) {
-    return(project_partial_coupling(
-      augmented_kernel, reference_mass, source_mass, coverage, control
-    ))
-  }
   n_reference <- length(reference_mass)
   n_source <- length(source_mass)
   row_target <- c(reference_mass, 1 - coverage)
   column_target <- c(source_mass, 1 - coverage)
   mask <- matrix(TRUE, n_reference + 1L, n_source + 1L)
   mask[n_reference + 1L, n_source + 1L] <- FALSE
+  if (identical(method, "log")) {
+    return(masked_sinkhorn_projection_log(
+      augmented_kernel, row_target, column_target, mask,
+      control$projection_maxit, control$projection_tolerance
+    ))
+  }
   budget <- transport_v3_sinkhorn_budget()
   standard_maxit <- if (budget > 0L) {
     min(control$projection_maxit, budget)
@@ -357,29 +324,6 @@ project_partial_coupling_revised <- function(augmented_kernel, reference_mass,
   fallback
 }
 
-project_partial_coupling <- function(augmented_kernel, reference_mass,
-                                     source_mass, coverage, control) {
-  n_reference <- length(reference_mass)
-  n_source <- length(source_mass)
-  row_target <- c(reference_mass, 1 - coverage)
-  column_target <- c(source_mass, 1 - coverage)
-  mask <- matrix(TRUE, n_reference + 1L, n_source + 1L)
-  mask[n_reference + 1L, n_source + 1L] <- FALSE
-  masked_sinkhorn_projection(
-    augmented_kernel,
-    row_target,
-    column_target,
-    mask,
-    maxit = control$projection_maxit,
-    tolerance = control$projection_tolerance,
-    method = if (is.null(control$projection_method)) {
-      "auto"
-    } else {
-      control$projection_method
-    }
-  )
-}
-
 transport_initial_plans <- function(reference, source, spatial_cost,
                                        coverage, spec) {
   base <- transport_augmented_start(reference$mass, source$mass, coverage)
@@ -392,12 +336,7 @@ transport_initial_plans <- function(reference, source, spatial_cost,
     spatial[seq_len(n_reference), seq_len(n_source)] <-
       pmax(base[seq_len(n_reference), seq_len(n_source)], 1e-300) *
       exp(-pmin(spatial_cost / scale, 700))
-    project <- if (transport_v3_revised(spec)) {
-      project_partial_coupling_revised
-    } else {
-      project_partial_coupling
-    }
-    projected <- project(
+    projected <- project_partial_coupling_revised(
       spatial, reference$mass, source$mass, coverage, spec$control
     )
     if (projected$converged) {

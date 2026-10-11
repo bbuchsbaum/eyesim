@@ -185,30 +185,3 @@ test_that("batch size and candidate order cannot change native scores", {
     result$convergence$converged
   }, logical(1))))
 })
-
-test_that("auto backend falls back cleanly when native policy is unsupported", {
-  path <- make_gaze_fixations(rbind(c(0, 0), c(1, 1), c(2, 0)))
-  auto_spec <- gaze_transport_spec(
-    coverage_nodes = 2,
-    entropy_schedule = 0.03,
-    maxit = 30,
-    tolerance = 1e-3,
-    projection_maxit = 300,
-    projection_tolerance = 1e-7,
-    multistart = 2,
-    backend = "auto",
-    # Revision 2026.10 routes unsupported policies to the reference backend
-    # instead (test_gaze_weave_transport_revision.R).
-    revision = "2026.08"
-  )
-  result <- gaze_transport_align(path, path, auto_spec)
-
-  expect_identical(result$alignment$profile$backend, "reference_fallback")
-  expect_true(result$alignment$profile$fallback)
-  expect_match(
-    result$alignment$profile$fallback_reason,
-    "multistart",
-    fixed = TRUE
-  )
-  expect_true(is.finite(result$log_score))
-})

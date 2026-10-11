@@ -135,7 +135,26 @@
     unused transition grid-search fields (`transition_candidates`,
     `candidate_log_likelihood`, `selected_candidate`) are removed from
     fitted models' `training` element. Revision `"2026.10"` results are
-    unchanged. Transport keeps revision `"2026.08"` for now.
+    unchanged. Transport revision `"2026.08"` is retired as well (below).
+  * The Transport solver revision `"2026.08"` is retired because of its
+    documented defects: a chronology residual that jumped as selected edge
+    mass vanished (0/0 for one-fixation sources), a relative-change stopping
+    rule that could stop after one heavily backtracked step, a reference
+    backend that silently restarted non-converged nodes, and silent native
+    fallbacks. `gaze_transport_spec()` still takes and records `revision`,
+    but `"2026.10"` is the only accepted value; `revision = "2026.08"` is an
+    error that names the git tag `gazeweave-2026.08-frozen`, from which
+    2026.08 (and the frozen validation courts that pin it) can be
+    reproduced. Transport specifications saved without a revision, or with
+    the estimand name in the `revision` slot, used to be solved silently as
+    `"2026.08"`; they are now an error asking you to re-create the
+    specification with `gaze_transport_spec()`. The revision-dependent
+    defaults become plain defaults: `entropy_schedule = c(0.15, 0.05,
+    0.015)`, `tolerance = 1e-6` and `reliability = "none"` (still
+    `"effective_fixations"` with `gaze_calibration_control(method =
+    "global")`). The legacy solver paths are removed from both backends,
+    including revision 0 of the native solver. Revision `"2026.10"` results
+    are unchanged.
 * GazeWeave (`gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`,
   `gaze_baseline_cv()` and their specifications) is documented as
   experimental: its interface and result columns may still change.
@@ -235,9 +254,10 @@
 * `gaze_transport_spec()` gains `revision = c("2026.10", "2026.08")`. The
   default, `"2026.10"`, changes the Transport solver in both the native and
   the reference backend. `"2026.08"` reproduces the frozen August 2026 solver
-  bit for bit, and the frozen validation courts now pin it. Specifications
-  saved before revisions existed are solved as `"2026.08"`; an unknown
-  revision is an error. Under `"2026.10"`:
+  bit for bit, and the frozen validation courts now pin it. (Transport
+  `"2026.08"` was retired in eyesim 0.3.0; see above.) Specifications
+  saved before revisions existed are solved as `"2026.08"` (an error since
+  eyesim 0.3.0); an unknown revision is an error. Under `"2026.10"`:
   - **Estimand change (unreleased).** The chronology residual is
     `1 - 2A / (R + S + kappa)` with `kappa = 1e-3`, one constant shared by
     both backends. It was `1 - 2A / (R + S)`, set to 0 when
@@ -396,7 +416,7 @@
   `"2026.10"` (unreleased), configured by the new
   `gaze_calibration_control()` and the `calibration_control` argument of
   `gaze_transport_spec()` and `gaze_replay_spec()`. Revision `"2026.08"`
-  is unchanged: its specifications carry no control, and its cross-fitted
+  (since retired for both engines) is unchanged: its specifications carry no control, and its cross-fitted
   results are `identical()` to those before this change (pinned by
   `tests/testthat/fixtures/calibration_base_0d9fbcf.rds`, fitted at master
   0d9fbcf). Replay fitted without `contrast_on` still scores at temperature

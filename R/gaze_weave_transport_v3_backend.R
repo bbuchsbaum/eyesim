@@ -10,18 +10,14 @@ transport_v3_native_unsupported <- function(spec) {
   if (!transport_v3_native_available()) {
     return("Transport native backend is unavailable on this platform.")
   }
-  if (spec$control$multistart != 1L && !transport_v3_revised(spec)) {
-    return("The native backend currently requires multistart = 1.")
-  }
   if (identical(spec$control$projection_method, "log")) {
     return(
       "The native backend does not replace the log-domain projection oracle."
     )
   }
-  # The native revised projection always ends in the log-domain fallback, so
+  # The native projection always ends in the log-domain fallback, so
   # it matches the reference only for projection_method = "auto".
-  if (transport_v3_revised(spec) &&
-      identical(spec$control$projection_method, "standard")) {
+  if (identical(spec$control$projection_method, "standard")) {
     return(
       "The native backend implements only projection_method = \"auto\" under revision 2026.10."
     )
@@ -51,7 +47,6 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
     tolerance = spec$control$tolerance,
     projection_maxit = spec$control$projection_maxit,
     projection_tolerance = spec$control$projection_tolerance,
-    revision = if (transport_v3_revised(spec)) 1L else 0L,
     chronology_pseudo_count = transport_v3_chronology_pseudo_count,
     sinkhorn_budget = transport_v3_sinkhorn_budget(),
     multistart = spec$control$multistart
@@ -73,9 +68,8 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
       spec,
       final_entropy
     )
-    chosen <- if (transport_v3_revised(spec)) fit$start else 1L
-    fit$start_objectives[[chosen]] <- fit$objective$optimization
-    fit$start_scientific_objectives[[chosen]] <- fit$objective$scientific
+    fit$start_objectives[[fit$start]] <- fit$objective$optimization
+    fit$start_scientific_objectives[[fit$start]] <- fit$objective$scientific
     fit
   })
   structure(
@@ -141,43 +135,37 @@ solve_transport_v3_profile_ordered <- function(reference, source, spec,
       reference, source, spec, quadrature
     ))
   }
-  revised <- transport_v3_revised(spec)
-  if (revised) {
-    # Under revision 2026.10 a specification the native backend cannot solve
-    # is routed to the reference backend for every pair, so no pair-level
-    # algorithm mixing occurs.
-    unsupported <- transport_v3_native_unsupported(spec)
-    if (!is.null(unsupported)) {
-      if (identical(backend, "optimized")) stop(unsupported)
-      routed <- solve_transport_v3_profile_reference(
-        reference, source, spec, quadrature
-      )
-      routed$fallback <- FALSE
-      routed$backend_route <- paste0("auto_to_reference: ", unsupported)
-      return(routed)
-    }
+  # A specification the native backend cannot solve is routed to the
+  # reference backend for every pair, so no pair-level algorithm mixing
+  # occurs.
+  unsupported <- transport_v3_native_unsupported(spec)
+  if (!is.null(unsupported)) {
+    if (identical(backend, "optimized")) stop(unsupported)
+    routed <- solve_transport_v3_profile_reference(
+      reference, source, spec, quadrature
+    )
+    routed$fallback <- FALSE
+    routed$backend_route <- paste0("auto_to_reference: ", unsupported)
+    return(routed)
   }
   native <- tryCatch(
     solve_transport_v3_profile_native(reference, source, spec, quadrature),
     error = function(condition) condition
   )
-  native_success <- !inherits(native, "error") && if (revised) {
-    # Revision 2026.10: a projection-limited stall or a node that reached
-    # maxit ("not_converged") is recorded and scored, not a failure. The
-    # reference backend runs the same algorithm and would reach the same
-    # maxit 30-200x more slowly, so falling back (or erroring under
-    # "optimized") would discard a feasible solution without improving it.
-    # Only a numerical failure falls back.
+  # A projection-limited stall or a node that reached maxit
+  # ("not_converged") is recorded and scored, not a failure. The reference
+  # backend runs the same algorithm and would reach the same maxit 30-200x
+  # more slowly, so falling back (or erroring under "optimized") would
+  # discard a feasible solution without improving it. Only a numerical
+  # failure falls back.
+  native_success <- !inherits(native, "error") &&
     all(vapply(native$fits, function(fit) {
       !identical(fit$status, "numerical_failure")
     }, logical(1)))
-  } else {
-    all(vapply(native$fits, function(fit) isTRUE(fit$converged), logical(1)))
-  }
   if (native_success) return(native)
   if (identical(backend, "optimized")) {
     if (inherits(native, "error")) stop(conditionMessage(native))
-    stop("Transport optimized backend did not converge.")
+    stop("Transport optimized backend reported a numerical failure.")
   }
   reference <- solve_transport_v3_profile_reference(
     reference, source, spec, quadrature
@@ -195,9 +183,7 @@ solve_transport_v3_profile_ordered <- function(reference, source, spec,
     class = c("gaze_transport_backend_fallback_record", "condition"),
     list(message = reference$fallback_reason, call = NULL)
   ))
-  if (revised) {
-    warning(transport_v3_backend_fallback_warning(reference$fallback_reason))
-  }
+  warning(transport_v3_backend_fallback_warning(reference$fallback_reason))
   reference
 }
 
@@ -212,6 +198,7 @@ gaze_transport_prepare <- function(path, spec) {
   if (!inherits(spec, "gaze_transport_spec")) {
     stop("spec must be created by gaze_transport_spec().")
   }
+  transport_v3_revision(spec)
   measure <- as_transport_v3_measure(path, spec$chronology)
   structure(
     list(

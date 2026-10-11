@@ -428,6 +428,11 @@ been removed. Version labels remain in internal and frozen validation
 provenance so the historical evidence stays auditable; they do not identify
 selectable methods.
 
+The courts below ran the earlier Transport solver revision `"2026.08"`, which
+was retired in eyesim 0.3.0 in favour of `"2026.10"` (see
+`?gaze_transport_spec`); the git tag `gazeweave-2026.08-frozen` reproduces
+them.
+
 The public frozen court passed representation, null calibration, chronology,
 coverage-refinement, registration, convergence, and perturbation gates.
 Reversal sensitivity stayed stable across the declared path-length range;

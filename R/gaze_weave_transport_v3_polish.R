@@ -176,22 +176,20 @@ polish_transport_v3_mass <- function(coupling, reference, source,
   )
   final_gap <- sum(current$gradient * (coupling - final_vertex))
   gap_reason <- NA_character_
-  if (transport_v3_revised(spec)) {
-    # Revision 2026.10: the Jensen-Shannon selection gradient is unbounded
-    # where a positive-target selected mass vanishes, so there the
-    # conditional-gradient gap is set by the gradient floor rather than by
-    # stationarity. Report it only on the relative interior.
-    boundary <- transport_v3_selection_boundary(
-      coupling, reference$mass, source$mass
+  # The Jensen-Shannon selection gradient is unbounded where a
+  # positive-target selected mass vanishes, so there the conditional-gradient
+  # gap is set by the gradient floor rather than by stationarity. Report it
+  # only on the relative interior.
+  boundary <- transport_v3_selection_boundary(
+    coupling, reference$mass, source$mass
+  )
+  if (boundary) {
+    final_gap <- NA_real_
+    gap_reason <- paste0(
+      "selection_boundary: a selected mass with a positive target is below ",
+      "1e-12, where the selection gradient is unbounded; the ",
+      "conditional-gradient gap is not a stationarity certificate there"
     )
-    if (boundary) {
-      final_gap <- NA_real_
-      gap_reason <- paste0(
-        "selection_boundary: a selected mass with a positive target is below ",
-        "1e-12, where the selection gradient is unbounded; the ",
-        "conditional-gradient gap is not a stationarity certificate there"
-      )
-    }
   }
   list(
     coupling = coupling,
