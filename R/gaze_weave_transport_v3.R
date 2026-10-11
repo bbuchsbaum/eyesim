@@ -34,6 +34,12 @@ validate_transport_v3_edge_inputs <- function(correspondence,
 # the candidate's own edge mass R, favouring candidates by their order alone.
 transport_v3_chronology_pseudo_count <- 1e-3
 
+# Revision 2026.10 fixed-mass projection: plain Sinkhorn sweeps before the
+# damped-Newton finisher takes over. Both reach the same projection (scores
+# agree to about 1e-8); Sinkhorn alone converges slowly on the masked partial
+# coupling and took most of the solve time. Shared by both backends.
+transport_v3_sinkhorn_budget <- function() 10L
+
 transport_v3_edge_terms <- function(correspondence, reference_relation,
                                     source_relation, gradient = FALSE,
                                     edge_tolerance = 1e-15,

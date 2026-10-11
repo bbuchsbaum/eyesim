@@ -5,6 +5,27 @@
 
 namespace {
 
+// Solve a symmetric positive-definite system (the dual Hessians and normal
+// equations below are SPD by construction). A Cholesky solve skips
+// Armadillo's condition-number estimate, which dominated these small solves.
+// Systems that fail to factor, or whose Cholesky diagonal suggests poor
+// conditioning, go to the general solver with no approximation, exactly as
+// before, so ill-conditioned systems are still refused.
+bool solve_spd(arma::vec& x, const arma::mat& A, const arma::vec& b) {
+  arma::mat R;
+  if (arma::chol(R, A)) {
+    const arma::vec d = arma::abs(R.diag());
+    const double ratio = d.max() / d.min();
+    if (std::isfinite(ratio) && ratio * ratio < 1e10) {
+      const arma::vec y = arma::solve(arma::trimatl(R.t()), b,
+                                      arma::solve_opts::fast);
+      x = arma::solve(arma::trimatu(R), y, arma::solve_opts::fast);
+      if (x.is_finite()) return true;
+    }
+  }
+  return arma::solve(x, A, b, arma::solve_opts::no_approx);
+}
+
 // Revision 2026.10 first-order stopping rule; mirrors
 // transport_v3_stationarity() in R/gaze_weave_transport_v3_solver.R, where it
 // is documented. Returns the predicted remaining decrease and flags traps.
@@ -40,8 +61,7 @@ StationarityV3 stationarity_check(const arma::mat& augmented,
   arma::mat reduced = normal.submat(0, 0, free - 1, free - 1);
   reduced.diag() += 1e-14 * reduced.diag().max();
   arma::vec solution;
-  if (!arma::solve(solution, reduced, right.subvec(0, free - 1),
-                   arma::solve_opts::no_approx) ||
+  if (!solve_spd(solution, reduced, right.subvec(0, free - 1)) ||
       !solution.is_finite()) {
     return out;
   }
@@ -374,9 +394,8 @@ bool project_newton(
     const double ridge = 1e-14 * reduced.diag().max();
     reduced.diag() += ridge;
     arma::vec reduced_direction;
-    bool solved = arma::solve(
-      reduced_direction, reduced, gradient.subvec(0, free - 1),
-      arma::solve_opts::no_approx
+    bool solved = solve_spd(
+      reduced_direction, reduced, gradient.subvec(0, free - 1)
     );
     if (!solved || !reduced_direction.is_finite()) return false;
     arma::vec direction = arma::join_cols(reduced_direction, arma::vec({0.0}));
@@ -501,10 +520,16 @@ bool project_revised(
     arma::mat& plan,
     double& error,
     int& iterations,
-    int& method) {
+    int& method,
+    int sinkhorn_budget = 0) {
   method = 0;
-  if (project_standard(kernel, row_target, column_target, maxit, tolerance,
-                       plan, error, iterations)) {
+  // Plain Sinkhorn converges slowly on the masked partial coupling; after
+  // `sinkhorn_budget` sweeps the Newton finisher takes over (same projection,
+  // quadratic convergence). Mirrors transport_v3_sinkhorn_budget in R.
+  const int standard_maxit =
+    sinkhorn_budget > 0 ? std::min(maxit, sinkhorn_budget) : maxit;
+  if (project_standard(kernel, row_target, column_target, standard_maxit,
+                       tolerance, plan, error, iterations)) {
     return true;
   }
   method = 1;
@@ -653,7 +678,8 @@ Rcpp::List transport_v3_profile_native_cpp(
     double projection_tolerance,
     int revision = 0,
     double chronology_pseudo_count = 0.0,
-    int multistart = 1) {
+    int multistart = 1,
+    int sinkhorn_budget = 0) {
   const bool revised = revision >= 1;
   const arma::uword nr = reference_mass.n_elem;
   const arma::uword ns = source_mass.n_elem;
@@ -688,7 +714,8 @@ Rcpp::List transport_v3_profile_native_cpp(
         project_revised(
           previous_augmented, row_target, column_target,
           projection_maxit, projection_tolerance,
-          warm_plan, warm_error, warm_iterations, warm_newton
+          warm_plan, warm_error, warm_iterations, warm_newton,
+          sinkhorn_budget
         ) :
         project_standard(
           previous_augmented,
@@ -763,7 +790,7 @@ Rcpp::List transport_v3_profile_native_cpp(
               if (project_revised(
                     mixed, row_target, column_target, projection_maxit,
                     projection_tolerance, reseeded, reseed_error,
-                    reseed_iterations, reseed_method)) {
+                    reseed_iterations, reseed_method, sinkhorn_budget)) {
                 augmented = reseeded;
                 used_newton = reseed_method;
                 step = step_size;
@@ -804,7 +831,8 @@ Rcpp::List transport_v3_profile_native_cpp(
               const bool projected = project_revised(
                 kernel, row_target, column_target,
                 projection_maxit, projection_tolerance,
-                proposal, trial_error, trial_iterations, trial_method
+                proposal, trial_error, trial_iterations, trial_method,
+                sinkhorn_budget
               );
               if (!projected) {
                 trial_step /= 2.0;
@@ -990,7 +1018,7 @@ Rcpp::List transport_v3_profile_native_cpp(
         if (project_revised(spatial, row_target, column_target,
                             projection_maxit, projection_tolerance,
                             spatial_plan, spatial_error, spatial_iterations,
-                            spatial_method)) {
+                            spatial_method, sinkhorn_budget)) {
           candidates.push_back(solve_node("spatial_native", spatial_plan));
         }
       }

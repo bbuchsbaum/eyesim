@@ -53,6 +53,7 @@ solve_transport_v3_profile_native <- function(reference, source, spec,
     projection_tolerance = spec$control$projection_tolerance,
     revision = if (transport_v3_revised(spec)) 1L else 0L,
     chronology_pseudo_count = transport_v3_chronology_pseudo_count,
+    sinkhorn_budget = transport_v3_sinkhorn_budget(),
     multistart = spec$control$multistart
   )
   fits <- native$fits

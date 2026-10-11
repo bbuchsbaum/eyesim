@@ -332,9 +332,15 @@ project_partial_coupling_revised <- function(augmented_kernel, reference_mass,
   column_target <- c(source_mass, 1 - coverage)
   mask <- matrix(TRUE, n_reference + 1L, n_source + 1L)
   mask[n_reference + 1L, n_source + 1L] <- FALSE
+  budget <- transport_v3_sinkhorn_budget()
+  standard_maxit <- if (budget > 0L) {
+    min(control$projection_maxit, budget)
+  } else {
+    control$projection_maxit
+  }
   standard <- masked_sinkhorn_projection_standard(
     augmented_kernel, row_target, column_target, mask,
-    control$projection_maxit, control$projection_tolerance
+    standard_maxit, control$projection_tolerance
   )
   if (standard$converged) return(standard)
   newton <- masked_newton_projection(

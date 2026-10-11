@@ -108,6 +108,13 @@
     `gaze_transport_align_batch()` and `elastic_consensus_align()` are no
     longer exported; they were internal plumbing.
   * Long native Transport solves can be interrupted.
+  * Transport 2026.10 solves each fixed-mass projection with at most 10
+    plain Sinkhorn sweeps before handing over to its damped-Newton finisher
+    (both backends), and the Newton and stationarity systems use a Cholesky
+    solve with a conditioning guard. A pair alignment is about 2.6x faster;
+    scores agree with the previous solver to about 1e-8. A looser stopping
+    tolerance was rejected: at `tolerance >= 1e-5` some nodes stop at a worse
+    local solution (0.015 nats on real data).
 * GazeWeave (`gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`,
   `gaze_baseline_cv()` and their specifications) is documented as
   experimental: its interface and result columns may still change.

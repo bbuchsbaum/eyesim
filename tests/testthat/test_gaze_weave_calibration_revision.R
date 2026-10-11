@@ -821,7 +821,12 @@ test_that("revision 2026.08 and the global method reproduce pre-A3 fits exactly"
   )
 
   expect_frozen(current$transport_08, golden$transport_08)
-  expect_frozen(current$transport_10, golden$transport_10)
+  # The 2026.10 projection hands over to its Newton finisher after a fixed
+  # Sinkhorn budget (transport_v3_sinkhorn_budget). The projection is the same
+  # to its 1e-8 tolerance; through the calibration fit the probabilities move
+  # by about 2e-7 relative (1e-6 for one episode term), so this comparison
+  # is not bit-for-bit anywhere.
+  expect_equal(current$transport_10, golden$transport_10, tolerance = 1e-5)
   # Replay's iterative fit amplifies last-bit differences: on Linux x86-64
   # CI it differed from the macOS golden by up to 1.5e-8 relative
   # (gaze_info_bits 4.5e-9, log_loss 9e-9). Bit-identity still holds on the
