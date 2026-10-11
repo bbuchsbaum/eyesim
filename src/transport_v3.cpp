@@ -605,7 +605,7 @@ struct NodeFitV3 {
 
 // Test hook: the native revision 2026.10 stopping-rule check on one plan, so
 // that tests can compare it with transport_v3_stationarity() in R.
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::List transport_v3_stationarity_native_cpp(
     const arma::mat& augmented,
     const arma::mat& centered_gradient,
@@ -660,7 +660,7 @@ Rcpp::List transport_v3_stationarity_native_cpp(
 //   preferred over fits that hit maxit; within that tier the lowest
 //   regularized objective is kept (ties keep the earlier start). The result
 //   is still a local optimum of a non-convex objective.
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::List transport_v3_profile_native_cpp(
     const arma::vec& reference_mass,
     const arma::vec& source_mass,

@@ -53,6 +53,13 @@
 * `gaze_transport_cv()` solves each (source row, candidate) alignment once per
   call under the identity warp instead of once per fold, and prepares each
   candidate's reference episodes once (2.4-4x faster; results identical).
+* `gaze_transport_cv()` scores rows in parallel under a `future` plan with
+  more than one worker (see `?gaze_transport_cv`). Results are identical to a
+  sequential run, and alignments solved on workers still feed the cross-fold
+  cache. On 4 cores, a 48-row real-data run took 5.8 min instead of 18.0 min
+  with a fitted warp and 2.4 min instead of 4.2 min with the identity warp.
+  The native Transport solver no longer creates `.Random.seed`, which it
+  never used.
 * Replay's inner calibration fit prepares each row's loss once instead of on
   every optimiser step (about 5x faster). Results are identical.
 * `sample_density_time()` normalises each template and looks up each source

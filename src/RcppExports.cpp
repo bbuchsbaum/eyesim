@@ -16,7 +16,6 @@ Rcpp::List transport_v3_stationarity_native_cpp(const arma::mat& augmented, cons
 RcppExport SEXP _eyesim_transport_v3_stationarity_native_cpp(SEXP augmentedSEXP, SEXP centered_gradientSEXP, SEXP entropySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type augmented(augmentedSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type centered_gradient(centered_gradientSEXP);
     Rcpp::traits::input_parameter< double >::type entropy(entropySEXP);
@@ -29,7 +28,6 @@ Rcpp::List transport_v3_profile_native_cpp(const arma::vec& reference_mass, cons
 RcppExport SEXP _eyesim_transport_v3_profile_native_cpp(SEXP reference_massSEXP, SEXP source_massSEXP, SEXP reference_relationSEXP, SEXP source_relationSEXP, SEXP spatial_costSEXP, SEXP coverage_valuesSEXP, SEXP entropy_scheduleSEXP, SEXP temporal_weightSEXP, SEXP selection_weightSEXP, SEXP maxitSEXP, SEXP step_sizeSEXP, SEXP toleranceSEXP, SEXP projection_maxitSEXP, SEXP projection_toleranceSEXP, SEXP revisionSEXP, SEXP chronology_pseudo_countSEXP, SEXP multistartSEXP, SEXP sinkhorn_budgetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::vec& >::type reference_mass(reference_massSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type source_mass(source_massSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type reference_relation(reference_relationSEXP);

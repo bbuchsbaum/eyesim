@@ -233,3 +233,64 @@ test_that("quality and calibration remain explicit separate diagnostics", {
     c("candidate_count", "gaze_info_bits", "log_loss")
   )
 })
+
+test_that("workers return their memo additions and conditions", {
+  cache <- new_transport_v3_cv_cache(gaze_transport_spec())
+  cache$episodes[["c0"]] <- "shipped"
+  cache$alignments[["r2\rc1"]] <- list("other row")
+  shipped <- NULL
+  fun <- function(item, cache = NULL) {
+    shipped <<- c(ls(cache$episodes), ls(cache$alignments))
+    cache$alignments[[paste0(item, "\rc1")]] <- list("new")
+    cache$episodes[["c1"]] <- "prepared"
+    warning(structure(class = c("gaze_transport_backend_fallback", "warning",
+                                "condition"),
+                      list(message = "fell back", call = NULL)))
+    item
+  }
+  chunk <- transport_v3_map_chunk(
+    list("r1"), fun, as.list(cache$episodes), memo = TRUE
+  )
+  # Workers get the prepared episodes but never the cached alignments.
+  expect_identical(shipped, "c0")
+  expect_identical(chunk$results[[1L]]$value, "r1")
+  expect_length(chunk$results[[1L]]$conditions, 1L)
+  expect_identical(names(chunk$added$episodes), "c1")
+
+  transport_v3_merge_cache(cache, chunk$added)
+  expect_identical(cache$alignments[["r1\rc1"]], list("new"))
+  expect_identical(cache$alignments[["r2\rc1"]], list("other row"))
+  expect_identical(cache$episodes[["c1"]], "prepared")
+  expect_warning(
+    transport_v3_replay_conditions(chunk$results[[1L]]$conditions),
+    class = "gaze_transport_backend_fallback"
+  )
+})
+
+test_that("parallel Transport CV equals a sequential run", {
+  skip_on_cran()
+  skip_on_os("windows")
+  skip_if_not(future::supportsMulticore())
+  fixture <- make_transport_v3_cv_fixture()
+  spec <- gaze_transport_spec(
+    coverage_nodes = 2, entropy_schedule = 0.03, maxit = 40,
+    tolerance = 1e-3, projection_maxit = 300, projection_tolerance = 1e-7,
+    calibration_folds = 2, calibration_seed = 20260822,
+    calibration_control = gaze_calibration_control(typicality_sources = 4)
+  )
+  run <- function() {
+    fit <- suppressWarnings(gaze_transport_cv(
+      fixture$references, fixture$sources,
+      match_on = c("participant", "item"), contrast_on = "participant",
+      spec = spec, n_folds = 2, seed = 20260822,
+      episode_on = "presentation", priorvar = "prior_weight"
+    ))
+    fit$provenance <- NULL
+    fit
+  }
+  old_plan <- future::plan(future::sequential)
+  on.exit(future::plan(old_plan), add = TRUE)
+  sequential <- run()
+  future::plan(future::multicore, workers = 2)
+  expect_identical(run(), sequential)
+})

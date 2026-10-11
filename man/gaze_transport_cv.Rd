@@ -78,6 +78,15 @@ repeated on item-grouped inner folds. Every held-out row is scored against
 every permitted candidate in its contrast stratum with the actual declared
 candidate prior and one common solver, warp, and equal-episode policy.
 }
+\section{Parallel evaluation}{
+
+Held-out rows, inner-calibration rows and typicality candidates are scored
+in parallel under a [future][future::plan] plan with more than one worker,
+for example `future::plan(future::multisession, workers = 4)`. The solver
+draws no random numbers, so the results are identical to a sequential run.
+The default sequential plan runs as before.
+}
+
 \section{Experimental}{
 
 GazeWeave is experimental. Its interface, defaults and result columns may

@@ -26,6 +26,7 @@ Imports:
     tibble,
     broom,
     furrr,
+    future,
     purrr,
     MASS,
     RColorBrewer,
