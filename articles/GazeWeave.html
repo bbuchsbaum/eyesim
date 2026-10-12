@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">eyesim</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,6 +48,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/bbuchsbaum/eyesim/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -64,7 +65,7 @@
       <h1>GazeWeave: Calibrated Item Information from Gaze Paths</h1>
             
       
-
+      <small class="dont-index">Source: <a href="https://github.com/bbuchsbaum/eyesim/blob/master/vignettes/GazeWeave.Rmd" class="external-link"><code>vignettes/GazeWeave.Rmd</code></a></small>
       <div class="d-none name"><code>GazeWeave.Rmd</code></div>
     </div>
 
@@ -77,6 +78,11 @@
 <div class="section level2">
 <h2 id="the-question-gazeweave-answers">The question GazeWeave answers<a class="anchor" aria-label="anchor" href="#the-question-gazeweave-answers"></a>
 </h2>
+<blockquote>
+<p><strong>Experimental.</strong> GazeWeave is under active development.
+Its interface, defaults and result columns may change in future
+releases, so record the eyesim version alongside any results.</p>
+</blockquote>
 <p>Suppose a participant studies a series of images and later recalls
 each one while looking at a blank screen. If recall reinstates the way
 the image was viewed, the recall gaze path should carry information
@@ -431,10 +437,10 @@ only. Ask for the audit view when you need the explanatory fields:</p>
 <span><span class="co">#&gt; [1] "native_rcpparmadillo"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $solver_stability$maximum_stationarity</span></span>
-<span><span class="co">#&gt; [1] 0.0009296709</span></span>
+<span><span class="co">#&gt; [1] 0.0009296708</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $solver_stability$maximum_relative_objective_change</span></span>
-<span><span class="co">#&gt; [1] 0.0001871426</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.0001871428</span></span></code></pre></div>
 <p>Spatial RMSE is reported in the declared screen or spatial coordinate
 unit; a <code>"native"</code> specification is labelled
 <code>native_coordinate_units</code>. The nested episode table retains
@@ -471,10 +477,10 @@ An optimized Transport correspondence, not a posterior probability.
 <code>"diagnostics"</code> for the registered spatial overlay, the
 raw-versus-registered path comparison, or the bounded diagnostic ledger.
 The public deterministic path fixtures and their MD5 manifest live under
-<code>inst/validation/gaze-weave-transport-v3-golden</code> in the
-source and installed package; the executable vignette above uses only
-generated paths. The <code>v3</code> in those frozen paths identifies
-the development court, not a selectable method.</p>
+<code>inst/validation/gaze-weave-transport-v3-golden</code> in the <a href="https://github.com/bbuchsbaum/eyesim" class="external-link">source repository</a>; the
+executable vignette above uses only generated paths. The <code>v3</code>
+in those frozen paths identifies the development court, not a selectable
+method.</p>
 </div>
 <div class="section level2">
 <h2 id="how-scores-become-probabilities">How scores become probabilities<a class="anchor" aria-label="anchor" href="#how-scores-become-probabilities"></a>
@@ -489,8 +495,10 @@ The calibration controls are documented in
 once, with its position and its duration, and scores a candidate by the
 total log likelihood of the recall. Evidence therefore grows with the
 number of recall fixations, and there is no duration grid to choose. The
-frozen revision <code>"2026.08"</code> instead divided a duration-grid
-log likelihood by the number of grid bins.</p>
+earlier Replay revision <code>"2026.08"</code>, which divided a
+duration-grid log likelihood by the number of grid bins, was retired in
+eyesim 0.3.0; the git tag <code>gazeweave-2026.08-frozen</code>
+reproduces it.</p>
 <p><strong>Temperature.</strong> Scores become probabilities through a
 softmax whose temperature sets how confident the probabilities are. One
 global temperature made sparse recalls overconfident and rich recalls
@@ -523,8 +531,7 @@ likelihoods, so do not read them as probabilities of the recall.</p>
 <p><strong>Small contrasts.</strong> Inner calibration needs at least
 twice as many items per contrast as calibration folds (four with the
 default two folds). With fewer, or when the inner folds cannot be built,
-the engine returns the declared prior and the row scores zero bits.
-Under <code>"2026.08"</code>, Replay instead used temperature one.</p>
+the engine returns the declared prior and the row scores zero bits.</p>
 </div>
 <div class="section level2">
 <h2 id="what-the-transport-courts-support">What the Transport courts support<a class="anchor" aria-label="anchor" href="#what-the-transport-courts-support"></a>
@@ -535,6 +542,10 @@ formerly labelled v3 is now simply Transport; the older implementations
 have been removed. Version labels remain in internal and frozen
 validation provenance so the historical evidence stays auditable; they
 do not identify selectable methods.</p>
+<p>The courts below ran the earlier Transport solver revision
+<code>"2026.08"</code>, which was retired in eyesim 0.3.0 in favour of
+<code>"2026.10"</code> (see <code><a href="../reference/gaze_transport_spec.html">?gaze_transport_spec</a></code>); the git
+tag <code>gazeweave-2026.08-frozen</code> reproduces them.</p>
 <p>The public frozen court passed representation, null calibration,
 chronology, coverage-refinement, registration, convergence, and
 perturbation gates. Reversal sensitivity stayed stable across the
@@ -567,9 +578,10 @@ or saliency form was changed after behavior was opened.</p>
 explanatory alignment engine for order- and partial-replay questions. It
 is not a default retrieval predictor and is not known to outperform
 Replay, registered density, or MultiMatch generally. The complete public
-protocols, aggregate reports, and freeze receipts are installed under
-<code>inst/validation</code>; trial-linked private outputs are excluded
-from Git and package artifacts.</p>
+protocols, aggregate reports, and freeze receipts are under
+<code>inst/validation</code> in the <a href="https://github.com/bbuchsbaum/eyesim" class="external-link">source repository</a> (they
+are not part of the CRAN package); trial-linked private outputs are
+excluded from Git and package artifacts.</p>
 </div>
 <div class="section level2">
 <h2 id="invariance-contract">Invariance contract<a class="anchor" aria-label="anchor" href="#invariance-contract"></a>

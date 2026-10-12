@@ -70,3 +70,9 @@ gaze_baseline_spec(
 ## Value
 
 A frozen \`gaze_baseline_spec\`.
+
+## Experimental
+
+GazeWeave is experimental. Its interface, defaults and result columns
+may change in future releases; record the package version with any
+results.

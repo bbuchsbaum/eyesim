@@ -99,9 +99,23 @@ distance threshold `dthresh` defaults to 60, as in
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Example usage of the fixation_similarity function
-# ref_table and source_table should be eye_table objects with fixation groups
-similarity_results <- fixation_similarity(ref_table, source_table, match_column = "trial")
-} # }
+set.seed(1)
+make_tab <- function(jitter) {
+  tibble::tibble(trial = 1:3, fixgroup = lapply(1:3, function(i) {
+    fixation_group(x = c(100, 200, 300) * i + rnorm(3, 0, jitter),
+                   y = c(100, 150, 200) + rnorm(3, 0, jitter),
+                   onset = c(0, 200, 400), duration = c(200, 200, 200))
+  }))
+}
+ref <- make_tab(0)
+src <- make_tab(20)
+fixation_similarity(ref, src, match_on = "trial", method = "overlap",
+                    time_samples = seq(0, 600, by = 20), permutations = 2)
+#> fixation_similarity: similarity metric is overlap
+#> # A tibble: 3 × 7
+#>   trial fixgroup           matchind eye_sim perm_sim eye_sim_diff n_perm
+#>   <int> <list>                <int>   <dbl>    <dbl>        <dbl>  <int>
+#> 1     1 <fxtn_grp [3 × 6]>        1       1        0            1      2
+#> 2     2 <fxtn_grp [3 × 6]>        2       1        0            1      2
+#> 3     3 <fxtn_grp [3 × 6]>        3       1        0            1      2
 ```

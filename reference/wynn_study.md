@@ -1,6 +1,7 @@
-# Eye-tracking study data from Wynn et al.
+# Study-phase fixations from Wynn et al.
 
-Eye-tracking fixation data from a study phase experiment.
+Fixations recorded while participants studied photographs in a
+recognition memory experiment, one row per participant and image.
 
 ## Usage
 
@@ -10,13 +11,64 @@ wynn_study
 
 ## Format
 
-A data frame or tibble containing eye-tracking fixation data with
-columns for x/y coordinates, fixation duration, onset times, and
-subject/trial identifiers.
+A grouped tibble (grouped by `ImageNumber` and `Subject`) with 12,240
+rows and 8 columns:
+
+- Subject:
+
+  Participant number.
+
+- fixgroup:
+
+  A
+  [`fixation_group`](https://bbuchsbaum.github.io/eyesim/reference/fixation_group.md)
+  with the pooled study fixations (`x`, `y` in pixels; `duration` and
+  `onset` in ms).
+
+- ImageVersion:
+
+  Image and version shown, e.g. `"1_A"`.
+
+- Version:
+
+  Image version (`"A"` or `"B"`).
+
+- Trial:
+
+  Trial index of the first viewing.
+
+- ImageNumber:
+
+  Image identifier.
+
+- blockstudy:
+
+  Study block of the first viewing.
+
+- ImageNumberS:
+
+  Participant-image key, `"<Subject>_<ImageNumber>"`, matching
+  `wynn_test$ImageNumberS`.
 
 ## Source
 
-Wynn et al. eye-tracking study.
+Wynn et al. eye-tracking study; built from the raw fixation report by
+`data-raw/process_dat.R` in the source repository.
+
+## Details
+
+Each image was studied once in each of four study blocks, and a row
+pools the fixations of all four viewings: within a row's `fixgroup`,
+onsets restart at each viewing. The pooled fixations suit density maps
+(for example study templates for
+[`template_similarity`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md));
+for scanpath measures, which join consecutive rows, split the viewings
+first. Fixations outside the 800 x 600 pixel image area were removed and
+coordinates are relative to its top-left corner.
+
+## See also
+
+[`wynn_test`](https://bbuchsbaum.github.io/eyesim/reference/wynn_test.md)
 
 ## Examples
 

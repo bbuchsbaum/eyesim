@@ -40,14 +40,11 @@ gaze_replay_align(
 - background_key:
 
   Optional values of the \`background_by\` columns (in their declared
-  order) for the recall path; revision \`"2026.10"\` models fitted with
-  \`background_by\` only. \`NULL\` uses the pooled training background
-  density.
+  order) for the recall path; models fitted with \`background_by\` only.
+  \`NULL\` uses the pooled training background density.
 
 ## Value
 
 A \`gaze_engine_result\` and a \`gaze_replay_alignment\` posterior
-object. Under revision \`"2026.10"\` the score is the total trial log
-likelihood over recall fixations. Under \`"2026.08"\` it is the mean log
-predictive density per normalized duration bin, and the alignment
-retains the raw total HMM log likelihood as a diagnostic.
+object. The score is the total trial log likelihood over recall
+fixations.

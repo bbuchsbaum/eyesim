@@ -35,9 +35,20 @@ system.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Example usage of the center function
-new_origin <- c(500, 500) # New coordinate system origin
-centered_object <- center(input_object, origin = new_origin)
-} # }
+fg <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                     onset = c(0, 200, 400), duration = c(200, 200, 200))
+# Centre on the mean fixation position (the default) ...
+center(fg)
+#> Fixation group: 3 fixations
+#>   x range: [-100, 100]
+#>   y range: [-50, 50]
+#>   duration range: [200, 200]
+#>   onset range: [0, 400]
+# ... or on a chosen origin, such as the centre of an 800 x 600 screen.
+center(fg, origin = c(400, 300))
+#> Fixation group: 3 fixations
+#>   x range: [-300, -100]
+#>   y range: [-200, -100]
+#>   duration range: [200, 200]
+#>   onset range: [0, 400]
 ```

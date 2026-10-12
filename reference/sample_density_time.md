@@ -132,25 +132,30 @@ permutation columns if binning is used.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Create encoding density maps
-encoding_dens <- eyetab %>%
-  filter(condition == "encoding") %>%
-  density_by(groups = c("subject", "image"), sigma = 200)
-
-# Get retrieval fixations (as eye_table, not density)
-retrieval_fix <- eyetab %>%
-  filter(condition == "retrieval")
-
-# Sample encoding density at retrieval fixation locations over time
-results <- sample_density_time(
-  template_tab = encoding_dens,
-  source_tab = retrieval_fix,
-  match_on = "subject_image",
-  times = seq(0, 5000, by = 50),
-  time_bins = c(0, 1000, 2000, 3000, 4000, 5000),
-  permutations = 50,
-  permute_on = "subject"
-)
-} # }
+set.seed(1)
+# Encoding fixations for three images, and one recall per image that
+# revisits the encoded locations with some noise.
+centres <- list(c(150, 150), c(400, 300), c(650, 150))
+fixations <- function(centre, jitter) {
+  fixation_group(x = centre[1] + rnorm(6, 0, jitter),
+                 y = centre[2] + rnorm(6, 0, jitter),
+                 onset = seq(0, 1000, by = 200), duration = rep(200, 6))
+}
+encoding <- tibble::tibble(image = 1:3,
+                           fixgroup = lapply(centres, fixations, jitter = 40))
+recall <- tibble::tibble(image = 1:3,
+                         fixgroup = lapply(centres, fixations, jitter = 60))
+templates <- density_by(encoding, groups = "image", sigma = 60,
+                        xbounds = c(0, 800), ybounds = c(0, 450),
+                        outdim = c(80, 45))
+res <- sample_density_time(templates, recall, match_on = "image",
+                           times = seq(0, 1000, by = 100),
+                           time_bins = c(0, 500, 1000), permutations = 2)
+res[, c("image", "bin_1", "bin_2", "perm_bin_1", "perm_bin_2")]
+#> # A tibble: 3 × 5
+#>   image   bin_1   bin_2  perm_bin_1  perm_bin_2
+#>   <int>   <dbl>   <dbl>       <dbl>       <dbl>
+#> 1     1 0.00322 0.00260 0.000000352 0.000000236
+#> 2     2 0.00148 0.00215 0.000000213 0.00000281 
+#> 3     3 0.00126 0.00201 0.000000442 0.00000275 
 ```

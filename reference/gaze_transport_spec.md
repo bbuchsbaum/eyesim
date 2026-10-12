@@ -15,13 +15,13 @@ gaze_transport_spec(
   coverage_nodes = 12L,
   temporal_weight = 2,
   selection_weights = c(0.5, 0.5),
-  entropy_schedule = NULL,
+  entropy_schedule = c(0.15, 0.05, 0.015),
   temperature_bounds = c(0.05, 20),
   warp = gaze_warp_none(),
   screen = NULL,
   maxit = 1000L,
   step_size = 2,
-  tolerance = NULL,
+  tolerance = 1e-06,
   projection_maxit = 1000L,
   projection_tolerance = 1e-08,
   projection_method = c("auto", "standard", "log"),
@@ -31,13 +31,13 @@ gaze_transport_spec(
   polish_maxit = 200L,
   polish_gap_tolerance = 1e-07,
   polish_relative_tolerance = 1e-08,
-  reliability = NULL,
+  reliability = c("none", "effective_fixations"),
   reliability_kappa_bounds = c(0, 100),
   calibration_folds = 2L,
   calibration_seed = 20260822L,
   log_temperature_prior_sd = 1,
   log1p_kappa_prior_sd = 1,
-  revision = c("2026.10", "2026.08"),
+  revision = "2026.10",
   calibration_control = NULL
 )
 ```
@@ -71,11 +71,9 @@ gaze_transport_spec(
 - entropy_schedule:
 
   Positive correspondence-smoothing continuation values; the last value
-  defines the optimized objective. \`NULL\` (the default) uses \`c(0.15,
-  0.05, 0.015)\` under revision \`"2026.10"\` and \`c(0.05, 0.015)\`
-  under \`"2026.08"\`. The extra, smoother first stage reduces, but does
-  not remove, the dependence of the local optimum reached on
-  \`step_size\`.
+  defines the optimized objective. The smooth first stage of the default
+  reduces, but does not remove, the dependence of the local optimum
+  reached on \`step_size\`.
 
 - temperature_bounds:
 
@@ -95,12 +93,14 @@ gaze_transport_spec(
 
 - tolerance:
 
-  Stopping tolerance. Under revision \`"2026.10"\` its unit is the
-  regularized objective (nats): a stage stops when a first-order model
-  predicts at most \`tolerance\` of remaining decrease at the current
-  plan (see \`revision\`). \`NULL\` (the default) uses \`1e-6\` under
-  \`"2026.10"\` and the relative objective change \`5e-5\` under
-  \`"2026.08"\`.
+  Stopping tolerance in units of the regularized objective (nats): a
+  stage stops when a first-order model predicts at most \`tolerance\` of
+  remaining decrease at the current plan (see \`revision\`). On a
+  60-pair review set, a tight continuation of nodes stopped at the
+  default \`1e-6\` found a further decrease of at most \`1e-6\` at the
+  95th percentile; tighter values did not remove the rare slow nodes and
+  multiplied projection-limited stalls, and looser ones (\`1e-5\` or
+  more) stopped some nodes at worse local solutions.
 
 - projection_maxit, projection_tolerance, projection_method:
 
@@ -108,23 +108,23 @@ gaze_transport_spec(
 
 - multistart:
 
-  One or two common structural starts. Under revision \`"2026.10"\` both
-  backends always add the adjacent-coverage continuation, and \`2\` adds
-  a spatial start (natively supported). On the review set, \`2\` lowered
-  the 95th-percentile gap to a multistart oracle only from 0.0056 to
-  0.0053 nats at 1.48 times the runtime, and on a second review set it
-  never moved a score by more than 2e-5, so it is opt-in.
+  One or two common structural starts. Both backends always add the
+  adjacent-coverage continuation, and \`2\` adds a spatial start
+  (natively supported). On the review set, \`2\` lowered the
+  95th-percentile gap to a multistart oracle only from 0.0056 to 0.0053
+  nats at 1.48 times the runtime, and on a second review set it never
+  moved a score by more than 2e-5, so it is opt-in.
 
 - backend:
 
   Pair solver backend. \`"reference"\` is the readable R oracle;
   \`"optimized"\` uses the estimator-preserving batched implementation;
-  \`"auto"\` uses the optimized backend with a reference fallback. Under
-  revision \`"2026.10"\`, a specification the native backend cannot
-  solve (\`projection_method = "log"\` or \`"standard"\`) is routed to
-  the reference backend for every pair, a node that reaches \`maxit\` is
-  recorded as \`"not_converged"\` and scored rather than raising an
-  error, and a per-pair numerical fallback raises a warning of class
+  \`"auto"\` uses the optimized backend with a reference fallback. A
+  specification the native backend cannot solve (\`projection_method =
+  "log"\` or \`"standard"\`) is routed to the reference backend for
+  every pair, a node that reaches \`maxit\` is recorded as
+  \`"not_converged"\` and scored rather than raising an error, and a
+  per-pair numerical fallback raises a warning of class
   \`gaze_transport_backend_fallback\`. The backend used is recorded in
   every alignment's \`convergence\` element.
 
@@ -141,10 +141,9 @@ gaze_transport_spec(
 
   Response-blind calibration policy. \`"effective_fixations"\` learns
   effective-fixation shrinkage (kappa) on inner out-of-fold predictions
-  and includes the temperature-only solution as an exact boundary.
-  \`NULL\` (the default) uses \`"effective_fixations"\` under revision
-  \`"2026.08"\` and \`"none"\` under \`"2026.10"\`, whose
-  evidence-scaled temperature replaces the shrink (see
+  and includes the temperature-only solution as an exact boundary. It
+  requires \`gaze_calibration_control(method = "global")\`. The default,
+  \`"none"\`, leaves sparse rows to the evidence-scaled temperature (see
   \[gaze_calibration_control()\]).
 
 - reliability_kappa_bounds:
@@ -157,18 +156,18 @@ gaze_transport_spec(
 
 - log_temperature_prior_sd, log1p_kappa_prior_sd:
 
-  Penalties of the frozen calibration (revision \`"2026.08"\`, or
-  revision \`"2026.10"\` with \`gaze_calibration_control(method =
-  "global")\`).
+  Penalties of the global calibration (\`gaze_calibration_control(method
+  = "global")\`).
 
 - revision:
 
-  Solver revision. \`"2026.10"\` (the default) is the corrected solver
-  and estimand. The chronology residual is \`1 - 2A / (R + S + 1e-3)\`,
-  continuous as the selected edge mass vanishes. The stopping rule is
-  first-order: a stage stops when the plan is feasible, no cell outside
-  the support is trapped, and a first-order model predicts at most
-  \`tolerance\` of remaining decrease. It does not certify a local
+  Solver revision, recorded in the specification and in every alignment
+  and fit. The only supported revision is \`"2026.10"\`, the corrected
+  solver and estimand. The chronology residual is \`1 - 2A / (R + S +
+  1e-3)\`, continuous as the selected edge mass vanishes. The stopping
+  rule is first-order: a stage stops when the plan is feasible, no cell
+  outside the support is trapped, and a first-order model predicts at
+  most \`tolerance\` of remaining decrease. It does not certify a local
   optimum: slow directions and saddles can remain (on the review set
   about 1 1.4e-3). Trapped cells are reseeded. Mirror steps are capped
   so the exponent never saturates. A line search limited by projection
@@ -184,15 +183,26 @@ gaze_transport_spec(
   0.023 (null pairs 0.033, matched 0.006) on a second 88-pair, half-null
   set. \`backend = "auto"\` warns about and records every numerical
   fallback. The polish Frank-Wolfe gap is \`NA\` with a reason on a
-  selection boundary. \`"2026.08"\` reproduces the frozen August 2026
-  solver exactly; the frozen validation courts pin it. Specifications
-  saved before revisions existed are solved as \`"2026.08"\`.
+  selection boundary. The earlier solver revision \`"2026.08"\` was
+  retired in eyesim 0.3.0 because of documented defects (a discontinuous
+  chronology residual, a relative-change stopping rule, and silent
+  backend fallbacks and cold restarts); requesting it is an error.
+  Specifications saved before revisions existed, which were solved as
+  \`"2026.08"\`, are an error too: re-create them with
+  \`gaze_transport_spec()\`. Install the git tag
+  \`gazeweave-2026.08-frozen\` to reproduce 2026.08 results, including
+  the frozen validation courts.
 
 - calibration_control:
 
-  Revision \`"2026.10"\` only: a \[gaze_calibration_control()\].
-  \`NULL\` uses its defaults.
+  A \[gaze_calibration_control()\]. \`NULL\` uses its defaults.
 
 ## Value
 
 A frozen \`gaze_transport_spec\`.
+
+## Experimental
+
+GazeWeave is experimental. Its interface, defaults and result columns
+may change in future releases; record the package version with any
+results.

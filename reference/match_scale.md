@@ -56,13 +56,3 @@ match_scale(
 
 A data frame containing the original source fixation data with
 additional columns for the matched scaling parameters.
-
-## Examples
-
-``` r
-if (FALSE) { # \dontrun{
-# Example usage of the match_scale function
-# ref_tab and source_tab should be data frames with fixation groups
-matched_data <- match_scale(ref_tab, source_tab, match_on = "subject_id")
-} # }
-```

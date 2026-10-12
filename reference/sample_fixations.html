@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">eyesim</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,6 +27,7 @@
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/bbuchsbaum/eyesim/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -36,7 +37,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>sample_fixations</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/all_generic.R" class="external-link"><code>R/all_generic.R</code></a>, <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/fixations.R" class="external-link"><code>R/fixations.R</code></a></small>
       <div class="d-none name"><code>sample_fixations.Rd</code></div>
     </div>
 
@@ -77,6 +78,12 @@ tied onsets, the last one is used.</p></dd>
 
 </dl></div>
     <div class="section level2">
+    <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
+    <p>A data frame of class <code>sampled_fixation_group</code> with one row per
+  time point and columns <code>x</code>, <code>y</code> (<code>NA</code> before the first
+  onset), <code>onset</code> (the time point) and <code>duration</code> (1).</p>
+    </div>
+    <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Each time point takes the coordinates of the most recent fixation whose onset
 is at or before it. Fixation durations are not used: gaze during a saccade is
@@ -84,6 +91,18 @@ attributed to the preceding fixation, and the last fixation is held for all
 later time points. Time points before the first onset give <code>NA</code>.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">fg</span> <span class="op">&lt;-</span> <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">100</span>, <span class="fl">200</span>, <span class="fl">300</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">100</span>, <span class="fl">150</span>, <span class="fl">200</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                     onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">200</span>, <span class="fl">400</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">200</span>, <span class="fl">200</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">sample_fixations</span><span class="op">(</span><span class="va">fg</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">50</span>, <span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Fixation group: 4 fixations</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   x range: [100, 300]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   y range: [100, 200]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   duration range: [1, 1]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   onset range: [-50, 500]</span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

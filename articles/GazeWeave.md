@@ -9,6 +9,10 @@ library(ggplot2)
 
 ## The question GazeWeave answers
 
+> **Experimental.** GazeWeave is under active development. Its
+> interface, defaults and result columns may change in future releases,
+> so record the eyesim version alongside any results.
+
 Suppose a participant studies a series of images and later recalls each
 one while looking at a blank screen. If recall reinstates the way the
 image was viewed, the recall gaze path should carry information about
@@ -378,10 +382,10 @@ transport_audit$diagnostics[c(
 #> [1] "native_rcpparmadillo"
 #> 
 #> $solver_stability$maximum_stationarity
-#> [1] 0.0009296709
+#> [1] 0.0009296708
 #> 
 #> $solver_stability$maximum_relative_objective_change
-#> [1] 0.0001871426
+#> [1] 0.0001871428
 ```
 
 Spatial RMSE is reported in the declared screen or spatial coordinate
@@ -427,10 +431,10 @@ Use `type = "overlay"`, `"raw_registered"`, or `"diagnostics"` for the
 registered spatial overlay, the raw-versus-registered path comparison,
 or the bounded diagnostic ledger. The public deterministic path fixtures
 and their MD5 manifest live under
-`inst/validation/gaze-weave-transport-v3-golden` in the source and
-installed package; the executable vignette above uses only generated
-paths. The `v3` in those frozen paths identifies the development court,
-not a selectable method.
+`inst/validation/gaze-weave-transport-v3-golden` in the [source
+repository](https://github.com/bbuchsbaum/eyesim); the executable
+vignette above uses only generated paths. The `v3` in those frozen paths
+identifies the development court, not a selectable method.
 
 ## How scores become probabilities
 
@@ -446,9 +450,10 @@ The calibration controls are documented in
 **Replay scores.** Replay observes each recall fixation once, with its
 position and its duration, and scores a candidate by the total log
 likelihood of the recall. Evidence therefore grows with the number of
-recall fixations, and there is no duration grid to choose. The frozen
-revision `"2026.08"` instead divided a duration-grid log likelihood by
-the number of grid bins.
+recall fixations, and there is no duration grid to choose. The earlier
+Replay revision `"2026.08"`, which divided a duration-grid log
+likelihood by the number of grid bins, was retired in eyesim 0.3.0; the
+git tag `gazeweave-2026.08-frozen` reproduces it.
 
 **Temperature.** Scores become probabilities through a softmax whose
 temperature sets how confident the probabilities are. One global
@@ -481,8 +486,7 @@ them as probabilities of the recall.
 **Small contrasts.** Inner calibration needs at least twice as many
 items per contrast as calibration folds (four with the default two
 folds). With fewer, or when the inner folds cannot be built, the engine
-returns the declared prior and the row scores zero bits. Under
-`"2026.08"`, Replay instead used temperature one.
+returns the declared prior and the row scores zero bits.
 
 ## What the Transport courts support
 
@@ -492,6 +496,11 @@ formerly labelled v3 is now simply Transport; the older implementations
 have been removed. Version labels remain in internal and frozen
 validation provenance so the historical evidence stays auditable; they
 do not identify selectable methods.
+
+The courts below ran the earlier Transport solver revision `"2026.08"`,
+which was retired in eyesim 0.3.0 in favour of `"2026.10"` (see
+[`?gaze_transport_spec`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_spec.md));
+the git tag `gazeweave-2026.08-frozen` reproduces them.
 
 The public frozen court passed representation, null calibration,
 chronology, coverage-refinement, registration, convergence, and
@@ -525,8 +534,10 @@ The resulting product role is bounded: Transport is the symmetric
 explanatory alignment engine for order- and partial-replay questions. It
 is not a default retrieval predictor and is not known to outperform
 Replay, registered density, or MultiMatch generally. The complete public
-protocols, aggregate reports, and freeze receipts are installed under
-`inst/validation`; trial-linked private outputs are excluded from Git
+protocols, aggregate reports, and freeze receipts are under
+`inst/validation` in the [source
+repository](https://github.com/bbuchsbaum/eyesim) (they are not part of
+the CRAN package); trial-linked private outputs are excluded from Git
 and package artifacts.
 
 ## Invariance contract

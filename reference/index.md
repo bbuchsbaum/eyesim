@@ -10,8 +10,6 @@ Functions for computing density maps, sampling, and density matrix.
   : get_density
 - [`sample_density()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.md)
   : sample_density
-- [`density_matrix()`](https://bbuchsbaum.github.io/eyesim/reference/density_matrix.md)
-  : Compute Density Matrix for a Given Object
 - [`eye_density(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/eye_density.fixation_group.md)
   : Compute a density map for a fixation group.
 - [`gen_density()`](https://bbuchsbaum.github.io/eyesim/reference/gen_density.md)
@@ -106,18 +104,12 @@ Cross-fitted probabilistic replay and registered temporal transport.
   : Nested-calibrated exhaustive-candidate Transport
 - [`gaze_transport_spec()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_spec.md)
   : Specify edge-normalized GazeWeave Transport
-- [`gaze_transport_prepare()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_prepare.md)
-  : Prepare one immutable gaze path for repeated Transport scoring
 - [`gaze_transport_align()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_align.md)
   : Align gaze paths with edge-normalized Transport
-- [`gaze_transport_align_batch()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_align_batch.md)
-  : Batch candidate alignments with Transport
 - [`gaze_transport_result()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_result.md)
   : Extract one auditable Transport result
 - [`gaze_gaussian_mixture()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_gaussian_mixture.md)
   : Declare a multiscale Gaussian spatial model for GazeWeave
-- [`gaze_local_order()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_local_order.md)
-  : Declare the local chronology model for GazeWeave
 - [`gaze_order_neighbours()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_order_neighbours.md)
   : Declare fixed-neighbour ordinal chronology for Transport
 - [`gaze_warp_none()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_warp_none.md)
@@ -151,8 +143,6 @@ Fair comparator court for GazeWeave (nested cross-validated baselines).
   : Report comparator availability
 - [`tidy(`*`<gaze_baseline_fit>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/tidy.gaze_baseline_fit.md)
   : Tidy GazeWeave comparator results
-- [`elastic_consensus_align()`](https://bbuchsbaum.github.io/eyesim/reference/elastic_consensus_align.md)
-  : Elastic consensus matching for encoding and recall fixations
 
 ## Latent transforms
 
@@ -238,8 +228,6 @@ Functions for density operations by groups.
 Example datasets included with the package.
 
 - [`wynn_study`](https://bbuchsbaum.github.io/eyesim/reference/wynn_study.md)
-  : Eye-tracking study data from Wynn et al.
-- [`wynn_study_image`](https://bbuchsbaum.github.io/eyesim/reference/wynn_study_image.md)
-  : Study image from Wynn et al.
+  : Study-phase fixations from Wynn et al.
 - [`wynn_test`](https://bbuchsbaum.github.io/eyesim/reference/wynn_test.md)
-  : Eye-tracking test data from Wynn et al.
+  : Test-phase fixations from Wynn et al.
