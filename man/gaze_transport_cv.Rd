@@ -18,7 +18,8 @@ gaze_transport_cv(
   fit_source_filter = NULL,
   eval_source_filter = NULL,
   episode_on = NULL,
-  priorvar = NULL
+  priorvar = NULL,
+  keep_alignments = c("true", "all", "none")
 )
 }
 \arguments{
@@ -57,6 +58,15 @@ weight and are never concatenated.}
 
 \item{priorvar}{Optional reference-table column containing one positive
 design-prior weight per candidate. `NULL` declares a uniform design.}
+
+\item{keep_alignments}{Which candidate alignments to keep in
+`results$alignments`: `"true"` (the default) keeps only each row's true
+candidate, which is all the alignment plots and diagnostics read;
+`"all"` keeps every candidate's alignment, for auditing; `"none"` keeps
+none. A full alignment holds every coverage node's plan and iteration
+record, so `"all"` grows with rows times candidates. Scores, the
+candidate tables in `results$candidates` and the solver summary do not
+depend on this choice.}
 }
 \value{
 A `gaze_transport_fit` with held-out candidate probabilities,
@@ -93,3 +103,61 @@ GazeWeave is experimental. Its interface, defaults and result columns may
 change in future releases; record the package version with any results.
 }
 
+\section{Result columns}{
+
+Every GazeWeave fit (`gaze_transport_cv()`, `gaze_replay_cv()`,
+`gaze_baseline_cv()`) has `results` with one row per held-out source row
+(per source row and method for the baseline court) holding the source
+identifiers and these columns:
+\describe{
+  \item{`.cv_fold`}{Outer fold that held the row out.}
+  \item{`gaze_info_bits`}{`log2(posterior_true / prior_true)`, the primary
+    endpoint. `NA` for uncalibrated baseline methods.}
+  \item{`posterior_true`, `prior_true`}{Held-out probability of the true
+    candidate, and its declared prior.}
+  \item{`odds_bits`, `log_loss`, `brier_score`}{Other proper scores of
+    the same posterior.}
+  \item{`template_rank`, `top1_credit`}{Rank of the true candidate (1 is
+    best) and credit for ranking it first, split over ties.}
+  \item{`candidate_count`}{Number of candidates scored.}
+  \item{`candidates`}{Per-row table with at least `candidate_key`,
+    `log_score`, `prior`, `posterior` and `is_true`.}
+}
+Each engine adds its own diagnostics (for example Transport's solver
+counts or Replay's background level), documented on its own page. Every
+fit also has `spec`, `keys`, `folds` and `provenance`; `provenance$engine`
+names the engine, and Transport and Replay record their estimator
+`provenance$revision`.
+}
+
+\examples{
+# Example data: two participants study and later recall six images; each
+# recall roughly repeats the study path of the same image.
+set.seed(1)
+make_path <- function(anchor, jitter) {
+  fixation_group(
+    x = anchor[1] + c(0, 2, 4, 3) + rnorm(4, sd = jitter),
+    y = anchor[2] + c(0, 1, -1, 2) + rnorm(4, sd = jitter),
+    onset = c(0, 250, 500, 750), duration = c(200, 220, 180, 240)
+  )
+}
+study <- expand.grid(participant = c("p1", "p2"), image = 1:6,
+                     stringsAsFactors = FALSE)
+anchors <- lapply(study$image, function(i) c(3 * i, 2 * (i \%\% 3)))
+study$fixgroup <- lapply(anchors, make_path, jitter = 0.2)
+recall <- study[c("participant", "image")]
+recall$fixgroup <- lapply(anchors, make_path, jitter = 0.6)
+\donttest{
+fit <- gaze_transport_cv(study, recall,
+                         match_on = c("participant", "image"),
+                         contrast_on = "participant",
+                         # 2 coverage nodes keep the example fast; the
+                         # default is 12.
+                         spec = gaze_transport_spec(coverage_nodes = 2),
+                         n_folds = 2)
+fit
+mean(fit$results$gaze_info_bits)
+# The alignment behind the first held-out row.
+gaze_transport_result(fit, row = 1)$diagnostics
+}
+}

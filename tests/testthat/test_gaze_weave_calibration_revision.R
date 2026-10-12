@@ -808,26 +808,39 @@ calibration_base_fixture <- function(transport_10, replay_10) {
 }
 
 test_that("the global method reproduces pre-A3 fits", {
+  # A numeric golden from one machine: other CPUs, compilers and BLAS/libm
+  # builds (CRAN's noLD and MKL flavours among them) differ in the last bits,
+  # and the iterative fits amplify that, so it runs only in full-suite CI.
+  skip_on_cran()
   golden <- readRDS(test_path("fixtures", "calibration_base_0d9fbcf.rds"))
   global <- gaze_calibration_control(method = "global")
-  current <- calibration_base_fixture(
+  current <- expect_calibration_fallback(calibration_base_fixture(
     transport_10 = calibration_base_transport_spec(
       reliability = "effective_fixations", calibration_control = global
     ),
     replay_10 = calibration_replay_spec(calibration_control = global)
-  )
+  ))
 
   # The 2026.10 projection hands over to its Newton finisher after a fixed
   # Sinkhorn budget (transport_v3_sinkhorn_budget). The projection is the same
   # to its 1e-8 tolerance; through the calibration fit the probabilities move
   # by about 2e-7 relative (1e-6 for one episode term), so this comparison
   # is not bit-for-bit anywhere.
+  # The golden pins numbers, not field names: since it was made, Transport
+  # provenance records `revision` (was `solver_revision`) and Replay results
+  # gained `prior_true`.
+  names(golden$transport_10$provenance)[
+    names(golden$transport_10$provenance) == "solver_revision"
+  ] <- "revision"
+  current$replay_10$results <- current$replay_10$results[
+    names(golden$replay_10$results)
+  ]
   expect_equal(current$transport_10, golden$transport_10, tolerance = 1e-5)
   # Replay's iterative fit amplifies last-bit differences: on Linux x86-64
-  # CI it differed from the macOS golden by up to 1.5e-8 relative
-  # (gaze_info_bits 4.5e-9, log_loss 9e-9). Bit-identity still holds on the
-  # frozen platform.
-  expect_frozen(current$replay_10, golden$replay_10, tolerance = 1e-7)
+  # CI it differed from the golden by up to 1.5e-8 relative (gaze_info_bits
+  # 4.5e-9, log_loss 9e-9). It is not bit-identical even on another macOS
+  # arm64 machine.
+  expect_equal(current$replay_10, golden$replay_10, tolerance = 1e-7)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

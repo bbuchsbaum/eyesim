@@ -836,6 +836,12 @@ transport_v3_alignment_from_profile <- function(profile, reference, source,
 #'
 #' @return A symmetric `gaze_engine_result` with a coverage-integrated
 #'   Transport alignment.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' # Align one recall to the study path of the same image.
+#' alignment <- gaze_transport_align(study$fixgroup[[1]], recall$fixgroup[[1]],
+#'                                   gaze_transport_spec(coverage_nodes = 4))
+#' alignment$log_score
 #' @export
 gaze_transport_align <- function(reference, source, spec,
                                     warp_model = NULL,
@@ -878,7 +884,7 @@ gaze_transport_align <- function(reference, source, spec,
     convergence = alignment$convergence,
     provenance = list(
       engine_version = 3L,
-      solver_revision = revision,
+      revision = revision,
       directionality = "symmetric",
       score_semantics = "coverage_integrated_negative_scientific_energy",
       duration_semantics = "unit_duration_mass_with_fixed_ordinal_neighbours",

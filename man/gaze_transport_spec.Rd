@@ -162,3 +162,10 @@ GazeWeave is experimental. Its interface, defaults and result columns may
 change in future releases; record the package version with any results.
 }
 
+\examples{
+spec <- gaze_transport_spec(
+  spatial = gaze_gaussian_mixture(c(30, 60), unit = "px"),
+  screen = gaze_screen(800, 600, unit = "px")
+)
+spec
+}

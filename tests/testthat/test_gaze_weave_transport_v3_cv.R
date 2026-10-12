@@ -294,3 +294,99 @@ test_that("parallel Transport CV equals a sequential run", {
   future::plan(future::multicore, workers = 2)
   expect_identical(run(), sequential)
 })
+
+test_that("keep_alignments trims alignments without changing scores", {
+  fixture <- make_transport_v3_cv_fixture()
+  fit_with <- function(keep) {
+    fit <- suppressWarnings(gaze_transport_cv(
+      fixture$references, fixture$sources,
+      match_on = c("participant", "item"), contrast_on = "participant",
+      spec = make_transport_v3_cv_spec(), n_folds = 2, seed = 20260822,
+      episode_on = "presentation", priorvar = "prior_weight",
+      keep_alignments = keep
+    ))
+    fit$provenance$timestamp <- NULL
+    fit
+  }
+  all <- fit_with("all")
+  true <- fit_with("true")
+  none <- fit_with("none")
+
+  drop_alignments <- function(fit) {
+    fit$results$alignments <- NULL
+    fit
+  }
+  expect_identical(drop_alignments(true), drop_alignments(all))
+  expect_identical(drop_alignments(none), drop_alignments(all))
+  for (row in seq_len(nrow(all$results))) {
+    table <- all$results$candidates[[row]]
+    true_key <- as.character(table$candidate_key[table$is_true])
+    expect_identical(names(true$results$alignments[[row]]), true_key)
+    expect_identical(true$results$alignments[[row]][[true_key]],
+                     all$results$alignments[[row]][[true_key]])
+    expect_null(none$results$alignments[[row]])
+  }
+  expect_lt(object.size(true), object.size(all) / 2)
+  expect_s3_class(transport_v3_true_candidate(true, 1L)$result,
+                  "gaze_engine_result")
+  expect_error(transport_v3_true_candidate(none, 1L),
+               "keep_alignments")
+  expect_true(all(vapply(tidy(none, diagnostics = TRUE)$diagnostics,
+                         is.null, logical(1))))
+  expect_false(any(vapply(tidy(true, diagnostics = TRUE)$diagnostics,
+                          is.null, logical(1))))
+  expect_error(fit_with("some"), "should be one of")
+})
+
+test_that("worker capture replays messages and lets errors through", {
+  fun <- function(item, cache = NULL) {
+    message("note ", item)
+    if (identical(item, "bad")) stop("solver failed on ", item)
+    item
+  }
+  chunk <- transport_v3_map_chunk(list("ok"), fun, NULL, memo = FALSE)
+  expect_null(chunk$added)
+  expect_identical(chunk$results[[1L]]$value, "ok")
+  expect_message(
+    transport_v3_replay_conditions(chunk$results[[1L]]$conditions),
+    "note ok"
+  )
+  expect_error(
+    suppressMessages(transport_v3_map_chunk(list("bad"), fun, NULL,
+                                            memo = FALSE)),
+    "solver failed on bad"
+  )
+  expect_null(transport_v3_merge_cache(NULL, chunk$added))
+  no_id <- transport_v3_row_buckets(data.frame(a = 1))
+  expect_identical(no_id(c("1\rc1", "2\rc1")), c(FALSE, FALSE))
+})
+
+test_that("parallel Transport CV with a fitted warp equals a sequential run", {
+  skip_on_cran()
+  skip_on_os("windows")
+  skip_if_not(future::supportsMulticore())
+  fixture <- make_transport_v3_cv_fixture()
+  spec <- gaze_transport_spec(
+    coverage_nodes = 2, entropy_schedule = 0.03, maxit = 40,
+    tolerance = 1e-3, projection_maxit = 300, projection_tolerance = 1e-7,
+    calibration_folds = 2, calibration_seed = 20260822,
+    warp = gaze_warp_contraction(center = c(6, 5), translation = TRUE),
+    calibration_control = gaze_calibration_control(typicality_sources = 4)
+  )
+  expect_null(new_transport_v3_cv_cache(spec)$alignments)
+  run <- function() {
+    fit <- suppressWarnings(gaze_transport_cv(
+      fixture$references, fixture$sources,
+      match_on = c("participant", "item"), contrast_on = "participant",
+      spec = spec, n_folds = 2, seed = 20260822,
+      episode_on = "presentation", priorvar = "prior_weight"
+    ))
+    fit$provenance <- NULL
+    fit
+  }
+  old_plan <- future::plan(future::sequential)
+  on.exit(future::plan(old_plan), add = TRUE)
+  sequential <- run()
+  future::plan(future::multicore, workers = 2)
+  expect_identical(run(), sequential)
+})

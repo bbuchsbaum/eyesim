@@ -240,7 +240,7 @@ test_that("cross-fitted Replay uses disjoint item keys and normalized candidates
     ),
     calibration_control = gaze_calibration_control(method = "global")
   )
-  fit <- gaze_replay_cv(
+  fit <- expect_calibration_fallback(gaze_replay_cv(
     tabs$ref_tab,
     tabs$source_tab,
     match_on = c("participant", "image_id"),
@@ -249,7 +249,7 @@ test_that("cross-fitted Replay uses disjoint item keys and normalized candidates
     n_folds = 2,
     seed = 17,
     spec = spec
-  )
+  ))
 
   expect_s3_class(fit, "gaze_replay_fit")
   expect_true(all(vapply(fit$folds, `[[`, integer(1), "overlap_match_n") == 0L))

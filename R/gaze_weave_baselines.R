@@ -28,6 +28,10 @@ gaze_namespace_available <- function(package) {
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @examples
+#' spec <- gaze_baseline_spec(screen = gaze_screen(20, 10, unit = "deg"),
+#'                            density_sigmas = 1, methods = "density")
+#' gaze_baseline_availability(spec)
 #' @export
 gaze_baseline_spec <- function(
     screen,
@@ -116,6 +120,10 @@ gaze_baseline_spec <- function(
 #' @param spec A [gaze_baseline_spec()].
 #'
 #' @return A data frame with one row per requested comparator.
+#' @examples
+#' spec <- gaze_baseline_spec(screen = gaze_screen(20, 10, unit = "deg"),
+#'                            density_sigmas = c(1, 2))
+#' gaze_baseline_availability(spec)
 #' @export
 gaze_baseline_availability <- function(spec) {
   if (!inherits(spec, "gaze_baseline_spec")) {
@@ -814,6 +822,7 @@ baseline_skipped_evidence <- function(set, method, court, reason) {
     gaze_info_bits = NA_real_,
     odds_bits = NA_real_,
     posterior_true = NA_real_,
+    prior_true = 1 / length(set$candidate_key),
     log_loss = NA_real_,
     brier_score = NA_real_,
     template_rank = NA_real_,
@@ -864,6 +873,7 @@ baseline_scored_evidence <- function(set, method, court, score,
     gaze_info_bits = if (calibrated) evidence$gaze_info_bits else NA_real_,
     odds_bits = if (calibrated) evidence$odds_bits else NA_real_,
     posterior_true = if (calibrated) evidence$posterior_true else NA_real_,
+    prior_true = evidence$prior_true,
     log_loss = if (calibrated) evidence$log_loss else NA_real_,
     brier_score = if (calibrated) evidence$brier_score else NA_real_,
     template_rank = evidence$template_rank,
@@ -936,9 +946,20 @@ score_gaze_baseline_sets <- function(sets, model) {
 #'
 #' @return A `gaze_baseline_fit` with one long-format row per held-out trial and
 #'   comparator.
+#' @inheritSection gaze_weave_cv Result columns
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' spec <- gaze_baseline_spec(screen = gaze_screen(20, 10, unit = "deg"),
+#'                            density_sigmas = 1, methods = "density")
+#' fit <- gaze_baseline_cv(study, recall, match_on = c("participant", "image"),
+#'                         contrast_on = "participant", spec = spec,
+#'                         n_folds = 2)
+#' head(broom::tidy(fit, diagnostics = TRUE))
+#' }
 #' @export
 gaze_baseline_cv <- function(ref_tab, source_tab, match_on,
                              contrast_on = NULL,
@@ -955,10 +976,11 @@ gaze_baseline_cv <- function(ref_tab, source_tab, match_on,
     match_on, contrast_on, split_on, inner_split_on,
     spec$warp$fit_by, sourcevar
   ))
-  if (!all(required_ref %in% names(ref_tab)) ||
-      !all(required_source %in% names(source_tab))) {
-    stop("Baseline matching, split, warp, and fixation columns must exist.")
-  }
+  stop_if_missing_gaze_columns("Baseline", ref_tab, required_ref,
+                               source_tab, required_source)
+  stop_if_invalid_gaze_paths("Baseline", ref_tab, refvar, "ref_tab", match_on)
+  stop_if_invalid_gaze_paths("Baseline", source_tab, sourcevar, "source_tab",
+                             match_on)
   ref_key <- gaze_key(ref_tab, match_on, "match_on")
   if (anyDuplicated(ref_key)) stop("Reference match_on keys must be unique.")
   source_tab <- dplyr::ungroup(source_tab)
@@ -1019,8 +1041,8 @@ gaze_baseline_cv <- function(ref_tab, source_tab, match_on,
           "compatibility_bits", "compatibility_odds_bits",
           "compatibility_probability_true", "compatibility_log_loss",
           "gaze_info_bits", "odds_bits",
-          "posterior_true", "log_loss", "brier_score", "template_rank",
-          "top1_credit", "candidate_count"
+          "posterior_true", "prior_true", "log_loss", "brier_score",
+          "template_rank", "top1_credit", "candidate_count"
         )) {
           row[[field]] <- evidence[[field]]
         }
@@ -1114,7 +1136,7 @@ tidy.gaze_baseline_fit <- function(x, diagnostics = FALSE, ...) {
       columns, "status", "reason", "calibrated", "odds_bits",
       "compatibility_bits", "compatibility_odds_bits",
       "compatibility_probability_true", "compatibility_log_loss",
-      "posterior_true", "log_loss",
+      "posterior_true", "prior_true", "log_loss",
       "brier_score", "template_rank", "top1_credit", "candidate_count",
       ".cv_fold"
     ))

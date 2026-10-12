@@ -128,3 +128,6 @@ GazeWeave is experimental. Its interface, defaults and result columns may
 change in future releases; record the package version with any results.
 }
 
+\examples{
+gaze_replay_spec(screen = gaze_screen(30, 20, unit = "deg"))
+}

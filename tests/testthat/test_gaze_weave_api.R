@@ -31,7 +31,7 @@ test_that("the common entry point exposes only Transport and Replay", {
 
 test_that("the common entry point infers Replay from its specification", {
   tabs <- make_gaze_weave_cv_tables()
-  replay <- gaze_weave_cv(
+  replay <- expect_calibration_fallback(gaze_weave_cv(
     tabs$ref_tab,
     tabs$source_tab,
     match_on = c("participant", "image_id"),
@@ -39,7 +39,7 @@ test_that("the common entry point infers Replay from its specification", {
     n_folds = 2,
     spec = make_small_gaze_replay_spec(),
     seed = 29
-  )
+  ))
 
   expect_s3_class(replay, "gaze_replay_fit")
   expect_identical(replay$provenance$engine, "replay")
@@ -52,7 +52,7 @@ test_that("the common entry point infers Replay from its specification", {
 test_that("the common entry point leaves the caller's RNG stream untouched", {
   tabs <- make_gaze_weave_cv_tables()
   cv <- function() {
-    gaze_weave_cv(
+    expect_calibration_fallback(gaze_weave_cv(
       tabs$ref_tab,
       tabs$source_tab,
       match_on = c("participant", "image_id"),
@@ -60,7 +60,7 @@ test_that("the common entry point leaves the caller's RNG stream untouched", {
       n_folds = 2,
       spec = make_small_gaze_replay_spec(),
       seed = 29
-    )
+    ))
   }
 
   set.seed(42)

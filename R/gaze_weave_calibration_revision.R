@@ -153,6 +153,9 @@
 #'   `match_on` when that is empty.
 #'
 #' @return A `gaze_calibration_control`.
+#' @examples
+#' gaze_calibration_control()
+#' gaze_calibration_control(method = "global")
 #' @export
 gaze_calibration_control <- function(
     method = c("evidence_scaled", "global"),
@@ -551,7 +554,7 @@ warn_gaze_calibration_fallback <- function(engine, fold_info) {
   message <- paste0(
     engine, ": the temperature calibration could not be fitted in ",
     n_fallback, " of ", length(fold_info), " outer folds, so ", consequence,
-    ". Reason: ", paste(reasons, collapse = "; "),
+    ". Reason: ", sub("\\.$", "", paste(reasons, collapse = "; ")),
     ". Use fewer folds or more items per contrast stratum."
   )
   warning(structure(

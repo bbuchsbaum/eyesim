@@ -109,7 +109,7 @@ make_affine_cv_tables <- function(n = 16, seed = 2) {
 test_that("template_similarity_cv excludes held-out match keys from transform fitting", {
   tabs <- make_cv_density_tables()
 
-  res <- template_similarity_cv(
+  res <- expect_cca_group_fallback(template_similarity_cv(
     tabs$ref_tab,
     tabs$source_tab,
     match_on = "id",
@@ -119,7 +119,7 @@ test_that("template_similarity_cv excludes held-out match keys from transform fi
     split_on = "id",
     n_folds = 2,
     permutations = 0
-  )
+  ))
 
   cv_info <- attr(res, "similarity_cv")
   overlap_counts <- vapply(cv_info$folds, `[[`, integer(1), "overlap_match_n")
@@ -160,7 +160,7 @@ test_that("template_similarity_cv matches direct similarity when no transform is
 test_that("template_similarity_cv supports fit and evaluation source filters", {
   tabs <- make_cv_density_tables()
 
-  res <- template_similarity_cv(
+  res <- expect_cca_group_fallback(template_similarity_cv(
     tabs$ref_tab,
     tabs$source_tab,
     match_on = "id",
@@ -172,7 +172,7 @@ test_that("template_similarity_cv supports fit and evaluation source filters", {
     permutations = 0,
     fit_source_filter = function(tab) tab$phase == "scene",
     eval_source_filter = function(tab) tab$phase == "delay"
-  )
+  ))
 
   cv_info <- attr(res, "similarity_cv")
 

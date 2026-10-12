@@ -90,7 +90,11 @@ test_that("saved specifications without a revision are refused, not read as 2026
                  fixed = TRUE)
     expect_error(eyesim:::gaze_transport_prepare(path, old),
                  "carries no solver revision")
-    expect_error(print(old), "carries no solver revision")
+    # Refused before any output.
+    expect_identical(
+      capture.output(expect_error(print(old), "carries no solver revision")),
+      character(0)
+    )
   }
   references <- data.frame(participant = "p1", item = 1:2)
   references$fixgroup <- list(path, path)
@@ -563,10 +567,10 @@ test_that("cross-validation reports backend fallback counts", {
     backend = "auto", reliability = "none"
   )
   run_cv <- function() {
-    gaze_transport_cv(
+    expect_calibration_fallback(gaze_transport_cv(
       references, sources, match_on = c("participant", "item"),
       contrast_on = "participant", spec = spec, n_folds = 2
-    )
+    ))
   }
 
   clean <- run_cv()

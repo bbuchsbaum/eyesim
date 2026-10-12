@@ -55,3 +55,8 @@ GazeWeave is experimental. Its interface, defaults and result columns may
 change in future releases; record the package version with any results.
 }
 
+\examples{
+spec <- gaze_baseline_spec(screen = gaze_screen(20, 10, unit = "deg"),
+                           density_sigmas = 1, methods = "density")
+gaze_baseline_availability(spec)
+}

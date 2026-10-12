@@ -17,3 +17,8 @@ Optional MultiMatch dependencies are checked explicitly. Density and the
 built-in elastic-consensus reference implementation have no optional
 dependency.
 }
+\examples{
+spec <- gaze_baseline_spec(screen = gaze_screen(20, 10, unit = "deg"),
+                           density_sigmas = c(1, 2))
+gaze_baseline_availability(spec)
+}

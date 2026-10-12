@@ -709,11 +709,11 @@ test_that("undeclared screens and pooled background fallbacks are reported", {
   two_each <- list(ref = sparse$ref[sparse$ref$image_id <= 2L, ],
                    src = sparse$src[sparse$src$image_id <= 2L, ])
   expect_message(fit_revision_model(two_each), "pooled background")
-  fit <- suppressMessages(gaze_replay_cv(
+  fit <- suppressMessages(expect_calibration_fallback(gaze_replay_cv(
     sparse$ref, sparse$src, match_on = c("participant", "image_id"),
     contrast_on = "participant", n_folds = 2, seed = 2,
     spec = make_revision_spec()
-  ))
+  )))
   expect_gt(fit$provenance$background_fallback$scored_rows, 0L)
   expect_true("pooled" %in% fit$results$background_level)
 })

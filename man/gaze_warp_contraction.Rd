@@ -28,3 +28,7 @@ A `gaze_warp_spec` object.
 \description{
 Declare cross-fitted contraction registration for GazeWeave
 }
+\examples{
+# Contraction toward the screen centre with a free translation.
+gaze_warp_contraction(center = "screen", translation = TRUE)
+}

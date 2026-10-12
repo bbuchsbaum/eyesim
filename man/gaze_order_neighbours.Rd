@@ -25,3 +25,6 @@ A `gaze_chronology_spec` object.
 \description{
 Declare fixed-neighbour ordinal chronology for Transport
 }
+\examples{
+gaze_order_neighbours(neighbours = 2)
+}

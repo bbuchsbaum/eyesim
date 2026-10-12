@@ -524,7 +524,7 @@ transport_v3_merge_cache <- function(cache, added) {
 
 # Alignment buckets a source row can reuse (see transport_v3_row_aligner).
 transport_v3_row_buckets <- function(source_row) {
-  row_id <- source_row$..gaze_row_id
+  row_id <- source_row[["..gaze_row_id"]]
   if (length(row_id) != 1L) return(function(buckets) logical(length(buckets)))
   prefix <- paste0(row_id, "\r")
   function(buckets) startsWith(buckets, prefix)
@@ -588,7 +588,7 @@ score_transport_v3_cv_row <- function(
   )
   row_warp <- transport_v3_row_warp(warp, source_row, spec)
   aligner <- transport_v3_row_aligner(
-    row_warp, source_row$..gaze_row_id, cache
+    row_warp, source_row[["..gaze_row_id"]], cache
   )
   reference_candidates <- bank$candidates
   if (!is.null(cache)) {
@@ -652,6 +652,18 @@ score_transport_v3_cv_row <- function(
         identical(convergence$status, "not_converged")
       }
     )
+  )
+}
+
+# The candidate alignments a fit keeps for one held-out row: all of them,
+# only the true candidate's (enough for the alignment plots and
+# diagnostics), or none. Candidate scores are kept in `candidates` either way.
+transport_v3_kept_alignments <- function(scored, keep) {
+  switch(
+    keep,
+    all = scored$candidates,
+    true = scored$candidates[scored$candidate_keys[scored$true_index]],
+    none = NULL
   )
 }
 
@@ -739,7 +751,7 @@ transport_v3_typicality <- function(
     for (j in which(!source_item %in% candidates[[index]]$item)) {
       pairs[[length(pairs) + 1L]] <- list(
         index = index, j = j, key = candidates[[index]]$key,
-        bucket = paste(sources$..gaze_row_id[[j]], candidates[[index]]$key,
+        bucket = paste(sources[["..gaze_row_id"]][j], candidates[[index]]$key,
                        sep = "\r"),
         prepared = prepared[[index]]
       )
@@ -748,7 +760,7 @@ transport_v3_typicality <- function(
   pair_scores <- transport_v3_map(
     pairs,
     transport_v3_typicality_scorer(
-      source_measure, source_warp, sources$..gaze_row_id, spec
+      source_measure, source_warp, sources[["..gaze_row_id"]], spec
     ),
     cache = cache,
     buckets = function(pair) function(buckets) buckets == pair$bucket
@@ -1024,6 +1036,14 @@ transport_v3_expected_calibration_error <- function(reliability_table) {
 #'   weight and are never concatenated.
 #' @param priorvar Optional reference-table column containing one positive
 #'   design-prior weight per candidate. `NULL` declares a uniform design.
+#' @param keep_alignments Which candidate alignments to keep in
+#'   `results$alignments`: `"true"` (the default) keeps only each row's true
+#'   candidate, which is all the alignment plots and diagnostics read;
+#'   `"all"` keeps every candidate's alignment, for auditing; `"none"` keeps
+#'   none. A full alignment holds every coverage node's plan and iteration
+#'   record, so `"all"` grows with rows times candidates. Scores, the
+#'   candidate tables in `results$candidates` and the solver summary do not
+#'   depend on this choice.
 #'
 #' @return A `gaze_transport_fit` with held-out candidate probabilities,
 #'   fold receipts, response-blind quality diagnostics, and calibration checks.
@@ -1042,9 +1062,25 @@ transport_v3_expected_calibration_error <- function(reliability_table) {
 #' for example `future::plan(future::multisession, workers = 4)`. The solver
 #' draws no random numbers, so the results are identical to a sequential run.
 #' The default sequential plan runs as before.
+#' @inheritSection gaze_weave_cv Result columns
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' fit <- gaze_transport_cv(study, recall,
+#'                          match_on = c("participant", "image"),
+#'                          contrast_on = "participant",
+#'                          # 2 coverage nodes keep the example fast; the
+#'                          # default is 12.
+#'                          spec = gaze_transport_spec(coverage_nodes = 2),
+#'                          n_folds = 2)
+#' fit
+#' mean(fit$results$gaze_info_bits)
+#' # The alignment behind the first held-out row.
+#' gaze_transport_result(fit, row = 1)$diagnostics
+#' }
 #' @export
 gaze_transport_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,
@@ -1052,10 +1088,12 @@ gaze_transport_cv <- function(
     spec = gaze_transport_spec(), split_on = match_on,
     n_folds = NULL, seed = 20260822L,
     fit_source_filter = NULL, eval_source_filter = NULL,
-    episode_on = NULL, priorvar = NULL) {
+    episode_on = NULL, priorvar = NULL,
+    keep_alignments = c("true", "all", "none")) {
   if (!inherits(spec, "gaze_transport_spec")) {
     stop("spec must be created by gaze_transport_spec().")
   }
+  keep_alignments <- match.arg(keep_alignments)
   revision <- transport_v3_revision(spec)
   required_ref <- unique(c(
     match_on, contrast_on, episode_on, priorvar, spec$warp$fit_by, refvar
@@ -1065,6 +1103,10 @@ gaze_transport_cv <- function(
   ))
   stop_if_missing_gaze_columns("Transport", ref_tab, required_ref,
                                source_tab, required_source)
+  # Reference episodes that are not valid paths are dropped and recorded per
+  # candidate (see prepare_transport_v3_episodes()); a source must be valid.
+  stop_if_invalid_gaze_paths("Transport", source_tab, sourcevar,
+                             "source_tab", match_on)
   check_gaze_spatial_scale(ref_tab[[refvar]], source_tab[[sourcevar]],
                            spec$spatial)
   if (is.null(episode_on) && anyDuplicated(gaze_key(
@@ -1103,6 +1145,7 @@ gaze_transport_cv <- function(
   fold_results <- vector("list", folds$n_folds)
   fold_info <- vector("list", folds$n_folds)
   all_evidence <- list()
+  heldout_backends <- character(0)
   # Count every native-to-reference fallback (outer and inner calibration
   # alignments) and replace per-pair warnings with one summary warning.
   fallback_records <- 0L
@@ -1209,7 +1252,18 @@ gaze_transport_cv <- function(
       result$evidence$candidates
     })
     result_fold$episode_evidence <- lapply(scored, `[[`, "episode_evidence")
-    result_fold$alignments <- lapply(scored, `[[`, "candidates")
+    heldout_backends <- union(heldout_backends, unlist(lapply(
+      scored, function(result) {
+        lapply(result$candidates, function(candidate) {
+          vapply(candidate$alignment$episodes, function(episode) {
+            episode$convergence$backend
+          }, character(1))
+        })
+      }
+    )))
+    result_fold$alignments <- lapply(scored, function(result) {
+      transport_v3_kept_alignments(result, keep_alignments)
+    })
     fold_results[[fold]] <- result_fold
     all_evidence <- c(all_evidence, lapply(scored, `[[`, "evidence"))
     fold_info[[fold]] <- list(
@@ -1242,15 +1296,6 @@ gaze_transport_cv <- function(
     cbind(gaze_info_bits, log_loss) ~ candidate_count,
     data = results, FUN = mean
   )
-  heldout_backends <- unique(unlist(lapply(
-    results$alignments, function(candidates) {
-      lapply(candidates, function(candidate) {
-        vapply(candidate$alignment$episodes, function(result) {
-          result$convergence$backend
-        }, character(1))
-      })
-    }
-  )))
   solver <- list(
     revision = revision,
     backend = spec$control$backend,
@@ -1313,7 +1358,7 @@ gaze_transport_cv <- function(
       ),
       provenance = list(
         engine = "transport",
-        solver_revision = revision,
+        revision = revision,
         primary_score = "gaze_info_bits=log2(p_true/prior_true)",
         candidate_pool = "exhaustive_permitted_within_contrast",
         candidate_prior = if (is.null(priorvar)) {

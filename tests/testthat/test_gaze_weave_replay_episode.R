@@ -298,7 +298,7 @@ test_that("cross-fitted episode Replay keeps items disjoint and templates groupe
     })
     part
   }))
-  fit <- gaze_replay_cv(
+  fit <- expect_calibration_fallback(gaze_replay_cv(
     references,
     tabs$source_tab,
     match_on = c("participant", "image_id"),
@@ -308,7 +308,7 @@ test_that("cross-fitted episode Replay keeps items disjoint and templates groupe
     n_folds = 2,
     seed = 41,
     spec = make_episode_test_spec(reliability = "effective_fixations")
-  )
+  ))
 
   expect_s3_class(fit, "gaze_replay_fit")
   expect_true(all(vapply(
