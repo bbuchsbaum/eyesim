@@ -808,6 +808,10 @@ calibration_base_fixture <- function(transport_10, replay_10) {
 }
 
 test_that("the global method reproduces pre-A3 fits", {
+  # A numeric golden from one machine: other CPUs, compilers and BLAS/libm
+  # builds (CRAN's noLD and MKL flavours among them) differ in the last bits,
+  # and the iterative fits amplify that, so it runs only in full-suite CI.
+  skip_on_cran()
   golden <- readRDS(test_path("fixtures", "calibration_base_0d9fbcf.rds"))
   global <- gaze_calibration_control(method = "global")
   current <- calibration_base_fixture(
@@ -824,10 +828,10 @@ test_that("the global method reproduces pre-A3 fits", {
   # is not bit-for-bit anywhere.
   expect_equal(current$transport_10, golden$transport_10, tolerance = 1e-5)
   # Replay's iterative fit amplifies last-bit differences: on Linux x86-64
-  # CI it differed from the macOS golden by up to 1.5e-8 relative
-  # (gaze_info_bits 4.5e-9, log_loss 9e-9). Bit-identity still holds on the
-  # frozen platform.
-  expect_frozen(current$replay_10, golden$replay_10, tolerance = 1e-7)
+  # CI it differed from the golden by up to 1.5e-8 relative (gaze_info_bits
+  # 4.5e-9, log_loss 9e-9). It is not bit-identical even on another macOS
+  # arm64 machine.
+  expect_equal(current$replay_10, golden$replay_10, tolerance = 1e-7)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

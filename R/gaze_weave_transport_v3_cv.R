@@ -524,7 +524,7 @@ transport_v3_merge_cache <- function(cache, added) {
 
 # Alignment buckets a source row can reuse (see transport_v3_row_aligner).
 transport_v3_row_buckets <- function(source_row) {
-  row_id <- source_row$..gaze_row_id
+  row_id <- source_row[["..gaze_row_id"]]
   if (length(row_id) != 1L) return(function(buckets) logical(length(buckets)))
   prefix <- paste0(row_id, "\r")
   function(buckets) startsWith(buckets, prefix)
@@ -588,7 +588,7 @@ score_transport_v3_cv_row <- function(
   )
   row_warp <- transport_v3_row_warp(warp, source_row, spec)
   aligner <- transport_v3_row_aligner(
-    row_warp, source_row$..gaze_row_id, cache
+    row_warp, source_row[["..gaze_row_id"]], cache
   )
   reference_candidates <- bank$candidates
   if (!is.null(cache)) {
@@ -739,7 +739,7 @@ transport_v3_typicality <- function(
     for (j in which(!source_item %in% candidates[[index]]$item)) {
       pairs[[length(pairs) + 1L]] <- list(
         index = index, j = j, key = candidates[[index]]$key,
-        bucket = paste(sources$..gaze_row_id[[j]], candidates[[index]]$key,
+        bucket = paste(sources[["..gaze_row_id"]][j], candidates[[index]]$key,
                        sep = "\r"),
         prepared = prepared[[index]]
       )
@@ -748,7 +748,7 @@ transport_v3_typicality <- function(
   pair_scores <- transport_v3_map(
     pairs,
     transport_v3_typicality_scorer(
-      source_measure, source_warp, sources$..gaze_row_id, spec
+      source_measure, source_warp, sources[["..gaze_row_id"]], spec
     ),
     cache = cache,
     buckets = function(pair) function(buckets) buckets == pair$bucket
