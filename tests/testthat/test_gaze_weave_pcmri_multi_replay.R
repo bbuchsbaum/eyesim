@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 source(
   gaze_weave_test_inst_path(
     "validation", "gaze-weave-pcmri-multi-replay.R"
@@ -95,6 +97,9 @@ test_that("crossed folds preserve four paths without expanding by target", {
 })
 
 test_that("density episode averages four normalized maps", {
+  # multi_replay_specs() also builds the court's Replay specification, which
+  # the frozen script pins to revision 2026.08 (retired in eyesim 0.3.0).
+  skip("archival court pinned to retired Replay 2026.08")
   paths <- lapply(1:4, function(presentation) {
     make_gaze_fixations(
       rbind(c(100, 100), c(180, 160), c(250, 220)) + presentation,

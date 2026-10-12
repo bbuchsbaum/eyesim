@@ -26,6 +26,10 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
     requireNamespace("albersdown", quietly = TRUE))
   ggplot2::theme_set(albersdown::theme_albers(params$family))
 
+# Package vignettes embed their figures, so CRAN copies use a lower
+# resolution to keep the package small; the pkgdown site keeps the default.
+if (!identical(Sys.getenv("IN_PKGDOWN"), "true")) knitr::opts_chunk$set(dpi = 72)
+
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -43,6 +47,10 @@ library(ggplot2)
 ```
 
 ## The question GazeWeave answers
+
+> **Experimental.** GazeWeave is under active development. Its interface,
+> defaults and result columns may change in future releases, so record the
+> eyesim version alongside any results.
 
 Suppose a participant studies a series of images and later recalls each one
 while looking at a blank screen. If recall reinstates the way the image was
@@ -359,8 +367,9 @@ Use `type = "overlay"`, `"raw_registered"`, or `"diagnostics"` for the
 registered spatial overlay, the raw-versus-registered path comparison, or the
 bounded diagnostic ledger. The public deterministic path fixtures and their
 MD5 manifest live under
-`inst/validation/gaze-weave-transport-v3-golden` in the source and installed
-package; the executable vignette above uses only generated paths. The `v3` in
+`inst/validation/gaze-weave-transport-v3-golden` in the
+[source repository](https://github.com/bbuchsbaum/eyesim); the executable
+vignette above uses only generated paths. The `v3` in
 those frozen paths identifies the development court, not a selectable method.
 
 ## How scores become probabilities
@@ -373,8 +382,9 @@ controls are documented in `?gaze_calibration_control`.
 **Replay scores.** Replay observes each recall fixation once, with its position
 and its duration, and scores a candidate by the total log likelihood of the
 recall. Evidence therefore grows with the number of recall fixations, and there
-is no duration grid to choose. The frozen revision `"2026.08"` instead divided
-a duration-grid log likelihood by the number of grid bins.
+is no duration grid to choose. The earlier Replay revision `"2026.08"`, which
+divided a duration-grid log likelihood by the number of grid bins, was retired
+in eyesim 0.3.0; the git tag `gazeweave-2026.08-frozen` reproduces it.
 
 **Temperature.** Scores become probabilities through a softmax whose
 temperature sets how confident the probabilities are. One global temperature
@@ -407,8 +417,7 @@ recall.
 **Small contrasts.** Inner calibration needs at least twice as many items per
 contrast as calibration folds (four with the default two folds). With fewer,
 or when the inner folds cannot be built, the engine returns the declared prior
-and the row scores zero bits. Under `"2026.08"`, Replay instead used
-temperature one.
+and the row scores zero bits.
 
 ## What the Transport courts support
 
@@ -418,6 +427,11 @@ formerly labelled v3 is now simply Transport; the older implementations have
 been removed. Version labels remain in internal and frozen validation
 provenance so the historical evidence stays auditable; they do not identify
 selectable methods.
+
+The courts below ran the earlier Transport solver revision `"2026.08"`, which
+was retired in eyesim 0.3.0 in favour of `"2026.10"` (see
+`?gaze_transport_spec`); the git tag `gazeweave-2026.08-frozen` reproduces
+them.
 
 The public frozen court passed representation, null calibration, chronology,
 coverage-refinement, registration, convergence, and perturbation gates.
@@ -449,9 +463,10 @@ The resulting product role is bounded: Transport is the symmetric
 explanatory alignment engine for order- and partial-replay questions. It is not
 a default retrieval predictor and is not known to outperform Replay,
 registered density, or MultiMatch generally. The complete public
-protocols, aggregate reports, and freeze receipts are installed under
-`inst/validation`; trial-linked private outputs are excluded from Git and
-package artifacts.
+protocols, aggregate reports, and freeze receipts are under
+`inst/validation` in the [source repository](https://github.com/bbuchsbaum/eyesim)
+(they are not part of the CRAN package); trial-linked private outputs are
+excluded from Git and package artifacts.
 
 ## Invariance contract
 

@@ -407,6 +407,178 @@ transport_v3_row_aligner <- function(row_warp, row_id = NULL, cache = NULL) {
   }
 }
 
+# Parallel evaluation ---------------------------------------------------
+#
+# Given a fold's warp and calibration, rows (and typicality candidate-source
+# pairs) are scored independently, so under a future plan with more than one
+# worker they run in parallel. The solver draws no random numbers, so the
+# results equal a sequential run. Cached alignments are large, so they are
+# never shipped: an item with alignments already in the cache runs here,
+# while the workers take the others with an empty alignment memo and return
+# what they solved, which is merged into the cache so it still spans folds.
+# Every item's conditions are captured and replayed in item order, so
+# fallback counts and warnings match a sequential run.
+# `fun(item, cache)` is shipped to the workers with its enclosing
+# environment, so build it with a factory that holds only what it needs;
+# `buckets(item)` returns a predicate selecting the item's memo buckets.
+transport_v3_map <- function(items, fun, cache = NULL, buckets = NULL) {
+  workers <- future::nbrOfWorkers()
+  if (length(items) < 2L || workers <= 1L) {
+    return(lapply(items, fun, cache = cache))
+  }
+  cached <- if (is.null(cache$alignments)) {
+    rep(FALSE, length(items))
+  } else {
+    names <- ls(cache$alignments, all.names = TRUE, sorted = FALSE)
+    vapply(items, function(item) any(buckets(item)(names)), logical(1))
+  }
+  remote <- which(!cached)
+  if (length(remote) < 2L) {
+    return(lapply(items, fun, cache = cache))
+  }
+  episodes <- if (!is.null(cache)) as.list(cache$episodes, all.names = TRUE)
+  chunks <- split(remote, cut(seq_along(remote),
+                              min(workers, length(remote)), labels = FALSE))
+  futures <- lapply(chunks, function(chunk) {
+    future::future(
+      quote(worker(chunk_items, fun, episodes, memo)), substitute = FALSE,
+      globals = list(
+        worker = transport_v3_map_chunk, chunk_items = items[chunk],
+        fun = fun, episodes = episodes, memo = !is.null(cache$alignments)
+      ),
+      packages = "eyesim", seed = FALSE
+    )
+  })
+  results <- vector("list", length(items))
+  for (index in which(cached)) {
+    results[[index]] <- transport_v3_capture(fun(items[[index]], cache = cache))
+  }
+  for (chunk in seq_along(chunks)) {
+    chunk_result <- future::value(futures[[chunk]])
+    transport_v3_merge_cache(cache, chunk_result$added)
+    results[chunks[[chunk]]] <- chunk_result$results
+  }
+  lapply(results, function(result) {
+    transport_v3_replay_conditions(result$conditions)
+    result$value
+  })
+}
+
+# Evaluates `expr`, recording (and muffling) the conditions it signals so
+# they can be replayed later in item order.
+transport_v3_capture <- function(expr) {
+  conditions <- list()
+  value <- withCallingHandlers(
+    expr,
+    condition = function(condition) {
+      if (inherits(condition, c("error", "interrupt"))) return()
+      conditions[[length(conditions) + 1L]] <<- condition
+      restart <- if (inherits(condition, "warning")) {
+        findRestart("muffleWarning")
+      } else if (inherits(condition, "message")) {
+        findRestart("muffleMessage")
+      }
+      if (!is.null(restart)) invokeRestart(restart)
+    }
+  )
+  list(value = value, conditions = conditions)
+}
+
+# Runs on a worker: a chunk of uncached items against a fresh alignment memo
+# and the caller's prepared episodes; returns each item's value and
+# conditions plus everything added to the cache.
+transport_v3_map_chunk <- function(items, fun, episodes, memo) {
+  cache <- if (!is.null(episodes)) {
+    list(
+      episodes = list2env(episodes, parent = emptyenv()),
+      alignments = if (memo) new.env(parent = emptyenv())
+    )
+  }
+  results <- lapply(items, function(item) {
+    transport_v3_capture(fun(item, cache = cache))
+  })
+  added <- if (!is.null(cache)) {
+    list(
+      episodes = mget(setdiff(ls(cache$episodes, all.names = TRUE),
+                              names(episodes)), envir = cache$episodes),
+      alignments = if (memo) as.list(cache$alignments, all.names = TRUE)
+    )
+  }
+  list(results = results, added = added)
+}
+
+transport_v3_merge_cache <- function(cache, added) {
+  if (is.null(cache) || is.null(added)) return(invisible(NULL))
+  for (name in names(added$episodes)) {
+    if (is.null(cache$episodes[[name]])) {
+      cache$episodes[[name]] <- added$episodes[[name]]
+    }
+  }
+  for (bucket in names(added$alignments)) {
+    cache$alignments[[bucket]] <- c(
+      cache$alignments[[bucket]], added$alignments[[bucket]]
+    )
+  }
+  invisible(NULL)
+}
+
+# Alignment buckets a source row can reuse (see transport_v3_row_aligner).
+transport_v3_row_buckets <- function(source_row) {
+  row_id <- source_row$..gaze_row_id
+  if (length(row_id) != 1L) return(function(buckets) logical(length(buckets)))
+  prefix <- paste0(row_id, "\r")
+  function(buckets) startsWith(buckets, prefix)
+}
+
+# Scores one source row, keeping only the parts the inner calibration reads.
+transport_v3_inner_scorer <- function(ref_tab, match_on, contrast_on, refvar,
+                                      sourcevar, episode_on, priorvar, spec,
+                                      warp) {
+  function(source_row, cache = NULL) {
+    scored <- score_transport_v3_cv_row(
+      source_row, ref_tab, match_on, contrast_on, refvar, sourcevar,
+      episode_on, priorvar, spec, warp, cache = cache
+    )
+    list(
+      profile = scored$profile,
+      true_index = scored$true_index,
+      prior = scored$prior,
+      effective_fixations = scored$quality$effective_fixations
+    )
+  }
+}
+
+# Scores one held-out source row under the fold's calibration.
+transport_v3_outer_scorer <- function(ref_tab, match_on, contrast_on, refvar,
+                                      sourcevar, episode_on, priorvar, spec,
+                                      warp, calibration, typicality,
+                                      evidence_scaled) {
+  function(source_row, cache = NULL) {
+    if (evidence_scaled) {
+      row_scored <- score_transport_v3_cv_row(
+        source_row, ref_tab, match_on, contrast_on, refvar, sourcevar,
+        episode_on, priorvar, spec, warp, cache = cache
+      )
+      return(transport_v3_calibrated_evidence(
+        row_scored, calibration, typicality, row_scored$pool_id
+      ))
+    }
+    row_scored <- score_transport_v3_cv_row(
+      source_row, ref_tab, match_on, contrast_on, refvar, sourcevar,
+      episode_on, priorvar, spec, warp,
+      temperature = calibration$temperature,
+      kappa = calibration$kappa, cache = cache
+    )
+    # Rank and top-1 never depend on the calibration (also for the
+    # "global" method).
+    transport_v3_reference_rank(row_scored)
+  }
+}
+
+transport_v3_source_rows <- function(source_tab, rows) {
+  lapply(rows, function(row) source_tab[row, , drop = FALSE])
+}
+
 score_transport_v3_cv_row <- function(
     source_row, ref_tab, match_on, contrast_on, refvar, sourcevar,
     episode_on, priorvar, spec, warp, temperature = 1, kappa = 0,
@@ -541,41 +713,56 @@ transport_v3_typicality <- function(
   source_item <- train_item[source_rows]
   source_measure <- lapply(sources[[sourcevar]], as_gaze_measure,
                            chronology = spec$chronology)
-  source_aligner <- lapply(seq_len(nrow(sources)), function(j) {
-    transport_v3_row_aligner(
-      transport_v3_row_warp(warp, sources[j, , drop = FALSE], spec),
-      sources$..gaze_row_id[[j]], cache
-    )
+  source_warp <- lapply(seq_len(nrow(sources)), function(j) {
+    transport_v3_row_warp(warp, sources[j, , drop = FALSE], spec)
   })
-  offsets <- vector("list", length(candidate_keys))
-  names(offsets) <- candidate_keys
-  source_scores <- valid_ids <- vector("list", length(candidate_keys))
-  score_matrix <- matrix(NA_real_, length(candidate_keys), nrow(sources))
-  for (index in seq_along(candidate_keys)) {
-    rows <- which(ref_key == candidate_keys[[index]])
+  candidates <- lapply(candidate_keys, function(candidate_key) {
+    rows <- which(ref_key == candidate_key)
     episode_id <- if (is.null(episode_on)) {
       rep("episode_1", length(rows))
     } else {
       gaze_key(ref_tab[rows, , drop = FALSE], episode_on, "episode_on")
     }
-    prepared <- transport_v3_cached_episodes(
-      stats::setNames(ref_tab[[refvar]][rows], episode_id),
-      candidate_keys[[index]], spec$chronology, cache
+    list(
+      key = candidate_key,
+      episodes = stats::setNames(ref_tab[[refvar]][rows], episode_id),
+      item = unique(ref_item[rows])
     )
-    item <- unique(ref_item[rows])
-    episode_scores <- list()
-    valid_ids[[index]] <- prepared$valid_ids
-    for (j in which(!source_item %in% item)) {
-      result <- score_transport_v3_episode_candidate(
-        source_measure[[j]], prepared, spec,
-        candidate_key = candidate_keys[[index]],
-        aligner = source_aligner[[j]]
+  })
+  prepared <- lapply(candidates, function(candidate) {
+    transport_v3_cached_episodes(
+      candidate$episodes, candidate$key, spec$chronology, cache
+    )
+  })
+  pairs <- list()
+  for (index in seq_along(candidates)) {
+    for (j in which(!source_item %in% candidates[[index]]$item)) {
+      pairs[[length(pairs) + 1L]] <- list(
+        index = index, j = j, key = candidates[[index]]$key,
+        bucket = paste(sources$..gaze_row_id[[j]], candidates[[index]]$key,
+                       sep = "\r"),
+        prepared = prepared[[index]]
       )
-      scores <- result$diagnostics$episode_scores
-      episode_scores[[as.character(j)]] <- scores
-      score_matrix[index, j] <- transport_v3_log_mean_exp(scores)
     }
-    source_scores[[index]] <- episode_scores
+  }
+  pair_scores <- transport_v3_map(
+    pairs,
+    transport_v3_typicality_scorer(
+      source_measure, source_warp, sources$..gaze_row_id, spec
+    ),
+    cache = cache,
+    buckets = function(pair) function(buckets) buckets == pair$bucket
+  )
+  offsets <- vector("list", length(candidate_keys))
+  names(offsets) <- candidate_keys
+  source_scores <- rep(list(list()), length(candidate_keys))
+  valid_ids <- lapply(prepared, `[[`, "valid_ids")
+  score_matrix <- matrix(NA_real_, length(candidate_keys), nrow(sources))
+  for (p in seq_along(pairs)) {
+    index <- pairs[[p]]$index
+    j <- pairs[[p]]$j
+    source_scores[[index]][[as.character(j)]] <- pair_scores[[p]]
+    score_matrix[index, j] <- transport_v3_log_mean_exp(pair_scores[[p]])
   }
   table <- gaze_typicality_summary(score_matrix, candidate_keys)
   # Episode offsets: per-source centred episode means, shrunk by each
@@ -610,6 +797,22 @@ transport_v3_typicality <- function(
     table = table,
     item_on = item_on
   )
+}
+
+# Episode scores of one typicality training source against one candidate.
+transport_v3_typicality_scorer <- function(source_measure, source_warp,
+                                           source_row_id, spec) {
+  function(pair, cache = NULL) {
+    j <- pair$j
+    result <- score_transport_v3_episode_candidate(
+      source_measure[[j]], pair$prepared, spec,
+      candidate_key = pair$key,
+      aligner = transport_v3_row_aligner(
+        source_warp[[j]], source_row_id[[j]], cache
+      )
+    )
+    result$diagnostics$episode_scores
+  }
 }
 
 # Held-out evidence under the evidence-scaled calibration: candidate and
@@ -729,15 +932,21 @@ fit_transport_v3_inner_calibration <- function(
       source_tab[train_rows, , drop = FALSE],
       match_on, refvar, sourcevar, episode_on, spec
     )
-    for (row in eval_rows) {
-      scored <- score_transport_v3_cv_row(
-        source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
-        refvar, sourcevar, episode_on, priorvar, spec, warp, cache = cache
-      )
+    scored_rows <- transport_v3_map(
+      transport_v3_source_rows(source_tab, eval_rows),
+      transport_v3_inner_scorer(
+        ref_tab, match_on, contrast_on, refvar, sourcevar, episode_on,
+        priorvar, spec, warp
+      ),
+      cache = cache, buckets = transport_v3_row_buckets
+    )
+    for (index in seq_along(eval_rows)) {
+      row <- eval_rows[[index]]
+      scored <- scored_rows[[index]]
       profiles[[row]] <- scored$profile
       true_index[[row]] <- scored$true_index
       priors[[row]] <- scored$prior
-      effective_fixations[[row]] <- scored$quality$effective_fixations
+      effective_fixations[[row]] <- scored$effective_fixations
     }
     if (typicality) {
       # Offsets for the inner evaluation rows come from the inner training
@@ -827,6 +1036,15 @@ transport_v3_expected_calibration_error <- function(reliability_table) {
 #'   solver revision, the backends used, and these counts (including inner
 #'   calibration alignments in `backend_fallback_count`). Per-alignment
 #'   fallback warnings are replaced by one summary warning.
+#' @section Parallel evaluation:
+#' Held-out rows, inner-calibration rows and typicality candidates are scored
+#' in parallel under a [future][future::plan] plan with more than one worker,
+#' for example `future::plan(future::multisession, workers = 4)`. The solver
+#' draws no random numbers, so the results are identical to a sequential run.
+#' The default sequential plan runs as before.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_transport_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,
@@ -838,25 +1056,23 @@ gaze_transport_cv <- function(
   if (!inherits(spec, "gaze_transport_spec")) {
     stop("spec must be created by gaze_transport_spec().")
   }
+  revision <- transport_v3_revision(spec)
   required_ref <- unique(c(
     match_on, contrast_on, episode_on, priorvar, spec$warp$fit_by, refvar
   ))
   required_source <- unique(c(
     match_on, contrast_on, split_on, spec$warp$fit_by, sourcevar
   ))
-  if (!all(required_ref %in% names(ref_tab)) ||
-      !all(required_source %in% names(source_tab))) {
-    stop("Transport matching, episode, prior, warp, and path columns must exist.")
-  }
+  stop_if_missing_gaze_columns("Transport", ref_tab, required_ref,
+                               source_tab, required_source)
+  check_gaze_spatial_scale(ref_tab[[refvar]], source_tab[[sourcevar]],
+                           spec$spatial)
   if (is.null(episode_on) && anyDuplicated(gaze_key(
     ref_tab, match_on, "match_on"
   ))) {
     stop("Duplicate reference candidates require episode_on.")
   }
   evidence_scaled <- gaze_calibration_evidence_scaled(spec)
-  # Under revision 2026.10 rank and top-1 never depend on the calibration
-  # (also for the "global" method); revision 2026.08 is left unchanged.
-  reference_rank <- identical(transport_v3_revision(spec), "2026.10")
   typicality <- gaze_calibration_typicality(spec)
   if (typicality) {
     item_on <- gaze_typicality_item_on(
@@ -936,28 +1152,15 @@ gaze_transport_cv <- function(
         cache = cache
       )
     }
-    scored <- lapply(eval_rows, function(row) {
-      if (evidence_scaled) {
-        row_scored <- score_transport_v3_cv_row(
-          source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
-          refvar, sourcevar, episode_on, priorvar, spec, warp, cache = cache
-        )
-        return(transport_v3_calibrated_evidence(
-          row_scored, calibration, typicality_fold,
-          row_scored$pool_id
-        ))
-      }
-      row_scored <- score_transport_v3_cv_row(
-        source_tab[row, , drop = FALSE], ref_tab, match_on, contrast_on,
-        refvar, sourcevar, episode_on, priorvar, spec, warp,
-        temperature = calibration$temperature,
-        kappa = calibration$kappa, cache = cache
-      )
-      if (reference_rank) {
-        row_scored <- transport_v3_reference_rank(row_scored)
-      }
-      row_scored
-    })
+    scored <- transport_v3_map(
+      transport_v3_source_rows(source_tab, eval_rows),
+      transport_v3_outer_scorer(
+        ref_tab, match_on, contrast_on, refvar, sourcevar, episode_on,
+        priorvar, spec, warp, calibration, typicality_fold,
+        evidence_scaled
+      ),
+      cache = cache, buckets = transport_v3_row_buckets
+    )
     result_fold <- source_tab[eval_rows, , drop = FALSE]
     result_fold$.cv_fold <- fold
     for (field in c(
@@ -1049,7 +1252,7 @@ gaze_transport_cv <- function(
     }
   )))
   solver <- list(
-    revision = transport_v3_revision(spec),
+    revision = revision,
     backend = spec$control$backend,
     heldout_backends = sort(heldout_backends),
     backend_fallback_count = fallback_records,
@@ -1091,12 +1294,14 @@ gaze_transport_cv <- function(
       if (typicality) paste0("+typicality_", spec$calibration$control$typicality) else ""
     )
   }
+  calibration_fallback_folds <- warn_gaze_calibration_fallback("Transport", fold_info)
   structure(
     list(
       results = results,
       spec = spec,
       solver = solver,
       folds = fold_info,
+      calibration_fallback_folds = calibration_fallback_folds,
       calibration = calibration_summary,
       keys = list(
         match_on = match_on,
@@ -1108,7 +1313,7 @@ gaze_transport_cv <- function(
       ),
       provenance = list(
         engine = "transport",
-        solver_revision = transport_v3_revision(spec),
+        solver_revision = revision,
         primary_score = "gaze_info_bits=log2(p_true/prior_true)",
         candidate_pool = "exhaustive_permitted_within_contrast",
         candidate_prior = if (is.null(priorvar)) {

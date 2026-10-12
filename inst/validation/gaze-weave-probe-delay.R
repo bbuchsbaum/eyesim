@@ -45,6 +45,7 @@ probe_delay_helper_file <- system.file(
 )
 if (!nzchar(probe_delay_helper_file)) {
   probe_delay_helper_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-real-controls.R"
   )
 }

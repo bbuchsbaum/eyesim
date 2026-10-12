@@ -46,6 +46,7 @@ density_delta_dependency <- system.file(
 )
 if (!nzchar(density_delta_dependency)) {
   density_delta_dependency <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-own-group-decomposition.R"
   )
 }

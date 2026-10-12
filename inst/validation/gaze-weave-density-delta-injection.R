@@ -23,6 +23,7 @@ density_delta_injection_file <- system.file(
 )
 if (!nzchar(density_delta_injection_file)) {
   density_delta_injection_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-density-delta.R"
   )
 }

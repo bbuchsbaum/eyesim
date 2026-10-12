@@ -39,9 +39,9 @@ transport_v3_jensen_shannon_gradient <- function(observed, target) {
   )
 }
 
-# Revision 2026.10 mutual information. Identical to gaze_mutual_information()
-# except that a positive cell whose independent reference mass underflows to
-# zero is evaluated in the log domain instead of contributing Inf.
+# Mutual information of a correspondence. A positive cell whose independent
+# reference mass underflows to zero is evaluated in the log domain instead of
+# contributing Inf.
 transport_v3_mutual_information <- function(correspondence) {
   if (!is.matrix(correspondence) || any(!is.finite(correspondence)) ||
       any(correspondence < 0) || abs(sum(correspondence) - 1) > 1e-8) {
@@ -120,11 +120,7 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
     reference$relation,
     source$relation,
     gradient = gradient,
-    pseudo_count = if (transport_v3_revised(spec)) {
-      transport_v3_chronology_pseudo_count
-    } else {
-      0
-    }
+    pseudo_count = transport_v3_chronology_pseudo_count
   )
   reference_selection <- transport_v3_jensen_shannon(
     reference_selected_unit, reference$mass
@@ -132,11 +128,9 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
   source_selection <- transport_v3_jensen_shannon(
     source_selected_unit, source$mass
   )
-  correspondence_information <- if (transport_v3_revised(spec)) {
-    transport_v3_mutual_information(correspondence)
-  } else {
-    gaze_mutual_information(correspondence)
-  }
+  correspondence_information <- transport_v3_mutual_information(
+    correspondence
+  )
   scientific_components <- c(
     spatial = coverage * spatial,
     chronology = coverage * spec$temporal_weight * edge$residual,
@@ -190,7 +184,7 @@ transport_v3_objective <- function(coupling, reference, source, spatial_cost,
   result
 }
 
-# Revision 2026.10 first-order stopping rule. It is a heuristic model of the
+# First-order stopping rule. It is a heuristic model of the
 # decrease still available at a node, not a proof of optimality (the
 # objective is non-convex). With dual prices a, b fitted by P-weighted least
 # squares to T (T = centred gradient G on real cells, 0 on slack cells),
@@ -256,13 +250,13 @@ transport_v3_stationarity <- function(augmented, centered_gradient, entropy) {
   )
 }
 
-# Revision 2026.10 reseed: mix the plan with the independent start and
+# Reseed: mix the plan with the independent start and
 # re-project, lifting every cell to a non-negligible mass so that a trapped
 # cell can re-enter the support.
 transport_v3_reseed_fraction <- 1e-3
 
-# One entropy stage of the revision 2026.10 mirror-descent solver. The native
-# backend (src/transport_v3.cpp, revision = 1) implements the same rules:
+# One entropy stage of the mirror-descent solver (revision 2026.10). The
+# native backend (src/transport_v3.cpp) implements the same rules:
 #
 # * Objective: the chronology residual is 1 - 2A / (R + S + kappa), with
 #   kappa = transport_v3_chronology_pseudo_count passed from R.
@@ -285,8 +279,8 @@ transport_v3_reseed_fraction <- 1e-3
 #   never binds. After an accepted trial the next start step doubles.
 # * Projection: standard Sinkhorn, then a damped log-domain dual Newton
 #   finisher, then log-domain Sinkhorn.
-# * Noise-limited iterations: both revisions accept a trial that rises by at
-#   most 1e-12 relative, so a line search "fails" only when every trial rose
+# * Noise-limited iterations: a trial that rises by at most 1e-12 relative
+#   is accepted, so a line search "fails" only when every trial rose
 #   by more than that, which at 1e-8 projection accuracy is noise-dominated;
 #   a failure establishes nothing. When no trial is accepted, or the accepted
 #   decrease is at most 10 * projection_tolerance * max(1, |f|) at a step
@@ -424,7 +418,7 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
     final_step <- trial_step
     projection <- trial_projection
     augmented <- proposal
-    # Doubling (2026.08 used 1.1) lets a backtracked step recover quickly.
+    # Doubling lets a backtracked step recover quickly.
     step <- min(trial_step * 2, control$step_size)
   }
   list(
@@ -457,7 +451,6 @@ transport_v3_reference_stage_revised <- function(augmented, reference, source,
 solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
                                               coverage, spec,
                                               initial_augmented = NULL) {
-  revised <- transport_v3_revised(spec)
   n_reference <- length(reference$mass)
   n_source <- length(source$mass)
   real_rows <- seq_len(n_reference)
@@ -466,12 +459,7 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     reference, source, spatial_cost, coverage, spec
   )
   if (!is.null(initial_augmented)) {
-    project <- if (revised) {
-      project_partial_coupling_revised
-    } else {
-      project_partial_coupling
-    }
-    projected <- project(
+    projected <- project_partial_coupling_revised(
       initial_augmented,
       reference$mass,
       source$mass,
@@ -481,14 +469,10 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     if (projected$converged) {
       # Coverage continuation is within one candidate and follows the same
       # ascending-node policy for every candidate. It never carries state
-      # across candidates. Revision 2026.10 solves from the continuation in
-      # addition to the structural starts, so the node's solution does not
-      # depend on how far the previous node was optimized.
-      if (revised) {
-        starts$adjacent_coverage <- projected$plan
-      } else {
-        starts <- list(adjacent_coverage = projected$plan)
-      }
+      # across candidates. The continuation is solved in addition to the
+      # structural starts, so the node's solution does not depend on how far
+      # the previous node was optimized.
+      starts$adjacent_coverage <- projected$plan
     }
   }
 
@@ -502,107 +486,25 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
     final_step <- NA_real_
     terminations <- character(0)
     for (entropy in spec$entropy_schedule) {
-      if (revised) {
-        stage <- transport_v3_reference_stage_revised(
-          augmented, reference, source, spatial_cost, coverage, spec, entropy
-        )
-        augmented <- stage$augmented
-        # Keep the last accepted step across stages, as the native backend
-        # does: a stage that takes no step (stationary at its input plan)
-        # leaves final_step NA, which would make the residual NA.
-        if (is.finite(stage$final_step)) {
-          final_change <- stage$final_change
-          final_objective_change <- stage$final_objective_change
-          final_step <- stage$final_step
-        }
-        history[[length(history) + 1L]] <- c(
-          stage$history, list(start = start_name)
-        )
-        projection_converged <- projection_converged &&
-          stage$history$projection_converged
-        all_stages_converged <- all_stages_converged && stage$converged
-        terminations <- c(terminations, stage$history$termination)
-        next
-      }
-      step <- spec$control$step_size
-      stage_converged <- FALSE
-      projection <- list(error = Inf, converged = FALSE, method = NA_character_)
-      for (iteration in seq_len(spec$control$maxit)) {
-        coupling <- augmented[real_rows, real_columns, drop = FALSE]
-        current <- transport_v3_objective(
-          coupling, reference, source, spatial_cost, spec, entropy,
-          gradient = TRUE
-        )
-        centered_gradient <- current$gradient - stats::median(current$gradient)
-        accepted <- FALSE
-        trial_step <- step
-        proposal <- augmented
-        proposal_objective <- current
-        for (backtrack in 0:20) {
-          kernel <- augmented
-          update <- exp(pmax(pmin(-trial_step * centered_gradient, 50), -50))
-          kernel[real_rows, real_columns] <-
-            pmax(coupling, 1e-300) * update
-          projection <- project_partial_coupling(
-            kernel,
-            reference$mass,
-            source$mass,
-            coverage,
-            spec$control
-          )
-          if (!projection$converged) {
-            trial_step <- trial_step / 2
-            next
-          }
-          proposal <- projection$plan
-          proposal_coupling <- proposal[real_rows, real_columns, drop = FALSE]
-          proposal_objective <- transport_v3_objective(
-            proposal_coupling,
-            reference,
-            source,
-            spatial_cost,
-            spec,
-            entropy
-          )
-          if (is.finite(proposal_objective$optimization) &&
-              proposal_objective$optimization <= current$optimization +
-                1e-12 * max(1, abs(current$optimization))) {
-            accepted <- TRUE
-            break
-          }
-          trial_step <- trial_step / 2
-        }
-        if (!accepted) break
-        final_change <- max(abs(proposal - augmented))
-        final_objective_change <- abs(
-          proposal_objective$optimization - current$optimization
-        ) / max(1, abs(current$optimization))
-        final_step <- trial_step
-        augmented <- proposal
-        step <- min(trial_step * 1.1, spec$control$step_size)
-        if (isTRUE(
-          final_objective_change <= spec$control$tolerance &&
-            projection$error <= spec$control$projection_tolerance
-        )) {
-          stage_converged <- TRUE
-          break
-        }
-      }
-      history[[length(history) + 1L]] <- list(
-        entropy = entropy,
-        iterations = iteration,
-        converged = stage_converged,
-        coupling_change = final_change,
-        relative_objective_change = final_objective_change,
-        projected_update_residual = final_change /
-          max(final_step, .Machine$double.eps),
-        projection_error = projection$error,
-        projection_converged = projection$converged,
-        projection_method = projection$method,
-        projection_fallback = isTRUE(projection$fallback_from_standard)
+      stage <- transport_v3_reference_stage_revised(
+        augmented, reference, source, spatial_cost, coverage, spec, entropy
       )
-      projection_converged <- projection_converged && projection$converged
-      all_stages_converged <- all_stages_converged && stage_converged
+      augmented <- stage$augmented
+      # Keep the last accepted step across stages, as the native backend
+      # does: a stage that takes no step (stationary at its input plan)
+      # leaves final_step NA, which would make the residual NA.
+      if (is.finite(stage$final_step)) {
+        final_change <- stage$final_change
+        final_objective_change <- stage$final_objective_change
+        final_step <- stage$final_step
+      }
+      history[[length(history) + 1L]] <- c(
+        stage$history, list(start = start_name)
+      )
+      projection_converged <- projection_converged &&
+        stage$history$projection_converged
+      all_stages_converged <- all_stages_converged && stage$converged
+      terminations <- c(terminations, stage$history$termination)
     }
     coupling <- augmented[real_rows, real_columns, drop = FALSE]
     final <- transport_v3_objective(
@@ -627,14 +529,12 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
       projected_update_residual = final_change /
         max(final_step, .Machine$double.eps)
     )
-    if (revised) {
-      fit$status <- if (isTRUE(fit$converged)) {
-        "converged"
-      } else if (any(terminations == "maxit")) {
-        "not_converged"
-      } else {
-        "stalled_projection_limited"
-      }
+    fit$status <- if (isTRUE(fit$converged)) {
+      "converged"
+    } else if (any(terminations == "maxit")) {
+      "not_converged"
+    } else {
+      "stalled_projection_limited"
     }
     fit
   })
@@ -644,38 +544,20 @@ solve_transport_v3_mass_reference <- function(reference, source, spatial_cost,
   scientific <- vapply(fits, function(fit) {
     fit$objective$scientific
   }, numeric(1))
-  converged <- vapply(fits, function(fit) isTRUE(fit$converged), logical(1))
-  # Revision 2026.08 silently restarted a non-converged warm-started node from
-  # the cold start (the native backend never did). Revision 2026.10 removes
-  # that restart: every node is solved from both the independent and the
-  # continuation start in both backends, and the node status is reported.
-  if (!revised && !any(converged) && !is.null(initial_augmented)) {
-    fallback <- solve_transport_v3_mass_reference(
-      reference, source, spatial_cost, coverage, spec,
-      initial_augmented = NULL
-    )
-    fallback$continuation_fallback <- TRUE
-    fallback$continuation_start_objectives <- stats::setNames(
-      optimization, names(starts)
-    )
-    return(fallback)
-  }
-  best <- if (revised) {
-    # Prefer fits whose stages all ended certified or projection-limited
-    # over fits that hit maxit; within the preferred tier keep the lowest
-    # finite regularized objective (ties keep the first start).
-    preferred <- vapply(fits, function(fit) {
-      fit$status %in% c("converged", "stalled_projection_limited")
-    }, logical(1))
-    tier <- if (any(preferred)) which(preferred) else seq_along(fits)
-    finite <- tier[is.finite(optimization[tier])]
-    if (length(finite) == 0L) {
-      fits[[tier[[1L]]]]
-    } else {
-      fits[[finite[[which.min(optimization[finite])]]]]
-    }
+  # Every node is solved from both the independent and the continuation
+  # start in both backends, and the node status is reported. Prefer fits
+  # whose stages all ended certified or projection-limited over fits that
+  # hit maxit; within the preferred tier keep the lowest finite regularized
+  # objective (ties keep the first start).
+  preferred <- vapply(fits, function(fit) {
+    fit$status %in% c("converged", "stalled_projection_limited")
+  }, logical(1))
+  tier <- if (any(preferred)) which(preferred) else seq_along(fits)
+  finite <- tier[is.finite(optimization[tier])]
+  best <- if (length(finite) == 0L) {
+    fits[[tier[[1L]]]]
   } else {
-    fits[[which.min(optimization)]]
+    fits[[finite[[which.min(optimization[finite])]]]]
   }
   best$coverage <- coverage
   best$start_objectives <- stats::setNames(optimization, names(starts))
@@ -809,13 +691,9 @@ solve_transport_v3_profile_symmetric <- function(reference, source, spec,
   )
 }
 
-# Per-coverage-node solver status. Revision 2026.10 fits carry an explicit
-# status; 2026.08 fits are either converged or not.
+# Per-coverage-node solver status; every fit of both backends carries one.
 transport_v3_node_status <- function(fits) {
-  vapply(fits, function(fit) {
-    if (!is.null(fit$status)) return(fit$status)
-    if (isTRUE(fit$converged)) "converged" else "not_converged"
-  }, character(1))
+  vapply(fits, function(fit) fit$status, character(1))
 }
 
 # Worst node status of one alignment.
@@ -885,9 +763,7 @@ transport_v3_alignment_from_profile <- function(profile, reference, source,
       enabled = TRUE,
       oracle = profile$polish$oracle,
       map_gap = map_fit$polish$gap,
-      maximum_gap = if (!transport_v3_revised(spec)) {
-        max(polish_gaps)
-      } else if (any(is.finite(polish_gaps))) {
+      maximum_gap = if (any(is.finite(polish_gaps))) {
         max(polish_gaps[is.finite(polish_gaps)])
       } else {
         NA_real_
@@ -901,10 +777,8 @@ transport_v3_alignment_from_profile <- function(profile, reference, source,
       stopping_reason = map_fit$polish$stopping_reason,
       trace = map_fit$polish$trace
     )
-    if (transport_v3_revised(spec)) {
-      diagnostics$polish$gap_reason <- map_fit$polish$gap_reason
-      diagnostics$polish$undefined_gap_nodes <- sum(is.na(polish_gaps))
-    }
+    diagnostics$polish$gap_reason <- map_fit$polish$gap_reason
+    diagnostics$polish$undefined_gap_nodes <- sum(is.na(polish_gaps))
   }
   entropic_converged <- all(vapply(
     profile$fits, `[[`, logical(1), "converged"
@@ -969,6 +843,7 @@ gaze_transport_align <- function(reference, source, spec,
   if (!inherits(spec, "gaze_transport_spec")) {
     stop("spec must be created by gaze_transport_spec().")
   }
+  revision <- transport_v3_revision(spec)
   if (is.null(warp_model)) {
     if (!identical(spec$warp$type, "none")) {
       stop("A non-identity warp must be learned from independent trials.")
@@ -1003,7 +878,7 @@ gaze_transport_align <- function(reference, source, spec,
     convergence = alignment$convergence,
     provenance = list(
       engine_version = 3L,
-      solver_revision = transport_v3_revision(spec),
+      solver_revision = revision,
       directionality = "symmetric",
       score_semantics = "coverage_integrated_negative_scientific_energy",
       duration_semantics = "unit_duration_mass_with_fixed_ordinal_neighbours",

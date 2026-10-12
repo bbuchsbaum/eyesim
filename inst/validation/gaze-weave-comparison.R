@@ -50,7 +50,7 @@ validation_spec <- function(warp = gaze_warp_none()) {
       weights = c(0.45, 0.35, 0.20),
       unit = "px"
     ),
-    chronology = gaze_local_order(horizon = 0.3),
+    chronology = eyesim:::gaze_local_order(horizon = 0.3),
     transport = gaze_partial_transport(
       temporal_weight = 4,
       unmatched = c(2, 2),

@@ -2,10 +2,16 @@
 #'
 #' @param width,height Positive screen dimensions.
 #' @param unit Coordinate unit. One of `"px"`, `"deg"`, or `"normalized"`.
-#' @param center Optional two-element screen centre. Defaults to half the screen
-#'   dimensions.
+#' @param center Optional two-element screen centre, in data coordinates.
+#'   Defaults to half the screen dimensions, so the screen spans
+#'   `[0, width] x [0, height]`; with a centre such as `c(0, 0)` (for example
+#'   degrees of visual angle measured from fixation) it spans
+#'   `center +/- dimensions / 2`.
 #'
 #' @return A `gaze_screen` specification.
+#' @examples
+#' gaze_screen(1024, 768)                                # pixels, origin at a corner
+#' gaze_screen(30, 20, unit = "deg", center = c(0, 0))   # degrees from centre
 #' @export
 gaze_screen <- function(width, height, unit = c("px", "deg", "normalized"),
                         center = NULL) {
@@ -20,6 +26,7 @@ gaze_screen <- function(width, height, unit = c("px", "deg", "normalized"),
   if (!is.numeric(center) || length(center) != 2L || any(!is.finite(center))) {
     stop("center must be a finite numeric vector of length two.")
   }
+  center <- as.numeric(center)
 
   structure(
     list(
@@ -27,8 +34,8 @@ gaze_screen <- function(width, height, unit = c("px", "deg", "normalized"),
       height = as.numeric(height),
       unit = unit,
       center = as.numeric(center),
-      xlim = c(0, as.numeric(width)),
-      ylim = c(0, as.numeric(height))
+      xlim = center[[1]] + c(-1, 1) * as.numeric(width) / 2,
+      ylim = center[[2]] + c(-1, 1) * as.numeric(height) / 2
     ),
     class = c("gaze_screen", "list")
   )
@@ -72,7 +79,7 @@ gaze_gaussian_mixture <- function(sigmas, weights = NULL,
 #' @param horizon Positive temporal horizon on normalized trial time.
 #'
 #' @return A `gaze_chronology_spec` object.
-#' @export
+#' @keywords internal
 gaze_local_order <- function(horizon = 0.2) {
   if (length(horizon) != 1L || !is.finite(horizon) || horizon <= 0) {
     stop("horizon must be a finite positive scalar.")
@@ -164,4 +171,84 @@ gaze_warp_contraction <- function(center = "screen", translation = TRUE,
     ),
     class = c("gaze_warp_spec", "list")
   )
+}
+
+# Input checks shared by the cross-fitted engines ----------------------------
+
+stop_if_missing_gaze_columns <- function(engine, ref_tab, required_ref,
+                                         source_tab, required_source) {
+  missing_ref <- setdiff(required_ref, names(ref_tab))
+  missing_source <- setdiff(required_source, names(source_tab))
+  if (length(missing_ref) == 0L && length(missing_source) == 0L) {
+    return(invisible(NULL))
+  }
+  stop(engine, ": missing columns: ", paste(c(
+    if (length(missing_ref)) {
+      paste0("ref_tab (", paste(missing_ref, collapse = ", "), ")")
+    },
+    if (length(missing_source)) {
+      paste0("source_tab (", paste(missing_source, collapse = ", "), ")")
+    }
+  ), collapse = "; "), ".", call. = FALSE)
+}
+
+gaze_path_coordinates <- function(...) {
+  paths <- c(...)
+  paths <- paths[vapply(paths, function(path) {
+    is.data.frame(path) && all(c("x", "y") %in% names(path))
+  }, logical(1))]
+  if (length(paths) == 0L) return(matrix(numeric(0), 0L, 2L))
+  cbind(unlist(lapply(paths, `[[`, "x"), use.names = FALSE),
+        unlist(lapply(paths, `[[`, "y"), use.names = FALSE))
+}
+
+# The default spatial kernel is scaled for degrees of visual angle. When the
+# fixation coordinates are far coarser than the kernel (pixels, say), almost
+# no pair of fixations overlaps and the solver stalls, so say so.
+check_gaze_spatial_scale <- function(ref_paths, source_paths, spatial) {
+  coords <- gaze_path_coordinates(ref_paths, source_paths)
+  if (nrow(coords) < 3L) return(invisible(NULL))
+  spread <- mean(c(stats::sd(coords[, 1], na.rm = TRUE),
+                   stats::sd(coords[, 2], na.rm = TRUE)))
+  largest <- max(spatial$sigmas)
+  if (is.finite(spread) && spread > 25 * largest) {
+    warning(structure(
+      class = c("gaze_spatial_scale", "warning", "condition"),
+      list(message = paste0(
+        "Transport: fixation coordinates spread about ", signif(spread, 3),
+        " units but the spatial kernel bandwidths are at most ", largest,
+        ". Give gaze_transport_spec(spatial = gaze_gaussian_mixture(...)) ",
+        "bandwidths in the units of the coordinates (the default, ",
+        "c(0.75, 1.5), suits degrees of visual angle)."
+      ), call = NULL)
+    ))
+  }
+  invisible(NULL)
+}
+
+# Replay truncates emissions to the declared screen and clamps fixations onto
+# it. A few fixations just off screen are expected; many mean the screen does
+# not describe the coordinates (wrong size, origin or unit).
+check_gaze_screen_clamping <- function(ref_paths, source_paths, screen,
+                                       tolerance = 0.05) {
+  if (is.null(screen)) return(invisible(NULL))
+  coords <- gaze_path_coordinates(ref_paths, source_paths)
+  coords <- coords[stats::complete.cases(coords), , drop = FALSE]
+  if (nrow(coords) == 0L) return(invisible(NULL))
+  outside <- coords[, 1] < screen$xlim[[1]] | coords[, 1] > screen$xlim[[2]] |
+    coords[, 2] < screen$ylim[[1]] | coords[, 2] > screen$ylim[[2]]
+  share <- mean(outside)
+  if (share > tolerance) {
+    warning(structure(
+      class = c("gaze_screen_clamping", "warning", "condition"),
+      list(message = paste0(
+        "Replay: ", round(100 * share, 1), "% of fixations lie outside the ",
+        "declared screen [", paste(signif(screen$xlim, 4), collapse = ", "),
+        "] x [", paste(signif(screen$ylim, 4), collapse = ", "),
+        "] and are clamped onto its edge. Check gaze_screen() width, height, ",
+        "center and unit."
+      ), call = NULL)
+    ))
+  }
+  invisible(NULL)
 }

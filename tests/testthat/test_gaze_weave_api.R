@@ -11,7 +11,7 @@ test_that("the common entry point exposes only Transport and Replay", {
       tibble::tibble(), tibble::tibble(), match_on = "item",
       spec = gaze_transport_spec()
     ),
-    "matching, episode, prior, warp, and path columns"
+    "Transport: missing columns"
   )
   expect_error(
     gaze_weave_cv(
@@ -25,7 +25,7 @@ test_that("the common entry point exposes only Transport and Replay", {
       tibble::tibble(), tibble::tibble(), match_on = "item",
       engine = "transport"
     ),
-    "matching, episode, prior, warp, and path columns"
+    "Transport: missing columns"
   )
 })
 

@@ -5,7 +5,28 @@
 
 namespace {
 
-// Revision 2026.10 first-order stopping rule; mirrors
+// Solve a symmetric positive-definite system (the dual Hessians and normal
+// equations below are SPD by construction). A Cholesky solve skips
+// Armadillo's condition-number estimate, which dominated these small solves.
+// Systems that fail to factor, or whose Cholesky diagonal suggests poor
+// conditioning, go to the general solver with no approximation, exactly as
+// before, so ill-conditioned systems are still refused.
+bool solve_spd(arma::vec& x, const arma::mat& A, const arma::vec& b) {
+  arma::mat R;
+  if (arma::chol(R, A)) {
+    const arma::vec d = arma::abs(R.diag());
+    const double ratio = d.max() / d.min();
+    if (std::isfinite(ratio) && ratio * ratio < 1e10) {
+      const arma::vec y = arma::solve(arma::trimatl(R.t()), b,
+                                      arma::solve_opts::fast);
+      x = arma::solve(arma::trimatu(R), y, arma::solve_opts::fast);
+      if (x.is_finite()) return true;
+    }
+  }
+  return arma::solve(x, A, b, arma::solve_opts::no_approx);
+}
+
+// First-order stopping rule; mirrors
 // transport_v3_stationarity() in R/gaze_weave_transport_v3_solver.R, where it
 // is documented. Returns the predicted remaining decrease and flags traps.
 struct StationarityV3 {
@@ -40,8 +61,7 @@ StationarityV3 stationarity_check(const arma::mat& augmented,
   arma::mat reduced = normal.submat(0, 0, free - 1, free - 1);
   reduced.diag() += 1e-14 * reduced.diag().max();
   arma::vec solution;
-  if (!arma::solve(solution, reduced, right.subvec(0, free - 1),
-                   arma::solve_opts::no_approx) ||
+  if (!solve_spd(solution, reduced, right.subvec(0, free - 1)) ||
       !solution.is_finite()) {
     return out;
   }
@@ -73,7 +93,7 @@ StationarityV3 stationarity_check(const arma::mat& augmented,
   return out;
 }
 
-// Revision 2026.10 reseed fraction; mirrors transport_v3_reseed_fraction.
+// Reseed fraction; mirrors transport_v3_reseed_fraction.
 constexpr double kReseedFraction = 1e-3;
 
 struct ObjectiveV3 {
@@ -134,8 +154,7 @@ ObjectiveV3 objective_v3(
     double selection_weight,
     double entropy,
     bool need_gradient,
-    bool revised = false,
-    double pseudo_count = 0.0) {
+    double pseudo_count) {
   const double coverage = arma::accu(coupling);
   arma::mat correspondence = coupling / coverage;
   arma::vec reference_selected = arma::sum(correspondence, 1);
@@ -151,11 +170,10 @@ ObjectiveV3 objective_v3(
   arma::mat forward = reference_relation * correspondence * source_relation.t();
   double agreement = arma::accu(correspondence % forward);
   double denominator = reference_edge_mass + source_edge_mass;
-  // Revision 2026.10: pseudo-count kappa (transport_v3_chronology_pseudo_count
-  // in R, passed in), continuous and tending to 1 as edge mass vanishes.
-  const double smoothed = revised ? denominator + pseudo_count : denominator;
-  double chronology = (!revised && denominator <= 1e-15) ? 0.0 :
-    1.0 - 2.0 * agreement / smoothed;
+  // Pseudo-count kappa (transport_v3_chronology_pseudo_count in R, passed
+  // in): continuous and tending to 1 as edge mass vanishes.
+  const double smoothed = denominator + pseudo_count;
+  double chronology = 1.0 - 2.0 * agreement / smoothed;
   chronology = std::min(1.0, std::max(0.0, chronology));
 
   double reference_selection = js_divergence(reference_selected, reference_mass);
@@ -168,8 +186,8 @@ ObjectiveV3 objective_v3(
       if (value > 0.0) {
         double independent = reference_selected[i] * source_selected[j];
         double ratio = value / independent;
-        if (revised && (!(independent > 0.0) || !std::isfinite(ratio))) {
-          // Revision 2026.10: the product of two tiny marginals can underflow
+        if (!(independent > 0.0) || !std::isfinite(ratio)) {
+          // The product of two tiny marginals can underflow
           // although the cell itself is positive. Evaluate the log ratio in
           // the log domain instead of returning an infinite objective.
           mutual_information += value * (
@@ -202,21 +220,19 @@ ObjectiveV3 objective_v3(
   if (!need_gradient) return result;
 
   arma::mat gradient = spatial_cost;
-  if (revised || denominator > 1e-15) {
-    arma::mat agreement_gradient = forward +
-      reference_relation.t() * correspondence * source_relation;
-    arma::vec reference_edge_gradient =
-      (reference_relation + reference_relation.t()) * reference_selected;
-    arma::vec source_edge_gradient =
-      (source_relation + source_relation.t()) * source_selected;
-    arma::mat denominator_gradient =
-      arma::repmat(reference_edge_gradient, 1, correspondence.n_cols) +
-      arma::repmat(source_edge_gradient.t(), correspondence.n_rows, 1);
-    arma::mat chronology_gradient = -2.0 * (
-      agreement_gradient * smoothed - agreement * denominator_gradient
-    ) / (smoothed * smoothed);
-    gradient += temporal_weight * chronology_gradient;
-  }
+  arma::mat agreement_gradient = forward +
+    reference_relation.t() * correspondence * source_relation;
+  arma::vec reference_edge_gradient =
+    (reference_relation + reference_relation.t()) * reference_selected;
+  arma::vec source_edge_gradient =
+    (source_relation + source_relation.t()) * source_selected;
+  arma::mat denominator_gradient =
+    arma::repmat(reference_edge_gradient, 1, correspondence.n_cols) +
+    arma::repmat(source_edge_gradient.t(), correspondence.n_rows, 1);
+  arma::mat chronology_gradient = -2.0 * (
+    agreement_gradient * smoothed - agreement * denominator_gradient
+  ) / (smoothed * smoothed);
+  gradient += temporal_weight * chronology_gradient;
   arma::vec reference_js = js_gradient(reference_selected, reference_mass);
   arma::vec source_js = js_gradient(source_selected, source_mass);
   gradient += selection_weight * (
@@ -286,8 +302,8 @@ bool project_standard(
   return converged;
 }
 
-// Damped Newton ascent on the dual of the masked KL projection (revision
-// 2026.10 finisher after standard Sinkhorn exhausts its iterations). Mirrors
+// Damped Newton ascent on the dual of the masked KL projection (the
+// finisher after standard Sinkhorn exhausts its iterations). Mirrors
 // masked_newton_projection() in R/gaze_weave_transport_projection.R.
 bool project_newton(
     const arma::mat& kernel,
@@ -374,9 +390,8 @@ bool project_newton(
     const double ridge = 1e-14 * reduced.diag().max();
     reduced.diag() += ridge;
     arma::vec reduced_direction;
-    bool solved = arma::solve(
-      reduced_direction, reduced, gradient.subvec(0, free - 1),
-      arma::solve_opts::no_approx
+    bool solved = solve_spd(
+      reduced_direction, reduced, gradient.subvec(0, free - 1)
     );
     if (!solved || !reduced_direction.is_finite()) return false;
     arma::vec direction = arma::join_cols(reduced_direction, arma::vec({0.0}));
@@ -489,7 +504,7 @@ bool project_log(
   return converged;
 }
 
-// Revision 2026.10 projection: standard Sinkhorn, then the Newton finisher,
+// Fixed-mass projection: standard Sinkhorn, then the Newton finisher,
 // then log-domain Sinkhorn (as the R oracle with projection_method "auto").
 // method: 0 standard, 1 Newton, 2 log-domain.
 bool project_revised(
@@ -501,10 +516,16 @@ bool project_revised(
     arma::mat& plan,
     double& error,
     int& iterations,
-    int& method) {
+    int& method,
+    int sinkhorn_budget = 0) {
   method = 0;
-  if (project_standard(kernel, row_target, column_target, maxit, tolerance,
-                       plan, error, iterations)) {
+  // Plain Sinkhorn converges slowly on the masked partial coupling; after
+  // `sinkhorn_budget` sweeps the Newton finisher takes over (same projection,
+  // quadratic convergence). Mirrors transport_v3_sinkhorn_budget in R.
+  const int standard_maxit =
+    sinkhorn_budget > 0 ? std::min(maxit, sinkhorn_budget) : maxit;
+  if (project_standard(kernel, row_target, column_target, standard_maxit,
+                       tolerance, plan, error, iterations)) {
     return true;
   }
   method = 1;
@@ -567,7 +588,6 @@ struct NodeFitV3 {
   arma::mat augmented;
   Rcpp::List history;
   bool all_converged;
-  bool numerical_ok;
   std::string status;
   double final_change;
   double final_objective_change;
@@ -578,9 +598,9 @@ struct NodeFitV3 {
 
 } // namespace
 
-// Test hook: the native revision 2026.10 stopping-rule check on one plan, so
+// Test hook: the native stopping-rule check on one plan, so
 // that tests can compare it with transport_v3_stationarity() in R.
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::List transport_v3_stationarity_native_cpp(
     const arma::mat& augmented,
     const arma::mat& centered_gradient,
@@ -593,8 +613,8 @@ Rcpp::List transport_v3_stationarity_native_cpp(
   );
 }
 
-// Solver revisions: 0 reproduces the frozen 2026.08 solver exactly; 1 is the
-// corrected 2026.10 solver. The R reference oracle
+// Solver revision 2026.10 (the retired revision 2026.08 is reproduced by the
+// git tag gazeweave-2026.08-frozen). The R reference oracle
 // (transport_v3_reference_stage_revised() and
 // solve_transport_v3_mass_reference()) implements the same 2026.10 rules:
 //
@@ -619,8 +639,8 @@ Rcpp::List transport_v3_stationarity_native_cpp(
 //   never binds. After an accepted trial the next start step doubles.
 // * Projection: standard Sinkhorn, then a damped log-domain dual Newton
 //   finisher, then log-domain Sinkhorn.
-// * Noise-limited iterations: both revisions accept a trial that rises by at
-//   most 1e-12 relative, so a line search "fails" only when every trial rose
+// * Noise-limited iterations: a trial that rises by at most 1e-12 relative
+//   is accepted, so a line search "fails" only when every trial rose
 //   by more than that, which at 1e-8 projection accuracy is noise-dominated;
 //   a failure establishes nothing. When no trial is accepted, or the accepted
 //   decrease is at most 10 * projection_tolerance * max(1, |f|) at a step
@@ -635,7 +655,7 @@ Rcpp::List transport_v3_stationarity_native_cpp(
 //   preferred over fits that hit maxit; within that tier the lowest
 //   regularized objective is kept (ties keep the earlier start). The result
 //   is still a local optimum of a non-convex objective.
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::List transport_v3_profile_native_cpp(
     const arma::vec& reference_mass,
     const arma::vec& source_mass,
@@ -651,10 +671,9 @@ Rcpp::List transport_v3_profile_native_cpp(
     double tolerance,
     int projection_maxit,
     double projection_tolerance,
-    int revision = 0,
-    double chronology_pseudo_count = 0.0,
-    int multistart = 1) {
-  const bool revised = revision >= 1;
+    double chronology_pseudo_count,
+    int multistart = 1,
+    int sinkhorn_budget = 0) {
   const arma::uword nr = reference_mass.n_elem;
   const arma::uword ns = source_mass.n_elem;
   Rcpp::List fits(coverage_values.n_elem);
@@ -684,22 +703,12 @@ Rcpp::List transport_v3_profile_native_cpp(
       double warm_error = std::numeric_limits<double>::infinity();
       int warm_iterations = 0;
       int warm_newton = 0;
-      bool warm_ok = revised ?
-        project_revised(
-          previous_augmented, row_target, column_target,
-          projection_maxit, projection_tolerance,
-          warm_plan, warm_error, warm_iterations, warm_newton
-        ) :
-        project_standard(
-          previous_augmented,
-          row_target,
-          column_target,
-          projection_maxit,
-          projection_tolerance,
-          warm_plan,
-          warm_error,
-          warm_iterations
-        );
+      bool warm_ok = project_revised(
+        previous_augmented, row_target, column_target,
+        projection_maxit, projection_tolerance,
+        warm_plan, warm_error, warm_iterations, warm_newton,
+        sinkhorn_budget
+      );
       if (warm_ok) {
         have_continuation = true;
         continuation = warm_plan;
@@ -709,7 +718,6 @@ Rcpp::List transport_v3_profile_native_cpp(
     auto solve_node = [&](const std::string& start_name,
                           arma::mat augmented) -> NodeFitV3 {
       bool all_converged = true;
-      bool numerical_ok = true;
       bool any_stalled = false;
       bool any_maxit = false;
       double final_change = std::numeric_limits<double>::infinity();
@@ -724,194 +732,130 @@ Rcpp::List transport_v3_profile_native_cpp(
         bool stage_converged = false;
         std::string termination = "maxit";
         bool stalled = false;
-        int used_newton = 0;
+        int used_newton = 3;  // no step taken yet: the stage's input plan
         double reduced_gradient = std::numeric_limits<double>::infinity();
         int reseeds = 0;
         int iteration = 0;
         int projection_iterations = 0;
-        if (revised) {
-          used_newton = 3;  // no step taken yet: the stage's input plan
-          for (iteration = 1; iteration <= maxit; ++iteration) {
-            arma::mat coupling = augmented.submat(0, 0, nr - 1, ns - 1);
-            ObjectiveV3 current = objective_v3(
-              coupling, reference_mass, source_mass,
-              reference_relation, source_relation, spatial_cost,
-              temporal_weight, selection_weight, entropy, true, true,
-              chronology_pseudo_count
-            );
-            arma::mat gradient =
-              current.gradient - matrix_median(current.gradient);
-            const double feasibility = std::max(
-              arma::abs(arma::sum(augmented, 1) - row_target).max(),
-              arma::abs(arma::sum(augmented, 0).t() - column_target).max()
-            );
-            const StationarityV3 stationarity =
-              stationarity_check(augmented, gradient, entropy);
-            reduced_gradient = stationarity.predicted;
-            if (stationarity.trap && reseeds < 3) {
-              // A cell outside the support should re-enter it: mix in the
-              // independent start and re-project, then keep iterating.
-              ++reseeds;
-              arma::mat mixed = (1.0 - kReseedFraction) * augmented +
-                kReseedFraction * independent;
-              arma::mat reseeded;
-              double reseed_error = std::numeric_limits<double>::infinity();
-              int reseed_iterations = 0;
-              int reseed_method = 0;
-              if (project_revised(
-                    mixed, row_target, column_target, projection_maxit,
-                    projection_tolerance, reseeded, reseed_error,
-                    reseed_iterations, reseed_method)) {
-                augmented = reseeded;
-                used_newton = reseed_method;
-                step = step_size;
-                continue;
-              }
-            }
-            if (feasibility <= projection_tolerance && !stationarity.trap &&
-                stationarity.predicted <= tolerance) {
-              stage_converged = true;
-              termination = "stationary";
-              final_projection_error = feasibility;
-              break;
-            }
-            const double gradient_scale = arma::abs(gradient).max();
-            const double step_limit = gradient_scale > 0.0 ?
-              std::min(step_size, 50.0 / gradient_scale) : step_size;
-            const double scale =
-              std::max(1.0, std::abs(current.optimization));
-            bool accepted = false;
-            double trial_step = std::min(step, step_limit);
-            arma::mat proposal = augmented;
-            ObjectiveV3 proposal_objective = current;
-            int trial_method = 0;
-            double trial_error = std::numeric_limits<double>::infinity();
-            int trial_iterations = 0;
-            for (int backtrack = 0; ; ++backtrack) {
-              if (backtrack > 20 &&
-                  (trial_step * gradient_scale <= 1e-4 || backtrack > 80)) {
-                break;
-              }
-              arma::mat kernel = augmented;
-              arma::mat exponent =
-                arma::clamp(-trial_step * gradient, -50.0, 50.0);
-              kernel.submat(0, 0, nr - 1, ns - 1) =
-                arma::clamp(coupling, 1e-300,
-                            std::numeric_limits<double>::max()) %
-                arma::exp(exponent);
-              const bool projected = project_revised(
-                kernel, row_target, column_target,
-                projection_maxit, projection_tolerance,
-                proposal, trial_error, trial_iterations, trial_method
-              );
-              if (!projected) {
-                trial_step /= 2.0;
-                continue;
-              }
-              arma::mat proposal_coupling =
-                proposal.submat(0, 0, nr - 1, ns - 1);
-              proposal_objective = objective_v3(
-                proposal_coupling, reference_mass, source_mass,
-                reference_relation, source_relation, spatial_cost,
-                temporal_weight, selection_weight, entropy, false, true,
-                chronology_pseudo_count
-              );
-              if (std::isfinite(proposal_objective.optimization) &&
-                  proposal_objective.optimization <= current.optimization +
-                    1e-12 * scale) {
-                accepted = true;
-                break;
-              }
-              trial_step /= 2.0;
-            }
-            const double decrease =
-              current.optimization - proposal_objective.optimization;
-            const bool noise_limited = !accepted || (
-              trial_step < step_limit / 8.0 &&
-                decrease <= 10.0 * projection_tolerance * scale
-            );
-            if (noise_limited) {
-              stalled = true;
-              termination = "stalled_projection_limited";
-              final_objective_change = accepted ?
-                std::abs(decrease) / scale :
-                std::numeric_limits<double>::infinity();
-              break;
-            }
-            final_change = arma::abs(proposal - augmented).max();
-            final_objective_change = std::abs(decrease) / scale;
-            final_step = trial_step;
-            final_projection_error = trial_error;
-            projection_iterations = trial_iterations;
-            used_newton = trial_method;
-            augmented = proposal;
-            // Doubling (2026.08 used 1.1) lets a backtracked step recover.
-            step = std::min(trial_step * 2.0, step_size);
-          }
-        } else {
-      for (iteration = 1; iteration <= maxit; ++iteration) {
-        arma::mat coupling = augmented.submat(0, 0, nr - 1, ns - 1);
-        ObjectiveV3 current = objective_v3(
-          coupling, reference_mass, source_mass,
-          reference_relation, source_relation, spatial_cost,
-          temporal_weight, selection_weight, entropy, true
-        );
-        arma::mat gradient = current.gradient - matrix_median(current.gradient);
-        bool accepted = false;
-        double trial_step = step;
-        arma::mat proposal = augmented;
-        ObjectiveV3 proposal_objective = current;
-        for (int backtrack = 0; backtrack <= 20; ++backtrack) {
-          arma::mat kernel = augmented;
-          arma::mat exponent = arma::clamp(-trial_step * gradient, -50.0, 50.0);
-          kernel.submat(0, 0, nr - 1, ns - 1) =
-            arma::clamp(coupling, 1e-300,
-                        std::numeric_limits<double>::max()) % arma::exp(exponent);
-          double projection_error = std::numeric_limits<double>::infinity();
-          int projection_iteration = 0;
-          bool projected = project_standard(
-            kernel, row_target, column_target,
-            projection_maxit, projection_tolerance,
-            proposal, projection_error, projection_iteration
-          );
-          final_projection_error = projection_error;
-          projection_iterations = projection_iteration;
-          if (!projected) {
-            trial_step /= 2.0;
-            continue;
-          }
-          arma::mat proposal_coupling =
-            proposal.submat(0, 0, nr - 1, ns - 1);
-          proposal_objective = objective_v3(
-            proposal_coupling, reference_mass, source_mass,
+        for (iteration = 1; iteration <= maxit; ++iteration) {
+          // Let a long solve be interrupted from R.
+          if (iteration % 16 == 0) Rcpp::checkUserInterrupt();
+          arma::mat coupling = augmented.submat(0, 0, nr - 1, ns - 1);
+          ObjectiveV3 current = objective_v3(
+            coupling, reference_mass, source_mass,
             reference_relation, source_relation, spatial_cost,
-            temporal_weight, selection_weight, entropy, false
+            temporal_weight, selection_weight, entropy, true,
+            chronology_pseudo_count
           );
-          if (std::isfinite(proposal_objective.optimization) &&
-              proposal_objective.optimization <= current.optimization +
-                1e-12 * std::max(1.0, std::abs(current.optimization))) {
-            accepted = true;
+          arma::mat gradient =
+            current.gradient - matrix_median(current.gradient);
+          const double feasibility = std::max(
+            arma::abs(arma::sum(augmented, 1) - row_target).max(),
+            arma::abs(arma::sum(augmented, 0).t() - column_target).max()
+          );
+          const StationarityV3 stationarity =
+            stationarity_check(augmented, gradient, entropy);
+          reduced_gradient = stationarity.predicted;
+          if (stationarity.trap && reseeds < 3) {
+            // A cell outside the support should re-enter it: mix in the
+            // independent start and re-project, then keep iterating.
+            ++reseeds;
+            arma::mat mixed = (1.0 - kReseedFraction) * augmented +
+              kReseedFraction * independent;
+            arma::mat reseeded;
+            double reseed_error = std::numeric_limits<double>::infinity();
+            int reseed_iterations = 0;
+            int reseed_method = 0;
+            if (project_revised(
+                  mixed, row_target, column_target, projection_maxit,
+                  projection_tolerance, reseeded, reseed_error,
+                  reseed_iterations, reseed_method, sinkhorn_budget)) {
+              augmented = reseeded;
+              used_newton = reseed_method;
+              step = step_size;
+              continue;
+            }
+          }
+          if (feasibility <= projection_tolerance && !stationarity.trap &&
+              stationarity.predicted <= tolerance) {
+            stage_converged = true;
+            termination = "stationary";
+            final_projection_error = feasibility;
             break;
           }
-          trial_step /= 2.0;
-        }
-        if (!accepted) {
-          numerical_ok = false;
-          break;
-        }
-        final_change = arma::abs(proposal - augmented).max();
-        final_objective_change = std::abs(
-          proposal_objective.optimization - current.optimization
-        ) / std::max(1.0, std::abs(current.optimization));
-        final_step = trial_step;
-        augmented = proposal;
-        step = std::min(trial_step * 1.1, step_size);
-        if (final_objective_change <= tolerance &&
-            final_projection_error <= projection_tolerance) {
-          stage_converged = true;
-          break;
-        }
-      }
+          const double gradient_scale = arma::abs(gradient).max();
+          const double step_limit = gradient_scale > 0.0 ?
+            std::min(step_size, 50.0 / gradient_scale) : step_size;
+          const double scale =
+            std::max(1.0, std::abs(current.optimization));
+          bool accepted = false;
+          double trial_step = std::min(step, step_limit);
+          arma::mat proposal = augmented;
+          ObjectiveV3 proposal_objective = current;
+          int trial_method = 0;
+          double trial_error = std::numeric_limits<double>::infinity();
+          int trial_iterations = 0;
+          for (int backtrack = 0; ; ++backtrack) {
+            if (backtrack > 20 &&
+                (trial_step * gradient_scale <= 1e-4 || backtrack > 80)) {
+              break;
+            }
+            arma::mat kernel = augmented;
+            arma::mat exponent =
+              arma::clamp(-trial_step * gradient, -50.0, 50.0);
+            kernel.submat(0, 0, nr - 1, ns - 1) =
+              arma::clamp(coupling, 1e-300,
+                          std::numeric_limits<double>::max()) %
+              arma::exp(exponent);
+            const bool projected = project_revised(
+              kernel, row_target, column_target,
+              projection_maxit, projection_tolerance,
+              proposal, trial_error, trial_iterations, trial_method,
+              sinkhorn_budget
+            );
+            if (!projected) {
+              trial_step /= 2.0;
+              continue;
+            }
+            arma::mat proposal_coupling =
+              proposal.submat(0, 0, nr - 1, ns - 1);
+            proposal_objective = objective_v3(
+              proposal_coupling, reference_mass, source_mass,
+              reference_relation, source_relation, spatial_cost,
+              temporal_weight, selection_weight, entropy, false,
+              chronology_pseudo_count
+            );
+            if (std::isfinite(proposal_objective.optimization) &&
+                proposal_objective.optimization <= current.optimization +
+                  1e-12 * scale) {
+              accepted = true;
+              break;
+            }
+            trial_step /= 2.0;
+          }
+          const double decrease =
+            current.optimization - proposal_objective.optimization;
+          const bool noise_limited = !accepted || (
+            trial_step < step_limit / 8.0 &&
+              decrease <= 10.0 * projection_tolerance * scale
+          );
+          if (noise_limited) {
+            stalled = true;
+            termination = "stalled_projection_limited";
+            final_objective_change = accepted ?
+              std::abs(decrease) / scale :
+              std::numeric_limits<double>::infinity();
+            break;
+          }
+          final_change = arma::abs(proposal - augmented).max();
+          final_objective_change = std::abs(decrease) / scale;
+          final_step = trial_step;
+          final_projection_error = trial_error;
+          projection_iterations = trial_iterations;
+          used_newton = trial_method;
+          augmented = proposal;
+          // Doubling lets a backtracked step recover.
+          step = std::min(trial_step * 2.0, step_size);
         }
         all_converged = all_converged && stage_converged;
         any_stalled = any_stalled || stalled;
@@ -933,13 +877,11 @@ Rcpp::List transport_v3_profile_native_cpp(
           Rcpp::Named("projection_iterations") = projection_iterations,
           Rcpp::Named("projection_fallback") = false
         );
-        if (revised) {
-          entry.push_back(termination, "termination");
-          entry.push_back(final_step, "step");
-          entry.push_back(reduced_gradient, "predicted_decrease");
-          entry.push_back(reseeds, "reseeds");
-          entry.push_back(start_name, "start");
-        }
+        entry.push_back(termination, "termination");
+        entry.push_back(final_step, "step");
+        entry.push_back(reduced_gradient, "predicted_decrease");
+        entry.push_back(reseeds, "reseeds");
+        entry.push_back(start_name, "start");
         history[stage] = entry;
       }
       arma::mat coupling = augmented.submat(0, 0, nr - 1, ns - 1);
@@ -948,11 +890,9 @@ Rcpp::List transport_v3_profile_native_cpp(
       fit.augmented = augmented;
       fit.history = history;
       fit.all_converged = all_converged;
-      fit.status = !numerical_ok ? "numerical_failure" :
-        all_converged ? "converged" :
+      fit.status = all_converged ? "converged" :
         any_maxit ? "not_converged" : "stalled_projection_limited";
       (void) any_stalled;
-      fit.numerical_ok = numerical_ok;
       fit.final_change = final_change;
       fit.final_objective_change = final_objective_change;
       fit.final_step = final_step;
@@ -961,45 +901,38 @@ Rcpp::List transport_v3_profile_native_cpp(
         coupling, reference_mass, source_mass,
         reference_relation, source_relation, spatial_cost,
         temporal_weight, selection_weight,
-        entropy_schedule[entropy_schedule.n_elem - 1], false, revised,
+        entropy_schedule[entropy_schedule.n_elem - 1], false,
         chronology_pseudo_count
       );
       return fit;
     };
 
     std::vector<NodeFitV3> candidates;
-    if (revised) {
-      candidates.push_back(solve_node("independent_native", independent));
-      if (multistart >= 2) {
-        // Spatial structural start (mirrors transport_initial_plans()).
-        arma::mat spatial = independent;
-        const double scale = std::max(matrix_median(spatial_cost), 0.05);
-        spatial.submat(0, 0, nr - 1, ns - 1) =
-          arma::clamp(independent.submat(0, 0, nr - 1, ns - 1), 1e-300,
-                      std::numeric_limits<double>::max()) %
-          arma::exp(-arma::clamp(spatial_cost / scale, -
-            std::numeric_limits<double>::max(), 700.0));
-        arma::mat spatial_plan;
-        double spatial_error = std::numeric_limits<double>::infinity();
-        int spatial_iterations = 0;
-        int spatial_method = 0;
-        if (project_revised(spatial, row_target, column_target,
-                            projection_maxit, projection_tolerance,
-                            spatial_plan, spatial_error, spatial_iterations,
-                            spatial_method)) {
-          candidates.push_back(solve_node("spatial_native", spatial_plan));
-        }
+    candidates.push_back(solve_node("independent_native", independent));
+    if (multistart >= 2) {
+      // Spatial structural start (mirrors transport_initial_plans()).
+      arma::mat spatial = independent;
+      const double scale = std::max(matrix_median(spatial_cost), 0.05);
+      spatial.submat(0, 0, nr - 1, ns - 1) =
+        arma::clamp(independent.submat(0, 0, nr - 1, ns - 1), 1e-300,
+                    std::numeric_limits<double>::max()) %
+        arma::exp(-arma::clamp(spatial_cost / scale, -
+          std::numeric_limits<double>::max(), 700.0));
+      arma::mat spatial_plan;
+      double spatial_error = std::numeric_limits<double>::infinity();
+      int spatial_iterations = 0;
+      int spatial_method = 0;
+      if (project_revised(spatial, row_target, column_target,
+                          projection_maxit, projection_tolerance,
+                          spatial_plan, spatial_error, spatial_iterations,
+                          spatial_method, sinkhorn_budget)) {
+        candidates.push_back(solve_node("spatial_native", spatial_plan));
       }
-      if (have_continuation) {
-        candidates.push_back(
-          solve_node("adjacent_coverage_native", continuation)
-        );
-      }
-    } else {
-      candidates.push_back(solve_node(
-        "independent_native",
-        have_continuation ? continuation : independent
-      ));
+    }
+    if (have_continuation) {
+      candidates.push_back(
+        solve_node("adjacent_coverage_native", continuation)
+      );
     }
     // Prefer fits whose stages all ended certified or projection-limited
     // ("converged" or "stalled_projection_limited") over fits that hit maxit
@@ -1045,11 +978,13 @@ Rcpp::List transport_v3_profile_native_cpp(
       Rcpp::Named("augmented") = fit.augmented,
       Rcpp::Named("objective") = named_objective(fit.final, coverage),
       Rcpp::Named("history") = fit.history,
-      Rcpp::Named("converged") = fit.all_converged && fit.numerical_ok,
+      Rcpp::Named("converged") = fit.all_converged,
       Rcpp::Named("projection_converged") =
         fit.final_projection_error <= projection_tolerance,
       Rcpp::Named("stages_converged") = fit.all_converged,
-      Rcpp::Named("native_ok") = fit.numerical_ok,
+      // Retained for the R-side check; every native node is numerically ok
+      // (a non-finite plan is caught by the R re-evaluation).
+      Rcpp::Named("native_ok") = true,
       Rcpp::Named("final_change") = fit.final_change,
       Rcpp::Named("final_objective_change") = fit.final_objective_change,
       Rcpp::Named("projected_update_residual") = fit.final_change /
@@ -1059,7 +994,7 @@ Rcpp::List transport_v3_profile_native_cpp(
       Rcpp::Named("start_spread") = start_spread,
       Rcpp::Named("start_scientific_spread") = start_scientific_spread
     );
-    if (revised) node.push_back(fit.status, "status");
+    node.push_back(fit.status, "status");
     fits[coverage_index] = node;
     previous_augmented = fit.augmented;
     have_previous_coverage = true;

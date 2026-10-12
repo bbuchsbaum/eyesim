@@ -80,18 +80,17 @@ sparse_rich_fixture <- function() {
   })
 }
 
-test_that("specifications carry a calibration control only under 2026.10", {
-  expect_null(gaze_transport_spec(revision = "2026.08")$calibration$control)
-  expect_null(gaze_replay_spec(revision = "2026.08")$calibration$control)
+test_that("specifications carry a calibration control", {
+  # Revision 2026.08, which carried none, is retired for both engines.
   expect_error(
     gaze_transport_spec(revision = "2026.08",
                         calibration_control = gaze_calibration_control()),
-    "requires revision"
+    "gazeweave-2026.08-frozen", fixed = TRUE
   )
   expect_error(
     gaze_replay_spec(revision = "2026.08",
                      calibration_control = gaze_calibration_control()),
-    "requires revision"
+    "gazeweave-2026.08-frozen", fixed = TRUE
   )
   control <- gaze_transport_spec()$calibration$control
   expect_s3_class(control, "gaze_calibration_control")
@@ -109,8 +108,6 @@ test_that("specifications carry a calibration control only under 2026.10", {
     "none"
   )
   expect_identical(gaze_transport_spec()$reliability, "none")
-  expect_identical(gaze_transport_spec(revision = "2026.08")$reliability,
-                   "effective_fixations")
   # The kappa shrink is superseded by the evidence-scaled temperature.
   expect_error(gaze_transport_spec(reliability = "effective_fixations"),
                "replaced")
@@ -759,6 +756,8 @@ test_that("relabelling a held-out row leaves Replay candidate scores unchanged",
 #   transport_08 = calibration_base_transport_spec(revision = "2026.08")
 #   transport_10 = calibration_base_transport_spec()
 #   replay_10    = calibration_replay_spec()
+# Its transport_08 element is no longer compared: Transport revision 2026.08
+# was retired in eyesim 0.3.0 (git tag gazeweave-2026.08-frozen).
 # Transport uses the pure-R reference backend so that the stored numbers do
 # not depend on how the native code was compiled.
 
@@ -770,7 +769,7 @@ calibration_base_transport_spec <- function(...) {
   )
 }
 
-calibration_base_fixture <- function(transport_08, transport_10, replay_10) {
+calibration_base_fixture <- function(transport_10, replay_10) {
   transport_data <- simulate_calibration_transport(2, 3, n_encoding = 4, keep = c(2, 4),
                                                    seed = 81)
   replay_data <- simulate_calibration_replay(3, 8, n_fixations = c(6, 10),
@@ -796,7 +795,6 @@ calibration_base_fixture <- function(transport_08, transport_10, replay_10) {
     n_folds = 2, seed = 4, spec = replay_10
   ))
   list(
-    transport_08 = run_transport(transport_08),
     transport_10 = run_transport(transport_10),
     replay_10 = list(
       results = replay_fit$results[, setdiff(names(replay_fit$results),
@@ -809,26 +807,27 @@ calibration_base_fixture <- function(transport_08, transport_10, replay_10) {
   )
 }
 
-test_that("revision 2026.08 and the global method reproduce pre-A3 fits exactly", {
+test_that("the global method reproduces pre-A3 fits", {
   golden <- readRDS(test_path("fixtures", "calibration_base_0d9fbcf.rds"))
   global <- gaze_calibration_control(method = "global")
   current <- calibration_base_fixture(
-    transport_08 = calibration_base_transport_spec(revision = "2026.08"),
     transport_10 = calibration_base_transport_spec(
       reliability = "effective_fixations", calibration_control = global
     ),
     replay_10 = calibration_replay_spec(calibration_control = global)
   )
 
-  expect_frozen(current$transport_08, golden$transport_08)
-  expect_frozen(current$transport_10, golden$transport_10)
+  # The 2026.10 projection hands over to its Newton finisher after a fixed
+  # Sinkhorn budget (transport_v3_sinkhorn_budget). The projection is the same
+  # to its 1e-8 tolerance; through the calibration fit the probabilities move
+  # by about 2e-7 relative (1e-6 for one episode term), so this comparison
+  # is not bit-for-bit anywhere.
+  expect_equal(current$transport_10, golden$transport_10, tolerance = 1e-5)
   # Replay's iterative fit amplifies last-bit differences: on Linux x86-64
   # CI it differed from the macOS golden by up to 1.5e-8 relative
   # (gaze_info_bits 4.5e-9, log_loss 9e-9). Bit-identity still holds on the
   # frozen platform.
   expect_frozen(current$replay_10, golden$replay_10, tolerance = 1e-7)
-  expect_null(gaze_transport_spec(revision = "2026.08")$calibration$control)
-  expect_null(gaze_replay_spec(revision = "2026.08")$calibration$control)
 })
 
 # Slow checks (set EYESIM_SLOW_TESTS=true) ------------------------------------

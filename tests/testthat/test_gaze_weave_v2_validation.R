@@ -1,22 +1,14 @@
-v2_validation_script <- system.file(
-  "validation", "gaze-weave-v2-court.R", package = "eyesim"
+skip_if_no_validation()
+
+v2_validation_script <- gaze_weave_test_inst_path(
+  "validation", "gaze-weave-v2-court.R"
 )
-if (!nzchar(v2_validation_script)) {
-  v2_validation_script <- testthat::test_path(
-    "..", "..", "inst", "validation", "gaze-weave-v2-court.R"
-  )
-}
 source(v2_validation_script, local = TRUE)
 
 test_that("the final synthetic court is frozen before execution", {
-  protocol <- system.file(
-    "validation", "GAZEWEAVE-V2-COURT.md", package = "eyesim"
+  protocol <- gaze_weave_test_inst_path(
+    "validation", "GAZEWEAVE-V2-COURT.md"
   )
-  if (!nzchar(protocol)) {
-    protocol <- testthat::test_path(
-      "..", "..", "inst", "validation", "GAZEWEAVE-V2-COURT.md"
-    )
-  }
   text <- paste(readLines(protocol, warn = FALSE), collapse = "\n")
 
   expect_match(text, "Final seed: `20260816`", fixed = TRUE)
@@ -115,14 +107,9 @@ test_that("resource profiling is bounded and non-instrumenting", {
 })
 
 test_that("the persisted final court passes its frozen gates and manifest", {
-  result_dir <- system.file(
-    "validation", "gaze-weave-v2-results", package = "eyesim"
+  result_dir <- gaze_weave_test_inst_path(
+    "validation", "gaze-weave-v2-results"
   )
-  if (!nzchar(result_dir)) {
-    result_dir <- testthat::test_path(
-      "..", "..", "inst", "validation", "gaze-weave-v2-results"
-    )
-  }
   skip_if_not(dir.exists(result_dir), "final synthetic court has not been run")
   configuration <- utils::read.csv(
     file.path(result_dir, "configuration.csv"), stringsAsFactors = FALSE

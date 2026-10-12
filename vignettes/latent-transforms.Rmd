@@ -24,6 +24,10 @@ includes:
 
 ```{r setup, include = FALSE}
 if (requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("albersdown", quietly = TRUE)) ggplot2::theme_set(albersdown::theme_albers(params$family))
+# Package vignettes embed their figures, so CRAN copies use a lower
+# resolution to keep the package small; the pkgdown site keeps the default.
+if (!identical(Sys.getenv("IN_PKGDOWN"), "true")) knitr::opts_chunk$set(dpi = 72)
+
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",

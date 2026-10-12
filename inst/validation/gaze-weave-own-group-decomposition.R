@@ -12,6 +12,7 @@ own_group_dependency <- system.file(
 )
 if (!nzchar(own_group_dependency)) {
   own_group_dependency <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-transport-v3-retrieval.R"
   )
 }
@@ -25,6 +26,7 @@ own_group_item_dependency <- system.file(
 )
 if (!nzchar(own_group_item_dependency)) {
   own_group_item_dependency <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-item-effects.R"
   )
 }

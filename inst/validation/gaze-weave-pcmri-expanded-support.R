@@ -28,6 +28,7 @@ expanded_support_behavior_file <- system.file(
 )
 if (!nzchar(expanded_support_behavior_file)) {
   expanded_support_behavior_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-pcmri-behavior-prediction.R"
   )
 }

@@ -25,6 +25,7 @@ followup_full_file <- system.file(
 )
 if (!nzchar(followup_full_file)) {
   followup_full_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-recognition-full-cohort.R"
   )
 }

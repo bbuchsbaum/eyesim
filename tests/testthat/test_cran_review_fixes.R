@@ -126,3 +126,17 @@ test_that("Replay folds keep a true candidate and a nonmatch in every fold", {
   # The underlying fold builder is unchanged.
   expect_equal(make_gaze_weave_folds(tab, "item", "stratum")$n_folds, 5L)
 })
+
+test_that("dcov similarity matches energy::dcor on density maps", {
+  skip_if_not_installed("energy")
+  set.seed(21)
+  mk <- function(n) fixation_group(x = runif(n, 0, 100), y = runif(n, 0, 100),
+                                   onset = seq_len(n), duration = rep(1, n))
+  a <- eye_density(mk(12), sigma = 8, xbounds = c(0, 100), ybounds = c(0, 100),
+                   outdim = c(25, 25))
+  b <- eye_density(mk(15), sigma = 8, xbounds = c(0, 100), ybounds = c(0, 100),
+                   outdim = c(25, 25))
+  expected <- energy::dcor(as.vector(a$z) / sum(a$z), as.vector(b$z) / sum(b$z))
+  expect_equal(similarity(a, b, method = "dcov"), expected, tolerance = 1e-10)
+  expect_equal(similarity(a, a, method = "dcov"), 1, tolerance = 1e-10)
+})

@@ -199,5 +199,6 @@ print.gaze_transport_fit <- function(x, ...) {
     "  episode normalization:",
     "fixed equal-prior likelihood mixture; one episode is the identity case\n"
   )
+  print_gaze_calibration_fallback(x)
   invisible(x)
 }

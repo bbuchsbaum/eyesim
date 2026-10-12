@@ -3,7 +3,6 @@
 # fixation-level observation model (plan A2b) has its own file,
 # test_gaze_weave_replay_fixation.R.
 
-replay_revision_under_test <- "2026.10"
 revision_screen_w <- 1024
 revision_screen_h <- 768
 
@@ -91,25 +90,22 @@ simulate_replay_hmm <- function(n_participants = 4L, n_items = 12L,
   )
 }
 
-make_revision_spec <- function(revision = replay_revision_under_test,
-                               n_bins = 32L) {
-  args <- list(
-    grid_size = n_bins, max_skip = 2L, student_df = 4, scale_floor = 6,
+make_revision_spec <- function() {
+  gaze_replay_spec(
+    max_skip = 2L, student_df = 4, scale_floor = 6,
     transition_grid = list(
       background = c(0.03, 0.10), restart = c(0.02, 0.10),
       advance = c(0.25, 0.55), background_stay = c(0.85, 0.95)
     ),
     screen = gaze_screen(revision_screen_w, revision_screen_h),
-    revision = revision
+    background_by = "participant"
   )
-  if (identical(revision, "2026.10")) args$background_by <- "participant"
-  do.call(gaze_replay_spec, args)
 }
 
-fit_revision_model <- function(data, revision = replay_revision_under_test) {
+fit_revision_model <- function(data) {
   fit_gaze_replay_model(
     data$ref, data$src, match_on = c("participant", "image_id"),
-    spec = make_revision_spec(revision)
+    spec = make_revision_spec()
   )
 }
 
@@ -306,7 +302,6 @@ test_that("revision 2026.10 EM increases the training likelihood monotonically",
   expect_true(all(diff(trace) > -1e-8 * abs(trace[-1])))
   expect_identical(model$revision, "2026.10")
   expect_identical(model$version, 5L)
-  expect_null(model$training$transition_candidates)
 })
 
 test_that("backgrounds are participant-level and exclude the target item", {
@@ -340,7 +335,7 @@ test_that("backgrounds are participant-level and exclude the target item", {
 test_that("revision 2026.10 cross-fitting scores every held-out row", {
   data <- simulate_replay_hmm(n_participants = 2L, n_items = 8L,
                               n_bins = 16L, seed = 3L)
-  spec <- make_revision_spec(n_bins = 16L)
+  spec <- make_revision_spec()
   fit <- gaze_replay_cv(
     data$ref, data$src, match_on = c("participant", "image_id"),
     contrast_on = "participant", n_folds = 2, seed = 5, spec = spec
@@ -352,23 +347,19 @@ test_that("revision 2026.10 cross-fitting scores every held-out row", {
   expect_gt(mean(fit$results$top1_credit), 0.5)
 })
 
-test_that("revision 2026.08 keeps the frozen grid fit and rejects background_by", {
+test_that("Replay revision 2026.08 is retired with a pointer to the frozen tag", {
   expect_identical(gaze_replay_spec()$revision, "2026.10")
-  expect_error(
-    gaze_replay_spec(revision = "2026.08", background_by = "participant"),
-    "background_by requires"
-  )
-  spec <- make_revision_spec("2026.08", n_bins = 16L)
-  data <- simulate_replay_hmm(n_participants = 1L, n_items = 3L,
-                              n_bins = 16L, seed = 4L)
-  model <- fit_gaze_replay_model(data$ref, data$src,
-                                 c("participant", "image_id"), spec = spec)
-
-  expect_identical(model$revision, "2026.08")
-  expect_null(model$training$em)
-  expect_equal(nrow(model$training$transition_candidates), 16L)
-  expect_true(all(unlist(model$parameters) %in%
-                    unlist(spec$transition_grid)))
+  expect_identical(gaze_replay_spec()$calibration$control$method,
+                   "evidence_scaled")
+  expect_error(gaze_replay_spec(revision = "2026.08"),
+               "retired in eyesim 0.3.0")
+  expect_error(gaze_replay_spec(revision = "2026.08"),
+               "gazeweave-2026.08-frozen", fixed = TRUE)
+  expect_error(gaze_replay_spec(revision = "2026.08"),
+               "unnormalised screen emissions")
+  expect_error(gaze_replay_spec(revision = "2027.01"),
+               "Unknown Replay revision")
+  expect_error(gaze_replay_spec(grid_size = 16L), "unused argument")
 })
 
 # Review regressions ---------------------------------------------------------
@@ -405,7 +396,7 @@ ambiguous_null_fixture <- function(n_items = 2L, seed = 11L) {
     review_path(layout[[k]] + stats::rnorm(10, 0, 5))
   })
   spec <- gaze_replay_spec(
-    grid_size = 24L, max_skip = 2L, student_df = 4, scale_floor = 6,
+    max_skip = 2L, student_df = 4, scale_floor = 6,
     screen = gaze_screen(w, h), background_by = "participant"
   )
   model <- suppressMessages(fit_gaze_replay_model(
@@ -484,7 +475,7 @@ offscreen_fixture <- function(seed, offscreen, background_share) {
     path(pmin(pmax(xy, 0), w))
   })
   spec <- gaze_replay_spec(
-    grid_size = 24L, max_skip = 2L, student_df = 4, scale_floor = 6,
+    max_skip = 2L, student_df = 4, scale_floor = 6,
     screen = gaze_screen(w, h), background_by = "participant"
   )
   suppressMessages(fit_gaze_replay_model(
@@ -504,7 +495,7 @@ test_that("EM stays monotone when encoding fixations lie off screen", {
   expect_true(model$training$em$converged)
 })
 
-uniform_null_model <- function(grid_size, seed = 6L) {
+uniform_null_model <- function(seed = 6L) {
   set.seed(seed)
   w <- revision_screen_w
   h <- revision_screen_h
@@ -524,7 +515,7 @@ uniform_null_model <- function(grid_size, seed = 6L) {
     path(cbind(stats::runif(12, 0, w), stats::runif(12, 0, h)))
   })
   spec <- gaze_replay_spec(
-    grid_size = grid_size, max_skip = 2L, student_df = 4, scale_floor = 6,
+    max_skip = 2L, student_df = 4, scale_floor = 6,
     screen = gaze_screen(w, h), background_by = "participant"
   )
   suppressMessages(fit_gaze_replay_model(
@@ -538,24 +529,11 @@ uniform_null_model <- function(grid_size, seed = 6L) {
 
 test_that("a uniform on-screen null is fitted as background", {
   skip_on_cran()
-  model <- uniform_null_model(grid_size = 12L)
+  model <- uniform_null_model()
   bound <- min(revision_screen_w, revision_screen_h) / 6
 
   expect_gt(model$training$em$background_fraction, 0.8)
   expect_lte(model$emission_models[[1]]$replay_scale, bound + 1e-8)
-})
-
-test_that("a grid longer than the recalls no longer unidentifies the null", {
-  skip_on_cran()
-  # Under the former duration-bin observation model a grid of 24 bins for
-  # 12-fixation recalls repeated every fixation, and the uniform null was
-  # fitted with a background share below 0.8. The fixation-level model
-  # observes each fixation once, so grid_size cannot matter.
-  model <- uniform_null_model(grid_size = 24L)
-
-  expect_gt(model$training$em$background_fraction, 0.8)
-  expect_identical(model$parameters,
-                   uniform_null_model(grid_size = 12L)$parameters)
 })
 
 test_that("an all-background null leaves the candidates exchangeable", {
@@ -596,7 +574,7 @@ test_that("participant holdout uses the population background and says so", {
     fit <- gaze_replay_cv(
       data$ref, data$src, match_on = c("participant", "image_id"),
       contrast_on = NULL, split_on = "participant",
-      n_folds = 3, seed = 1, spec = make_revision_spec(n_bins = 16L)
+      n_folds = 3, seed = 1, spec = make_revision_spec()
     ),
     "absent from their training fold"
   )
@@ -611,7 +589,7 @@ test_that("held-out support uses only non-candidate recalls of the participant",
   skip_on_cran()
   data <- held_out_protocol_data()
   spec <- gaze_replay_spec(
-    grid_size = 16L, max_skip = 2L, student_df = 4, scale_floor = 6,
+    max_skip = 2L, student_df = 4, scale_floor = 6,
     screen = gaze_screen(revision_screen_w, revision_screen_h),
     background_by = "participant", background_support = "held_out"
   )
@@ -648,36 +626,55 @@ test_that("held-out support uses only non-candidate recalls of the participant",
                tolerance = 1e-12)
   expect_error(
     gaze_replay_spec(background_support = "held_out"),
-    "requires revision"
+    "requires background_by"
   )
 })
 
-test_that("saved objects without a revision score as frozen 2026.08", {
+test_that("saved objects without a revision are refused, not read as 2026.08", {
   data <- simulate_replay_hmm(n_participants = 1L, n_items = 3L,
                               n_bins = 16L, seed = 4L)
-  spec <- make_revision_spec("2026.08", n_bins = 16L)
-  model <- fit_gaze_replay_model(data$ref, data$src,
-                                 c("participant", "image_id"), spec = spec)
+  spec <- make_revision_spec()
+  model <- suppressMessages(fit_gaze_replay_model(
+    data$ref, data$src, c("participant", "image_id"), spec = spec
+  ))
   old_spec <- unclass(spec)
-  old_spec[c("revision", "background_by", "background_support")] <- NULL
+  old_spec["revision"] <- NULL
   old_spec <- structure(old_spec, class = class(spec))
+  old_spec <- unserialize(serialize(old_spec, NULL))
   old_model <- unclass(model)
-  old_model[c("revision", "background", "match_on")] <- NULL
-  old_model$spec <- old_spec
+  old_model["revision"] <- NULL
   old_model <- structure(old_model, class = class(model))
   old_model <- unserialize(serialize(old_model, NULL))
+  spec_only_model <- model
+  spec_only_model$spec <- old_spec
 
   reference <- data$ref$fixgroup[[1]]
   source <- data$src$fixgroup[[2]]
-  expect_identical(
-    gaze_replay_align(reference, source, old_model)$log_score,
-    gaze_replay_align(reference, source, model)$log_score
+  expect_true(is.finite(gaze_replay_align(reference, source, model)$log_score))
+  for (object in list(old_model, spec_only_model)) {
+    expect_error(gaze_replay_align(reference, source, object),
+                 "carries no revision")
+    expect_error(gaze_replay_align(reference, source, object),
+                 "Re-create the specification with gaze_replay_spec()",
+                 fixed = TRUE)
+  }
+  expect_error(
+    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
+                          spec = old_spec),
+    "carries no revision"
   )
-  refit <- fit_gaze_replay_model(data$ref, data$src,
-                                 c("participant", "image_id"),
-                                 spec = old_spec)
-  expect_identical(refit$parameters, model$parameters)
-  expect_identical(refit$revision, "2026.08")
+  expect_error(
+    gaze_replay_cv(data$ref, data$src, match_on = c("participant", "image_id"),
+                   spec = old_spec),
+    "gazeweave-2026.08-frozen", fixed = TRUE
+  )
+  legacy_spec <- spec
+  legacy_spec$revision <- "2026.08"
+  expect_error(
+    fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
+                          spec = legacy_spec),
+    "retired in eyesim 0.3.0"
+  )
 
   future <- model
   future$revision <- "2027.01"
@@ -695,7 +692,7 @@ test_that("saved objects without a revision score as frozen 2026.08", {
 test_that("undeclared screens and pooled background fallbacks are reported", {
   data <- simulate_replay_hmm(n_participants = 1L, n_items = 4L,
                               n_bins = 16L, seed = 7L)
-  plane <- gaze_replay_spec(grid_size = 16L, scale_floor = 6)
+  plane <- gaze_replay_spec(scale_floor = 6)
   reset_gaze_replay_notices()
   expect_message(
     fit_gaze_replay_model(data$ref, data$src, c("participant", "image_id"),
@@ -715,40 +712,10 @@ test_that("undeclared screens and pooled background fallbacks are reported", {
   fit <- suppressMessages(gaze_replay_cv(
     sparse$ref, sparse$src, match_on = c("participant", "image_id"),
     contrast_on = "participant", n_folds = 2, seed = 2,
-    spec = make_revision_spec(n_bins = 16L)
+    spec = make_revision_spec()
   ))
   expect_gt(fit$provenance$background_fallback$scored_rows, 0L)
   expect_true("pooled" %in% fit$results$background_level)
-})
-
-test_that("grids longer than the recall's fixation count change nothing", {
-  # The repeated-grid report of the duration-bin model is retired: each
-  # recall fixation is observed exactly once.
-  data <- simulate_replay_hmm(n_participants = 2L, n_items = 4L,
-                              n_bins = 16L, seed = 10L)
-  exact <- make_revision_spec(n_bins = 16L)
-  repeated <- make_revision_spec(n_bins = 32L)
-
-  expect_no_message(
-    exact_model <- fit_gaze_replay_model(
-      data$ref, data$src, c("participant", "image_id"), spec = exact
-    ),
-    message = "repeat"
-  )
-  expect_no_message(
-    repeated_model <- fit_gaze_replay_model(
-      data$ref, data$src, c("participant", "image_id"), spec = repeated
-    ),
-    message = "repeat"
-  )
-  expect_identical(repeated_model$parameters, exact_model$parameters)
-  expect_identical(repeated_model$emission_models,
-                   exact_model$emission_models)
-  fit <- suppressMessages(gaze_replay_cv(
-    data$ref, data$src, match_on = c("participant", "image_id"),
-    contrast_on = "participant", n_folds = 2, seed = 2, spec = repeated
-  ))
-  expect_false("repeated_grid_rows" %in% names(fit$provenance))
 })
 
 test_that("the participant-holdout message does not recommend held-out support", {
@@ -759,7 +726,7 @@ test_that("the participant-holdout message does not recommend held-out support",
     gaze_replay_cv(
       data$ref, data$src, match_on = c("participant", "image_id"),
       contrast_on = NULL, split_on = "participant",
-      n_folds = 3, seed = 1, spec = make_revision_spec(n_bins = 16L)
+      n_folds = 3, seed = 1, spec = make_revision_spec()
     ),
     message = function(m) {
       messages <<- c(messages, conditionMessage(m))

@@ -1,4 +1,4 @@
-# eyesim 0.2.0.9000
+# eyesim 0.3.0
 
 ## Bug fixes (pre-CRAN review)
 
@@ -53,16 +53,30 @@
 * `gaze_transport_cv()` solves each (source row, candidate) alignment once per
   call under the identity warp instead of once per fold, and prepares each
   candidate's reference episodes once (2.4-4x faster; results identical).
+* `gaze_transport_cv()` scores rows in parallel under a `future` plan with
+  more than one worker (see `?gaze_transport_cv`). Results are identical to a
+  sequential run, and alignments solved on workers still feed the cross-fold
+  cache. On 4 cores, a 48-row real-data run took 5.8 min instead of 18.0 min
+  with a fitted warp and 2.4 min instead of 4.2 min with the identity warp.
+  The native Transport solver no longer creates `.Random.seed`, which it
+  never used.
 * Replay's inner calibration fit prepares each row's loss once instead of on
-  every optimiser step (about 5x faster), and the revision 2026.08 transition
-  grid search builds each pair's emissions once rather than once per grid
-  point (about 3x faster). Results are identical.
+  every optimiser step (about 5x faster). Results are identical.
 * `sample_density_time()` normalises each template and looks up each source
   row's grid cells once, then reuses them for the observed value and every
   permutation (about 25x faster on 200 rows x 100 permutations; results and
   random streams identical).
+* `similarity(method = "dcov")` computes distance correlation with the
+  O(n log n) univariate algorithm (`energy::dcor2d()` on standardised maps)
+  instead of the O(n^2) one: a pair of 100 x 100 maps takes 0.04 s instead of
+  about a minute, with the same value to within 1e-12.
 
 ## Packaging
+
+* The `wynn_study_image` dataset is removed to keep the package within CRAN's
+  size limit. It was unused, was documented as an image although it held
+  study fixations pooled by image version, and can be rebuilt from
+  `wynn_study` (see `data-raw/process_dat.R`).
 
 * `src/Makevars` links LAPACK/BLAS (`arma::solve` needs them) and no longer
   forces C++14; `SystemRequirements`, `Remotes` and the unused `colorplane`
@@ -70,6 +84,91 @@
 
 ## Other changes
 
+* GazeWeave stabilization:
+  * Fold assignment and the typicality subsample use R's default generator
+    and locale-independent (radix) ordering whatever `RNGkind()` and locale
+    are in effect, so a seed gives the same folds everywhere; the caller's
+    generator and stream are still restored. With non-default generator
+    settings or locales, folds can differ from earlier versions. A `NULL`
+    seed passed directly to `gaze_transport_cv()` or `gaze_replay_cv()` is an
+    error rather than a random fold assignment.
+  * When an outer fold cannot fit its temperature calibration (too few items
+    per contrast stratum), Replay and Transport now raise one warning of
+    class `gaze_calibration_fallback` per fit, record the count in
+    `calibration_fallback_folds`, and show it in `print()`. Previously such
+    fits silently returned 0 bits (declared-prior fallback) or uncalibrated
+    scores.
+  * `gaze_transport_spec()` rejects a spatial model whose unit contradicts the
+    screen's, and `gaze_transport_cv()` warns (class `gaze_spatial_scale`)
+    when fixation coordinates are far coarser than the spatial kernel, as
+    with pixel data and the degree-scale default bandwidths.
+  * `gaze_screen(center = )` now sets the screen limits around the centre
+    (e.g. `c(-15, 15)` for a 30-degree screen centred on 0); previously the
+    limits were always `[0, width]`, so centred coordinates were clamped.
+    Replay warns (class `gaze_screen_clamping`) when more than 5% of
+    fixations lie off the declared screen.
+  * Errors about missing columns name the columns.
+  * `gaze_weave_cv()` gains `template_on`, passed to Replay.
+  * `gaze_local_order()`, `gaze_transport_prepare()`,
+    `gaze_transport_align_batch()` and `elastic_consensus_align()` are no
+    longer exported; they were internal plumbing.
+  * Long native Transport solves can be interrupted.
+  * Transport 2026.10 solves each fixed-mass projection with at most 10
+    plain Sinkhorn sweeps before handing over to its damped-Newton finisher
+    (both backends), and the Newton and stationarity systems use a Cholesky
+    solve with a conditioning guard. A pair alignment is about 2.6x faster;
+    scores agree with the previous solver to about 1e-8. A looser stopping
+    tolerance was rejected: at `tolerance >= 1e-5` some nodes stop at a worse
+    local solution (0.015 nats on real data).
+  * The Replay estimator revision `"2026.08"` is retired because of its
+    documented defects: unnormalised screen emissions, a single Student
+    background density, an inflated replay scale, and a duration grid under
+    which the no-replay null was not identifiable.
+    `gaze_replay_spec()` still takes and records `revision`, but `"2026.10"`
+    is the only accepted value; `revision = "2026.08"` is an error that names
+    the git tag `gazeweave-2026.08-frozen`, from which 2026.08 can be
+    reproduced. Replay specifications, models and fits saved without a
+    revision used to be read silently as `"2026.08"`; they are now an error
+    asking you to re-create the specification with `gaze_replay_spec()`. The
+    `grid_size` argument of `gaze_replay_spec()`, which `"2026.10"` ignored,
+    is removed, as is the `grid_size` element of Replay specifications. The
+    unused transition grid-search fields (`transition_candidates`,
+    `candidate_log_likelihood`, `selected_candidate`) are removed from
+    fitted models' `training` element. Revision `"2026.10"` results are
+    unchanged. Transport revision `"2026.08"` is retired as well (below).
+  * The Transport solver revision `"2026.08"` is retired because of its
+    documented defects: a chronology residual that jumped as selected edge
+    mass vanished (0/0 for one-fixation sources), a relative-change stopping
+    rule that could stop after one heavily backtracked step, a reference
+    backend that silently restarted non-converged nodes, and silent native
+    fallbacks. `gaze_transport_spec()` still takes and records `revision`,
+    but `"2026.10"` is the only accepted value; `revision = "2026.08"` is an
+    error that names the git tag `gazeweave-2026.08-frozen`, from which
+    2026.08 (and the frozen validation courts that pin it) can be
+    reproduced. Transport specifications saved without a revision, or with
+    the estimand name in the `revision` slot, used to be solved silently as
+    `"2026.08"`; they are now an error asking you to re-create the
+    specification with `gaze_transport_spec()`. The revision-dependent
+    defaults become plain defaults: `entropy_schedule = c(0.15, 0.05,
+    0.015)`, `tolerance = 1e-6` and `reliability = "none"` (still
+    `"effective_fixations"` with `gaze_calibration_control(method =
+    "global")`). The legacy solver paths are removed from both backends,
+    including revision 0 of the native solver. Revision `"2026.10"` results
+    are unchanged.
+* GazeWeave (`gaze_weave_cv()`, `gaze_transport_cv()`, `gaze_replay_cv()`,
+  `gaze_baseline_cv()` and their specifications) is documented as
+  experimental: its interface and result columns may still change.
+* `density_matrix()`, an exported generic with no methods, is removed.
+* Examples for `similarity()`, `fixation_similarity()`,
+  `sample_density_time()`, `center()`, `normalize()`, `add_scanpath()`,
+  `coords()`, `get_density()` and `sample_fixations()` now run, and the
+  datasets document every column. `wynn_study` pools each participant's four
+  study viewings of an image into one row; `data-raw/process_dat.R` now
+  reproduces it.
+* `print.fixation_group()` ignores missing coordinates and handles empty
+  groups.
+* The research validation material in `inst/validation` stays in the source
+  repository but is no longer part of the package.
 * Plot titles, subtitles and captions wrap to the width they are drawn at,
   in lines of even length (new `element_text_wrap()`, used by
   `theme_eyesim()`), so long GazeWeave titles no longer run off narrow
@@ -155,9 +254,10 @@
 * `gaze_transport_spec()` gains `revision = c("2026.10", "2026.08")`. The
   default, `"2026.10"`, changes the Transport solver in both the native and
   the reference backend. `"2026.08"` reproduces the frozen August 2026 solver
-  bit for bit, and the frozen validation courts now pin it. Specifications
-  saved before revisions existed are solved as `"2026.08"`; an unknown
-  revision is an error. Under `"2026.10"`:
+  bit for bit, and the frozen validation courts now pin it. (Transport
+  `"2026.08"` was retired in eyesim 0.3.0; see above.) Specifications
+  saved before revisions existed are solved as `"2026.08"` (an error since
+  eyesim 0.3.0); an unknown revision is an error. Under `"2026.10"`:
   - **Estimand change (unreleased).** The chronology residual is
     `1 - 2A / (R + S + kappa)` with `kappa = 1e-3`, one constant shared by
     both backends. It was `1 - 2A / (R + S)`, set to 0 when
@@ -238,7 +338,8 @@
     only.
 
 * GazeWeave Replay gains `gaze_replay_spec(revision = c("2026.10",
-  "2026.08"))`. The new default, `"2026.10"`, changes Replay as follows:
+  "2026.08"))`. (Replay `"2026.08"` was retired in eyesim 0.3.0; see
+  above.) The new default, `"2026.10"`, changes Replay as follows:
   - The observation unit is one recall fixation. The HMM makes exactly one
     hidden-state visit per recall fixation (background, or one state per
     encoding fixation, with the same transition structure as before), and
@@ -307,15 +408,15 @@
   - `gaze_replay_align()` and `gaze_replay_align_episode()` gain
     `background_key`. Revision `"2026.08"` reproduces the earlier fits and
     scores bit for bit. The frozen validation court scripts pin it.
-  - Specs and models saved without a revision are treated as `"2026.08"`.
-    An unknown revision is an error. Multi-presentation court checkpoints
+  - Specs and models saved without a revision are treated as `"2026.08"`
+    (an error since eyesim 0.3.0). An unknown revision is an error. Multi-presentation court checkpoints
     record the Replay revision.
 
 * Shared candidate calibration for Transport and Replay under revision
   `"2026.10"` (unreleased), configured by the new
   `gaze_calibration_control()` and the `calibration_control` argument of
   `gaze_transport_spec()` and `gaze_replay_spec()`. Revision `"2026.08"`
-  is unchanged: its specifications carry no control, and its cross-fitted
+  (since retired for both engines) is unchanged: its specifications carry no control, and its cross-fitted
   results are `identical()` to those before this change (pinned by
   `tests/testthat/fixtures/calibration_base_0d9fbcf.rds`, fitted at master
   0d9fbcf). Replay fitted without `contrast_on` still scores at temperature

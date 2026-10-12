@@ -37,6 +37,7 @@ v3_retrieval_repeat_file <- system.file(
 )
 if (!nzchar(v3_retrieval_repeat_file)) {
   v3_retrieval_repeat_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-transport-v3-repeated-viewing.R"
   )
 }

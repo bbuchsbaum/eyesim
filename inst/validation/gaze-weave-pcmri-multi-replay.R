@@ -35,6 +35,7 @@ multi_replay_parent_file <- system.file(
 )
 if (!nzchar(multi_replay_parent_file)) {
   multi_replay_parent_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-recognition-full-cohort.R"
   )
 }

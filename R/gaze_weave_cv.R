@@ -14,6 +14,25 @@ resolve_gaze_weave_filter <- function(tab, filter_spec, label) {
   values
 }
 
+# Seed GazeWeave's random draws reproducibly: the generator kinds are fixed
+# (R's defaults) whatever the caller has set, and when the calling function
+# exits the caller's generator kinds and random number stream are restored.
+local_gaze_weave_seed <- function(seed, envir = parent.frame()) {
+  if (!is.numeric(seed) || length(seed) != 1L || is.na(seed)) {
+    stop("seed must be a single number.")
+  }
+  restore_stream <- snapshot_session_rng()
+  kinds <- RNGkind()
+  restore <- function() {
+    suppressWarnings(RNGkind(kinds[[1L]], kinds[[2L]], kinds[[3L]]))
+    restore_stream()
+  }
+  do.call(on.exit, list(as.call(list(restore)), add = TRUE), envir = envir)
+  set.seed(seed, kind = "Mersenne-Twister", normal.kind = "Inversion",
+           sample.kind = "Rejection")
+  invisible(NULL)
+}
+
 make_gaze_weave_folds <- function(source_tab, split_on, contrast_on = NULL,
                                   n_folds = NULL, seed = 1) {
   split_key <- gaze_key(source_tab, split_on, "split_on")
@@ -52,15 +71,14 @@ make_gaze_weave_folds <- function(source_tab, split_on, contrast_on = NULL,
     )
   }
 
-  # Fold assignment is the only random draw in GazeWeave. Run it under `seed`
-  # and then restore the caller's random number stream.
-  restore_session_rng <- snapshot_session_rng()
-  on.exit(restore_session_rng(), add = TRUE)
-  set.seed(seed)
+  # Fold assignment is a random draw. Run it under `seed` with a fixed
+  # generator and locale-independent ordering, so the same seed gives the same
+  # folds everywhere, and then restore the caller's random number stream.
+  local_gaze_weave_seed(seed)
   group_map$fold <- NA_integer_
-  for (stratum in sort(unique(group_map$stratum_key))) {
+  for (stratum in sort(unique(group_map$stratum_key), method = "radix")) {
     rows <- which(group_map$stratum_key == stratum)
-    group_names <- sort(group_map$split_key[rows])
+    group_names <- sort(group_map$split_key[rows], method = "radix")
     shuffled <- sample(group_names, length(group_names))
     fold_for_group <- stats::setNames(
       rep(seq_len(n_folds), length.out = length(shuffled)),
@@ -144,18 +162,29 @@ make_gaze_weave_candidate_folds <- function(source_tab, split_on, contrast_on,
 #'   Replay, which scores each held-out row against the candidates in its own
 #'   fold, the default is lowered when needed so that every fold keeps a true
 #'   candidate and a nonmatch in each contrast stratum.
+#'   Calibration needs more: each training fold must hold at least
+#'   `2 * calibration folds` items (4 by default) per contrast stratum, or that
+#'   fold falls back to an uncalibrated score and a warning of class
+#'   `gaze_calibration_fallback` is raised.
 #' @param seed Fold-assignment seed. `NULL` uses the engine-specific default.
-#'   Folds depend on `seed` alone; the caller's random number stream is left
-#'   unchanged.
+#'   Folds depend on `seed` alone: the draw uses R's default generator and
+#'   locale-independent ordering whatever `RNGkind()` and locale are in effect,
+#'   and the caller's generator and random number stream are left unchanged.
 #' @param fit_source_filter,eval_source_filter Optional logical vectors or
 #'   functions selecting fitting and evaluation source rows.
 #' @param episode_on Optional reference columns identifying separate study
 #'   presentations for Transport. Their likelihoods receive equal prior weight.
 #' @param priorvar Optional Transport reference column containing one positive
 #'   design-prior weight per candidate.
+#' @param template_on Optional reference columns identifying separate encoding
+#'   templates of one candidate for Replay (the counterpart of `episode_on`);
+#'   see [gaze_replay_cv()].
 #'
 #' @return An engine-specific fitted object. Use `broom::tidy()` for the sole
 #'   primary endpoint, `gaze_info_bits`.
+#' @section Experimental:
+#' GazeWeave is experimental. Its interface, defaults and result columns may
+#' change in future releases; record the package version with any results.
 #' @export
 gaze_weave_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,
@@ -163,7 +192,7 @@ gaze_weave_cv <- function(
     spec = NULL, engine = NULL, split_on = match_on,
     n_folds = NULL, seed = NULL,
     fit_source_filter = NULL, eval_source_filter = NULL,
-    episode_on = NULL, priorvar = NULL) {
+    episode_on = NULL, priorvar = NULL, template_on = NULL) {
   inferred <- if (inherits(spec, "gaze_replay_spec")) {
     "replay"
   } else if (inherits(spec, "gaze_transport_spec")) {
@@ -192,7 +221,8 @@ gaze_weave_cv <- function(
     if (is.null(seed)) seed <- 1L
     if (is.null(spec)) spec <- gaze_replay_spec()
     if (!is.null(episode_on) || !is.null(priorvar)) {
-      stop("episode_on and priorvar are available only for Transport.")
+      stop("episode_on and priorvar are available only for Transport; ",
+           "Replay takes template_on.")
     }
     return(gaze_replay_cv(
       ref_tab = ref_tab,
@@ -206,10 +236,14 @@ gaze_weave_cv <- function(
       n_folds = n_folds,
       seed = seed,
       fit_source_filter = fit_source_filter,
-      eval_source_filter = eval_source_filter
+      eval_source_filter = eval_source_filter,
+      template_on = template_on
     ))
   }
 
+  if (!is.null(template_on)) {
+    stop("template_on is available only for Replay; Transport takes episode_on.")
+  }
   if (is.null(seed)) seed <- 20260822L
   if (is.null(spec)) spec <- gaze_transport_spec()
   gaze_transport_cv(

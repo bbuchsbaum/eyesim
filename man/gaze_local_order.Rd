@@ -15,3 +15,4 @@ A `gaze_chronology_spec` object.
 \description{
 Declare the local chronology model for GazeWeave
 }
+\keyword{internal}

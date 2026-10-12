@@ -16,7 +16,6 @@ Rcpp::List transport_v3_stationarity_native_cpp(const arma::mat& augmented, cons
 RcppExport SEXP _eyesim_transport_v3_stationarity_native_cpp(SEXP augmentedSEXP, SEXP centered_gradientSEXP, SEXP entropySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type augmented(augmentedSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type centered_gradient(centered_gradientSEXP);
     Rcpp::traits::input_parameter< double >::type entropy(entropySEXP);
@@ -25,11 +24,10 @@ BEGIN_RCPP
 END_RCPP
 }
 // transport_v3_profile_native_cpp
-Rcpp::List transport_v3_profile_native_cpp(const arma::vec& reference_mass, const arma::vec& source_mass, const arma::mat& reference_relation, const arma::mat& source_relation, const arma::mat& spatial_cost, const arma::vec& coverage_values, const arma::vec& entropy_schedule, double temporal_weight, double selection_weight, int maxit, double step_size, double tolerance, int projection_maxit, double projection_tolerance, int revision, double chronology_pseudo_count, int multistart);
-RcppExport SEXP _eyesim_transport_v3_profile_native_cpp(SEXP reference_massSEXP, SEXP source_massSEXP, SEXP reference_relationSEXP, SEXP source_relationSEXP, SEXP spatial_costSEXP, SEXP coverage_valuesSEXP, SEXP entropy_scheduleSEXP, SEXP temporal_weightSEXP, SEXP selection_weightSEXP, SEXP maxitSEXP, SEXP step_sizeSEXP, SEXP toleranceSEXP, SEXP projection_maxitSEXP, SEXP projection_toleranceSEXP, SEXP revisionSEXP, SEXP chronology_pseudo_countSEXP, SEXP multistartSEXP) {
+Rcpp::List transport_v3_profile_native_cpp(const arma::vec& reference_mass, const arma::vec& source_mass, const arma::mat& reference_relation, const arma::mat& source_relation, const arma::mat& spatial_cost, const arma::vec& coverage_values, const arma::vec& entropy_schedule, double temporal_weight, double selection_weight, int maxit, double step_size, double tolerance, int projection_maxit, double projection_tolerance, double chronology_pseudo_count, int multistart, int sinkhorn_budget);
+RcppExport SEXP _eyesim_transport_v3_profile_native_cpp(SEXP reference_massSEXP, SEXP source_massSEXP, SEXP reference_relationSEXP, SEXP source_relationSEXP, SEXP spatial_costSEXP, SEXP coverage_valuesSEXP, SEXP entropy_scheduleSEXP, SEXP temporal_weightSEXP, SEXP selection_weightSEXP, SEXP maxitSEXP, SEXP step_sizeSEXP, SEXP toleranceSEXP, SEXP projection_maxitSEXP, SEXP projection_toleranceSEXP, SEXP chronology_pseudo_countSEXP, SEXP multistartSEXP, SEXP sinkhorn_budgetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::vec& >::type reference_mass(reference_massSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type source_mass(source_massSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type reference_relation(reference_relationSEXP);
@@ -44,10 +42,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type tolerance(toleranceSEXP);
     Rcpp::traits::input_parameter< int >::type projection_maxit(projection_maxitSEXP);
     Rcpp::traits::input_parameter< double >::type projection_tolerance(projection_toleranceSEXP);
-    Rcpp::traits::input_parameter< int >::type revision(revisionSEXP);
     Rcpp::traits::input_parameter< double >::type chronology_pseudo_count(chronology_pseudo_countSEXP);
     Rcpp::traits::input_parameter< int >::type multistart(multistartSEXP);
-    rcpp_result_gen = Rcpp::wrap(transport_v3_profile_native_cpp(reference_mass, source_mass, reference_relation, source_relation, spatial_cost, coverage_values, entropy_schedule, temporal_weight, selection_weight, maxit, step_size, tolerance, projection_maxit, projection_tolerance, revision, chronology_pseudo_count, multistart));
+    Rcpp::traits::input_parameter< int >::type sinkhorn_budget(sinkhorn_budgetSEXP);
+    rcpp_result_gen = Rcpp::wrap(transport_v3_profile_native_cpp(reference_mass, source_mass, reference_relation, source_relation, spatial_cost, coverage_values, entropy_schedule, temporal_weight, selection_weight, maxit, step_size, tolerance, projection_maxit, projection_tolerance, chronology_pseudo_count, multistart, sinkhorn_budget));
     return rcpp_result_gen;
 END_RCPP
 }

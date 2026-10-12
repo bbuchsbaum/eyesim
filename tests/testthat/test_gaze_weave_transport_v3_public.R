@@ -180,13 +180,24 @@ test_that("private Transport result directories are excluded", {
     stdout = FALSE, stderr = FALSE
   )
 
-  expect_true(any(grepl(
-    "gaze-weave-transport-v3-retrieval-results", build_ignore,
-    fixed = TRUE
-  )))
-  expect_true(any(grepl(
-    "gaze-weave-transport-v3-repeated-viewing-results", build_ignore,
-    fixed = TRUE
-  )))
+  # R CMD build drops a path when it, or a directory containing it, matches an
+  # .Rbuildignore pattern (perl, case-insensitive); all of inst/validation is
+  # now excluded.
+  build_ignored <- function(path) {
+    parts <- strsplit(path, "/", fixed = TRUE)[[1]]
+    prefixes <- vapply(seq_along(parts), function(i) {
+      paste(parts[seq_len(i)], collapse = "/")
+    }, character(1))
+    patterns <- build_ignore[nzchar(build_ignore)]
+    any(vapply(patterns, function(pattern) {
+      any(grepl(pattern, prefixes, perl = TRUE, ignore.case = TRUE))
+    }, logical(1)))
+  }
+  expect_true(build_ignored(
+    "inst/validation/gaze-weave-transport-v3-retrieval-results"
+  ))
+  expect_true(build_ignored(
+    "inst/validation/gaze-weave-transport-v3-repeated-viewing-results"
+  ))
   expect_identical(git_status, 0L)
 })

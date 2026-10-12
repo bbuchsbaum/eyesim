@@ -1,3 +1,5 @@
+skip_if_no_validation()
+
 transport_density_source <- function() {
   environment <- new.env(parent = globalenv())
   sys.source(

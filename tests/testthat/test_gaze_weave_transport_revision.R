@@ -38,17 +38,21 @@ transport_revision_pairs <- function(n_pairs, sizes, seed) {
   })
 }
 
-test_that("specifications record the solver revision", {
+test_that("Transport revision 2026.08 is retired with a pointer to the frozen tag", {
   expect_identical(gaze_transport_spec()$revision, "2026.10")
-  expect_identical(
-    gaze_transport_spec(revision = "2026.08")$revision, "2026.08"
-  )
-  expect_error(gaze_transport_spec(revision = "2025.01"))
-  legacy <- gaze_transport_spec()
-  legacy$revision <- "edge_normalized_episode_transport"
-  expect_identical(eyesim:::transport_v3_revision(legacy), "2026.08")
-  legacy$revision <- NULL
-  expect_identical(eyesim:::transport_v3_revision(legacy), "2026.08")
+  expect_identical(gaze_transport_spec()$entropy_schedule, c(0.15, 0.05, 0.015))
+  expect_identical(gaze_transport_spec()$control$tolerance, 1e-6)
+  expect_identical(gaze_transport_spec()$reliability, "none")
+  expect_error(gaze_transport_spec(revision = "2026.08"),
+               "retired in eyesim 0.3.0")
+  expect_error(gaze_transport_spec(revision = "2026.08"),
+               "gazeweave-2026.08-frozen", fixed = TRUE)
+  expect_error(gaze_transport_spec(revision = "2026.08"),
+               "chronology residual")
+  expect_error(gaze_transport_spec(revision = "2025.01"),
+               "Unknown Transport solver revision")
+  expect_error(gaze_transport_spec(tolerance = NULL),
+               "finite and positive")
   unknown <- gaze_transport_spec()
   unknown$revision <- "2031.01"
   expect_error(
@@ -60,40 +64,41 @@ test_that("specifications record the solver revision", {
     gaze_transport_align(path, path, unknown),
     "Unknown Transport solver revision"
   )
+  legacy <- gaze_transport_spec()
+  legacy$revision <- "2026.08"
+  expect_error(gaze_transport_align(path, path, legacy),
+               "retired in eyesim 0.3.0")
 })
 
-test_that("a specification saved at the base commit scores exactly as legacy", {
+test_that("saved specifications without a revision are refused, not read as 2026.08", {
   # fixtures/transport-spec-04a5b25.rds is gaze_transport_spec() serialised by
   # commit 04a5b25, before solver revisions existed; its revision slot holds
-  # the estimand name. The expected scores were computed by that commit.
+  # the estimand name. It used to be solved silently as revision 2026.08.
   frozen <- readRDS(test_path("fixtures", "transport-spec-04a5b25.rds"))
   expect_identical(frozen$revision, "edge_normalized_episode_transport")
-  pinned <- gaze_transport_spec(revision = "2026.08")
-  simple <- list(
-    transport_revision_path(c(2, 5, 9), c(3, 7, 4)),
-    transport_revision_path(c(2.4, 5.3, 8.6), c(3.2, 6.5, 4.4))
-  )
-  stationary <- list(
-    transport_revision_path(
-      c(23.7, 7.7, 22.43, 6.4), c(11.57, 5.02, 15.13, 13.19)
-    ),
-    transport_revision_path(c(21.2, 7.15), c(15.37, 14))
-  )
-  base_scores <- list(
-    simple = -0.048261237015642555,
-    stationary = -0.58519445915782109
-  )
-  pairs <- list(simple = simple, stationary = stationary)
-  # The stationary pair runs the legacy solver to its limit (~12 s per spec).
-  if (eyesim_on_cran()) pairs <- pairs["simple"]
-  for (name in names(pairs)) {
-    pair <- pairs[[name]]
-    from_frozen <- gaze_transport_align(pair[[1]], pair[[2]], frozen)
-    from_pinned <- gaze_transport_align(pair[[1]], pair[[2]], pinned)
-    expect_frozen(from_frozen$log_score, base_scores[[name]])
-    expect_frozen(from_pinned$log_score, base_scores[[name]])
-    expect_identical(from_frozen$convergence$revision, "2026.08")
+  missing <- unclass(gaze_transport_spec())
+  missing["revision"] <- NULL
+  missing <- structure(missing, class = c("gaze_transport_spec", "list"))
+  missing <- unserialize(serialize(missing, NULL))
+  path <- transport_revision_path(c(2, 5, 9), c(3, 7, 4))
+  for (old in list(frozen, missing)) {
+    expect_error(eyesim:::transport_v3_revision(old), "carries no solver revision")
+    expect_error(gaze_transport_align(path, path, old),
+                 "carries no solver revision")
+    expect_error(gaze_transport_align(path, path, old),
+                 "Re-create the specification with gaze_transport_spec()",
+                 fixed = TRUE)
+    expect_error(eyesim:::gaze_transport_prepare(path, old),
+                 "carries no solver revision")
+    expect_error(print(old), "carries no solver revision")
   }
+  references <- data.frame(participant = "p1", item = 1:2)
+  references$fixgroup <- list(path, path)
+  expect_error(
+    gaze_transport_cv(references, references,
+                      match_on = c("participant", "item"), spec = frozen),
+    "gazeweave-2026.08-frozen", fixed = TRUE
+  )
 })
 
 test_that("a stationary stage converges in the optimized backend", {
@@ -133,7 +138,8 @@ test_that("the stop rule does not stop on one heavily backtracked step", {
   # maxit = 3000 (revision 2026.10). It takes several seconds, so its score
   # is frozen here; inst/validation is not involved. Backend agreement alone
   # is not sufficient, because both backends could share a premature stop.
-  # Revision 2026.08 scores this pair -1.3634 (a 0.14-nat stop-rule error).
+  # The retired revision 2026.08 scored this pair -1.3634 (a 0.14-nat
+  # stop-rule error).
   oracle_score <- -1.2068974004
 
   default <- gaze_transport_align(
@@ -369,12 +375,6 @@ test_that("auto records the backend and never falls back silently", {
   expect_identical(fallback$convergence$backend, "reference_fallback")
   expect_true(fallback$convergence$fallback)
   expect_match(fallback$convergence$fallback_reason, "synthetic native failure")
-
-  legacy <- gaze_transport_spec(backend = "auto", revision = "2026.08")
-  expect_no_warning(
-    silent <- gaze_transport_align(reference, source, legacy)
-  )
-  expect_identical(silent$convergence$backend, "reference_fallback")
 })
 
 test_that("unsupported native policies route to the reference backend", {

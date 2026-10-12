@@ -34,6 +34,7 @@ if (!nzchar(pcmri_behavior_catalog_file) &&
 }
 if (!nzchar(pcmri_behavior_catalog_file)) {
   pcmri_behavior_catalog_file <- file.path(
+    if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
     "inst", "validation", "gaze-weave-pcmri-catalog-replication.R"
   )
 }

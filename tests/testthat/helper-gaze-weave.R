@@ -9,15 +9,33 @@ make_gaze_fixations <- function(coords,
   )
 }
 
+# inst/validation (research scripts, reports and frozen results) is kept out
+# of the built package, so R CMD check finds it only through
+# EYESIM_SOURCE_DIR, a source checkout that CI sets. devtools::test() run in a
+# checkout finds it through the source tree.
 gaze_weave_test_inst_path <- function(...) {
-  installed <- system.file(..., package = "eyesim")
-  if (nzchar(installed)) return(installed)
+  source_dir <- Sys.getenv("EYESIM_SOURCE_DIR")
+  candidates <- c(
+    system.file(..., package = "eyesim"),
+    if (nzchar(source_dir)) file.path(source_dir, "inst", ...),
+    testthat::test_path("..", "..", "inst", ...)
+  )
+  found <- candidates[nzchar(candidates) & file.exists(candidates)]
+  if (length(found) > 0L) return(found[[1L]])
   testthat::test_path("..", "..", "inst", ...)
+}
+
+# Skip a test file whose checks need inst/validation when it is unavailable,
+# as on CRAN.
+skip_if_no_validation <- function() {
+  testthat::skip_if_not(
+    dir.exists(gaze_weave_test_inst_path("validation")),
+    "inst/validation is not in the built package (set EYESIM_SOURCE_DIR)"
+  )
 }
 
 make_small_gaze_replay_spec <- function() {
   gaze_replay_spec(
-    grid_size = 8,
     transition_grid = list(
       background = 0.05,
       restart = 0.05,

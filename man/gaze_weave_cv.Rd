@@ -19,7 +19,8 @@ gaze_weave_cv(
   fit_source_filter = NULL,
   eval_source_filter = NULL,
   episode_on = NULL,
-  priorvar = NULL
+  priorvar = NULL,
+  template_on = NULL
 )
 }
 \arguments{
@@ -41,11 +42,16 @@ inferred from `spec`.}
 \item{n_folds}{Number of cross-fitting folds. `NULL` uses up to five; for
 Replay, which scores each held-out row against the candidates in its own
 fold, the default is lowered when needed so that every fold keeps a true
-candidate and a nonmatch in each contrast stratum.}
+candidate and a nonmatch in each contrast stratum.
+Calibration needs more: each training fold must hold at least
+`2 * calibration folds` items (4 by default) per contrast stratum, or that
+fold falls back to an uncalibrated score and a warning of class
+`gaze_calibration_fallback` is raised.}
 
 \item{seed}{Fold-assignment seed. `NULL` uses the engine-specific default.
-Folds depend on `seed` alone; the caller's random number stream is left
-unchanged.}
+Folds depend on `seed` alone: the draw uses R's default generator and
+locale-independent ordering whatever `RNGkind()` and locale are in effect,
+and the caller's generator and random number stream are left unchanged.}
 
 \item{fit_source_filter, eval_source_filter}{Optional logical vectors or
 functions selecting fitting and evaluation source rows.}
@@ -55,6 +61,10 @@ presentations for Transport. Their likelihoods receive equal prior weight.}
 
 \item{priorvar}{Optional Transport reference column containing one positive
 design-prior weight per candidate.}
+
+\item{template_on}{Optional reference columns identifying separate encoding
+templates of one candidate for Replay (the counterpart of `episode_on`);
+see [gaze_replay_cv()].}
 }
 \value{
 An engine-specific fitted object. Use `broom::tidy()` for the sole
@@ -72,3 +82,9 @@ Both engines return held-out candidate probabilities and
 posterior probability. Transport correspondence is an optimized alignment
 and must not be interpreted as statistical uncertainty.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

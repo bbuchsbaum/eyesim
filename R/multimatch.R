@@ -156,7 +156,11 @@ create_graph <- function(x, y) {
 #'
 #' @export
 install_multimatch <- function() {
+  if (!requireNamespace("reticulate", quietly = TRUE)) {
+    stop("install_multimatch() requires the 'reticulate' package.")
+  }
   reticulate::py_install("multimatch_gaze", pip=TRUE)
+  invisible(NULL)
 }
 
 # Internal helper to preserve the documented MultiMatch metric shape for

@@ -49,3 +49,9 @@ fixed multiscale density score, and includes order-free elastic-consensus
 matching. Ridge composites for registered MultiMatch and density features
 are tuned in inner folds of each outer training split.
 }
+\section{Experimental}{
+
+GazeWeave is experimental. Its interface, defaults and result columns may
+change in future releases; record the package version with any results.
+}
+

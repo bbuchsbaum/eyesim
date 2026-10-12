@@ -385,6 +385,7 @@ transport_exploratory_read_data <- function(
   )
   if (!nzchar(full_file)) {
     full_file <- file.path(
+      if (nzchar(Sys.getenv("EYESIM_SOURCE_DIR"))) Sys.getenv("EYESIM_SOURCE_DIR") else ".",
       "inst", "validation", "gaze-weave-recognition-full-cohort.R"
     )
   }

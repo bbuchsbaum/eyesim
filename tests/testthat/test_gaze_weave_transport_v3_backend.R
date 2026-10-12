@@ -115,9 +115,9 @@ test_that("native backend matches the R oracle across fixture classes", {
 
 test_that("native backend matches the public Transport-v2 path bank", {
   skip_if_not(eyesim:::transport_v3_native_available())
-  input_path <- gaze_weave_test_inst_path(
-    "validation", "gaze-weave-transport-v3-golden", "inputs.csv"
-  )
+  # A copy of inst/validation/gaze-weave-transport-v3-golden/inputs.csv, kept
+  # with the tests so this parity check also runs on CRAN.
+  input_path <- test_path("fixtures", "transport-v3-golden-inputs.csv")
   inputs <- utils::read.csv(input_path, stringsAsFactors = FALSE)
   fixture <- inputs[inputs$fixture_id == "partial_with_intrusions", ]
   make_role <- function(role) {
@@ -184,31 +184,4 @@ test_that("batch size and candidate order cannot change native scores", {
   expect_true(all(vapply(single, function(result) {
     result$convergence$converged
   }, logical(1))))
-})
-
-test_that("auto backend falls back cleanly when native policy is unsupported", {
-  path <- make_gaze_fixations(rbind(c(0, 0), c(1, 1), c(2, 0)))
-  auto_spec <- gaze_transport_spec(
-    coverage_nodes = 2,
-    entropy_schedule = 0.03,
-    maxit = 30,
-    tolerance = 1e-3,
-    projection_maxit = 300,
-    projection_tolerance = 1e-7,
-    multistart = 2,
-    backend = "auto",
-    # Revision 2026.10 routes unsupported policies to the reference backend
-    # instead (test_gaze_weave_transport_revision.R).
-    revision = "2026.08"
-  )
-  result <- gaze_transport_align(path, path, auto_spec)
-
-  expect_identical(result$alignment$profile$backend, "reference_fallback")
-  expect_true(result$alignment$profile$fallback)
-  expect_match(
-    result$alignment$profile$fallback_reason,
-    "multistart",
-    fixed = TRUE
-  )
-  expect_true(is.finite(result$log_score))
 })
