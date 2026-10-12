@@ -191,6 +191,12 @@ transport_v3_revision <- function(spec) {
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @examples
+#' spec <- gaze_transport_spec(
+#'   spatial = gaze_gaussian_mixture(c(30, 60), unit = "px"),
+#'   screen = gaze_screen(800, 600, unit = "px")
+#' )
+#' spec
 #' @export
 gaze_transport_spec <- function(
     spatial = gaze_gaussian_mixture(c(0.75, 1.5), weights = c(0.7, 0.3)),
@@ -378,11 +384,12 @@ gaze_transport_spec <- function(
 
 #' @export
 print.gaze_transport_spec <- function(x, ...) {
+  revision <- transport_v3_revision(x)
   cat("GazeWeave Transport specification\n")
   cat("  coverage: ", x$coverage$nodes, " Gauss-Legendre nodes; Beta(",
       paste(x$coverage_prior, collapse = ", "), ") prior\n", sep = "")
   cat("  chronology: next", x$chronology$neighbours, "ordinal neighbours\n")
   cat("  backend:", x$control$backend, "\n")
-  cat("  solver revision:", transport_v3_revision(x), "\n")
+  cat("  solver revision:", revision, "\n")
   invisible(x)
 }

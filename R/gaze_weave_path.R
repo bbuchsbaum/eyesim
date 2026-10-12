@@ -1,38 +1,76 @@
 # Internal gaze representation -----------------------------------------------
 
-as_gaze_measure <- function(x, chronology) {
+# Why `x` cannot be a GazeWeave fixation path, or NULL when it can.
+gaze_path_problem <- function(x) {
   if (!inherits(x, "fixation_group") && !is.data.frame(x)) {
-    stop("GazeWeave inputs must be fixation_group objects or data frames.")
+    return("GazeWeave inputs must be fixation_group objects or data frames.")
   }
   required <- c("x", "y", "onset", "duration")
   missing_cols <- setdiff(required, names(x))
   if (length(missing_cols) > 0L) {
-    stop("GazeWeave input is missing: ", paste(missing_cols, collapse = ", "), ".")
+    return(paste0("GazeWeave input is missing: ",
+                  paste(missing_cols, collapse = ", "), "."))
   }
   if (nrow(x) < 1L) {
-    stop("GazeWeave requires at least one fixation.")
+    return("GazeWeave requires at least one fixation.")
   }
-
   vals <- x[required]
-  valid_numeric <- vapply(vals, is.numeric, logical(1))
-  if (!all(valid_numeric)) {
-    stop("x, y, onset, and duration must be numeric.")
+  if (!all(vapply(vals, is.numeric, logical(1)))) {
+    return("x, y, onset, and duration must be numeric.")
   }
   if (any(!is.finite(as.matrix(vals)))) {
-    stop("GazeWeave inputs must contain only finite values.")
+    return("GazeWeave inputs must contain only finite values.")
   }
   if (any(x$duration < 0)) {
-    stop("Fixation durations must be non-negative.")
+    return("Fixation durations must be non-negative.")
   }
   if (sum(x$duration) <= 0) {
-    stop("Total fixation duration must be positive.")
+    return("Total fixation duration must be positive.")
   }
+  if (nrow(x) > 1L && anyDuplicated(x$onset)) {
+    return("Fixation onsets must be unique; simultaneous onsets are ambiguous.")
+  }
+  NULL
+}
+
+# Checks every path in `tab[[var]]` before any fitting, so a bad path is
+# reported by table, row and match key instead of failing mid-fit.
+stop_if_invalid_gaze_paths <- function(engine, tab, var, table_name,
+                                       key_on = NULL, max_report = 5L) {
+  problems <- vapply(tab[[var]], function(path) {
+    problem <- gaze_path_problem(path)
+    if (is.null(problem)) NA_character_ else problem
+  }, character(1))
+  bad <- which(!is.na(problems))
+  if (length(bad) == 0L) return(invisible(NULL))
+  key_on <- intersect(key_on, names(tab))
+  label <- function(row) {
+    keys <- if (length(key_on)) {
+      paste0(" (", paste0(key_on, " = ", vapply(key_on, function(column) {
+        format(tab[[column]][[row]])
+      }, character(1)), collapse = ", "), ")")
+    }
+    paste0("  ", table_name, " row ", row, keys, ", ", var, ": ",
+           problems[[row]])
+  }
+  shown <- utils::head(bad, max_report)
+  stop(
+    engine, ": ", length(bad), " invalid fixation path",
+    if (length(bad) > 1L) "s", ":\n",
+    paste(vapply(shown, label, character(1)), collapse = "\n"),
+    if (length(bad) > length(shown)) {
+      paste0("\n  ... and ", length(bad) - length(shown), " more.")
+    },
+    call. = FALSE
+  )
+}
+
+as_gaze_measure <- function(x, chronology) {
+  problem <- gaze_path_problem(x)
+  if (!is.null(problem)) stop(problem)
 
   row_order <- order(x$onset, seq_len(nrow(x)))
   sorted <- x[row_order, , drop = FALSE]
-  if (nrow(sorted) > 1L && any(diff(sorted$onset) <= 0)) {
-    stop("Fixation onsets must be unique; simultaneous onsets are ambiguous.")
-  }
 
   keep <- sorted$duration > 0
   filtered <- sorted[keep, , drop = FALSE]

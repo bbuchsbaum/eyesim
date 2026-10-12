@@ -24,3 +24,7 @@ A `gaze_spatial_spec` object.
 The resulting spatial cost is the negative log of a normalized mixture of
 Gaussian overlap kernels. Mixture weights are normalized to sum to one.
 }
+\examples{
+# Two spatial scales, in the same unit as the fixation coordinates.
+gaze_gaussian_mixture(c(30, 60), unit = "px")
+}

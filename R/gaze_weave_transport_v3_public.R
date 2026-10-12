@@ -23,7 +23,8 @@ transport_v3_true_candidate <- function(x, row) {
   candidates <- x$results$alignments[[row]]
   candidate <- candidates[[true_key]]
   if (is.null(candidate)) {
-    stop("The true candidate has no retained Transport alignment.")
+    stop("The true candidate has no retained Transport alignment; refit ",
+         "with keep_alignments = \"true\" or \"all\".")
   }
   list(key = true_key, table = candidate_table, result = candidate)
 }
@@ -90,6 +91,18 @@ transport_v3_episode_diagnostics <- function(candidate, unit) {
 #'
 #' @return A `gaze_transport_result` containing one `gaze_info_bits` value,
 #'   nested diagnostics, candidate evidence, and provenance.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' fit <- gaze_transport_cv(study, recall,
+#'                          match_on = c("participant", "image"),
+#'                          contrast_on = "participant",
+#'                          # 2 coverage nodes keep the example fast; the
+#'                          # default is 12.
+#'                          spec = gaze_transport_spec(coverage_nodes = 2),
+#'                          n_folds = 2)
+#' gaze_transport_result(fit, row = 1)$diagnostics
+#' }
 #' @export
 gaze_transport_result <- function(x, row = NULL, key = NULL) {
   if (!inherits(x, "gaze_transport_fit")) {
@@ -179,7 +192,10 @@ tidy.gaze_transport_fit <- function(x, diagnostics = FALSE, ...) {
   ))
   columns <- intersect(columns, names(x$results))
   value <- tibble::as_tibble(x$results[columns])
+  # Alignment diagnostics need the true candidate's alignment, which a fit
+  # made with keep_alignments = "none" does not keep.
   value$diagnostics <- lapply(seq_len(nrow(x$results)), function(row) {
+    if (is.null(x$results$alignments[[row]])) return(NULL)
     gaze_transport_result(x, row = row)$diagnostics
   })
   value

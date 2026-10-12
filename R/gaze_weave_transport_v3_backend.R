@@ -210,6 +210,7 @@ gaze_transport_prepare <- function(path, spec) {
       chronology = list(
         clock = spec$chronology$clock,
         neighbours = spec$chronology$neighbours,
+        coalesce_distance = spec$chronology$coalesce_distance,
         edge_count = sum(measure$relation > 0)
       )
     ),
@@ -241,8 +242,11 @@ gaze_transport_align_batch <- function(references, source, spec,
     stop("batch_size must be a positive integer.")
   }
   check_prepared <- function(prepared) {
-    if (!identical(prepared$chronology$neighbours, spec$chronology$neighbours) ||
-        !identical(prepared$chronology$clock, spec$chronology$clock)) {
+    # Every chronology setting that shapes the prepared measure must match:
+    # coalescing merges fixations, so a different distance is a different
+    # path.
+    fields <- c("clock", "neighbours", "coalesce_distance")
+    if (!identical(prepared$chronology[fields], spec$chronology[fields])) {
       stop("A prepared path was built under a different chronology than spec; ",
            "prepare it again with gaze_transport_prepare(path, spec).")
     }

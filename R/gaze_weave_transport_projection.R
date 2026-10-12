@@ -299,12 +299,8 @@ project_partial_coupling_revised <- function(augmented_kernel, reference_mass,
       control$projection_maxit, control$projection_tolerance
     ))
   }
-  budget <- transport_v3_sinkhorn_budget()
-  standard_maxit <- if (budget > 0L) {
-    min(control$projection_maxit, budget)
-  } else {
-    control$projection_maxit
-  }
+  standard_maxit <- min(control$projection_maxit,
+                        transport_v3_sinkhorn_budget())
   standard <- masked_sinkhorn_projection_standard(
     augmented_kernel, row_target, column_target, mask,
     standard_maxit, control$projection_tolerance

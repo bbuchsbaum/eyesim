@@ -138,6 +138,16 @@ make_gaze_weave_candidate_folds <- function(source_tab, split_on, contrast_on,
   folds
 }
 
+# Columns every GazeWeave fit's `results` carries (see "Result columns").
+gaze_weave_core_columns <- c(
+  ".cv_fold", "gaze_info_bits", "posterior_true", "prior_true", "odds_bits",
+  "log_loss", "brier_score", "template_rank", "top1_credit",
+  "candidate_count", "candidates"
+)
+gaze_weave_core_candidate_columns <- c(
+  "candidate_key", "log_score", "prior", "posterior", "is_true"
+)
+
 #' Cross-fitted GazeWeave analysis
 #'
 #' `gaze_weave_cv()` is the common entry point for the two GazeWeave engines.
@@ -182,9 +192,47 @@ make_gaze_weave_candidate_folds <- function(source_tab, split_on, contrast_on,
 #'
 #' @return An engine-specific fitted object. Use `broom::tidy()` for the sole
 #'   primary endpoint, `gaze_info_bits`.
+#' @section Result columns:
+#' Every GazeWeave fit (`gaze_transport_cv()`, `gaze_replay_cv()`,
+#' `gaze_baseline_cv()`) has `results` with one row per held-out source row
+#' (per source row and method for the baseline court) holding the source
+#' identifiers and these columns:
+#' \describe{
+#'   \item{`.cv_fold`}{Outer fold that held the row out.}
+#'   \item{`gaze_info_bits`}{`log2(posterior_true / prior_true)`, the primary
+#'     endpoint. `NA` for uncalibrated baseline methods.}
+#'   \item{`posterior_true`, `prior_true`}{Held-out probability of the true
+#'     candidate, and its declared prior.}
+#'   \item{`odds_bits`, `log_loss`, `brier_score`}{Other proper scores of
+#'     the same posterior.}
+#'   \item{`template_rank`, `top1_credit`}{Rank of the true candidate (1 is
+#'     best) and credit for ranking it first, split over ties.}
+#'   \item{`candidate_count`}{Number of candidates scored.}
+#'   \item{`candidates`}{Per-row table with at least `candidate_key`,
+#'     `log_score`, `prior`, `posterior` and `is_true`.}
+#' }
+#' Each engine adds its own diagnostics (for example Transport's solver
+#' counts or Replay's background level), documented on its own page. Every
+#' fit also has `spec`, `keys`, `folds` and `provenance`; `provenance$engine`
+#' names the engine, and Transport and Replay record their estimator
+#' `provenance$revision`.
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' # Which studied image does each recall come from? Candidates are the
+#' # images the same participant studied.
+#' fit <- gaze_weave_cv(study, recall, match_on = c("participant", "image"),
+#'                      contrast_on = "participant",
+#'                      # 2 coverage nodes keep the example fast; the
+#'                      # default is 12.
+#'                      spec = gaze_transport_spec(coverage_nodes = 2),
+#'                      n_folds = 2)
+#' fit
+#' head(broom::tidy(fit))
+#' }
 #' @export
 gaze_weave_cv <- function(
     ref_tab, source_tab, match_on, contrast_on = NULL,

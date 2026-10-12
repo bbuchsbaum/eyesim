@@ -51,6 +51,9 @@ gaze_screen <- function(width, height, unit = c("px", "deg", "normalized"),
 #' @param unit Coordinate unit for `sigmas`.
 #'
 #' @return A `gaze_spatial_spec` object.
+#' @examples
+#' # Two spatial scales, in the same unit as the fixation coordinates.
+#' gaze_gaussian_mixture(c(30, 60), unit = "px")
 #' @export
 gaze_gaussian_mixture <- function(sigmas, weights = NULL,
                                   unit = c("native", "px", "deg", "normalized")) {
@@ -99,6 +102,8 @@ gaze_local_order <- function(horizon = 0.2) {
 #' @param unit Coordinate unit for `coalesce_distance`.
 #'
 #' @return A `gaze_chronology_spec` object.
+#' @examples
+#' gaze_order_neighbours(neighbours = 2)
 #' @export
 gaze_order_neighbours <- function(neighbours = 2L, coalesce_distance = 0,
                                   unit = c("native", "px", "deg", "normalized")) {
@@ -127,6 +132,8 @@ gaze_order_neighbours <- function(neighbours = 2L, coalesce_distance = 0,
 #' Declare no geometric registration for GazeWeave
 #'
 #' @return A `gaze_warp_spec` object.
+#' @examples
+#' gaze_warp_none()
 #' @export
 gaze_warp_none <- function() {
   structure(list(type = "none", fit_by = NULL), class = c("gaze_warp_spec", "list"))
@@ -142,6 +149,9 @@ gaze_warp_none <- function() {
 #' @param shrink Positive stabilization term for moment ratios.
 #'
 #' @return A `gaze_warp_spec` object.
+#' @examples
+#' # Contraction toward the screen centre with a free translation.
+#' gaze_warp_contraction(center = "screen", translation = TRUE)
 #' @export
 gaze_warp_contraction <- function(center = "screen", translation = TRUE,
                                   fit_by = NULL, shrink = 1e-6) {

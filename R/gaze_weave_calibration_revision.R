@@ -153,6 +153,9 @@
 #'   `match_on` when that is empty.
 #'
 #' @return A `gaze_calibration_control`.
+#' @examples
+#' gaze_calibration_control()
+#' gaze_calibration_control(method = "global")
 #' @export
 gaze_calibration_control <- function(
     method = c("evidence_scaled", "global"),

@@ -164,3 +164,7 @@ background protocol, also under `background_support = "held_out"`. Subtracting a
 average scores under generic gaze but not their score variances; the fit
 records the per-candidate standard deviation over the typicality sources.
 }
+\examples{
+gaze_calibration_control()
+gaze_calibration_control(method = "global")
+}

@@ -109,6 +109,8 @@ validate_replay_probability_grid <- function(grid) {
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @examples
+#' gaze_replay_spec(screen = gaze_screen(30, 20, unit = "deg"))
 #' @export
 gaze_replay_spec <- function(
     max_skip = 2L,
@@ -709,6 +711,14 @@ fit_gaze_replay_warp <- function(ref_tab, source_tab, structure,
 #'   combined with equal prior weight; paths are never concatenated.
 #'
 #' @return A fitted `gaze_replay_model`.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' model <- fit_gaze_replay_model(study, recall,
+#'                                match_on = c("participant", "image"),
+#'                                contrast_on = "participant")
+#' model
+#' }
 #' @export
 fit_gaze_replay_model <- function(ref_tab, source_tab, match_on,
                                   contrast_on = NULL,
@@ -1051,6 +1061,16 @@ gaze_replay_align_prepared <- function(reference, prepared, model,
 #' @return A `gaze_engine_result` and a `gaze_replay_alignment` posterior
 #'   object. The score is the total trial log likelihood over recall
 #'   fixations.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' model <- fit_gaze_replay_model(study, recall,
+#'                                match_on = c("participant", "image"),
+#'                                contrast_on = "participant")
+#' alignment <- gaze_replay_align(study$fixgroup[[1]], recall$fixgroup[[1]],
+#'                                model)
+#' alignment$log_score
+#' }
 #' @export
 gaze_replay_align <- function(reference, source, model,
                               candidate_key = "candidate", warp_group = NULL,
@@ -1170,6 +1190,19 @@ gaze_replay_align_episode_prepared <- function(
 #'
 #' @return A `gaze_engine_result` whose alignment inherits from
 #'   `gaze_replay_episode_alignment` and `gaze_replay_alignment`.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' model <- fit_gaze_replay_model(study, recall,
+#'                                match_on = c("participant", "image"),
+#'                                contrast_on = "participant")
+#' # Two study presentations of the same image as separate templates.
+#' result <- gaze_replay_align_episode(
+#'   list(first = study$fixgroup[[1]], second = study$fixgroup[[3]]),
+#'   recall$fixgroup[[1]], model
+#' )
+#' result$log_score
+#' }
 #' @export
 gaze_replay_align_episode <- function(
     references, source, model, candidate_key = "candidate",
@@ -1478,9 +1511,18 @@ replay_typicality <- function(model, ref_eval, train_source, match_on,
 #'   [fit_gaze_replay_model()].
 #'
 #' @return A `gaze_replay_fit` with `gaze_info_bits` as its primary endpoint.
+#' @inheritSection gaze_weave_cv Result columns
 #' @section Experimental:
 #' GazeWeave is experimental. Its interface, defaults and result columns may
 #' change in future releases; record the package version with any results.
+#' @example inst/examples/gaze-weave-data.R
+#' @examples
+#' \donttest{
+#' fit <- gaze_replay_cv(study, recall, match_on = c("participant", "image"),
+#'                       contrast_on = "participant", n_folds = 2)
+#' fit
+#' head(broom::tidy(fit))
+#' }
 #' @export
 gaze_replay_cv <- function(ref_tab, source_tab, match_on,
                            contrast_on = NULL,
@@ -1503,6 +1545,10 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
   ))
   stop_if_missing_gaze_columns("Replay", ref_tab, required_ref,
                                source_tab, required_source)
+  stop_if_invalid_gaze_paths("Replay", ref_tab, refvar, "ref_tab",
+                             c(match_on, template_on))
+  stop_if_invalid_gaze_paths("Replay", source_tab, sourcevar, "source_tab",
+                             match_on)
   check_gaze_screen_clamping(ref_tab[[refvar]], source_tab[[sourcevar]],
                              spec$screen)
   ref_match_key <- gaze_key(ref_tab, match_on, "match_on")
@@ -1588,8 +1634,9 @@ gaze_replay_cv <- function(ref_tab, source_tab, match_on,
     }
     for (field in c(
       "gaze_info_bits", "base_gaze_info_bits", "odds_bits",
-      "posterior_true", "log_loss", "base_log_loss", "brier_score",
-      "template_rank", "top1_credit", "candidate_count", "reliability"
+      "posterior_true", "prior_true", "log_loss", "base_log_loss",
+      "brier_score", "template_rank", "top1_credit", "candidate_count",
+      "reliability"
     )) {
       result_fold[[field]] <- vapply(scored, function(result) {
         result$evidence[[field]]
@@ -1752,7 +1799,8 @@ tidy.gaze_replay_fit <- function(x, diagnostics = FALSE, ...) {
   columns <- unique(c(x$keys$id_columns, "gaze_info_bits"))
   if (isTRUE(diagnostics)) {
     columns <- unique(c(
-      columns, "odds_bits", "posterior_true", "log_loss", "brier_score",
+      columns, "odds_bits", "posterior_true", "prior_true", "log_loss",
+      "brier_score",
       "base_gaze_info_bits", "base_log_loss", "reliability",
       "template_rank", "top1_credit", "candidate_count", "all_converged",
       "raw_fixation_count", "coalesced_fixation_count",

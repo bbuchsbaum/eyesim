@@ -12,3 +12,6 @@ A `gaze_warp_spec` object.
 \description{
 Declare no geometric registration for GazeWeave
 }
+\examples{
+gaze_warp_none()
+}

@@ -140,3 +140,32 @@ test_that("dcov similarity matches energy::dcor on density maps", {
   expect_equal(similarity(a, b, method = "dcov"), expected, tolerance = 1e-10)
   expect_equal(similarity(a, a, method = "dcov"), 1, tolerance = 1e-10)
 })
+
+test_that("print.fixation_group shows ranges, skipping NA and empty groups", {
+  fg <- fixation_group(x = c(100, NA, 300), y = c(10, 20, 30),
+                       onset = c(0, 200, 400), duration = c(150, 150, 200))
+  out <- capture.output(print(fg))
+  expect_match(out[[1]], "Fixation group: 3 fixations")
+  expect_true(any(grepl("x range: \\[100, 300\\]", out)))
+  expect_true(any(grepl("duration range: \\[150, 200\\]", out)))
+  empty <- fixation_group(x = numeric(0), y = numeric(0), onset = numeric(0),
+                          duration = numeric(0))
+  expect_identical(capture.output(print(empty)),
+                   "Fixation group: 0 fixations")
+})
+
+test_that("dcov similarity is NA for a flat map, like the correlations", {
+  skip_if_not_installed("energy")
+  set.seed(22)
+  fg <- fixation_group(x = runif(10, 0, 100), y = runif(10, 0, 100),
+                       onset = seq_len(10), duration = rep(1, 10))
+  a <- eye_density(fg, sigma = 8, xbounds = c(0, 100), ybounds = c(0, 100),
+                   outdim = c(10, 10))
+  flat <- a
+  flat$z[] <- 1
+  for (method in c("dcov", "pearson")) {
+    expect_warning(value <- similarity(flat, a, method = method),
+                   "near-zero variance")
+    expect_identical(value, NA_real_)
+  }
+})
