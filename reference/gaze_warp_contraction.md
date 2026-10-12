@@ -35,3 +35,27 @@ gaze_warp_contraction(
 ## Value
 
 A \`gaze_warp_spec\` object.
+
+## Examples
+
+``` r
+# Contraction toward the screen centre with a free translation.
+gaze_warp_contraction(center = "screen", translation = TRUE)
+#> $type
+#> [1] "contraction"
+#> 
+#> $center
+#> [1] "screen"
+#> 
+#> $translation
+#> [1] TRUE
+#> 
+#> $fit_by
+#> NULL
+#> 
+#> $shrink
+#> [1] 1e-06
+#> 
+#> attr(,"class")
+#> [1] "gaze_warp_spec" "list"          
+```

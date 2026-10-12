@@ -145,7 +145,89 @@ an entire session or replication.</p></dd>
 <p>GazeWeave is experimental. Its interface, defaults and result columns may
 change in future releases; record the package version with any results.</p>
     </div>
+    <div class="section level2">
+    <h2 id="result-columns">Result columns<a class="anchor" aria-label="anchor" href="#result-columns"></a></h2>
 
+
+<p>Every GazeWeave fit (`gaze_transport_cv()`, `gaze_replay_cv()`,
+`gaze_baseline_cv()`) has `results` with one row per held-out source row
+(per source row and method for the baseline court) holding the source
+identifiers and these columns:</p><dl><dt>`.cv_fold`</dt>
+<dd><p>Outer fold that held the row out.</p></dd>
+
+  <dt>`gaze_info_bits`</dt>
+<dd><p>`log2(posterior_true / prior_true)`, the primary
+    endpoint. `NA` for uncalibrated baseline methods.</p></dd>
+
+  <dt>`posterior_true`, `prior_true`</dt>
+<dd><p>Held-out probability of the true
+    candidate, and its declared prior.</p></dd>
+
+  <dt>`odds_bits`, `log_loss`, `brier_score`</dt>
+<dd><p>Other proper scores of
+    the same posterior.</p></dd>
+
+  <dt>`template_rank`, `top1_credit`</dt>
+<dd><p>Rank of the true candidate (1 is
+    best) and credit for ranking it first, split over ties.</p></dd>
+
+  <dt>`candidate_count`</dt>
+<dd><p>Number of candidates scored.</p></dd>
+
+  <dt>`candidates`</dt>
+<dd><p>Per-row table with at least `candidate_key`,
+    `log_score`, `prior`, `posterior` and `is_true`.</p></dd>
+
+
+</dl><p>Each engine adds its own diagnostics (for example Transport's solver
+counts or Replay's background level), documented on its own page. Every
+fit also has `spec`, `keys`, `folds` and `provenance`; `provenance$engine`
+names the engine, and Transport and Replay record their estimator
+`provenance$revision`.</p>
+    </div>
+
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example data: two participants study and later recall six images; each</span></span></span>
+<span class="r-in"><span><span class="co"># recall roughly repeats the study path of the same image.</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">make_path</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">anchor</span>, <span class="va">jitter</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    x <span class="op">=</span> <span class="va">anchor</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">3</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span>, sd <span class="op">=</span> <span class="va">jitter</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    y <span class="op">=</span> <span class="va">anchor</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span>, sd <span class="op">=</span> <span class="va">jitter</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span>, <span class="fl">750</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">220</span>, <span class="fl">180</span>, <span class="fl">240</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>participant <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"p1"</span>, <span class="st">"p2"</span><span class="op">)</span>, image <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">6</span>,</span></span>
+<span class="r-in"><span>                     stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">anchors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">image</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span> <span class="op">*</span> <span class="va">i</span>, <span class="fl">2</span> <span class="op">*</span> <span class="op">(</span><span class="va">i</span> <span class="op"><a href="https://rdrr.io/r/base/Arithmetic.html" class="external-link">%%</a></span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">anchors</span>, <span class="va">make_path</span>, jitter <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">recall</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"image"</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">recall</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">anchors</span>, <span class="va">make_path</span>, jitter <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="gaze_baseline_spec.html">gaze_baseline_spec</a></span><span class="op">(</span>screen <span class="op">=</span> <span class="fu"><a href="gaze_screen.html">gaze_screen</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">10</span>, unit <span class="op">=</span> <span class="st">"deg"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                           density_sigmas <span class="op">=</span> <span class="fl">1</span>, methods <span class="op">=</span> <span class="st">"density"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">gaze_baseline_cv</span><span class="op">(</span><span class="va">study</span>, <span class="va">recall</span>, match_on <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"image"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                        contrast_on <span class="op">=</span> <span class="st">"participant"</span>, spec <span class="op">=</span> <span class="va">spec</span>,</span></span>
+<span class="r-in"><span>                        n_folds <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">fit</span>, diagnostics <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 6 × 21</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   participant image method         court gaze_info_bits status reason calibrated</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> p1              1 density_raw    froz…             <span style="color: #BB0000;">NA</span> scored <span style="color: #BB0000;">NA</span>     FALSE     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> p1              1 density_sigma… froz…             <span style="color: #BB0000;">NA</span> scored <span style="color: #BB0000;">NA</span>     FALSE     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">3</span> p1              1 density_regis… froz…             <span style="color: #BB0000;">NA</span> scored <span style="color: #BB0000;">NA</span>     FALSE     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">4</span> p1              1 density_sigma… froz…             <span style="color: #BB0000;">NA</span> scored <span style="color: #BB0000;">NA</span>     FALSE     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">5</span> p1              1 density_sigma… supe…             <span style="color: #BB0000;">NA</span> skipp… Every… FALSE     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">6</span> p1              1 density_ridge… supe…             <span style="color: #BB0000;">NA</span> skipp… Every… FALSE     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 13 more variables: odds_bits &lt;dbl&gt;, compatibility_bits &lt;dbl&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   compatibility_odds_bits &lt;dbl&gt;, compatibility_probability_true &lt;dbl&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   compatibility_log_loss &lt;dbl&gt;, posterior_true &lt;dbl&gt;, prior_true &lt;dbl&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   log_loss &lt;dbl&gt;, brier_score &lt;dbl&gt;, template_rank &lt;dbl&gt;, top1_credit &lt;dbl&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   candidate_count &lt;int&gt;, .cv_fold &lt;int&gt;</span></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

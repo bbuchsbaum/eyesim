@@ -152,3 +152,118 @@ A frozen \`gaze_replay_spec\`.
 GazeWeave is experimental. Its interface, defaults and result columns
 may change in future releases; record the package version with any
 results.
+
+## Examples
+
+``` r
+gaze_replay_spec(screen = gaze_screen(30, 20, unit = "deg"))
+#> $max_skip
+#> [1] 2
+#> 
+#> $student_df
+#> [1] 4
+#> 
+#> $scale_floor
+#> [1] 0.05
+#> 
+#> $transition_grid
+#> $transition_grid$background
+#> [1] 0.02 0.08
+#> 
+#> $transition_grid$restart
+#> [1] 0.01 0.05 0.12
+#> 
+#> $transition_grid$advance
+#> [1] 0.15 0.35
+#> 
+#> $transition_grid$background_stay
+#> [1] 0.85 0.95
+#> 
+#> 
+#> $temperature_bounds
+#> [1] 5e-02 1e+02
+#> 
+#> $reliability
+#> [1] "none"
+#> 
+#> $reliability_kappa_bounds
+#> [1]   0 100
+#> 
+#> $warp
+#> $type
+#> [1] "none"
+#> 
+#> $fit_by
+#> NULL
+#> 
+#> attr(,"class")
+#> [1] "gaze_warp_spec" "list"          
+#> 
+#> $screen
+#> $width
+#> [1] 30
+#> 
+#> $height
+#> [1] 20
+#> 
+#> $unit
+#> [1] "deg"
+#> 
+#> $center
+#> [1] 15 10
+#> 
+#> $xlim
+#> [1]  0 30
+#> 
+#> $ylim
+#> [1]  0 20
+#> 
+#> attr(,"class")
+#> [1] "gaze_screen" "list"       
+#> 
+#> $chronology
+#> $type
+#> [1] "local_order"
+#> 
+#> $horizon
+#> [1] 0.2
+#> 
+#> attr(,"class")
+#> [1] "gaze_chronology_spec" "list"                
+#> 
+#> $calibration
+#> $calibration$folds
+#> [1] 2
+#> 
+#> $calibration$seed
+#> [1] 104729
+#> 
+#> $calibration$log_temperature_prior_sd
+#> [1] 1
+#> 
+#> $calibration$log1p_kappa_prior_sd
+#> [1] 1
+#> 
+#> $calibration$control
+#> GazeWeave calibration control (revision 2026.10)
+#>   method: evidence_scaled 
+#>   gamma bounds: 0 to 1 
+#>   inverse-temperature prior sd: 3 
+#>   typicality offset: none 
+#> 
+#> 
+#> $version
+#> [1] 4
+#> 
+#> $revision
+#> [1] "2026.10"
+#> 
+#> $background_by
+#> NULL
+#> 
+#> $background_support
+#> [1] "training"
+#> 
+#> attr(,"class")
+#> [1] "gaze_replay_spec" "list"            
+```

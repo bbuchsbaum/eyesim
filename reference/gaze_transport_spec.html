@@ -261,6 +261,20 @@ defaults.</p></dd>
 change in future releases; record the package version with any results.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu">gaze_transport_spec</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  spatial <span class="op">=</span> <span class="fu"><a href="gaze_gaussian_mixture.html">gaze_gaussian_mixture</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">30</span>, <span class="fl">60</span><span class="op">)</span>, unit <span class="op">=</span> <span class="st">"px"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  screen <span class="op">=</span> <span class="fu"><a href="gaze_screen.html">gaze_screen</a></span><span class="op">(</span><span class="fl">800</span>, <span class="fl">600</span>, unit <span class="op">=</span> <span class="st">"px"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">spec</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> GazeWeave Transport specification</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   coverage: 12 Gauss-Legendre nodes; Beta(2, 2) prior</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   chronology: next 2 ordinal neighbours</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   backend: auto </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   solver revision: 2026.10 </span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

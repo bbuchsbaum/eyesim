@@ -142,6 +142,46 @@
     `gaze_screen_clamping`) when more than 5% of fixations lie off the
     declared screen.
   - Errors about missing columns name the columns.
+  - [`gaze_transport_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_cv.md),
+    [`gaze_replay_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_cv.md)
+    and
+    [`gaze_baseline_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_cv.md)
+    check every source path (and Replay and baseline reference paths)
+    before fitting. A path with missing or non-finite values, no
+    fixations, negative or zero total duration, or duplicated onsets is
+    reported by table, row number and match keys (up to five rows, then
+    a count), instead of failing mid-fit without saying which row.
+    Transport still drops and records invalid reference episodes per
+    candidate, as before.
+    [`gaze_baseline_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_cv.md)
+    now also names missing columns.
+  - [`gaze_transport_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_cv.md)
+    gains `keep_alignments = c("true", "all", "none")`. By default a fit
+    now keeps only each row’s true-candidate alignment, which is all the
+    alignment plots and diagnostics use: a 48-row, 12-candidate
+    real-data fit shrinks from 78 MB to 6.8 MB (0.3 MB with `"none"`).
+    Scores, candidate tables and the solver summary are unchanged;
+    `"all"` keeps every candidate’s alignment as before.
+  - One documented result schema: the new “Result columns” section of
+    [`?gaze_weave_cv`](https://bbuchsbaum.github.io/eyesim/reference/gaze_weave_cv.md)
+    (inherited by
+    [`?gaze_transport_cv`](https://bbuchsbaum.github.io/eyesim/reference/gaze_transport_cv.md),
+    [`?gaze_replay_cv`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_cv.md)
+    and
+    [`?gaze_baseline_cv`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_cv.md))
+    lists the columns every engine returns, and a test enforces them. To
+    get there,
+    [`gaze_replay_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_replay_cv.md)
+    and
+    [`gaze_baseline_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_baseline_cv.md)
+    results gain `prior_true` (it was Transport-only, though
+    `gaze_info_bits = log2(posterior_true / prior_true)` everywhere),
+    and Transport fits and alignments record their estimator revision as
+    `provenance$revision`, like Replay, instead of
+    `provenance$solver_revision`.
+  - Paths prepared for batch Transport scoring are now refused under a
+    spec with a different `coalesce_distance`, not only a different
+    neighbour count; such a path had merged different fixations.
   - [`gaze_weave_cv()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_weave_cv.md)
     gains `template_on`, passed to Replay.
   - [`gaze_local_order()`](https://bbuchsbaum.github.io/eyesim/reference/gaze_local_order.md),
@@ -225,6 +265,10 @@
   now run, and the datasets document every column. `wynn_study` pools
   each participant’s four study viewings of an image into one row;
   `data-raw/process_dat.R` now reproduces it.
+
+- Every exported GazeWeave function now has an example, built on a small
+  shared study/recall dataset (`inst/examples/gaze-weave-data.R`).
+  Cross-validated fits are in `\donttest{}` and take a few seconds.
 
 - `print.fixation_group()` ignores missing coordinates and handles empty
   groups.

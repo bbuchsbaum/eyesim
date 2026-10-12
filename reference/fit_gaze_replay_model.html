@@ -113,6 +113,546 @@ combined with equal prior weight; paths are never concatenated.</p></dd>
     <p>A fitted `gaze_replay_model`.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example data: two participants study and later recall six images; each</span></span></span>
+<span class="r-in"><span><span class="co"># recall roughly repeats the study path of the same image.</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">make_path</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">anchor</span>, <span class="va">jitter</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    x <span class="op">=</span> <span class="va">anchor</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">3</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span>, sd <span class="op">=</span> <span class="va">jitter</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    y <span class="op">=</span> <span class="va">anchor</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span>, sd <span class="op">=</span> <span class="va">jitter</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span>, <span class="fl">750</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">220</span>, <span class="fl">180</span>, <span class="fl">240</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>participant <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"p1"</span>, <span class="st">"p2"</span><span class="op">)</span>, image <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">6</span>,</span></span>
+<span class="r-in"><span>                     stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">anchors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">image</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span> <span class="op">*</span> <span class="va">i</span>, <span class="fl">2</span> <span class="op">*</span> <span class="op">(</span><span class="va">i</span> <span class="op"><a href="https://rdrr.io/r/base/Arithmetic.html" class="external-link">%%</a></span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">anchors</span>, <span class="va">make_path</span>, jitter <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">recall</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"image"</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">recall</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">anchors</span>, <span class="va">make_path</span>, jitter <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">fit_gaze_replay_model</span><span class="op">(</span><span class="va">study</span>, <span class="va">recall</span>,</span></span>
+<span class="r-in"><span>                               match_on <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"image"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                               contrast_on <span class="op">=</span> <span class="st">"participant"</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Replay revision 2026.10: no screen declared, so emission densities are normalised over the whole plane. Declare gaze_screen() for screen-truncated emissions. (Shown once per session.)</span>
+<span class="r-in"><span><span class="va">model</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $spec</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $max_skip</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $student_df</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $scale_floor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $transition_grid</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $transition_grid$background</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.02 0.08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $transition_grid$restart</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.01 0.05 0.12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $transition_grid$advance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.15 0.35</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $transition_grid$background_stay</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.85 0.95</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $temperature_bounds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5e-02 1e+02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $reliability</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "none"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $reliability_kappa_bounds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1]   0 100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $warp</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $type</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "none"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $fit_by</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "gaze_warp_spec" "list"          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $screen</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $chronology</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $type</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "local_order"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $horizon</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "gaze_chronology_spec" "list"                </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration$folds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration$seed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 104729</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration$log_temperature_prior_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration$log1p_kappa_prior_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration$control</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> GazeWeave calibration control (revision 2026.10)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   method: evidence_scaled </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gamma bounds: 0 to 1 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   inverse-temperature prior sd: 3 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   typicality offset: none </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $version</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $revision</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026.10"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background_by</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background_support</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "training"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "gaze_replay_spec" "list"            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $warp</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $type</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "none"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $fit_by</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models$all</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models$all$A</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1] [,2]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]    1    0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]    0    1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models$all$translation</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models$all$center</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models$all$shift</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $group_models$all$scale</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $info</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $info$type</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "none"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $info$groups</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "all"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "gaze_warp_model" "list"           </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$revision</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026.10"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$replay_scale</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5252298</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$duration</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$duration$replay_intercept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -1.631652e-08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$duration$replay_slope</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$duration$replay_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$duration$background_mean</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5.35813</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$duration$background_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05442562</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$screen</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$screen$xlim</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -Inf  Inf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$screen$ylim</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -Inf  Inf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$screen$area</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] Inf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$screen$source</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "plane"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $emission_models$all$training_fixations</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 48</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $parameters</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $parameters$background</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-06</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $parameters$restart</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 9.99999e-07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $parameters$advance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.999999</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $parameters$background_stay</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-06</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $temperature</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 7.643808</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $reliability_kappa</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $calibration</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $inverse_temperature</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1308249</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $temperature</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 7.643808</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $gamma</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $evidence_reference</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $score_scale</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 20.78655</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $standardized_inverse_temperature</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2.719397</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $log_loss</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.02698156</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $penalized_objective</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.06121822</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $global_temperature</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 7.053444</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $global_log_loss</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.01964426</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $uniform_log_loss</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1.098612</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training_n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $gamma_bounds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $temperature_bounds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5e-02 1e+02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $inverse_temperature_prior_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $at_confidence_bound</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $at_prior</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $unshrunk_standardized_inverse_temperature</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2.947007</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $likelihood_ratio</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 25.89523</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $free_parameters</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $stein_factor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9227657</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $kappa</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $scheme</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "inner_cross_fitted_evidence_scaled_temperature"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $evidence_measure</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "recall_fixations"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $score_semantics</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "total_trial_log_likelihood"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]$fold</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]$train_rows</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1]  2  6  7  9 11 12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]$eval_rows</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1]  1  3  4  5  8 10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]$train_match_keys</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2:p2|1:1" "2:p2|1:3" "2:p1|1:4" "2:p1|1:5" "2:p1|1:6" "2:p2|1:6"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]$eval_match_keys</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2:p1|1:1" "2:p1|1:2" "2:p2|1:2" "2:p1|1:3" "2:p2|1:4" "2:p2|1:5"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[1]]$overlap_match_n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]$fold</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]$train_rows</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1]  1  3  4  5  8 10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]$eval_rows</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1]  2  6  7  9 11 12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]$train_match_keys</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2:p1|1:1" "2:p1|1:2" "2:p2|1:2" "2:p1|1:3" "2:p2|1:4" "2:p2|1:5"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]$eval_match_keys</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2:p2|1:1" "2:p2|1:3" "2:p1|1:4" "2:p1|1:5" "2:p1|1:6" "2:p2|1:6"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $folds[[2]]$overlap_match_n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $seed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 104729</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "gaze_evidence_calibration" "list"                     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $template_on</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $template_prior</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "equal"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$source_n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$match_keys</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] "2:p1|1:1" "2:p2|1:1" "2:p1|1:2" "2:p2|1:2" "2:p1|1:3" "2:p2|1:3"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [7] "2:p1|1:4" "2:p2|1:4" "2:p1|1:5" "2:p2|1:5" "2:p1|1:6" "2:p2|1:6"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$template_count</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 1 1 1 1 1 1 1 1 1 1 1 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$duration</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$duration$replay_intercept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -1.631652e-08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$duration$replay_slope</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$duration$replay_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$duration$background_mean</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5.35813</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$duration$background_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05442562</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$log_likelihood_trace</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] -384.0999 -290.5843 -276.6010 -276.0123 -275.8176 -275.7500 -275.7267</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [8] -275.7187 -275.7160 -275.7151 -275.7147 -275.7146 -275.7146</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$iterations</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 13</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$converged</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$monotone</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$floor_weight</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.001000004</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$background_fraction</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1.335245e-08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$em$pair_background_coverage</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 2.708974e-09 5.269253e-08 1.294903e-08 5.908431e-09 9.316896e-09</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [6] 1.267299e-08 2.491733e-08 5.756674e-09 6.305082e-09 3.640834e-09</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [11] 1.927637e-08 4.084307e-09</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $training$background_level</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] "participant" "participant" "participant" "participant" "participant"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [6] "participant" "participant" "participant" "participant" "participant"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [11] "participant" "participant"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $revision</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026.10"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$table</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            x           y mass trial background_key exclude_key</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1   2.234045  1.62777999 0.25     1            all    2:p1|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   4.656041  3.02526952 0.25     1            all    2:p1|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   6.265232  0.45344701 0.25     1            all    2:p1|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   5.715960  4.09481726 0.25     1            all    2:p1|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5   2.607249  2.23051121 0.25     2            all    2:p2|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6   6.060372  4.00930565 0.25     2            all    2:p2|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7   7.430024  0.61855813 0.25     2            all    2:p2|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8   6.546105  3.72301316 0.25     2            all    2:p2|1:1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9   6.859369  3.80800428 0.25     3            all    2:p1|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10  7.609582  4.83253202 0.25     3            all    2:p1|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11  9.875572  3.29651300 0.25     3            all    2:p1|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12  8.764315  5.89360171 0.25     3            all    2:p1|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13  5.696426  3.93988556 0.25     4            all    2:p2|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14  8.805823  5.42759978 0.25     4            all    2:p2|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15  9.871252  2.95586136 0.25     4            all    2:p2|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 16  8.892266  5.97741950 0.25     4            all    2:p2|1:2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17  8.591004  0.31889772 0.25     5            all    2:p1|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18 10.805438  0.08896355 0.25     5            all    2:p1|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 19 13.036096 -0.81606528 0.25     5            all    2:p1|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 11.646663  1.07813011 0.25     5            all    2:p1|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 21  8.819414 -1.14861566 0.25     6            all    2:p2|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 22 10.683032  1.70594999 0.25     6            all    2:p2|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 23 12.608743 -1.99898346 0.25     6            all    2:p2|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 24 11.965862  1.72188176 0.25     6            all    2:p2|1:3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 25 11.330448  1.22821968 0.25     7            all    2:p1|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 26 13.549509  2.01563668 0.25     7            all    2:p1|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 27 17.252300  1.27011226 0.25     7            all    2:p1|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 28 15.010437  3.98886410 0.25     7            all    2:p1|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 29 11.809159  2.60001728 0.25     8            all    2:p2|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 30 13.442383  2.62723998 0.25     8            all    2:p2|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 31 15.107524  0.16934389 0.25     8            all    2:p2|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 32 14.354885  5.12157437 0.25     8            all    2:p2|1:4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 33 15.255060  3.62845417 0.25     9            all    2:p1|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 34 16.856812  6.32366148 0.25     9            all    2:p1|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 35 19.635090  2.84698378 0.25     9            all    2:p1|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 36 18.531854  5.14530321 0.25     9            all    2:p1|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 37 14.913360  4.27419928 0.25    10            all    2:p2|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 38 17.124523  4.95370824 0.25    10            all    2:p2|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 39 20.384787  2.79959949 0.25    10            all    2:p2|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 40 18.063481  5.97916438 0.25    10            all    2:p2|1:5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 41 18.472584 -0.73879405 0.25    11            all    2:p1|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 42 21.245147  1.59033734 0.25    11            all    2:p1|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 43 22.616435 -0.86804512 0.25    11            all    2:p1|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 44 21.724745  1.11964998 0.25    11            all    2:p1|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 45 18.312614 -0.25812705 0.25    12            all    2:p2|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 46 19.904747  0.44433430 0.25    12            all    2:p2|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 47 22.878752 -1.10626238 0.25    12            all    2:p2|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 48 20.540351  2.24120707 0.25    12            all    2:p2|1:6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$screen</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$screen$xlim</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -Inf  Inf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$screen$ylim</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -Inf  Inf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$screen$area</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] Inf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$screen$source</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "plane"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$max_iterations</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$tolerance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-06</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$probability_bounds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.000001 0.999999</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$background_floor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$background_floor_bounds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.001000 0.999999</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$background_min_trials</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$quadrature_nodes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 40</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$max_scale_fraction</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1666667</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$control$duration_sd_floor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$bandwidth_floor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$floor_center</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 12.79923  2.38043</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$floor_sd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 17.0373</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$background_by</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$exclude_on</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "participant" "image"      </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$support</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "training"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $background$floor_weight</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.001000004</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $match_on</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "participant" "image"      </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $version</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "gaze_replay_model" "list"             </span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

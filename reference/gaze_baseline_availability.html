@@ -69,6 +69,17 @@ dependency.</p>
     <p>A data frame with one row per requested comparator.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="gaze_baseline_spec.html">gaze_baseline_spec</a></span><span class="op">(</span>screen <span class="op">=</span> <span class="fu"><a href="gaze_screen.html">gaze_screen</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">10</span>, unit <span class="op">=</span> <span class="st">"deg"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                           density_sigmas <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">gaze_baseline_availability</span><span class="op">(</span><span class="va">spec</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       method available reason</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 multimatch      TRUE   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2    density      TRUE   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3    elastic      TRUE   &lt;NA&gt;</span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

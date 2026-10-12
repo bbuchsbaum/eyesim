@@ -93,3 +93,90 @@ comparator.
 GazeWeave is experimental. Its interface, defaults and result columns
 may change in future releases; record the package version with any
 results.
+
+## Result columns
+
+Every GazeWeave fit (\`gaze_transport_cv()\`, \`gaze_replay_cv()\`,
+\`gaze_baseline_cv()\`) has \`results\` with one row per held-out source
+row (per source row and method for the baseline court) holding the
+source identifiers and these columns:
+
+- \`.cv_fold\`:
+
+  Outer fold that held the row out.
+
+- \`gaze_info_bits\`:
+
+  \`log2(posterior_true / prior_true)\`, the primary endpoint. \`NA\`
+  for uncalibrated baseline methods.
+
+- \`posterior_true\`, \`prior_true\`:
+
+  Held-out probability of the true candidate, and its declared prior.
+
+- \`odds_bits\`, \`log_loss\`, \`brier_score\`:
+
+  Other proper scores of the same posterior.
+
+- \`template_rank\`, \`top1_credit\`:
+
+  Rank of the true candidate (1 is best) and credit for ranking it
+  first, split over ties.
+
+- \`candidate_count\`:
+
+  Number of candidates scored.
+
+- \`candidates\`:
+
+  Per-row table with at least \`candidate_key\`, \`log_score\`,
+  \`prior\`, \`posterior\` and \`is_true\`.
+
+Each engine adds its own diagnostics (for example Transport's solver
+counts or Replay's background level), documented on its own page. Every
+fit also has \`spec\`, \`keys\`, \`folds\` and \`provenance\`;
+\`provenance\$engine\` names the engine, and Transport and Replay record
+their estimator \`provenance\$revision\`.
+
+## Examples
+
+``` r
+# Example data: two participants study and later recall six images; each
+# recall roughly repeats the study path of the same image.
+set.seed(1)
+make_path <- function(anchor, jitter) {
+  fixation_group(
+    x = anchor[1] + c(0, 2, 4, 3) + rnorm(4, sd = jitter),
+    y = anchor[2] + c(0, 1, -1, 2) + rnorm(4, sd = jitter),
+    onset = c(0, 250, 500, 750), duration = c(200, 220, 180, 240)
+  )
+}
+study <- expand.grid(participant = c("p1", "p2"), image = 1:6,
+                     stringsAsFactors = FALSE)
+anchors <- lapply(study$image, function(i) c(3 * i, 2 * (i %% 3)))
+study$fixgroup <- lapply(anchors, make_path, jitter = 0.2)
+recall <- study[c("participant", "image")]
+recall$fixgroup <- lapply(anchors, make_path, jitter = 0.6)
+# \donttest{
+spec <- gaze_baseline_spec(screen = gaze_screen(20, 10, unit = "deg"),
+                           density_sigmas = 1, methods = "density")
+fit <- gaze_baseline_cv(study, recall, match_on = c("participant", "image"),
+                        contrast_on = "participant", spec = spec,
+                        n_folds = 2)
+head(broom::tidy(fit, diagnostics = TRUE))
+#> # A tibble: 6 × 21
+#>   participant image method         court gaze_info_bits status reason calibrated
+#>   <chr>       <int> <chr>          <chr>          <dbl> <chr>  <chr>  <lgl>     
+#> 1 p1              1 density_raw    froz…             NA scored NA     FALSE     
+#> 2 p1              1 density_sigma… froz…             NA scored NA     FALSE     
+#> 3 p1              1 density_regis… froz…             NA scored NA     FALSE     
+#> 4 p1              1 density_sigma… froz…             NA scored NA     FALSE     
+#> 5 p1              1 density_sigma… supe…             NA skipp… Every… FALSE     
+#> 6 p1              1 density_ridge… supe…             NA skipp… Every… FALSE     
+#> # ℹ 13 more variables: odds_bits <dbl>, compatibility_bits <dbl>,
+#> #   compatibility_odds_bits <dbl>, compatibility_probability_true <dbl>,
+#> #   compatibility_log_loss <dbl>, posterior_true <dbl>, prior_true <dbl>,
+#> #   log_loss <dbl>, brier_score <dbl>, template_rank <dbl>, top1_credit <dbl>,
+#> #   candidate_count <int>, .cv_fold <int>
+# }
+```

@@ -31,3 +31,26 @@ gaze_order_neighbours(
 ## Value
 
 A \`gaze_chronology_spec\` object.
+
+## Examples
+
+``` r
+gaze_order_neighbours(neighbours = 2)
+#> $type
+#> [1] "order_neighbours"
+#> 
+#> $clock
+#> [1] "order"
+#> 
+#> $neighbours
+#> [1] 2
+#> 
+#> $coalesce_distance
+#> [1] 0
+#> 
+#> $unit
+#> [1] "native"
+#> 
+#> attr(,"class")
+#> [1] "gaze_chronology_spec" "list"                
+```

@@ -31,3 +31,21 @@ gaze_gaussian_mixture(
 ## Value
 
 A \`gaze_spatial_spec\` object.
+
+## Examples
+
+``` r
+# Two spatial scales, in the same unit as the fixation coordinates.
+gaze_gaussian_mixture(c(30, 60), unit = "px")
+#> $sigmas
+#> [1] 30 60
+#> 
+#> $weights
+#> [1] 0.5 0.5
+#> 
+#> $unit
+#> [1] "px"
+#> 
+#> attr(,"class")
+#> [1] "gaze_spatial_spec" "list"             
+```

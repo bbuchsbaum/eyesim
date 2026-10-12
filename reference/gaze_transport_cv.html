@@ -73,7 +73,8 @@ candidate prior and one common solver, warp, and equal-episode policy.</p>
 <span>  fit_source_filter <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  eval_source_filter <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  episode_on <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  priorvar <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  priorvar <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  keep_alignments <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"true"</span>, <span class="st">"all"</span>, <span class="st">"none"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -138,6 +139,17 @@ weight and are never concatenated.</p></dd>
 <dd><p>Optional reference-table column containing one positive
 design-prior weight per candidate. `NULL` declares a uniform design.</p></dd>
 
+
+<dt id="arg-keep-alignments">keep_alignments<a class="anchor" aria-label="anchor" href="#arg-keep-alignments"></a></dt>
+<dd><p>Which candidate alignments to keep in
+`results$alignments`: `"true"` (the default) keeps only each row's true
+candidate, which is all the alignment plots and diagnostics read;
+`"all"` keeps every candidate's alignment, for auditing; `"none"` keeps
+none. A full alignment holds every coverage node's plan and iteration
+record, so `"all"` grows with rows times candidates. Scores, the
+candidate tables in `results$candidates` and the solver summary do not
+depend on this choice.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -170,7 +182,138 @@ The default sequential plan runs as before.</p>
 <p>GazeWeave is experimental. Its interface, defaults and result columns may
 change in future releases; record the package version with any results.</p>
     </div>
+    <div class="section level2">
+    <h2 id="result-columns">Result columns<a class="anchor" aria-label="anchor" href="#result-columns"></a></h2>
 
+
+<p>Every GazeWeave fit (`gaze_transport_cv()`, `gaze_replay_cv()`,
+`gaze_baseline_cv()`) has `results` with one row per held-out source row
+(per source row and method for the baseline court) holding the source
+identifiers and these columns:</p><dl><dt>`.cv_fold`</dt>
+<dd><p>Outer fold that held the row out.</p></dd>
+
+  <dt>`gaze_info_bits`</dt>
+<dd><p>`log2(posterior_true / prior_true)`, the primary
+    endpoint. `NA` for uncalibrated baseline methods.</p></dd>
+
+  <dt>`posterior_true`, `prior_true`</dt>
+<dd><p>Held-out probability of the true
+    candidate, and its declared prior.</p></dd>
+
+  <dt>`odds_bits`, `log_loss`, `brier_score`</dt>
+<dd><p>Other proper scores of
+    the same posterior.</p></dd>
+
+  <dt>`template_rank`, `top1_credit`</dt>
+<dd><p>Rank of the true candidate (1 is
+    best) and credit for ranking it first, split over ties.</p></dd>
+
+  <dt>`candidate_count`</dt>
+<dd><p>Number of candidates scored.</p></dd>
+
+  <dt>`candidates`</dt>
+<dd><p>Per-row table with at least `candidate_key`,
+    `log_score`, `prior`, `posterior` and `is_true`.</p></dd>
+
+
+</dl><p>Each engine adds its own diagnostics (for example Transport's solver
+counts or Replay's background level), documented on its own page. Every
+fit also has `spec`, `keys`, `folds` and `provenance`; `provenance$engine`
+names the engine, and Transport and Replay record their estimator
+`provenance$revision`.</p>
+    </div>
+
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example data: two participants study and later recall six images; each</span></span></span>
+<span class="r-in"><span><span class="co"># recall roughly repeats the study path of the same image.</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">make_path</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">anchor</span>, <span class="va">jitter</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="fixation_group.html">fixation_group</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    x <span class="op">=</span> <span class="va">anchor</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">3</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span>, sd <span class="op">=</span> <span class="va">jitter</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    y <span class="op">=</span> <span class="va">anchor</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span>, sd <span class="op">=</span> <span class="va">jitter</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span>, <span class="fl">750</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">220</span>, <span class="fl">180</span>, <span class="fl">240</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>participant <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"p1"</span>, <span class="st">"p2"</span><span class="op">)</span>, image <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">6</span>,</span></span>
+<span class="r-in"><span>                     stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">anchors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">image</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span> <span class="op">*</span> <span class="va">i</span>, <span class="fl">2</span> <span class="op">*</span> <span class="op">(</span><span class="va">i</span> <span class="op"><a href="https://rdrr.io/r/base/Arithmetic.html" class="external-link">%%</a></span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">anchors</span>, <span class="va">make_path</span>, jitter <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">recall</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"image"</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">recall</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">anchors</span>, <span class="va">make_path</span>, jitter <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">gaze_transport_cv</span><span class="op">(</span><span class="va">study</span>, <span class="va">recall</span>,</span></span>
+<span class="r-in"><span>                         match_on <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"participant"</span>, <span class="st">"image"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                         contrast_on <span class="op">=</span> <span class="st">"participant"</span>,</span></span>
+<span class="r-in"><span>                         <span class="co"># 2 coverage nodes keep the example fast; the</span></span></span>
+<span class="r-in"><span>                         <span class="co"># default is 12.</span></span></span>
+<span class="r-in"><span>                         spec <span class="op">=</span> <span class="fu"><a href="gaze_transport_spec.html">gaze_transport_spec</a></span><span class="op">(</span>coverage_nodes <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                         n_folds <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Cross-fitted GazeWeave Transport</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   held-out rows: 12 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   primary endpoint: gaze_info_bits</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   finite scores: 12 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   mean gaze_info_bits: 2.3153 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   episode normalization: fixed equal-prior likelihood mixture; one episode is the identity case</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">results</span><span class="op">$</span><span class="va">gaze_info_bits</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2.315255</span>
+<span class="r-in"><span><span class="co"># The alignment behind the first held-out row.</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="gaze_transport_result.html">gaze_transport_result</a></span><span class="op">(</span><span class="va">fit</span>, row <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">$</span><span class="va">diagnostics</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $matched_coverage</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.4877017</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $spatial_rmse</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.6258791</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $spatial_rmse_unit</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "native_coordinate_units"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $local_order_preservation</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.99835</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $contraction_scale</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $template_rank</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $candidate_count</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $episode_count</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $episode_normalization</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "fixed_equal_prior_likelihood_mixture"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $episodes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             episode equal_episode_weight   log_score matched_coverage</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> episode_1 episode_1                    1 -0.07275334        0.4877017</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           spatial_rmse       spatial_rmse_unit local_order_preservation</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> episode_1    0.6258791 native_coordinate_units                  0.99835</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           contraction_scale solver_converged       solver_backend stationarity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> episode_1                 1             TRUE native_rcpparmadillo   3.1132e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           relative_objective_change</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> episode_1              5.860762e-08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $solver_stability</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $solver_stability$all_converged</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $solver_stability$backends</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "native_rcpparmadillo"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $solver_stability$maximum_stationarity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3.1132e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $solver_stability$maximum_relative_objective_change</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5.860762e-08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

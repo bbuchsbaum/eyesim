@@ -206,3 +206,18 @@ A frozen \`gaze_transport_spec\`.
 GazeWeave is experimental. Its interface, defaults and result columns
 may change in future releases; record the package version with any
 results.
+
+## Examples
+
+``` r
+spec <- gaze_transport_spec(
+  spatial = gaze_gaussian_mixture(c(30, 60), unit = "px"),
+  screen = gaze_screen(800, 600, unit = "px")
+)
+spec
+#> GazeWeave Transport specification
+#>   coverage: 12 Gauss-Legendre nodes; Beta(2, 2) prior
+#>   chronology: next 2 ordinal neighbours
+#>   backend: auto 
+#>   solver revision: 2026.10 
+```

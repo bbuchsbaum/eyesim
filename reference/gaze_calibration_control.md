@@ -181,3 +181,18 @@ use the training background protocol, also under \`background_support =
 "held_out"\`. Subtracting a mean equalises the candidates' average
 scores under generic gaze but not their score variances; the fit records
 the per-candidate standard deviation over the typicality sources.
+
+## Examples
+
+``` r
+gaze_calibration_control()
+#> GazeWeave calibration control (revision 2026.10)
+#>   method: evidence_scaled 
+#>   gamma bounds: 0 to 1 
+#>   inverse-temperature prior sd: 3 
+#>   typicality offset: engine default 
+gaze_calibration_control(method = "global")
+#> GazeWeave calibration control (revision 2026.10)
+#>   method: global 
+#>   typicality offset: none 
+```
