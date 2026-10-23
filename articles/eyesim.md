@@ -16,7 +16,8 @@ the tools to measure it.
 
 This vignette walks you through the core workflow: representing
 fixations, computing density maps, and measuring similarity between
-fixation patterns across experimental conditions.
+fixation patterns across experimental conditions. It ends by scoring
+revisits, meaning returns to earlier locations within a single viewing.
 
 ## How do you represent fixations?
 
@@ -394,6 +395,153 @@ six example trials.
 This reveals when during retrieval participants fixate locations that
 mattered during encoding — a window into the time course of
 memory-guided attention.
+
+## How often does gaze return to earlier locations?
+
+Similarity compares one viewing with another. Revisitation looks inside
+a single viewing: how often does gaze return to a location it has
+already fixated? Revisits during study have been linked to the
+hippocampus and to later memory (Voss et al., 2011; Kragel et al.,
+2021).
+[`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
+scores them fixation by fixation.
+
+A fixation is a revisit when it lands within `radius` of an earlier
+fixation at least `min_lag` fixations back. The default `min_lag = 2`
+means a fixation never revisits the one just before it. By default gaze
+must also have left first: the previous fixation must be at least
+`radius` away, so a run of small refixations on one spot is not a
+return. Here gaze visits A, B and C, then returns to A:
+
+``` r
+
+fg_abca <- fixation_group(x = c(10, 40, 40, 11), y = c(10, 10, 40, 9),
+                          onset = c(0, 250, 500, 750), duration = rep(200, 4))
+rv <- fixation_revisits(fg_abca, radius = 5)
+rv
+#> Revisits: 1 of 2 opportunities (4 fixations; radius 5, lag 2-Inf, departure required)
+#> # A tibble: 4 × 8
+#>   index onset opportunity revisit   lag match_index distance expected
+#>   <int> <dbl> <lgl>       <lgl>   <int>       <int>    <dbl>    <dbl>
+#> 1     1     0 FALSE       FALSE      NA          NA    NA          NA
+#> 2     2   250 FALSE       FALSE      NA          NA    NA          NA
+#> 3     3   500 TRUE        FALSE      NA          NA    42.4        NA
+#> 4     4   750 TRUE        TRUE        3           1     1.41       NA
+```
+
+Fixations 3 and 4 are *opportunities*: each has an earlier fixation far
+enough back, and each arrives from at least `radius` away. Only fixation
+4 is a revisit. It returns to fixation 1 (`match_index`), three
+fixations back (`lag`).
+[`revisit_summary()`](https://bbuchsbaum.github.io/eyesim/reference/revisit_summary.md)
+reduces the table to one row per viewing:
+
+``` r
+
+revisit_summary(rv)
+#> # A tibble: 1 × 8
+#>   n_fix opportunities revisits revisit_rate expected_revisits expected_rate
+#>   <int>         <int>    <int>        <dbl>             <dbl>         <dbl>
+#> 1     4             2        1          0.5                NA            NA
+#> # ℹ 2 more variables: excess_revisits <dbl>, excess_rate <dbl>
+```
+
+`radius` is in the units of your coordinates. To set it in degrees of
+visual angle, convert with
+[`visual_angle_to_px()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
+for your display:
+
+``` r
+
+# 2 degrees on a 52 cm wide, 1920 px display viewed from 60 cm
+visual_angle_to_px(2, distance = 60, screen_size = 52, screen_res = 1920)
+#> [1] 77.33936
+```
+
+### Comparing revisits with a spatial null
+
+Raw revisit counts partly restate how many fixations a viewer made and
+how tightly they clustered. More fixations in a smaller area produce
+more returns by chance. A spatial null estimates how many revisits to
+expect from where people look. For each opportunity, it asks what
+fraction of a set of reference locations would also have counted as a
+revisit.
+
+The `eye_table` method scores every trial and builds the reference for
+you. There are two choices:
+
+- `null = "item"` uses fixations from other participants viewing the
+  same image (`item_var`). With `subject_var` given, all of the viewer’s
+  own trials are left out. This keeps where the image draws gaze, but
+  not the viewer’s own bias.
+- `null = "subject"` uses the same participant’s other trials. This
+  keeps the viewer’s spatial bias, but not the image content.
+
+Score the encoding trials of the simulated experiment against the item
+null:
+
+``` r
+
+enc_eyetab <- eyetab %>% filter(phase == "encoding")
+
+revisits <- fixation_revisits(enc_eyetab, radius = 15,
+                              null = "item", item_var = "image",
+                              subject_var = "participant")
+
+tibble::as_tibble(revisits) %>%
+  select(participant, image, n_fix, opportunities, revisits,
+         expected_revisits, excess_revisits) %>%
+  head()
+#> # A tibble: 6 × 7
+#>   participant image n_fix opportunities revisits expected_revisits
+#>   <chr>       <chr> <int>         <int>    <int>             <dbl>
+#> 1 s1          img1     10             7        3             0.638
+#> 2 s1          img10     4             2        0             0    
+#> 3 s1          img11     3             0        0            NA    
+#> 4 s1          img12    10             7        1             0.554
+#> 5 s1          img13    10             8        0             4.30 
+#> 6 s1          img14     4             2        0             0.160
+#> # ℹ 1 more variable: excess_revisits <dbl>
+```
+
+Filter to a single phase before you score. Otherwise, a subject null
+would include the same image from the other phase in the reference.
+
+`excess_revisits` is the observed count minus the expected count, and
+`excess_rate` is the same difference per opportunity. Trials with no
+opportunities get `NA`, as do trials whose image no other participant
+saw. The simulated fixations are uniformly random, so there should be no
+excess:
+
+``` r
+
+t.test(revisits$excess_rate)
+#> 
+#>  One Sample t-test
+#> 
+#> data:  revisits$excess_rate
+#> t = -0.33009, df = 57, p-value = 0.7425
+#> alternative hypothesis: true mean is not equal to 0
+#> 95 percent confidence interval:
+#>  -0.05511822  0.03951818
+#> sample estimates:
+#>    mean of x 
+#> -0.007800023
+```
+
+![Observed against expected revisits for each encoding trial. Points
+scatter around the identity line because the simulated fixations are
+random.](eyesim_files/figure-html/plot-revisits-1.png)
+
+Observed against expected revisits for each encoding trial. Points
+scatter around the identity line because the simulated fixations are
+random.
+
+Set `keep_fixations = TRUE` to keep each trial’s fixation-level table in
+a `revisit_fixations` column. Use `max_lag` to limit how far back a
+return can reach. See
+[`?fixation_revisits`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
+for the full definition and references.
 
 ## What’s next?
 

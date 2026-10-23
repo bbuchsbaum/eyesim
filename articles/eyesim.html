@@ -83,7 +83,9 @@ reinstatement” is a powerful marker of memory, and <code>eyesim</code>
 gives you the tools to measure it.</p>
 <p>This vignette walks you through the core workflow: representing
 fixations, computing density maps, and measuring similarity between
-fixation patterns across experimental conditions.</p>
+fixation patterns across experimental conditions. It ends by scoring
+revisits, meaning returns to earlier locations within a single
+viewing.</p>
 <div class="section level2">
 <h2 id="how-do-you-represent-fixations">How do you represent fixations?<a class="anchor" aria-label="anchor" href="#how-do-you-represent-fixations"></a>
 </h2>
@@ -412,6 +414,135 @@ six example trials.
 <p>This reveals when during retrieval participants fixate locations that
 mattered during encoding — a window into the time course of
 memory-guided attention.</p>
+</div>
+<div class="section level2">
+<h2 id="how-often-does-gaze-return-to-earlier-locations">How often does gaze return to earlier locations?<a class="anchor" aria-label="anchor" href="#how-often-does-gaze-return-to-earlier-locations"></a>
+</h2>
+<p>Similarity compares one viewing with another. Revisitation looks
+inside a single viewing: how often does gaze return to a location it has
+already fixated? Revisits during study have been linked to the
+hippocampus and to later memory (Voss et al., 2011; Kragel et al.,
+2021). <code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores them fixation by
+fixation.</p>
+<p>A fixation is a revisit when it lands within <code>radius</code> of
+an earlier fixation at least <code>min_lag</code> fixations back. The
+default <code>min_lag = 2</code> means a fixation never revisits the one
+just before it. By default gaze must also have left first: the previous
+fixation must be at least <code>radius</code> away, so a run of small
+refixations on one spot is not a return. Here gaze visits A, B and C,
+then returns to A:</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fg_abca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">40</span>, <span class="fl">40</span>, <span class="fl">11</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">10</span>, <span class="fl">40</span>, <span class="fl">9</span><span class="op">)</span>,</span>
+<span>                          onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span>, <span class="fl">750</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">rv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fixation_revisits.html">fixation_revisits</a></span><span class="op">(</span><span class="va">fg_abca</span>, radius <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="va">rv</span></span>
+<span><span class="co">#&gt; Revisits: 1 of 2 opportunities (4 fixations; radius 5, lag 2-Inf, departure required)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 4 × 8</span></span></span>
+<span><span class="co">#&gt;   index onset opportunity revisit   lag match_index distance expected</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     1     0 FALSE       FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>     2   250 FALSE       FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>     3   500 TRUE        FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    42.4        <span style="color: #BB0000;">NA</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>     4   750 TRUE        TRUE        3           1     1.41       <span style="color: #BB0000;">NA</span></span></span></code></pre></div>
+<p>Fixations 3 and 4 are <em>opportunities</em>: each has an earlier
+fixation far enough back, and each arrives from at least
+<code>radius</code> away. Only fixation 4 is a revisit. It returns to
+fixation 1 (<code>match_index</code>), three fixations back
+(<code>lag</code>). <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> reduces the table to
+one row per viewing:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/revisit_summary.html">revisit_summary</a></span><span class="op">(</span><span class="va">rv</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 8</span></span></span>
+<span><span class="co">#&gt;   n_fix opportunities revisits revisit_rate expected_revisits expected_rate</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     4             2        1          0.5                <span style="color: #BB0000;">NA</span>            <span style="color: #BB0000;">NA</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 2 more variables: excess_revisits &lt;dbl&gt;, excess_rate &lt;dbl&gt;</span></span></span></code></pre></div>
+<p><code>radius</code> is in the units of your coordinates. To set it in
+degrees of visual angle, convert with <code><a href="../reference/visual_angle_to_px.html">visual_angle_to_px()</a></code>
+for your display:</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># 2 degrees on a 52 cm wide, 1920 px display viewed from 60 cm</span></span>
+<span><span class="fu"><a href="../reference/visual_angle_to_px.html">visual_angle_to_px</a></span><span class="op">(</span><span class="fl">2</span>, distance <span class="op">=</span> <span class="fl">60</span>, screen_size <span class="op">=</span> <span class="fl">52</span>, screen_res <span class="op">=</span> <span class="fl">1920</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 77.33936</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="comparing-revisits-with-a-spatial-null">Comparing revisits with a spatial null<a class="anchor" aria-label="anchor" href="#comparing-revisits-with-a-spatial-null"></a>
+</h3>
+<p>Raw revisit counts partly restate how many fixations a viewer made
+and how tightly they clustered. More fixations in a smaller area produce
+more returns by chance. A spatial null estimates how many revisits to
+expect from where people look. For each opportunity, it asks what
+fraction of a set of reference locations would also have counted as a
+revisit.</p>
+<p>The <code>eye_table</code> method scores every trial and builds the
+reference for you. There are two choices:</p>
+<ul>
+<li>
+<code>null = "item"</code> uses fixations from other participants
+viewing the same image (<code>item_var</code>). With
+<code>subject_var</code> given, all of the viewer’s own trials are left
+out. This keeps where the image draws gaze, but not the viewer’s own
+bias.</li>
+<li>
+<code>null = "subject"</code> uses the same participant’s other
+trials. This keeps the viewer’s spatial bias, but not the image
+content.</li>
+</ul>
+<p>Score the encoding trials of the simulated experiment against the
+item null:</p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">enc_eyetab</span> <span class="op">&lt;-</span> <span class="va">eyetab</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">phase</span> <span class="op">==</span> <span class="st">"encoding"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">revisits</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fixation_revisits.html">fixation_revisits</a></span><span class="op">(</span><span class="va">enc_eyetab</span>, radius <span class="op">=</span> <span class="fl">15</span>,</span>
+<span>                              null <span class="op">=</span> <span class="st">"item"</span>, item_var <span class="op">=</span> <span class="st">"image"</span>,</span>
+<span>                              subject_var <span class="op">=</span> <span class="st">"participant"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/as_tibble.html" class="external-link">as_tibble</a></span><span class="op">(</span><span class="va">revisits</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">participant</span>, <span class="va">image</span>, <span class="va">n_fix</span>, <span class="va">opportunities</span>, <span class="va">revisits</span>,</span>
+<span>         <span class="va">expected_revisits</span>, <span class="va">excess_revisits</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 7</span></span></span>
+<span><span class="co">#&gt;   participant image n_fix opportunities revisits expected_revisits</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> s1          img1     10             7        3             0.638</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> s1          img10     4             2        0             0    </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> s1          img11     3             0        0            <span style="color: #BB0000;">NA</span>    </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> s1          img12    10             7        1             0.554</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> s1          img13    10             8        0             4.30 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> s1          img14     4             2        0             0.160</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: excess_revisits &lt;dbl&gt;</span></span></span></code></pre></div>
+<p>Filter to a single phase before you score. Otherwise, a subject null
+would include the same image from the other phase in the reference.</p>
+<p><code>excess_revisits</code> is the observed count minus the expected
+count, and <code>excess_rate</code> is the same difference per
+opportunity. Trials with no opportunities get <code>NA</code>, as do
+trials whose image no other participant saw. The simulated fixations are
+uniformly random, so there should be no excess:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/t.test.html" class="external-link">t.test</a></span><span class="op">(</span><span class="va">revisits</span><span class="op">$</span><span class="va">excess_rate</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  One Sample t-test</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; data:  revisits$excess_rate</span></span>
+<span><span class="co">#&gt; t = -0.33009, df = 57, p-value = 0.7425</span></span>
+<span><span class="co">#&gt; alternative hypothesis: true mean is not equal to 0</span></span>
+<span><span class="co">#&gt; 95 percent confidence interval:</span></span>
+<span><span class="co">#&gt;  -0.05511822  0.03951818</span></span>
+<span><span class="co">#&gt; sample estimates:</span></span>
+<span><span class="co">#&gt;    mean of x </span></span>
+<span><span class="co">#&gt; -0.007800023</span></span></code></pre></div>
+<div class="figure">
+<img src="eyesim_files/figure-html/plot-revisits-1.png" class="r-plt" alt="Observed against expected revisits for each encoding trial. Points scatter around the identity line because the simulated fixations are random." width="480"><p class="caption">
+Observed against expected revisits for each encoding trial. Points
+scatter around the identity line because the simulated fixations are
+random.
+</p>
+</div>
+<p>Set <code>keep_fixations = TRUE</code> to keep each trial’s
+fixation-level table in a <code>revisit_fixations</code> column. Use
+<code>max_lag</code> to limit how far back a return can reach. See
+<code><a href="../reference/fixation_revisits.html">?fixation_revisits</a></code> for the full definition and
+references.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>
