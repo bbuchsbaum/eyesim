@@ -151,6 +151,10 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
 #'   \code{revisit_fixations} (default \code{FALSE}).
 #' @param ... Ignored.
 #'
+#' @details Re-scoring a table that \code{fixation_revisits()} already scored (for example at another radius)
+#'   replaces the columns the earlier call wrote. A column of the same name that the caller added is never
+#'   overwritten: it is an error, so rename it first.
+#'
 #' @return \code{x} with columns from \code{\link{revisit_summary}}
 #'   (\code{n_fix}, \code{opportunities}, \code{revisits}, \code{revisit_rate},
 #'   \code{expected_revisits}, \code{expected_rate}, \code{excess_revisits},
@@ -184,6 +188,15 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
   if (null == "item" && !is.null(subject_var) && !has_col(subject_var)) {
     stop("subject_var '", subject_var, "' is not a column of the eye_table.")
   }
+  # Columns written by an earlier call are recorded in an attribute and replaced; any other column with one of
+  # these names belongs to the caller and is never overwritten.
+  ours <- c(revisit_summary_cols, "revisit_fixations")
+  prev <- attr(x, "revisit_columns") %||% character(0)
+  clash <- setdiff(intersect(names(x), ours), prev)
+  if (length(clash)) {
+    stop("The eye_table already has column(s) ", paste(clash, collapse = ", "), " that fixation_revisits() writes. ",
+         "Rename or drop them first.")
+  }
   fgs <- x[[var]]
   xy_of <- function(fg) if (is.null(fg) || !nrow(fg)) matrix(numeric(0), 0, 2) else cbind(fg$x, fg$y)
 
@@ -206,14 +219,21 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
                       dist_method = dist_method)
   })
   summ <- dplyr::bind_rows(lapply(per, revisit_summary))
-  # Re-scoring a scored table (e.g. at another radius) replaces the old columns.
-  old <- intersect(names(x), c(names(summ), "revisit_fixations"))
+  stopifnot(identical(names(summ), revisit_summary_cols))
+  # Re-scoring a scored table (e.g. at another radius) replaces the columns the earlier call wrote.
+  extra <- attributes(x)[setdiff(names(attributes(x)), c("names", "row.names", "class", "revisit_columns"))]
+  old <- intersect(names(x), prev)
   if (length(old)) x <- x[, setdiff(names(x), old), drop = FALSE]
   out <- dplyr::bind_cols(x, summ)
   if (keep_fixations) out$revisit_fixations <- per
+  for (a in names(extra)) attr(out, a) <- extra[[a]]
+  attr(out, "revisit_columns") <- c(revisit_summary_cols, if (keep_fixations) "revisit_fixations")
   class(out) <- class(x)
   out
 }
+
+revisit_summary_cols <- c("n_fix", "opportunities", "revisits", "revisit_rate", "expected_revisits",
+                          "expected_rate", "excess_revisits", "excess_rate")
 
 #' Summarise revisits for one episode
 #'

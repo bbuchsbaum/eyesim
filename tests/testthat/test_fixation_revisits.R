@@ -153,6 +153,20 @@ test_that("re-scoring a scored eye_table replaces the summary columns", {
   again <- fixation_revisits(first, radius = 300)
   expect_equal(names(again), setdiff(names(first), "revisit_fixations"))
   expect_equal(again$revisits, fixation_revisits(et, radius = 300)$revisits)
+  expect_equal(attr(again, "origin"), attr(et, "origin"))
+  expect_equal(attr(again, "revisit_columns"), attr(fixation_revisits(et, radius = 300), "revisit_columns"))
+})
+
+test_that("a caller's own column with a summary name is never overwritten", {
+  set.seed(6)
+  et <- simulate_eye_table(n_fixations = 60, n_groups = 3)
+  et$n_fix <- c(99L, 98L, 97L)
+  expect_error(fixation_revisits(et, radius = 100), "n_fix")
+  expect_equal(et$n_fix, c(99L, 98L, 97L))
+  # renamed, it is kept alongside the summary
+  names(et)[names(et) == "n_fix"] <- "tracker_n_fix"
+  res <- fixation_revisits(et, radius = 100)
+  expect_equal(res$tracker_n_fix, c(99L, 98L, 97L))
 })
 
 test_that("an empty reference gives NA expectations, not zero", {

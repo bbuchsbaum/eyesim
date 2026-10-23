@@ -60,6 +60,11 @@
 Applies \code{\link{fixation_revisits}} to each row (episode) of an
 \code{eye_table} and appends per-episode summary columns.
 }
+\details{
+Re-scoring a table that \code{fixation_revisits()} already scored (for example at another radius)
+  replaces the columns the earlier call wrote. A column of the same name that the caller added is never
+  overwritten: it is an error, so rename it first.
+}
 \examples{
 set.seed(1)
 et <- simulate_eye_table(n_fixations = 120, n_groups = 6)

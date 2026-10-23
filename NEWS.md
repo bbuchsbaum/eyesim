@@ -16,6 +16,10 @@
   With `null = "item"` it uses other viewers of the same image (`item_var`).
   When `subject_var` is also given, all of the same subject's episodes are
   excluded.
+* Re-scoring an `eye_table` that `fixation_revisits()` already scored replaces
+  only the columns the earlier call wrote. A column of the same name added by
+  the caller (for example the tracker's own `n_fix`) is an error and is never
+  silently overwritten.
 * `visual_angle_to_px()` and `px_to_visual_angle()` convert between degrees of
   visual angle and screen pixels, so a revisit `radius` can be given in degrees.
 
