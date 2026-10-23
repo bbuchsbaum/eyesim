@@ -10,8 +10,9 @@
   min_lag = 2,
   max_lag = Inf,
   require_departure = TRUE,
-  null = c("none", "subject"),
+  null = c("none", "subject", "item"),
   subject_var = NULL,
+  item_var = NULL,
   var = "fixgroup",
   keep_fixations = FALSE,
   dist_method = c("euclidean", "manhattan"),
@@ -24,12 +25,23 @@
 \item{radius, min_lag, max_lag, require_departure, dist_method}{See
 \code{\link{fixation_revisits}}.}
 
-\item{null}{\code{"none"} (default) or \code{"subject"}: the spatial null uses
-every fixation of the same subject from the \emph{other} rows of the table
-(leave-episode-out), preserving the observer's spatial bias.}
+\item{null}{The spatial null model:
+\describe{
+  \item{\code{"none"}}{(default) no null; expected columns are \code{NA}.}
+  \item{\code{"subject"}}{every fixation of the same subject from the
+    \emph{other} rows of the table (leave-episode-out). Preserves the observer's
+    spatial bias but not the content of the viewed image.}
+  \item{\code{"item"}}{every fixation from other rows showing the same item
+    (\code{item_var}). Preserves where the image draws gaze, but not the
+    observer's own bias. If \code{subject_var} is given, all of the same subject's
+    rows are excluded, which matters when an observer sees an item more than once.}
+}}
 
 \item{subject_var}{Column identifying the subject; required when
-\code{null = "subject"}.}
+\code{null = "subject"}, optional for \code{null = "item"}.}
+
+\item{item_var}{Column identifying the viewed item (image); required when
+\code{null = "item"}.}
 
 \item{var}{Name of the fixation-group column (default \code{"fixgroup"}).}
 
@@ -52,6 +64,10 @@ Applies \code{\link{fixation_revisits}} to each row (episode) of an
 set.seed(1)
 et <- simulate_eye_table(n_fixations = 120, n_groups = 6)
 et$subject <- rep(c("s1", "s2"), each = 3)
+et$image <- rep(c("a", "b", "c"), times = 2)
 res <- fixation_revisits(et, radius = 150, null = "subject", subject_var = "subject")
 tibble::as_tibble(res)[, c("subject", "n_fix", "revisits", "expected_revisits", "excess_revisits")]
+# same-image null from the other subject's viewing
+res_item <- fixation_revisits(et, radius = 150, null = "item", item_var = "image", subject_var = "subject")
+tibble::as_tibble(res_item)[, c("subject", "image", "revisits", "expected_revisits")]
 }

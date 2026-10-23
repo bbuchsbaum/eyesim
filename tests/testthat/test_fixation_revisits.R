@@ -123,3 +123,37 @@ test_that("the eye_table method summarises every episode with a leave-episode-ou
   expect_true(all(is.na(plain$expected_rate)))
   expect_error(fixation_revisits(et, radius = 200, null = "subject"), "subject_var")
 })
+
+test_that("the item null pools other subjects viewing the same item", {
+  set.seed(4)
+  et <- simulate_eye_table(n_fixations = 120, n_groups = 6)
+  et$subject <- rep(c("s1", "s2", "s3"), each = 2)
+  et$image <- rep(c("a", "b"), times = 3)
+  res <- fixation_revisits(et, radius = 200, null = "item", item_var = "image", subject_var = "subject")
+  # row 1 (s1, image a): reference = rows 3 and 5 (s2, s3 viewing a)
+  ref <- do.call(rbind, lapply(et$fixgroup[c(3, 5)], function(f) cbind(f$x, f$y)))
+  direct <- revisit_summary(fixation_revisits(et$fixgroup[[1]], radius = 200, reference = ref))
+  expect_equal(res$expected_revisits[1], direct$expected_revisits)
+  # without subject_var only the episode itself is left out (rows 3 and 5 for row 1, same here; check row 3)
+  et2 <- et; et2$subject[1] <- "s2"   # row 1 now shares subject s2 with row 3
+  with_subj <- fixation_revisits(et2, radius = 200, null = "item", item_var = "image", subject_var = "subject")
+  no_subj <- fixation_revisits(et2, radius = 200, null = "item", item_var = "image")
+  ref3_subj <- do.call(rbind, lapply(et2$fixgroup[5], function(f) cbind(f$x, f$y)))           # excludes row 1 (same subject)
+  ref3_all <- do.call(rbind, lapply(et2$fixgroup[c(1, 5)], function(f) cbind(f$x, f$y)))     # leave-episode-out only
+  expect_equal(with_subj$expected_revisits[3], revisit_summary(fixation_revisits(et2$fixgroup[[3]], radius = 200, reference = ref3_subj))$expected_revisits)
+  expect_equal(no_subj$expected_revisits[3], revisit_summary(fixation_revisits(et2$fixgroup[[3]], radius = 200, reference = ref3_all))$expected_revisits)
+  expect_error(fixation_revisits(et, radius = 200, null = "item"), "item_var")
+  expect_error(fixation_revisits(et, radius = 200, null = "item", item_var = "image", subject_var = "nope"), "subject_var")
+})
+
+test_that("an empty reference gives NA expectations, not zero", {
+  rv <- fixation_revisits(fg_abca(), radius = 50, reference = matrix(numeric(0), 0, 2))
+  s <- revisit_summary(rv)
+  expect_true(is.na(s$expected_revisits))
+  expect_true(is.na(s$excess_rate))
+  # an item seen by nobody else has no null either
+  et <- simulate_eye_table(n_fixations = 40, n_groups = 2)
+  et$subject <- c("s1", "s2"); et$image <- c("a", "b")
+  res <- fixation_revisits(et, radius = 200, null = "item", item_var = "image", subject_var = "subject")
+  expect_true(all(is.na(res$expected_revisits)))
+})

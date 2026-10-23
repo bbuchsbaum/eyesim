@@ -131,11 +131,21 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
 #' @param x An \code{eye_table}.
 #' @param radius,min_lag,max_lag,require_departure,dist_method See
 #'   \code{\link{fixation_revisits}}.
-#' @param null \code{"none"} (default) or \code{"subject"}: the spatial null uses
-#'   every fixation of the same subject from the \emph{other} rows of the table
-#'   (leave-episode-out), preserving the observer's spatial bias.
+#' @param null The spatial null model:
+#'   \describe{
+#'     \item{\code{"none"}}{(default) no null; expected columns are \code{NA}.}
+#'     \item{\code{"subject"}}{every fixation of the same subject from the
+#'       \emph{other} rows of the table (leave-episode-out). Preserves the observer's
+#'       spatial bias but not the content of the viewed image.}
+#'     \item{\code{"item"}}{every fixation from other rows showing the same item
+#'       (\code{item_var}). Preserves where the image draws gaze, but not the
+#'       observer's own bias. If \code{subject_var} is given, all of the same subject's
+#'       rows are excluded, which matters when an observer sees an item more than once.}
+#'   }
 #' @param subject_var Column identifying the subject; required when
-#'   \code{null = "subject"}.
+#'   \code{null = "subject"}, optional for \code{null = "item"}.
+#' @param item_var Column identifying the viewed item (image); required when
+#'   \code{null = "item"}.
 #' @param var Name of the fixation-group column (default \code{"fixgroup"}).
 #' @param keep_fixations Logical; keep the per-fixation tables in a list column
 #'   \code{revisit_fixations} (default \code{FALSE}).
@@ -149,19 +159,30 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
 #' set.seed(1)
 #' et <- simulate_eye_table(n_fixations = 120, n_groups = 6)
 #' et$subject <- rep(c("s1", "s2"), each = 3)
+#' et$image <- rep(c("a", "b", "c"), times = 2)
 #' res <- fixation_revisits(et, radius = 150, null = "subject", subject_var = "subject")
 #' tibble::as_tibble(res)[, c("subject", "n_fix", "revisits", "expected_revisits", "excess_revisits")]
+#' # same-image null from the other subject's viewing
+#' res_item <- fixation_revisits(et, radius = 150, null = "item", item_var = "image", subject_var = "subject")
+#' tibble::as_tibble(res_item)[, c("subject", "image", "revisits", "expected_revisits")]
 #' @export
 fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
                                         require_departure = TRUE,
-                                        null = c("none", "subject"), subject_var = NULL,
-                                        var = "fixgroup", keep_fixations = FALSE,
+                                        null = c("none", "subject", "item"), subject_var = NULL,
+                                        item_var = NULL, var = "fixgroup", keep_fixations = FALSE,
                                         dist_method = c("euclidean", "manhattan"), ...) {
   null <- match.arg(null)
   dist_method <- match.arg(dist_method)
   if (!var %in% names(x)) stop("Column '", var, "' not found in the eye_table.")
-  if (null == "subject" && (is.null(subject_var) || !subject_var %in% names(x))) {
+  has_col <- function(v) !is.null(v) && length(v) == 1L && v %in% names(x)
+  if (null == "subject" && !has_col(subject_var)) {
     stop("null = \"subject\" needs subject_var naming a column of the eye_table.")
+  }
+  if (null == "item" && !has_col(item_var)) {
+    stop("null = \"item\" needs item_var naming a column of the eye_table.")
+  }
+  if (null == "item" && !is.null(subject_var) && !has_col(subject_var)) {
+    stop("subject_var '", subject_var, "' is not a column of the eye_table.")
   }
   fgs <- x[[var]]
   xy_of <- function(fg) if (is.null(fg) || !nrow(fg)) matrix(numeric(0), 0, 2) else cbind(fg$x, fg$y)
@@ -170,9 +191,14 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
     fg <- fgs[[k]]
     if (is.null(fg)) fg <- fixation_group(numeric(0), numeric(0), numeric(0), numeric(0))
     ref <- NULL
-    if (null == "subject") {
-      same <- which(x[[subject_var]] == x[[subject_var]][k])
-      ref <- do.call(rbind, lapply(fgs[setdiff(same, k)], xy_of))
+    if (null != "none") {
+      pool <- if (null == "subject") {
+        setdiff(which(x[[subject_var]] == x[[subject_var]][k]), k)
+      } else {
+        same_item <- which(x[[item_var]] == x[[item_var]][k])
+        if (is.null(subject_var)) setdiff(same_item, k) else same_item[x[[subject_var]][same_item] != x[[subject_var]][k]]
+      }
+      ref <- do.call(rbind, lapply(fgs[pool], xy_of))
       if (is.null(ref)) ref <- matrix(numeric(0), 0, 2)
     }
     fixation_revisits(fg, radius = radius, min_lag = min_lag, max_lag = max_lag,
@@ -193,7 +219,9 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
 #'
 #' @return A one-row tibble: \code{n_fix}; \code{opportunities}; \code{revisits};
 #'   \code{revisit_rate} (revisits per opportunity); \code{expected_revisits} and
-#'   \code{expected_rate} under the null (\code{NA} without a reference);
+#'   \code{expected_rate} under the null (\code{NA} without a reference, or when
+#'   any opportunity has no expectation because no reference location satisfies
+#'   its departure condition);
 #'   \code{excess_revisits} (observed minus expected) and \code{excess_rate}.
 #' @export
 revisit_summary <- function(x) {
@@ -201,7 +229,8 @@ revisit_summary <- function(x) {
   opp <- sum(x$opportunity)
   rev <- sum(x$revisit)
   has_null <- isTRUE(attr(x, "null"))
-  exp_n <- if (has_null && opp > 0) sum(x$expected[x$opportunity], na.rm = TRUE) else NA_real_
+  e <- x$expected[x$opportunity]
+  exp_n <- if (has_null && opp > 0 && all(is.finite(e))) sum(e) else NA_real_
   rate <- if (opp > 0) rev / opp else NA_real_
   exp_rate <- if (has_null && opp > 0) exp_n / opp else NA_real_
   tibble::tibble(n_fix = nrow(x), opportunities = opp, revisits = rev, revisit_rate = rate,

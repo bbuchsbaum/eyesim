@@ -13,6 +13,11 @@
   dispersion.
 * The `eye_table` method summarises every episode. With `null = "subject"` it
   builds the null from the same subject's other episodes (leave-episode-out).
+  With `null = "item"` it uses other viewers of the same image (`item_var`).
+  When `subject_var` is also given, all of the same subject's episodes are
+  excluded.
+* `visual_angle_to_px()` and `px_to_visual_angle()` convert between degrees of
+  visual angle and screen pixels, so a revisit `radius` can be given in degrees.
 
 # eyesim 0.3.0
 

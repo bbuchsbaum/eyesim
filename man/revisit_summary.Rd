@@ -13,7 +13,9 @@ revisit_summary(x)
 \value{
 A one-row tibble: \code{n_fix}; \code{opportunities}; \code{revisits};
   \code{revisit_rate} (revisits per opportunity); \code{expected_revisits} and
-  \code{expected_rate} under the null (\code{NA} without a reference);
+  \code{expected_rate} under the null (\code{NA} without a reference, or when
+  any opportunity has no expectation because no reference location satisfies
+  its departure condition);
   \code{excess_revisits} (observed minus expected) and \code{excess_rate}.
 }
 \description{
