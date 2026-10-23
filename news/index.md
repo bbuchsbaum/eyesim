@@ -1,5 +1,32 @@
 # Changelog
 
+## eyesim (development version)
+
+### New features
+
+- [`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
+  scores revisitation, meaning returns to locations already fixated in
+  the same episode (Voss et al., 2011; Kragel et al., 2021). It returns
+  one row per fixation with the opportunity, revisit, lag and matched
+  fixation.
+  [`revisit_summary()`](https://bbuchsbaum.github.io/eyesim/reference/revisit_summary.md)
+  gives counts and rates per episode.
+- A revisit must reach at least `min_lag` fixations back (default 2)
+  and, by default, the gaze must first have left the location.
+- An optional spatial null, `reference`, gives the expected revisit rate
+  and the excess over it. Without it, revisit counts largely restate
+  fixation number and dispersion.
+- The `eye_table` method summarises every episode. With
+  `null = "subject"` it builds the null from the same subject’s other
+  episodes (leave-episode-out). With `null = "item"` it uses other
+  viewers of the same image (`item_var`). When `subject_var` is also
+  given, all of the same subject’s episodes are excluded.
+- [`visual_angle_to_px()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
+  and
+  [`px_to_visual_angle()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
+  convert between degrees of visual angle and screen pixels, so a
+  revisit `radius` can be given in degrees.
+
 ## eyesim 0.3.0
 
 ### Bug fixes (pre-CRAN review)

@@ -48,6 +48,15 @@ Functions for working with fixation sequences.
   [`fixation_entropy(`*`<eye_density_multiscale>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
   [`fixation_entropy(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_entropy.default.md)
   : Entropy of fixation patterns
+- [`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
+  : Revisitation of previously fixated locations
+- [`fixation_revisits(`*`<eye_table>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.eye_table.md)
+  : Revisits for every episode of an eye_table
+- [`revisit_summary()`](https://bbuchsbaum.github.io/eyesim/reference/revisit_summary.md)
+  : Summarise revisits for one episode
+- [`visual_angle_to_px()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
+  [`px_to_visual_angle()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
+  : Convert between visual angle and screen pixels
 - [`c(`*`<fixation_group>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/c.fixation_group.md)
   : Concatenate Fixation Groups
 - [`rep_fixations()`](https://bbuchsbaum.github.io/eyesim/reference/rep_fixations.md)

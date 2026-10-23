@@ -41,6 +41,19 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="eyesim-development-version">eyesim (development version)<a class="anchor" aria-label="anchor" href="#eyesim-development-version"></a></h2>
+<div class="section level3">
+<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores revisitation, meaning returns to locations already fixated in the same episode (Voss et al., 2011; Kragel et al., 2021). It returns one row per fixation with the opportunity, revisit, lag and matched fixation. <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> gives counts and rates per episode.</li>
+<li>A revisit must reach at least <code>min_lag</code> fixations back (default 2) and, by default, the gaze must first have left the location.</li>
+<li>An optional spatial null, <code>reference</code>, gives the expected revisit rate and the excess over it. Without it, revisit counts largely restate fixation number and dispersion.</li>
+<li>The <code>eye_table</code> method summarises every episode. With <code>null = "subject"</code> it builds the null from the same subject’s other episodes (leave-episode-out). With <code>null = "item"</code> it uses other viewers of the same image (<code>item_var</code>). When <code>subject_var</code> is also given, all of the same subject’s episodes are excluded.</li>
+<li>
+<code><a href="../reference/visual_angle_to_px.html">visual_angle_to_px()</a></code> and <code><a href="../reference/visual_angle_to_px.html">px_to_visual_angle()</a></code> convert between degrees of visual angle and screen pixels, so a revisit <code>radius</code> can be given in degrees.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0" id="eyesim-030">eyesim 0.3.0<a class="anchor" aria-label="anchor" href="#eyesim-030"></a></h2>
 <div class="section level3">
 <h3 id="bug-fixes-pre-cran-review-0-3-0">Bug fixes (pre-CRAN review)<a class="anchor" aria-label="anchor" href="#bug-fixes-pre-cran-review-0-3-0"></a></h3>
