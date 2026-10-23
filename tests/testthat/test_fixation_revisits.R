@@ -146,6 +146,15 @@ test_that("the item null pools other subjects viewing the same item", {
   expect_error(fixation_revisits(et, radius = 200, null = "item", item_var = "image", subject_var = "nope"), "subject_var")
 })
 
+test_that("re-scoring a scored eye_table replaces the summary columns", {
+  set.seed(5)
+  et <- simulate_eye_table(n_fixations = 60, n_groups = 3)
+  first <- fixation_revisits(et, radius = 100, keep_fixations = TRUE)
+  again <- fixation_revisits(first, radius = 300)
+  expect_equal(names(again), setdiff(names(first), "revisit_fixations"))
+  expect_equal(again$revisits, fixation_revisits(et, radius = 300)$revisits)
+})
+
 test_that("an empty reference gives NA expectations, not zero", {
   rv <- fixation_revisits(fg_abca(), radius = 50, reference = matrix(numeric(0), 0, 2))
   s <- revisit_summary(rv)

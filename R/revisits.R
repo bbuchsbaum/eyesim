@@ -114,7 +114,7 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
     if (!is.null(dref)) {
       ok <- if (require_departure && i > 1L) dref[, i - 1L] >= radius else rep(TRUE, nrow(dref))
       if (any(ok)) {
-        hit <- apply(dref[ok, elig, drop = FALSE] < radius, 1, any)
+        hit <- rowSums(dref[ok, elig, drop = FALSE] < radius) > 0
         out$expected[i] <- mean(hit)
       }
     }
@@ -206,6 +206,9 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
                       dist_method = dist_method)
   })
   summ <- dplyr::bind_rows(lapply(per, revisit_summary))
+  # Re-scoring a scored table (e.g. at another radius) replaces the old columns.
+  old <- intersect(names(x), c(names(summ), "revisit_fixations"))
+  if (length(old)) x <- x[, setdiff(names(x), old), drop = FALSE]
   out <- dplyr::bind_cols(x, summ)
   if (keep_fixations) out$revisit_fixations <- per
   class(out) <- class(x)

@@ -52,7 +52,8 @@ powerful marker of memory, and `eyesim` gives you the tools to measure it.
 
 This vignette walks you through the core workflow: representing fixations,
 computing density maps, and measuring similarity between fixation patterns
-across experimental conditions.
+across experimental conditions. It ends by scoring revisits, meaning returns
+to earlier locations within a single viewing.
 
 ## How do you represent fixations?
 
@@ -368,6 +369,103 @@ ggplot(time_series, aes(x = time, y = z, color = trial_id)) +
 
 This reveals when during retrieval participants fixate locations that mattered
 during encoding — a window into the time course of memory-guided attention.
+
+## How often does gaze return to earlier locations?
+
+Similarity compares one viewing with another. Revisitation looks inside a
+single viewing: how often does gaze return to a location it has already
+fixated? Revisits during study have been linked to the hippocampus and to later
+memory (Voss et al., 2011; Kragel et al., 2021). `fixation_revisits()` scores
+them fixation by fixation.
+
+A fixation is a revisit when it lands within `radius` of an earlier fixation
+at least `min_lag` fixations back. The default `min_lag = 2` means a fixation
+never revisits the one just before it. By default gaze must also have left
+first: the previous fixation must be at least `radius` away, so a run of small
+refixations on one spot is not a return. Here gaze visits A, B and C, then
+returns to A:
+
+```{r revisit-abca}
+fg_abca <- fixation_group(x = c(10, 40, 40, 11), y = c(10, 10, 40, 9),
+                          onset = c(0, 250, 500, 750), duration = rep(200, 4))
+rv <- fixation_revisits(fg_abca, radius = 5)
+rv
+```
+
+Fixations 3 and 4 are *opportunities*: each has an earlier fixation far enough
+back, and each arrives from at least `radius` away. Only fixation 4 is a
+revisit. It returns to fixation 1 (`match_index`), three fixations back
+(`lag`). `revisit_summary()` reduces the table to one row per viewing:
+
+```{r revisit-summary}
+revisit_summary(rv)
+```
+
+`radius` is in the units of your coordinates. To set it in degrees of visual
+angle, convert with `visual_angle_to_px()` for your display:
+
+```{r revisit-radius}
+# 2 degrees on a 52 cm wide, 1920 px display viewed from 60 cm
+visual_angle_to_px(2, distance = 60, screen_size = 52, screen_res = 1920)
+```
+
+### Comparing revisits with a spatial null
+
+Raw revisit counts partly restate how many fixations a viewer made and how
+tightly they clustered. More fixations in a smaller area produce more returns
+by chance. A spatial null estimates how many revisits to expect from where
+people look. For each opportunity, it asks what fraction of a set of reference
+locations would also have counted as a revisit.
+
+The `eye_table` method scores every trial and builds the reference for you.
+There are two choices:
+
+- `null = "item"` uses fixations from other participants viewing the same
+  image (`item_var`). With `subject_var` given, all of the viewer's own trials
+  are left out. This keeps where the image draws gaze, but not the viewer's
+  own bias.
+- `null = "subject"` uses the same participant's other trials. This keeps the
+  viewer's spatial bias, but not the image content.
+
+Score the encoding trials of the simulated experiment against the item null:
+
+```{r revisit-eye-table}
+enc_eyetab <- eyetab %>% filter(phase == "encoding")
+
+revisits <- fixation_revisits(enc_eyetab, radius = 15,
+                              null = "item", item_var = "image",
+                              subject_var = "participant")
+
+tibble::as_tibble(revisits) %>%
+  select(participant, image, n_fix, opportunities, revisits,
+         expected_revisits, excess_revisits) %>%
+  head()
+```
+
+Filter to a single phase before you score. Otherwise, a subject null would
+include the same image from the other phase in the reference.
+
+`excess_revisits` is the observed count minus the expected count, and
+`excess_rate` is the same difference per opportunity. Trials with no
+opportunities get `NA`, as do trials whose image no other participant saw.
+The simulated fixations are uniformly random, so there should be no excess:
+
+```{r revisit-test}
+t.test(revisits$excess_rate)
+```
+
+```{r plot-revisits, fig.width = 5, fig.height = 4.6, echo = FALSE, fig.cap = "Observed against expected revisits for each encoding trial. Points scatter around the identity line because the simulated fixations are random."}
+ggplot(revisits, aes(x = expected_revisits, y = revisits)) +
+  geom_abline(linetype = "dashed", colour = "grey50") +
+  geom_jitter(width = 0, height = 0.08, alpha = 0.6, colour = "steelblue") +
+  coord_equal() +
+  labs(x = "Expected revisits (item null)", y = "Observed revisits") +
+  theme_minimal()
+```
+
+Set `keep_fixations = TRUE` to keep each trial's fixation-level table in a
+`revisit_fixations` column. Use `max_lag` to limit how far back a return can
+reach. See `?fixation_revisits` for the full definition and references.
 
 ## What's next?
 
