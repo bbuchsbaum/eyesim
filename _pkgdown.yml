@@ -26,6 +26,10 @@ reference:
   - fixation_group
   - fixation_entropy
   - fixation_entropy.default
+  - fixation_revisits
+  - fixation_revisits.eye_table
+  - revisit_summary
+  - visual_angle_to_px
   - c.fixation_group
   - rep_fixations
   - sample_fixations
