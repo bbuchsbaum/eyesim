@@ -129,6 +129,12 @@ eye_table and appends per-episode summary columns."><link href="../albers.css" r
   <code>expected_revisits</code>, <code>expected_rate</code>, <code>excess_revisits</code>,
   <code>excess_rate</code>).</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Re-scoring a table that <code><a href="fixation_revisits.html">fixation_revisits()</a></code> already scored (for example at another radius)
+  replaces the columns the earlier call wrote. A column of the same name that the caller added is never
+  overwritten: it is an error, so rename it first.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

@@ -88,6 +88,14 @@ fixation_revisits(
 (`n_fix`, `opportunities`, `revisits`, `revisit_rate`,
 `expected_revisits`, `expected_rate`, `excess_revisits`, `excess_rate`).
 
+## Details
+
+Re-scoring a table that
+[`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
+already scored (for example at another radius) replaces the columns the
+earlier call wrote. A column of the same name that the caller added is
+never overwritten: it is an error, so rename it first.
+
 ## Examples
 
 ``` r

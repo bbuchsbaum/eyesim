@@ -21,6 +21,11 @@
   episodes (leave-episode-out). With `null = "item"` it uses other
   viewers of the same image (`item_var`). When `subject_var` is also
   given, all of the same subject’s episodes are excluded.
+- Re-scoring an `eye_table` that
+  [`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
+  already scored replaces only the columns the earlier call wrote. A
+  column of the same name added by the caller (for example the tracker’s
+  own `n_fix`) is an error and is never silently overwritten.
 - [`visual_angle_to_px()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
   and
   [`px_to_visual_angle()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
