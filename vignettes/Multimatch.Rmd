@@ -105,18 +105,24 @@ Let's compare a linear scanpath against a zigzag pattern:
 ```{r compare-zigzag}
 fg_zigzag <- fixation_group(
   x = cumsum(rep(50, 10)),
-  y = cumsum(c(50, -50, 50, -50, 50, -50, 50, -50, 50, -50)),
+  # alternate shallow and steep downward saccades: neither leg points the
+  # way the linear path goes (up and to the right)
+  y = 400 + cumsum(rep(c(-10, -50), 5)),
   duration = rpois(10, lambda = 200),
   onset = 1:10
 )
 
 sp_linear <- scanpath(simulate_linear(10))
 sp_zigzag <- scanpath(fg_zigzag)
-multi_match(sp_linear, sp_zigzag, screensize = c(500, 500))
+zigzag_mm <- multi_match(sp_linear, sp_zigzag, screensize = c(500, 500))
+zigzag_mm
 ```
 
-Notice how the **direction** metric drops substantially — the zigzag and
-linear paths follow very different angular trajectories.
+**Direction** (`r sprintf("%.2f", zigzag_mm[["mm_direction"]])`) falls well
+below its value for random pairs (next section): neither zigzag leg points the
+way the linear path goes, so no alignment can pair them up. A zigzag that
+alternates between up-right and down-right legs would not show this reliably,
+because the alignment can pair the up-right legs with the linear path.
 
 ## What do the metrics look like for random scanpaths?
 
@@ -221,7 +227,7 @@ ggplot(extreme_fixations, aes(x, y)) +
 The highest-scoring pairs are not visibly similar scanpaths: with ten random
 fixations each, a pair can score highly on one dimension (for example,
 similar saccade lengths) while differing everywhere else. This is why the
-five dimensions are reported separately rather than averaged.
+six measures are reported separately rather than averaged.
 
 ## How do transformations affect the metrics?
 
@@ -292,7 +298,7 @@ fixations regardless of order, and the set is the same. **Position**
 (`r sprintf("%.2f", shuffled_mm[["mm_position"]])`) drops as well as **direction**
 (`r sprintf("%.2f", shuffled_mm[["mm_direction"]])`), because MultiMatch's position
 compares the start points of aligned saccades in sequence, and reordering moves
-them; both land near their random-pair medians
+them; both end up close to or above their random-pair medians
 (`r sprintf("%.2f", medians[["Position"]])` and `r sprintf("%.2f", medians[["Direction"]])`).
 **Duration** drops because the durations were shuffled with the locations.
 
