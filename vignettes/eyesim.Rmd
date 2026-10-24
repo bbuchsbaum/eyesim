@@ -148,10 +148,16 @@ plot(fg1) + plot(fg2)
 Now convert to density maps and compute their similarity:
 
 ```{r compute-similarity}
-ed1 <- eye_density(fg1, sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
-ed2 <- eye_density(fg2, sigma = 50, xbounds = c(0, 100), ybounds = c(0, 100))
+ed1 <- eye_density(fg1, sigma = 10, xbounds = c(0, 100), ybounds = c(0, 100))
+ed2 <- eye_density(fg2, sigma = 10, xbounds = c(0, 100), ybounds = c(0, 100))
 similarity(ed1, ed2)
 ```
+
+`sigma` is the standard deviation of the Gaussian kernel, in the units of the
+coordinates. Large bandwidths make any two maps look alike, so choose it with
+care; `suggest_sigma()` gives a data-driven starting value. `similarity()`
+compares maps cell by cell and refuses maps on different grids, so pass the
+same `xbounds`, `ybounds` and `outdim` to every map you compare.
 
 The default metric is the Pearson correlation. Several alternatives are
 available:
@@ -221,8 +227,11 @@ variables:
 ```{r compute-densities}
 eyedens <- density_by(eyetab,
                       groups = c("phase", "image", "participant"),
-                      sigma = 100,
+                      sigma = 15,
                       xbounds = c(0, 100), ybounds = c(0, 100))
+# One key per participant and image, so each retrieval map is matched with
+# the same participant's encoding map of that image.
+eyedens <- eyedens %>% mutate(match_key = paste(participant, image, sep = "_"))
 ```
 
 ```{r plot-densities, fig.width = 8, echo = FALSE, fig.cap = "Four density maps from the simulated experiment."}
@@ -239,9 +248,10 @@ eyedens
 
 ### Template similarity analysis
 
-`template_similarity()` compares each retrieval density map to its matched
-encoding density map. It estimates a baseline by permuting image labels and
-reports the corrected difference:
+`template_similarity()` compares each retrieval density map with the same
+participant's encoding map of that image. With `permute_on = "participant"`,
+the baseline averages that participant's encoding maps of the other images,
+and the result reports the corrected difference:
 
 ```{r template-similarity}
 set.seed(1234)
@@ -249,16 +259,19 @@ enc_dens <- eyedens %>% filter(phase == "encoding")
 ret_dens <- eyedens %>% filter(phase == "retrieval")
 
 simres <- template_similarity(enc_dens, ret_dens,
-                              match_on = "image",
+                              match_on = "match_key",
+                              permute_on = "participant",
                               method = "fisherz",
                               permutations = 50)
 ```
 
-The result includes three key columns:
+The result includes four key columns:
 
 - `eye_sim` — raw similarity between matched pairs
 - `perm_sim` — average similarity across non-matching pairs (baseline)
 - `eye_sim_diff` — the corrected score (raw minus baseline)
+- `n_perm` — how many distinct non-matching templates entered the baseline
+  (0 when none could be computed)
 
 Since our data is random, there should be no true reinstatement:
 
@@ -290,6 +303,10 @@ Fisher z scores (atanh of Pearson r). Convert back to correlations with
 `tanh()` if desired. With `method = "pearson"` or `"spearman"`, values are
 correlations directly.
 
+**A note on matching.** `match_on` must identify one reference map per source
+row. Matching on `image` alone would pair every participant's retrieval map
+with the *first* encoding map of that image.
+
 **A note on permutations.** The `permutations` argument is an upper bound. If
 fewer non-matching candidates are available, `eyesim` uses all of them
 exhaustively.
@@ -302,14 +319,16 @@ multiple scales by passing a vector of sigma values:
 ```{r multiscale}
 eyedens_multi <- density_by(eyetab,
                             groups = c("phase", "image", "participant"),
-                            sigma = c(25, 50, 100),
-                            xbounds = c(0, 100), ybounds = c(0, 100))
+                            sigma = c(10, 15, 25),
+                            xbounds = c(0, 100), ybounds = c(0, 100)) %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
 
 enc_multi <- eyedens_multi %>% filter(phase == "encoding")
 ret_multi <- eyedens_multi %>% filter(phase == "retrieval")
 
 simres_multi <- template_similarity(enc_multi, ret_multi,
-                                    match_on = "image",
+                                    match_on = "match_key",
+                                    permute_on = "participant",
                                     method = "fisherz",
                                     permutations = 50)
 
@@ -317,8 +336,9 @@ cat("Single-scale mean:", round(mean(simres$eye_sim_diff), 4), "\n")
 cat("Multiscale mean:  ", round(mean(simres_multi$eye_sim_diff), 4), "\n")
 ```
 
-Multiscale analysis provides a more robust similarity estimate by averaging
-across spatial resolutions.
+With the default `multiscale_aggregation = "mean"`, each comparison is the
+average over the scales, which makes the result depend less on any single
+bandwidth. Use `multiscale_aggregation = "none"` to keep one value per scale.
 
 ## How does similarity evolve over time?
 
@@ -329,8 +349,6 @@ density at retrieval fixation locations at each time point:
 ```{r temporal-similarity}
 ret_eyetab <- eyetab %>% filter(phase == "retrieval")
 
-enc_dens <- enc_dens %>%
-  mutate(match_key = paste(participant, image, sep = "_"))
 ret_matched <- ret_eyetab %>%
   mutate(match_key = paste(participant, image, sep = "_"))
 
@@ -338,7 +356,7 @@ temporal <- sample_density_time(
   template_tab = enc_dens,
   source_tab = ret_matched,
   match_on = "match_key",
-  times = seq(0, 500, by = 50),
+  times = seq(0, 450, by = 50),
   time_bins = c(0, 250, 500),
   permutations = 10,
   permute_on = "participant"
@@ -367,8 +385,11 @@ ggplot(time_series, aes(x = time, y = z, color = trial_id)) +
   theme(legend.position = "bottom")
 ```
 
-This reveals when during retrieval participants fixate locations that mattered
-during encoding — a window into the time course of memory-guided attention.
+Bins are half-open, [lower, upper), so a time equal to the last break (500)
+would fall in no bin, and times before a trial's first fixation give `NA`. With
+real data, a positive `diff_bin_*` shows when retrieval gaze returns to regions
+fixated during encoding; these data are random, so the differences are near
+zero.
 
 ## How often does gaze return to earlier locations?
 
