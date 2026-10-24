@@ -263,8 +263,9 @@ As expected, **direction** stays at 1.0, but **position** drops.
 
 ### Shuffling fixation order
 
-Keeping the same fixation locations but scrambling their order preserves
-**position** (and the EMD) while disrupting **direction**:
+Keeping the same fixation locations but scrambling their order (and their
+durations) separates the order-insensitive EMD from the sequence-based
+metrics:
 
 ```{r transform-shuffle}
 set.seed(3)
@@ -281,11 +282,19 @@ plot(fg, xlim = c(0, 500), ylim = c(0, 500), legend = FALSE) +
 ```
 
 ```{r compare-shuffle}
-multi_match(scanpath(fg), scanpath(fg_shuffled), c(500, 500))
+shuffled_mm <- multi_match(scanpath(fg), scanpath(fg_shuffled), c(500, 500))
+shuffled_mm
 ```
 
-The **position_emd** remains high (same spatial distribution), while
-**direction** drops (the trajectory has changed).
+Only **position_emd** is unchanged
+(`r sprintf("%.2f", shuffled_mm[["mm_position_emd"]])`): it compares the two sets of
+fixations regardless of order, and the set is the same. **Position**
+(`r sprintf("%.2f", shuffled_mm[["mm_position"]])`) drops as well as **direction**
+(`r sprintf("%.2f", shuffled_mm[["mm_direction"]])`), because MultiMatch's position
+compares the start points of aligned saccades in sequence, and reordering moves
+them; both land near their random-pair medians
+(`r sprintf("%.2f", medians[["Position"]])` and `r sprintf("%.2f", medians[["Direction"]])`).
+**Duration** drops because the durations were shuffled with the locations.
 
 ## References
 
