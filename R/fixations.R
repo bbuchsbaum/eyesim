@@ -167,6 +167,11 @@ c.fixation_group <- function(..., recursive = FALSE) {
   result <- args[[1]]
   for (i in 2:length(args)) {
     fg <- args[[i]]
+    # An empty group contributes nothing, so it cannot anchor an offset.
+    if (nrow(result) == 0L) {
+      result <- fg
+      next
+    }
     offset <- max(result$onset) + max(result$duration[nrow(result)])
     fg$onset <- fg$onset + offset
     result <- rbind(result, fg)

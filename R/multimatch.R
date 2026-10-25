@@ -6,8 +6,13 @@ emd_position_similarity <- function(fg1, fg2, screensize) {
   points1 <- as.matrix(fg1[, c("x", "y")])
   points2 <- as.matrix(fg2[, c("x", "y")])
 
+  # Weight by duration; a scanpath with no total duration (e.g. all zero)
+  # carries no mass, so weight its fixations equally instead of letting the
+  # EMD collapse to 0 (identical) or NA.
+  dur_weights <- function(d) if (isTRUE(sum(d) > 0)) d else rep(1, length(d))
+
   # Calculate the Earth Mover's Distance
-  emd_value <- emdw(points1, fg1$duration, points2, fg2$duration)
+  emd_value <- emdw(points1, dur_weights(fg1$duration), points2, dur_weights(fg2$duration))
 
   # Normalize EMD to convert it into a similarity metric
   max_dist <- sqrt(screensize[1]^2 + screensize[2]^2)
@@ -26,7 +31,8 @@ duration_diff_1d <- function(dur1, dur2, cds) {
 
   adiff <- abs(dur1-dur2)
   denom <- pmax(dur1, dur2)
-  adiff/denom
+  # Two zero durations are identical, not 0/0.
+  ifelse(denom > 0, adiff/denom, 0)
 }
 
 

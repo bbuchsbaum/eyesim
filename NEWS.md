@@ -25,6 +25,31 @@
 
 # eyesim 0.3.0
 
+## Bug fixes (peyesim parity testing, #42-#50)
+
+* `match_scale()` no longer always errors. The row columns from `pmap()` were
+  passed to `estimate_scale()` as extra arguments (#42).
+* The internal `crqa()` wrapper returns a 1x1 recurrence plot when embedding
+  leaves a single point, instead of the 2x2 plot that crqa's embedding produced
+  by dropping a dimension. It errors when no embedded point is left (#43).
+* `c()` on fixation groups skips an empty leading group instead of turning
+  every later onset into `-Inf` (#44).
+* The fast cosine path in `template_similarity()` scores every pair of all-zero
+  maps as 1, matching `similarity()`. Before, only the first pair was 1 (#45).
+* `template_similarity(multiscale_aggregation = "none")` returns NA for a row
+  with a NULL map instead of failing in `bind_rows()` (#46).
+* NULL or invalid templates are no longer drawn as permutation controls. With
+  `method = "emd"` they aborted the call, and other methods counted them in
+  `n_perm` (#47).
+* Multiscale permutation baselines are averaged per sigma. They were averaged
+  by position, so controls listing their sigmas in a different order were
+  mixed across scales (#48).
+* `cca_transform()` with an NA `fit_by` value leaves those rows unfitted with a
+  warning, instead of erroring (#49).
+* MultiMatch `mm_duration` is 1, not NA, when aligned durations are all zero.
+  `mm_position_emd` weights fixations equally when a scanpath has no total
+  duration, instead of reporting a perfect match (#50).
+
 ## Bug fixes (pre-CRAN review)
 
 * `coral_transform()` applied the CORAL map in the wrong order

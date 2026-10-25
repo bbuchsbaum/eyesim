@@ -203,6 +203,8 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       # share a key), keep each other template once, then sample from the
       # distinct non-matching candidates only.
       mind <- unique(mind[mind != .$matchind])
+      # A NULL or otherwise invalid template can never serve as a control.
+      mind <- mind[vapply(ref_tab[[refvar]][mind], is_valid_similarity_obj, logical(1))]
       if (permutations < length(mind)) {
         mind <- sample(mind, permutations)
       }
@@ -215,7 +217,13 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       # Calculate permuted similarities for each remaining index in mind
       psim <- do.call(rbind, lapply(mind, function(i) {
         d1p <- ref_tab[[refvar]][[i]]
-        calculate_sim(d1p, d2, method, window, extra_args = args)
+        r <- calculate_sim(d1p, d2, method, window, extra_args = args)
+        # rbind() stacks by position, so align vector-valued results (e.g.
+        # per-sigma multiscale similarities) to the observed names first.
+        if (length(r) > 1L && is.numeric(r) && !is.null(names(r)) && !is.null(names(sim))) {
+          r <- stats::setNames(r[names(sim)], names(sim))
+        }
+        r
       }))
 
       # Calculate the mean permuted similarity and the difference between the observed and permuted similarities
@@ -231,10 +239,25 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       # If no permutation tests, return the observed similarity in scalar or expanded-vector form.
       format_similarity_result(sim, expand_vector = expand_vector_output)
     }
-  }, .options=furrr::furrr_options(seed = TRUE, globals = FALSE)) %>% dplyr::bind_rows() # Combine the results of each row in the source table into a single tibble
+  }, .options=furrr::furrr_options(seed = TRUE, globals = FALSE)) %>% bind_similarity_rows() # Combine the results of each row in the source table into a single tibble
 
   # Bind the calculated similarity values to the source table and return the result
   source_tab %>% bind_cols(ret)
+}
+
+# Row-bind per-comparison results. Vector-valued similarities come back as
+# list columns while invalid rows return scalar NA, so wrap scalars as lists
+# whenever any row holds a list in that column.
+bind_similarity_rows <- function(rows) {
+  for (cn in c("eye_sim", "perm_sim", "eye_sim_diff")) {
+    if (any(vapply(rows, function(r) is.list(r[[cn]]), logical(1)))) {
+      rows <- lapply(rows, function(r) {
+        if (cn %in% names(r) && !is.list(r[[cn]])) r[[cn]] <- as.list(r[[cn]])
+        r
+      })
+    }
+  }
+  dplyr::bind_rows(rows)
 }
 
 maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, permutations, permute_on = NULL,
@@ -360,7 +383,7 @@ cosine_similarity_matrix <- function(x, y) {
   zero_y <- y_norm <= .Machine$double.eps
   out[denom <= .Machine$double.eps] <- 0
   if (any(zero_x) && any(zero_y)) {
-    out[outer(zero_x, zero_y)] <- 1
+    out[outer(zero_x, zero_y, "&")] <- 1
   }
   out
 }
