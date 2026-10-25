@@ -63,6 +63,9 @@ match_scale <- function(ref_tab, source_tab, match_on,
     assertthat::assert_that(window[2] > window[1])
   }
 
+  # Capture extra arguments now: inside pmap() `...` holds the row's columns.
+  scale_args <- list(...)
+
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
 
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
@@ -76,7 +79,7 @@ match_scale <- function(ref_tab, source_tab, match_on,
     . <- list(...)
     d1 <- ref_tab[[refvar]][[.$matchind]]
     d2 <- .[[sourcevar]]
-    res <- estimate_scale(d1, d2, window=window, ...)
+    res <- do.call(estimate_scale, c(list(d1, d2, window=window), scale_args))
     tibble(scale_x=res$par[1], scale_y=res$par[2])
   }) %>% bind_rows()
 

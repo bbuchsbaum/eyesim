@@ -602,7 +602,7 @@ apply_cca_model <- function(model, ref_tab, source_tab) {
     group_label <- if (identical(group_key, "__all__")) "all" else group_key
     group_model <- model$group_models[[group_label]]
     if (is.null(group_model)) {
-      if (any(group_keys$source == group_key)) {
+      if (is.na(group_key) || any(group_keys$source == group_key, na.rm = TRUE)) {
         unfitted <- c(unfitted, group_label)
       }
       next
