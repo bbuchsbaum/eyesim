@@ -1697,6 +1697,7 @@ sigmoid <- function (x, a = 1, b = 0)  {
 similarity.scanpath <- function(x, y, method=c("multimatch"),
                                       window=NULL,
                                       screensize=NULL,...) {
+  method <- match.arg(method)
 
   if (!inherits(x, "scanpath")) {
     stop("`x` must be of type `scanpath`")
