@@ -34,6 +34,48 @@
 
 ## eyesim 0.3.0
 
+### Bug fixes (peyesim parity testing, [\#42](https://github.com/bbuchsbaum/eyesim/issues/42)-#50)
+
+- [`match_scale()`](https://bbuchsbaum.github.io/eyesim/reference/match_scale.md)
+  no longer always errors. The row columns from `pmap()` were passed to
+  [`estimate_scale()`](https://bbuchsbaum.github.io/eyesim/reference/estimate_scale.md)
+  as extra arguments
+  ([\#42](https://github.com/bbuchsbaum/eyesim/issues/42)).
+- The internal `crqa()` wrapper returns a 1x1 recurrence plot when
+  embedding leaves a single point, instead of the 2x2 plot that crqa’s
+  embedding produced by dropping a dimension. It errors when no embedded
+  point is left
+  ([\#43](https://github.com/bbuchsbaum/eyesim/issues/43)).
+- [`c()`](https://rdrr.io/r/base/c.html) on fixation groups skips an
+  empty leading group instead of turning every later onset into `-Inf`
+  ([\#44](https://github.com/bbuchsbaum/eyesim/issues/44)).
+- The fast cosine path in
+  [`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
+  scores every pair of all-zero maps as 1, matching
+  [`similarity()`](https://bbuchsbaum.github.io/eyesim/reference/similarity.md).
+  Before, only the first pair was 1
+  ([\#45](https://github.com/bbuchsbaum/eyesim/issues/45)).
+- `template_similarity(multiscale_aggregation = "none")` returns NA for
+  a row with a NULL map instead of failing in
+  [`bind_rows()`](https://dplyr.tidyverse.org/reference/bind_rows.html)
+  ([\#46](https://github.com/bbuchsbaum/eyesim/issues/46)).
+- NULL or invalid templates are no longer drawn as permutation controls.
+  With `method = "emd"` they aborted the call, and other methods counted
+  them in `n_perm`
+  ([\#47](https://github.com/bbuchsbaum/eyesim/issues/47)).
+- Multiscale permutation baselines are averaged per sigma. They were
+  averaged by position, so controls listing their sigmas in a different
+  order were mixed across scales
+  ([\#48](https://github.com/bbuchsbaum/eyesim/issues/48)).
+- [`cca_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
+  with an NA `fit_by` value leaves those rows unfitted with a warning,
+  instead of erroring
+  ([\#49](https://github.com/bbuchsbaum/eyesim/issues/49)).
+- MultiMatch `mm_duration` is 1, not NA, when aligned durations are all
+  zero. `mm_position_emd` weights fixations equally when a scanpath has
+  no total duration, instead of reporting a perfect match
+  ([\#50](https://github.com/bbuchsbaum/eyesim/issues/50)).
+
 ### Bug fixes (pre-CRAN review)
 
 - [`coral_transform()`](https://bbuchsbaum.github.io/eyesim/reference/latent_pca_transform.md)
