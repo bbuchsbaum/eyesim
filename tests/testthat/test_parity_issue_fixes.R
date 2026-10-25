@@ -1,5 +1,5 @@
 # Regression tests for bugs found by differential testing against peyesim
-# (GitHub issues #42-#50).
+# (GitHub issues #42-#51).
 
 has_emd_backend <- function() {
   any(vapply(c("emdist", "transport", "T4transport"), requireNamespace,
@@ -140,4 +140,14 @@ test_that("MultiMatch handles all-zero durations (#50)", {
   expect_equal(res[["mm_duration"]], 1)
   # Positions differ, so equal-weight EMD must not report a perfect match.
   expect_lt(res[["mm_position_emd"]], 1)
+})
+
+test_that("similarity() for scanpaths rejects an unknown method (#51)", {
+  fg1 <- fixation_group(x = c(100, 200, 300), y = c(100, 150, 200),
+                        onset = c(0, 200, 400), duration = c(200, 200, 200))
+  fg2 <- fixation_group(x = c(110, 210, 290), y = c(110, 140, 210),
+                        onset = c(0, 200, 400), duration = c(200, 200, 200))
+  expect_error(similarity(scanpath(fg1), scanpath(fg2), method = "not_a_method",
+                          screensize = c(1000, 1000)),
+               "should be")
 })
