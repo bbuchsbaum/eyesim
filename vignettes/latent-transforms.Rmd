@@ -345,8 +345,8 @@ trying to rescue.
 | Transform | Supervised? | Best for |
 |:----------|:------------|:---------|
 | `latent_pca_transform()` | No | Dimensionality reduction, mild noise smoothing |
-| `contract_transform()` | Yes (matched pairs) | Global contraction/expansion with translation |
-| `affine_transform()` | Yes (matched pairs) | Linear geometric distortion, shear, anisotropic scaling |
+| `contract_transform()` | Yes (moments of matched rows) | Global contraction/expansion with translation |
+| `affine_transform()` | Yes (moments of matched rows) | Linear geometric distortion, shear, anisotropic scaling |
 | `coral_transform()` | No | Device/participant shifts (covariance-level differences) |
 | `cca_transform()` | Yes (needs matched pairs) | Item-level alignment when pairings are reliable |
 
@@ -358,15 +358,15 @@ template_similarity(
   ref_tab, source_tab,
   match_on = "id",
   similarity_transform = cca_transform,
-  similarity_transform_args = list(comps = 10, shrink = 0.01)
+  similarity_transform_args = list(comps = 5, shrink = 0.01)
 )
 ```
 
 ## Choosing a transform
 
-- **PCA** is the safest default — dimensionality reduction with no assumptions
-  about domain differences. Use when you want noise smoothing without domain
-  adaptation.
+- **PCA** makes no assumptions about how the domains differ: it reduces
+  dimensionality and smooths noise, but does no domain adaptation, and it can
+  lower similarity.
 - **Contract** is a good first geometric model when retrieval looks like a
   globally contracted or expanded version of encoding.
 - **Affine** is the next step when distortion appears anisotropic or sheared
@@ -376,7 +376,10 @@ template_similarity(
   because it aligns distributions rather than matched pairs it is not
   guaranteed to increase per-item similarity on its own.
 - **CCA** is supervised and leverages matched pairs to find shared latent axes.
-  Set `comps` modestly (5–15) and add `shrink` to stabilize small-N fits.
+  Keep `comps` well below the number of matched pairs (for example 5–15 with
+  large N) and add `shrink` to stabilize small-N fits: with few pairs, many
+  components fit the training rows almost perfectly and generalize poorly, so
+  check them with `template_similarity_cv()`.
 
 After the transform, `template_similarity()` still uses your chosen `method`
 (cosine, pearson, fisherz, etc.) on the transformed vectors.
@@ -386,13 +389,14 @@ After the transform, `template_similarity()` still uses your chosen `method`
 - If a transform is fit and evaluated on the same rows via
   `template_similarity()`, the result is exploratory. For leakage-free results,
   use `template_similarity_cv()`.
-- Multiscale densities are supported only when all scales share the same grid
-  size; otherwise latent transforms will error.
+- Multiscale densities are accepted only when all scales share the same grid
+  size (otherwise latent transforms raise an error), and only the first scale
+  is used.
 - Regularization (`shrink`) and component count (`comps`) affect stability on
   small-N data — tune as needed.
 - CORAL and CCA are linear; they will not correct nonlinear spatial warps.
   `contract_transform()` and `affine_transform()` help with simple geometric
   distortion, but not highly nonlinear warps.
-  Keep `comps` low to reduce overfitting, especially with few pairs.
+- Keep `comps` low to reduce overfitting, especially with few pairs.
 - See `vignette("eyesim")` for the core `template_similarity()` workflow
   without transforms.
