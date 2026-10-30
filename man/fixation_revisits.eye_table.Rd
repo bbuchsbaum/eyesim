@@ -54,7 +54,11 @@
 \code{x} with columns from \code{\link{revisit_summary}}
   (\code{n_fix}, \code{opportunities}, \code{revisits}, \code{revisit_rate},
   \code{expected_revisits}, \code{expected_rate}, \code{excess_revisits},
-  \code{excess_rate}).
+  \code{excess_rate}). The \code{revisit_spec} attribute retains
+  \code{radius}, \code{min_lag}, \code{max_lag}, \code{require_departure},
+  \code{dist_method}, \code{null}, \code{subject_var}, \code{item_var} and
+  \code{var}, including when \code{keep_fixations = FALSE} or the table has
+  zero rows. Re-scoring replaces this specification with the new arguments.
 }
 \description{
 Applies \code{\link{fixation_revisits}} to each row (episode) of an

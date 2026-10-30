@@ -180,3 +180,234 @@ test_that("an empty reference gives NA expectations, not zero", {
   res <- fixation_revisits(et, radius = 200, null = "item", item_var = "image", subject_var = "subject")
   expect_true(all(is.na(res$expected_revisits)))
 })
+
+test_that("invalid fixation values are rejected without closing gaps", {
+  fg <- fixation_group(c(0, 100, 200, 0), rep(0, 4), rep(1, 4), 1:4)
+  for (column in c("x", "y", "onset")) {
+    for (value in c(NA_real_, NaN, Inf, -Inf)) {
+      bad <- fg
+      bad[[column]][3] <- value
+      expect_error(fixation_revisits(bad, radius = 10), paste0("column '", column, "'.*finite"))
+    }
+    bad <- fg
+    bad[[column]] <- as.character(bad[[column]])
+    expect_error(fixation_revisits(bad, radius = 10), "finite numeric")
+  }
+  bad <- fg
+  bad$x[3] <- NA_real_
+  et <- as_eye_table(tibble::tibble(fixgroup = list(fg, bad)))
+  expect_error(fixation_revisits(et, radius = 10), "column 'x'.*finite")
+})
+
+test_that("lag and logical validation is consistent for empty and nonempty inputs", {
+  empty <- fixation_group(numeric(), numeric(), numeric(), numeric())
+  et <- as_eye_table(tibble::tibble(fixgroup = list()))
+  for (input in list(fg_abca(), empty, et)) {
+    for (value in list(2.9, 0, -Inf, NA_real_, NaN, "3", TRUE, 2 + 1i, numeric(), c(2, 3))) {
+      expect_error(fixation_revisits(input, radius = 50, max_lag = value), "max_lag")
+    }
+    for (value in list(1.5, Inf, NA_real_, "2", TRUE, numeric())) {
+      expect_error(fixation_revisits(input, radius = 50, min_lag = value), "min_lag")
+    }
+    for (value in list(Inf, NA_real_, "50", TRUE, 1 + 1i, numeric())) {
+      expect_error(fixation_revisits(input, radius = value), "radius")
+    }
+    for (value in list(NA, 1, "TRUE", logical(), c(TRUE, FALSE))) {
+      expect_error(fixation_revisits(input, radius = 50, require_departure = value), "require_departure")
+    }
+  }
+  expect_error(fixation_revisits(et, radius = 50, keep_fixations = NA), "keep_fixations")
+  unlimited <- fixation_revisits(fg_abca(), radius = 50)
+  large <- fixation_revisits(fg_abca(), radius = 50, max_lag = 3e9)
+  expect_equal(large$revisit, unlimited$revisit)
+  expect_equal(large$lag, unlimited$lag)
+  expect_false(any(fixation_revisits(fg_abca(), radius = 50, min_lag = 3e9)$opportunity))
+})
+
+test_that("invalid references are rejected even for an empty episode", {
+  empty <- fixation_group(numeric(), numeric(), numeric(), numeric())
+  for (fg in list(fg_abca(), empty)) {
+    for (value in c(NA_real_, NaN, Inf, -Inf)) {
+      expect_error(fixation_revisits(fg, radius = 50, reference = rbind(c(0, 0), c(value, 0))),
+                   "reference.*finite")
+    }
+    expect_error(fixation_revisits(fg, radius = 50, reference = matrix("x", 1, 2)), "finite numeric")
+    expect_error(fixation_revisits(fg, radius = 50, reference = matrix(1:3, 1)), "two columns")
+  }
+})
+
+test_that("empty eye tables retain a typed summary and scoring specification", {
+  empty <- as_eye_table(tibble::tibble(subject = character(), image = character(), fixgroup = list()))
+  attr(empty, "origin") <- c(12, 34)
+  for (null in c("none", "subject", "item")) {
+    res <- fixation_revisits(empty, radius = 50, null = null, subject_var = "subject",
+                             item_var = "image", keep_fixations = TRUE, dist_method = "manhattan")
+    expect_s3_class(res, "eye_table")
+    expect_equal(nrow(res), 0L)
+    expect_identical(res$n_fix, integer())
+    expect_identical(res$opportunities, integer())
+    expect_identical(res$expected_rate, double())
+    expect_identical(res$revisit_fixations, list())
+    expect_equal(attr(res, "origin"), c(12, 34))
+    expect_equal(attr(res, "revisit_spec")$null, null)
+    again <- fixation_revisits(res, radius = 20)
+    expect_false("revisit_fixations" %in% names(again))
+    expect_equal(attr(again, "revisit_spec")$radius, 20)
+  }
+  singleton <- as_eye_table(tibble::tibble(fixgroup = list(fg_abca())))
+  prototype <- fixation_revisits(singleton, radius = 50)[0, ]
+  result <- fixation_revisits(singleton[0, ], radius = 50)
+  expect_equal(result, prototype)
+})
+
+test_that("scoring provenance is retained and updated on summary-only tables", {
+  rv <- fixation_revisits(fg_abca(), radius = 50, dist_method = "manhattan")
+  expect_equal(attr(rv, "dist_method"), "manhattan")
+  empty <- fixation_group(numeric(), numeric(), numeric(), numeric())
+  expect_equal(attr(fixation_revisits(empty, radius = 50), "dist_method"), "euclidean")
+  et <- as_eye_table(tibble::tibble(subject = c("s1", "s2"), image = c("a", "a"),
+                                   scans = list(fg_abca(), fg_abca())))
+  res <- fixation_revisits(et, radius = 40, min_lag = 1, max_lag = 3,
+                           require_departure = FALSE, dist_method = "manhattan",
+                           null = "item", subject_var = "subject", item_var = "image", var = "scans")
+  expect_false("revisit_fixations" %in% names(res))
+  expect_equal(attr(res, "revisit_spec"),
+               list(radius = 40, min_lag = 1, max_lag = 3, require_departure = FALSE,
+                    dist_method = "manhattan", null = "item", subject_var = "subject",
+                    item_var = "image", var = "scans"))
+  again <- fixation_revisits(res, radius = 50, var = "scans")
+  expect_equal(attr(again, "revisit_spec"), attr(fixation_revisits(et, radius = 50, var = "scans"), "revisit_spec"))
+})
+
+test_that("nearest distance and most recent match distance are distinct", {
+  fg <- fixation_group(c(0, 100, 8, 100, 1), rep(0, 5), rep(1, 5), 1:5)
+  rv <- fixation_revisits(fg, radius = 10)
+  expect_equal(rv$match_index[5], 3L)
+  expect_equal(rv$nearest_distance[5], 1)
+  expect_equal(rv$match_distance[5], 7)
+  expect_identical(rv$distance, rv$nearest_distance)
+  expect_true(all(is.na(rv$match_distance[!rv$revisit])))
+})
+
+test_that("incoming steps and strict radius boundaries define returns", {
+  fg <- fixation_group(c(0, -9, 9), rep(0, 3), rep(1, 3), 1:3)
+  expect_true(fixation_revisits(fg, radius = 10)$revisit[3])
+  # The incoming step equals radius: eligible. A target exactly radius away is not a match.
+  edge <- fixation_group(c(0, 20, 10), rep(0, 3), rep(1, 3), 1:3)
+  rv <- fixation_revisits(edge, radius = 10, reference = rbind(c(10, 0), c(0, 0)))
+  expect_true(rv$opportunity[3])
+  expect_false(rv$revisit[3])
+  expect_equal(rv$expected[3], 0.5)
+})
+
+test_that("window expiry preserves overlap counts and updates during non-opportunities", {
+  # At i=5, fixation 1 expires but fixation 2 still covers the reference. At i=6,
+  # fixation 2 also expires and no eligible fixation covers it.
+  fg <- fixation_group(c(0, 0, 100, 100, 100, 0), rep(0, 6), rep(1, 6), 1:6)
+  rv <- fixation_revisits(fg, radius = 10, min_lag = 2, max_lag = 3,
+                          require_departure = FALSE, reference = matrix(c(0, 0), 1))
+  expect_equal(rv$expected[3:6], c(1, 1, 1, 0))
+  strict <- fixation_revisits(fg, radius = 10, min_lag = 2, max_lag = 3,
+                              reference = matrix(c(0, 0), 1))
+  expect_false(any(strict$opportunity[4:5]))
+  expect_true(strict$opportunity[6])
+  expect_equal(strict$expected[6], 0)
+})
+
+test_that("one unsupported opportunity keeps all aggregate expectations unavailable", {
+  fg <- fixation_group(c(0, 100, 200, 0), rep(0, 4), rep(1, 4), 1:4)
+  rv <- fixation_revisits(fg, radius = 10, reference = matrix(c(200, 0), 1))
+  expect_equal(rv$expected[3:4], c(0, NA_real_))
+  s <- revisit_summary(rv)
+  expect_true(all(is.na(unlist(s[c("expected_revisits", "expected_rate", "excess_revisits", "excess_rate")]))))
+})
+
+test_that("Euclidean distances avoid avoidable overflow and underflow", {
+  for (scale in c(1e200, 1e-200)) {
+    fg <- fixation_group(c(0, 20, 3) * scale, c(0, 0, 4) * scale, rep(1, 3), 1:3)
+    rv <- fixation_revisits(fg, radius = 6 * scale, reference = matrix(c(3, 4) * scale, 1))
+    expect_true(rv$revisit[3])
+    expect_equal(rv$nearest_distance[3] / scale, 5, tolerance = 1e-14)
+    expect_equal(rv$expected[3], 1)
+    outside <- fixation_revisits(fg, radius = 4 * scale)
+    expect_false(outside$revisit[3])
+  }
+  # A true distance beyond double range is Inf, not NaN; coincident points stay zero.
+  huge <- fixation_group(c(-1e308, 1e308, -1e308), c(0, 0, 0), rep(1, 3), 1:3)
+  expect_equal(fixation_revisits(huge, radius = 1e307)$match_distance[3], 0)
+  integer_coords <- fixation_group(c(-2000000000L, 2000000000L, -2000000000L),
+                                   c(0L, 0L, 0L), rep(1, 3), 1:3)
+  expect_true(fixation_revisits(integer_coords, radius = 10)$revisit[3])
+})
+
+# Deliberately scalar: reconstruct history and test every candidate/reference
+# location independently, without production distance or window helpers.
+scalar_revisits <- function(fg, radius, min_lag, max_lag, require_departure, reference, method) {
+  fg <- fg[order(fg$onset), ]
+  n <- nrow(fg)
+  dist <- function(a, b) {
+    delta <- abs(a - b)
+    if (method == "euclidean") sqrt(sum(delta^2)) else sum(delta)
+  }
+  xy <- cbind(fg$x, fg$y)
+  result <- data.frame(index = fg$index, onset = fg$onset,
+                       opportunity = rep(FALSE, n), revisit = rep(FALSE, n),
+                       lag = rep(NA_integer_, n), match_index = rep(NA_integer_, n),
+                       distance = rep(NA_real_, n), nearest_distance = rep(NA_real_, n),
+                       match_distance = rep(NA_real_, n), expected = rep(NA_real_, n))
+  for (i in seq_len(n)) {
+    history <- Filter(function(j) i - j >= min_lag && i - j <= max_lag, seq_len(i - 1L))
+    if (!length(history)) next
+    if (require_departure && dist(xy[i, ], xy[i - 1L, ]) < radius) next
+    result$opportunity[i] <- TRUE
+    distances <- vapply(history, function(j) dist(xy[i, ], xy[j, ]), numeric(1))
+    result$distance[i] <- result$nearest_distance[i] <- min(distances)
+    for (j in history) {
+      if (dist(xy[i, ], xy[j, ]) < radius) {
+        result$revisit[i] <- TRUE
+        result$match_index[i] <- fg$index[j]
+        result$lag[i] <- i - j
+        result$match_distance[i] <- dist(xy[i, ], xy[j, ])
+      }
+    }
+    if (is.null(reference)) next
+    numerator <- denominator <- 0L
+    for (r in seq_len(nrow(reference))) {
+      if (require_departure && dist(reference[r, ], xy[i - 1L, ]) < radius) next
+      denominator <- denominator + 1L
+      hit <- FALSE
+      for (j in history) {
+        if (dist(reference[r, ], xy[j, ]) < radius) hit <- TRUE
+      }
+      numerator <- numerator + hit
+    }
+    if (denominator > 0L) result$expected[i] <- numerator / denominator
+  }
+  result
+}
+
+test_that("incremental scoring agrees with a scalar oracle across 500 seeded cases", {
+  set.seed(20261029)
+  for (case in seq_len(500)) {
+    n <- sample(0:20, 1)
+    fg <- fixation_group(sample(-8:8, n, replace = TRUE), sample(-8:8, n, replace = TRUE),
+                          rep(1, n), sample(0:20, n, replace = TRUE))
+    m <- sample(0:20, 1)
+    ref <- if (case %% 7L == 0L) NULL else matrix(sample(-8:8, 2 * m, replace = TRUE), ncol = 2)
+    min_lag <- sample(1:6, 1)
+    max_lag <- sample(c(min_lag:(min_lag + 8), Inf, 3e9), 1)
+    departure <- sample(c(TRUE, FALSE), 1)
+    method <- sample(c("euclidean", "manhattan"), 1)
+    radius <- sample(c(0.5, 1, 3, 6.25, 12, 50), 1)
+    rv <- fixation_revisits(fg, radius = radius, min_lag = min_lag, max_lag = max_lag,
+                            require_departure = departure, reference = ref, dist_method = method)
+    expected <- scalar_revisits(fg, radius, min_lag, max_lag, departure, ref, method)
+    # Relative 1e-14 tolerance covers rounding differences in scaled hypot;
+    # logical decisions, indices and NA support must agree exactly.
+    discrete <- c("index", "onset", "opportunity", "revisit", "lag", "match_index")
+    expect_identical(lapply(rv[discrete], identity), lapply(expected[discrete], identity),
+                      info = paste("case", case))
+    expect_equal(lapply(rv, identity), lapply(expected, identity), tolerance = 1e-14,
+                  info = paste("case", case))
+  }
+})

@@ -1,18 +1,23 @@
 #' Revisitation of previously fixated locations
 #'
 #' Scores, fixation by fixation, whether gaze returns to a location already
-#' fixated earlier in the same viewing episode ("revisitation"; Voss et al.,
-#' 2011; Kragel et al., 2021), and summarises each episode as counts, rates and,
-#' optionally, rates expected under a spatial null model.
+#' fixated earlier in the same viewing episode, and summarises each episode as
+#' counts, rates and, optionally, rates expected under a spatial reference
+#' distribution. This is a spatial-return measure related to Kragel et al.
+#' (2021), not the backtracking-sequence classification of Voss et al. (2011),
+#' which classified A-B-C-A as "other" rather than revisitation.
 #'
 #' Fixation \eqn{i} is a \emph{revisit} when it lies within \code{radius} of at
 #' least one earlier fixation \eqn{j} that is at least \code{min_lag} fixations
 #' back (and at most \code{max_lag}). The default \code{min_lag = 2} means a
 #' fixation never revisits the fixation immediately before it. With
-#' \code{require_departure = TRUE} (default) gaze must also have left: the
-#' preceding fixation must lie at least \code{radius} away from fixation
-#' \eqn{i}, so a run of small refixations on one spot is not counted as a
-#' return. A fixation is an \emph{opportunity} when it could have been a revisit:
+#' \code{require_departure = TRUE} (default), the incoming step must be at least
+#' \code{radius}: the preceding fixation must lie at least \code{radius} away
+#' from fixation \eqn{i}. This does not require leaving and re-entering a region
+#' centred on the earlier fixation. For example, with radius 10, positions
+#' 0, -9, 9 on one axis count as a return, although both later positions are
+#' within radius of the original position.
+#' A fixation is an \emph{opportunity} when it could have been a revisit:
 #' it has an eligible earlier fixation and, under \code{require_departure},
 #' arrives from at least \code{radius} away.
 #'
@@ -25,6 +30,19 @@
 #' condition. A natural reference is the observer's fixations from other trials,
 #' which preserves the observer's spatial bias but not the order within the
 #' episode (see the \code{eye_table} method, \code{null = "subject"}).
+#' Observed minus expected is a descriptive correction under this reference
+#' distribution, not an inferential test or a generative model of scanpaths.
+#'
+#' Coordinates and onsets must be finite numeric values. Invalid values cause
+#' an error; dropping fixations would change adjacency, lags and denominators.
+#' Fixations are scored in onset order, preserving input order for tied onsets.
+#' Lag bounds are whole numbers; large finite bounds are supported without
+#' conversion to 32-bit integers.
+#'
+#' Reference coverage is updated as fixations enter and leave the eligible lag
+#' window. For \eqn{n} fixations, \eqn{m} reference points and maximum eligible
+#' history size \eqn{L}, scoring uses \eqn{O(n + nL + nm)} time and \eqn{O(n + m)}
+#' storage, including result rows. No pairwise distance matrix is allocated.
 #'
 #' \code{radius} is in the units of the fixation coordinates. Kragel et al.
 #' (2021) used about 2 degrees of visual angle; convert degrees to pixels for
@@ -34,21 +52,29 @@
 #' @param radius Distance within which two fixations count as the same location.
 #' @param min_lag Minimum number of fixations back for an eligible earlier
 #'   fixation (default 2).
-#' @param max_lag Maximum number of fixations back (default \code{Inf}).
+#' @param max_lag Maximum number of fixations back, a whole number at least
+#'   \code{min_lag}, or \code{Inf} (default) for no limit.
 #' @param require_departure Logical; require the preceding fixation to lie at
-#'   least \code{radius} away (default \code{TRUE}).
+#'   least \code{radius} from the current fixation (default \code{TRUE}).
 #' @param reference Optional two-column matrix or data frame of \code{x}, \code{y}
-#'   locations used for the spatial null model.
+#'   finite numeric locations used for the spatial reference distribution.
 #' @param dist_method \code{"euclidean"} (default) or \code{"manhattan"}.
 #' @param ... Further arguments passed to methods.
 #'
 #' @return For a \code{fixation_group}, a tibble with one row per fixation in
 #'   onset order: \code{index}, \code{onset}, \code{opportunity},
 #'   \code{revisit}, \code{lag} (fixations back to the most recent matched
-#'   fixation), \code{match_index}, \code{distance} (to the nearest eligible
-#'   earlier fixation) and \code{expected} (null probability of a revisit, or
-#'   \code{NA} without \code{reference}). Use \code{revisit_summary()} for one row
-#'   per episode. For an \code{eye_table}, see \code{fixation_revisits.eye_table}.
+#'   fixation), \code{match_index} (that fixation's original index),
+#'   \code{nearest_distance} (to the nearest eligible earlier fixation),
+#'   \code{match_distance} (to \code{match_index}, which need not be nearest),
+#'   \code{distance} (a compatibility alias for \code{nearest_distance}) and
+#'   \code{expected} (null probability of a revisit, or \code{NA} without
+#'   reference support). Distances are \code{NA} outside opportunities;
+#'   \code{match_distance} is also \code{NA} without a match. Attributes retain
+#'   \code{radius}, \code{min_lag}, \code{max_lag}, \code{require_departure},
+#'   \code{dist_method} and \code{null} (whether a reference was supplied).
+#'   Use \code{revisit_summary()} for one row per episode. For an
+#'   \code{eye_table}, see \code{fixation_revisits.eye_table}.
 #'
 #' @references
 #' Voss, J. L., Warren, D. E., Gonsalves, B. D., Federmeier, K. D., Tranel, D.,
@@ -78,49 +104,76 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
                                              require_departure = TRUE, reference = NULL,
                                              dist_method = c("euclidean", "manhattan"), ...) {
   dist_method <- match.arg(dist_method)
-  check_revisit_args(radius, min_lag, max_lag)
+  check_revisit_args(radius, min_lag, max_lag, require_departure)
 
-  keep <- is.finite(x$x) & is.finite(x$y) & !is.na(x$onset)
-  x <- x[keep, , drop = FALSE]
-  x <- x[order(x$onset), , drop = FALSE]
-  n <- nrow(x)
-  out <- tibble::tibble(index = x$index, onset = x$onset,
-                        opportunity = rep(FALSE, n), revisit = rep(FALSE, n),
-                        lag = rep(NA_integer_, n), match_index = rep(NA_integer_, n),
-                        distance = rep(NA_real_, n), expected = rep(NA_real_, n))
-  if (n == 0L) {
-    return(new_revisit_table(out, radius, min_lag, max_lag, require_departure, !is.null(reference)))
+  for (col in c("x", "y", "onset")) {
+    if (!is.numeric(x[[col]]) || is.complex(x[[col]]) || any(!is.finite(x[[col]]))) {
+      stop("Fixation column '", col, "' must contain only finite numeric values; ",
+           "invalid fixations cannot be dropped without changing adjacency and lags.")
+    }
   }
+  ref <- if (is.null(reference)) NULL else as_reference_matrix(reference)
+  x <- x[order(x$onset, method = "radix"), , drop = FALSE]
+  n <- nrow(x)
+  opportunity <- rep(FALSE, n)
+  revisit <- rep(FALSE, n)
+  lag <- rep(NA_integer_, n)
+  match_index <- rep(NA_integer_, n)
+  nearest_distance <- rep(NA_real_, n)
+  match_distance <- rep(NA_real_, n)
+  expected <- rep(NA_real_, n)
 
   xy <- cbind(x$x, x$y)
-  d <- revisit_dist(xy, xy, dist_method)
-  ref <- if (is.null(reference)) NULL else as_reference_matrix(reference)
-  dref <- if (is.null(ref) || nrow(ref) == 0L) NULL else revisit_dist(ref, xy, dist_method)
+  storage.mode(xy) <- "double"
+  # Each count records how many currently eligible fixations cover a reference
+  # point. Update even when the current fixation is not an opportunity.
+  covered <- integer(if (is.null(ref)) 0L else nrow(ref))
 
   for (i in seq_len(n)) {
+    if (length(covered)) {
+      entering <- i - min_lag
+      leaving <- i - max_lag - 1
+      if (entering >= 1) {
+        covered <- covered + (revisit_dist_to(ref, xy[entering, ], dist_method) < radius)
+      }
+      if (leaving >= 1) {
+        covered <- covered - (revisit_dist_to(ref, xy[leaving, ], dist_method) < radius)
+      }
+    }
     elig <- revisit_eligible(i, min_lag, max_lag)
     if (!length(elig)) next
-    departed <- i == 1L || d[i, i - 1L] >= radius
-    if (require_departure && !departed) next
-    out$opportunity[i] <- TRUE
-    out$distance[i] <- min(d[i, elig])
-    near <- elig[d[i, elig] < radius]
+    if (require_departure &&
+        revisit_dist_to(xy[i - 1L, , drop = FALSE], xy[i, ], dist_method) < radius) next
+    opportunity[i] <- TRUE
+    distances <- revisit_dist_to(xy[elig, , drop = FALSE], xy[i, ], dist_method)
+    nearest_distance[i] <- min(distances)
+    near <- which(distances < radius)
     if (length(near)) {
-      j <- max(near)
-      out$revisit[i] <- TRUE
-      out$match_index[i] <- out$index[j]
-      out$lag[i] <- as.integer(i - j)
+      recent <- near[length(near)]
+      j <- elig[recent]
+      revisit[i] <- TRUE
+      match_index[i] <- x$index[j]
+      lag[i] <- as.integer(i - j)
+      match_distance[i] <- distances[recent]
     }
-    if (!is.null(dref)) {
-      ok <- if (require_departure && i > 1L) dref[, i - 1L] >= radius else rep(TRUE, nrow(dref))
+    if (length(covered)) {
+      ok <- if (require_departure) {
+        revisit_dist_to(ref, xy[i - 1L, ], dist_method) >= radius
+      } else {
+        rep(TRUE, length(covered))
+      }
       if (any(ok)) {
-        hit <- rowSums(dref[ok, elig, drop = FALSE] < radius) > 0
-        out$expected[i] <- mean(hit)
+        expected[i] <- mean(covered[ok] > 0L)
       }
     }
   }
 
-  new_revisit_table(out, radius, min_lag, max_lag, require_departure, !is.null(reference))
+  out <- tibble::tibble(index = x$index, onset = x$onset, opportunity = opportunity,
+                        revisit = revisit, lag = lag, match_index = match_index,
+                        distance = nearest_distance, nearest_distance = nearest_distance,
+                        match_distance = match_distance, expected = expected)
+  new_revisit_table(out, radius, min_lag, max_lag, require_departure,
+                    !is.null(reference), dist_method)
 }
 
 #' Revisits for every episode of an eye_table
@@ -158,7 +211,11 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
 #' @return \code{x} with columns from \code{\link{revisit_summary}}
 #'   (\code{n_fix}, \code{opportunities}, \code{revisits}, \code{revisit_rate},
 #'   \code{expected_revisits}, \code{expected_rate}, \code{excess_revisits},
-#'   \code{excess_rate}).
+#'   \code{excess_rate}). The \code{revisit_spec} attribute retains
+#'   \code{radius}, \code{min_lag}, \code{max_lag}, \code{require_departure},
+#'   \code{dist_method}, \code{null}, \code{subject_var}, \code{item_var} and
+#'   \code{var}, including when \code{keep_fixations = FALSE} or the table has
+#'   zero rows. Re-scoring replaces this specification with the new arguments.
 #' @examples
 #' set.seed(1)
 #' et <- simulate_eye_table(n_fixations = 120, n_groups = 6)
@@ -177,6 +234,10 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
                                         dist_method = c("euclidean", "manhattan"), ...) {
   null <- match.arg(null)
   dist_method <- match.arg(dist_method)
+  check_revisit_args(radius, min_lag, max_lag, require_departure)
+  if (!is.logical(keep_fixations) || length(keep_fixations) != 1L || is.na(keep_fixations)) {
+    stop("keep_fixations must be TRUE or FALSE.")
+  }
   if (!var %in% names(x)) stop("Column '", var, "' not found in the eye_table.")
   has_col <- function(v) !is.null(v) && length(v) == 1L && v %in% names(x)
   if (null == "subject" && !has_col(subject_var)) {
@@ -218,7 +279,13 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
                       require_departure = require_departure, reference = ref,
                       dist_method = dist_method)
   })
-  summ <- dplyr::bind_rows(lapply(per, revisit_summary))
+  summ <- if (length(per)) {
+    dplyr::bind_rows(lapply(per, revisit_summary))
+  } else {
+    tibble::tibble(n_fix = integer(), opportunities = integer(), revisits = integer(),
+                   revisit_rate = double(), expected_revisits = double(),
+                   expected_rate = double(), excess_revisits = double(), excess_rate = double())
+  }
   stopifnot(identical(names(summ), revisit_summary_cols))
   # Re-scoring a scored table (e.g. at another radius) replaces the columns the earlier call wrote.
   extra <- attributes(x)[setdiff(names(attributes(x)), c("names", "row.names", "class", "revisit_columns"))]
@@ -228,6 +295,9 @@ fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
   if (keep_fixations) out$revisit_fixations <- per
   for (a in names(extra)) attr(out, a) <- extra[[a]]
   attr(out, "revisit_columns") <- c(revisit_summary_cols, if (keep_fixations) "revisit_fixations")
+  attr(out, "revisit_spec") <- list(radius = radius, min_lag = min_lag, max_lag = max_lag,
+                                    require_departure = require_departure, dist_method = dist_method,
+                                    null = null, subject_var = subject_var, item_var = item_var, var = var)
   class(out) <- class(x)
   out
 }
@@ -270,12 +340,13 @@ print.revisit_table <- function(x, ...) {
   invisible(x)
 }
 
-new_revisit_table <- function(out, radius, min_lag, max_lag, require_departure, has_null) {
+new_revisit_table <- function(out, radius, min_lag, max_lag, require_departure, has_null, dist_method) {
   attr(out, "radius") <- radius
   attr(out, "min_lag") <- min_lag
   attr(out, "max_lag") <- max_lag
   attr(out, "require_departure") <- require_departure
   attr(out, "null") <- has_null
+  attr(out, "dist_method") <- dist_method
   class(out) <- c("revisit_table", class(out))
   out
 }
@@ -285,29 +356,40 @@ unclass_revisit <- function(x) {
   x
 }
 
-check_revisit_args <- function(radius, min_lag, max_lag) {
-  if (missing(radius) || length(radius) != 1L || !is.finite(radius) || radius <= 0) {
+check_revisit_args <- function(radius, min_lag, max_lag, require_departure) {
+  scalar_number <- function(x) is.numeric(x) && !is.complex(x) && length(x) == 1L && !is.na(x)
+  if (missing(radius) || !scalar_number(radius) || !is.finite(radius) || radius <= 0) {
     stop("radius must be a single positive number (in fixation coordinate units).")
   }
-  if (length(min_lag) != 1L || !is.finite(min_lag) || min_lag < 1 || min_lag != round(min_lag)) {
+  if (!scalar_number(min_lag) || !is.finite(min_lag) || min_lag < 1 || min_lag != floor(min_lag)) {
     stop("min_lag must be a positive integer.")
   }
-  if (length(max_lag) != 1L || is.na(max_lag) || max_lag < min_lag) {
-    stop("max_lag must be >= min_lag (Inf for no limit).")
+  if (!scalar_number(max_lag) || max_lag < min_lag || max_lag != floor(max_lag)) {
+    stop("max_lag must be a whole number >= min_lag (Inf for no limit).")
+  }
+  if (!is.logical(require_departure) || length(require_departure) != 1L || is.na(require_departure)) {
+    stop("require_departure must be TRUE or FALSE.")
   }
 }
 
 revisit_eligible <- function(i, min_lag, max_lag) {
   hi <- i - min_lag
-  lo <- if (is.finite(max_lag)) max(1L, i - as.integer(max_lag)) else 1L
+  lo <- max(1, i - max_lag)
   if (hi < lo) integer(0) else seq.int(lo, hi)
 }
 
-revisit_dist <- function(a, b, method) {
+revisit_dist_to <- function(xy, point, method) {
+  dx <- abs(xy[, 1] - point[1])
+  dy <- abs(xy[, 2] - point[2])
   if (method == "euclidean") {
-    sqrt(outer(a[, 1], b[, 1], "-")^2 + outer(a[, 2], b[, 2], "-")^2)
+    # Scale before squaring to avoid overflow/underflow of finite distances.
+    scale <- pmax(dx, dy)
+    nonzero <- is.finite(scale) & scale > 0
+    scale[nonzero] <- scale[nonzero] * sqrt((dx[nonzero] / scale[nonzero])^2 +
+                                           (dy[nonzero] / scale[nonzero])^2)
+    scale
   } else {
-    abs(outer(a[, 1], b[, 1], "-")) + abs(outer(a[, 2], b[, 2], "-"))
+    dx + dy
   }
 }
 
@@ -318,7 +400,9 @@ as_reference_matrix <- function(reference) {
     as.matrix(reference)
   }
   if (ncol(m) != 2L) stop("reference must have two columns (x, y).")
-  m <- m[is.finite(m[, 1]) & is.finite(m[, 2]), , drop = FALSE]
+  if (!is.numeric(m) || is.complex(m) || any(!is.finite(m))) {
+    stop("reference coordinates must contain only finite numeric values.")
+  }
   storage.mode(m) <- "double"
   m
 }

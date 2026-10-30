@@ -28,13 +28,14 @@ fixation_revisits(x, ...)
 \item{min_lag}{Minimum number of fixations back for an eligible earlier
 fixation (default 2).}
 
-\item{max_lag}{Maximum number of fixations back (default \code{Inf}).}
+\item{max_lag}{Maximum number of fixations back, a whole number at least
+\code{min_lag}, or \code{Inf} (default) for no limit.}
 
 \item{require_departure}{Logical; require the preceding fixation to lie at
-least \code{radius} away (default \code{TRUE}).}
+least \code{radius} from the current fixation (default \code{TRUE}).}
 
 \item{reference}{Optional two-column matrix or data frame of \code{x}, \code{y}
-locations used for the spatial null model.}
+finite numeric locations used for the spatial reference distribution.}
 
 \item{dist_method}{\code{"euclidean"} (default) or \code{"manhattan"}.}
 }
@@ -42,26 +43,38 @@ locations used for the spatial null model.}
 For a \code{fixation_group}, a tibble with one row per fixation in
   onset order: \code{index}, \code{onset}, \code{opportunity},
   \code{revisit}, \code{lag} (fixations back to the most recent matched
-  fixation), \code{match_index}, \code{distance} (to the nearest eligible
-  earlier fixation) and \code{expected} (null probability of a revisit, or
-  \code{NA} without \code{reference}). Use \code{revisit_summary()} for one row
-  per episode. For an \code{eye_table}, see \code{fixation_revisits.eye_table}.
+  fixation), \code{match_index} (that fixation's original index),
+  \code{nearest_distance} (to the nearest eligible earlier fixation),
+  \code{match_distance} (to \code{match_index}, which need not be nearest),
+  \code{distance} (a compatibility alias for \code{nearest_distance}) and
+  \code{expected} (null probability of a revisit, or \code{NA} without
+  reference support). Distances are \code{NA} outside opportunities;
+  \code{match_distance} is also \code{NA} without a match. Attributes retain
+  \code{radius}, \code{min_lag}, \code{max_lag}, \code{require_departure},
+  \code{dist_method} and \code{null} (whether a reference was supplied).
+  Use \code{revisit_summary()} for one row per episode. For an
+  \code{eye_table}, see \code{fixation_revisits.eye_table}.
 }
 \description{
 Scores, fixation by fixation, whether gaze returns to a location already
-fixated earlier in the same viewing episode ("revisitation"; Voss et al.,
-2011; Kragel et al., 2021), and summarises each episode as counts, rates and,
-optionally, rates expected under a spatial null model.
+fixated earlier in the same viewing episode, and summarises each episode as
+counts, rates and, optionally, rates expected under a spatial reference
+distribution. This is a spatial-return measure related to Kragel et al.
+(2021), not the backtracking-sequence classification of Voss et al. (2011),
+which classified A-B-C-A as "other" rather than revisitation.
 }
 \details{
 Fixation \eqn{i} is a \emph{revisit} when it lies within \code{radius} of at
 least one earlier fixation \eqn{j} that is at least \code{min_lag} fixations
 back (and at most \code{max_lag}). The default \code{min_lag = 2} means a
 fixation never revisits the fixation immediately before it. With
-\code{require_departure = TRUE} (default) gaze must also have left: the
-preceding fixation must lie at least \code{radius} away from fixation
-\eqn{i}, so a run of small refixations on one spot is not counted as a
-return. A fixation is an \emph{opportunity} when it could have been a revisit:
+\code{require_departure = TRUE} (default), the incoming step must be at least
+\code{radius}: the preceding fixation must lie at least \code{radius} away
+from fixation \eqn{i}. This does not require leaving and re-entering a region
+centred on the earlier fixation. For example, with radius 10, positions
+0, -9, 9 on one axis count as a return, although both later positions are
+within radius of the original position.
+A fixation is an \emph{opportunity} when it could have been a revisit:
 it has an eligible earlier fixation and, under \code{require_departure},
 arrives from at least \code{radius} away.
 
@@ -74,6 +87,19 @@ fixations, among those reference locations that also satisfy the departure
 condition. A natural reference is the observer's fixations from other trials,
 which preserves the observer's spatial bias but not the order within the
 episode (see the \code{eye_table} method, \code{null = "subject"}).
+Observed minus expected is a descriptive correction under this reference
+distribution, not an inferential test or a generative model of scanpaths.
+
+Coordinates and onsets must be finite numeric values. Invalid values cause
+an error; dropping fixations would change adjacency, lags and denominators.
+Fixations are scored in onset order, preserving input order for tied onsets.
+Lag bounds are whole numbers; large finite bounds are supported without
+conversion to 32-bit integers.
+
+Reference coverage is updated as fixations enter and leave the eligible lag
+window. For \eqn{n} fixations, \eqn{m} reference points and maximum eligible
+history size \eqn{L}, scoring uses \eqn{O(n + nL + nm)} time and \eqn{O(n + m)}
+storage, including result rows. No pairwise distance matrix is allocated.
 
 \code{radius} is in the units of the fixation coordinates. Kragel et al.
 (2021) used about 2 degrees of visual angle; convert degrees to pixels for
