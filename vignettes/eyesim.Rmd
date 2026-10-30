@@ -493,4 +493,5 @@ See `?fixation_revisits` for the full definition and references.
 - `vignette("Multimatch")` — compare scanpath structure across five dimensions
 - `vignette("RepetitiveSimilarity")` — analyze repeated viewing of the same stimulus
 - `vignette("latent-transforms")` — domain adaptation for cross-device or cross-participant comparisons
-- The package ships real data: `data(wynn_study)` and `data(wynn_test)` from a recognition memory experiment
+- Use `simulate_eye_table()` to create synthetic fixation data, or import your
+  own data with `eye_table()`.

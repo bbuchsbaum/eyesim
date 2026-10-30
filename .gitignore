@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+/.private/
 inst/doc
 docs
 /doc/

@@ -45,10 +45,8 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Encoding: UTF-8
-LazyData: true
-LazyDataCompression: xz
 Depends: 
-    R (>= 3.5.0)
+    R (>= 4.1.0)
 Suggests:
     albersdown,
     covr,

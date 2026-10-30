@@ -1,5 +1,17 @@
 # eyesim (development version)
 
+## CRAN preparation
+
+* The participant-level `wynn_study` and `wynn_test` datasets are no longer
+  distributed with the package, pending redistribution clearance. Examples
+  and vignettes use synthetic data. The package build excludes `data/` and
+  local private copies as well as the existing research input directories.
+* The minimum R version is now 4.1.0, matching the requirement of the
+  already-required ggplot2 4.0.0 or later.
+* The revisitation example fits within the PDF manual's line width.
+* `fixation_group()` accepts empty coordinates when `duration` is omitted,
+  as it already did when an empty `duration` was supplied explicitly.
+
 ## New features
 
 * `fixation_revisits()` scores spatial returns to locations already fixated in

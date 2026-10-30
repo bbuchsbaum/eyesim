@@ -34,7 +34,7 @@ fixation_group <- function(x, y, duration, onset, group=0) {
   assert_that(length(x) == length(onset))
 
   if (missing(duration)) {
-    duration <- c(diff(onset), 0)
+    duration <- if (length(onset) == 0L) numeric() else c(diff(onset), 0)
   }
 
   assert_that(length(x) == length(duration))

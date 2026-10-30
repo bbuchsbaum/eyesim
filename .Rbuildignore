@@ -24,3 +24,6 @@ test_data
 vignettes/Overview\.html$
 ^\.albersdown\.bak$
 ^inst/validation$
+^\.private$
+^data$
+^cran-comments\.md$

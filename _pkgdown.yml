@@ -121,8 +121,3 @@ reference:
   - density_by
   - suggest_sigma
   - sample_density.density
-- title: Data
-  desc: Example datasets included with the package.
-  contents:
-  - wynn_study
-  - wynn_test
