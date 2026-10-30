@@ -404,14 +404,20 @@ already fixated? Revisits during study have been linked to the
 hippocampus and to later memory (Voss et al., 2011; Kragel et al.,
 2021).
 [`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
-scores them fixation by fixation.
+scores spatial returns, a measure related to Kragel et al. (2021). It
+does not implement Voss et al.’s backtracking-sequence classification:
+that study counted sequences such as A-B-C-B-A but classified A-B-C-A as
+“other.”
 
 A fixation is a revisit when it lands within `radius` of an earlier
 fixation at least `min_lag` fixations back. The default `min_lag = 2`
-means a fixation never revisits the one just before it. By default gaze
-must also have left first: the previous fixation must be at least
-`radius` away, so a run of small refixations on one spot is not a
-return. Here gaze visits A, B and C, then returns to A:
+means a fixation never revisits the one just before it. By default, the
+incoming step must be at least `radius`: the previous fixation must be
+that far from the current one. This does not establish that gaze left a
+region around the original location. With radius 10, positions 0, -9, 9
+on one axis count as a return although both later positions remain
+within 10 of the original position. Here gaze visits A, B and C, then
+returns to A:
 
 ``` r
 
@@ -420,19 +426,23 @@ fg_abca <- fixation_group(x = c(10, 40, 40, 11), y = c(10, 10, 40, 9),
 rv <- fixation_revisits(fg_abca, radius = 5)
 rv
 #> Revisits: 1 of 2 opportunities (4 fixations; radius 5, lag 2-Inf, departure required)
-#> # A tibble: 4 × 8
-#>   index onset opportunity revisit   lag match_index distance expected
-#>   <int> <dbl> <lgl>       <lgl>   <int>       <int>    <dbl>    <dbl>
-#> 1     1     0 FALSE       FALSE      NA          NA    NA          NA
-#> 2     2   250 FALSE       FALSE      NA          NA    NA          NA
-#> 3     3   500 TRUE        FALSE      NA          NA    42.4        NA
-#> 4     4   750 TRUE        TRUE        3           1     1.41       NA
+#> # A tibble: 4 × 10
+#>   index onset opportunity revisit   lag match_index distance nearest_distance
+#>   <int> <dbl> <lgl>       <lgl>   <int>       <int>    <dbl>            <dbl>
+#> 1     1     0 FALSE       FALSE      NA          NA    NA               NA   
+#> 2     2   250 FALSE       FALSE      NA          NA    NA               NA   
+#> 3     3   500 TRUE        FALSE      NA          NA    42.4             42.4 
+#> 4     4   750 TRUE        TRUE        3           1     1.41             1.41
+#> # ℹ 2 more variables: match_distance <dbl>, expected <dbl>
 ```
 
 Fixations 3 and 4 are *opportunities*: each has an earlier fixation far
 enough back, and each arrives from at least `radius` away. Only fixation
 4 is a revisit. It returns to fixation 1 (`match_index`), three
-fixations back (`lag`).
+fixations back (`lag`). `match_distance` measures distance to this most
+recent match; `nearest_distance` measures distance to the nearest
+eligible fixation, which can be a different fixation. The original
+`distance` column is retained as an alias for `nearest_distance`.
 [`revisit_summary()`](https://bbuchsbaum.github.io/eyesim/reference/revisit_summary.md)
 reduces the table to one row per viewing:
 
@@ -445,6 +455,12 @@ revisit_summary(rv)
 #> 1     4             2        1          0.5                NA            NA
 #> # ℹ 2 more variables: excess_revisits <dbl>, excess_rate <dbl>
 ```
+
+Coordinates and onsets must be finite numeric values. Scoring rejects
+invalid values instead of dropping fixations, because dropping a row
+changes adjacency, fixation lags and denominators. Fixations are ordered
+by onset, preserving input order among ties. Reference coordinates must
+also be finite.
 
 `radius` is in the units of your coordinates. To set it in degrees of
 visual angle, convert with
@@ -465,15 +481,17 @@ how tightly they clustered. More fixations in a smaller area produce
 more returns by chance. A spatial null estimates how many revisits to
 expect from where people look. For each opportunity, it asks what
 fraction of a set of reference locations would also have counted as a
-revisit.
+revisit. With `require_departure = TRUE`, both the numerator and
+denominator use only reference locations at least `radius` from the
+preceding fixation.
 
 The `eye_table` method scores every trial and builds the reference for
 you. There are two choices:
 
-- `null = "item"` uses fixations from other participants viewing the
-  same image (`item_var`). With `subject_var` given, all of the viewer’s
-  own trials are left out. This keeps where the image draws gaze, but
-  not the viewer’s own bias.
+- `null = "item"` uses fixations from other trials showing the same
+  image (`item_var`). With `subject_var` given, all of the viewer’s own
+  trials are left out. This keeps where the image draws gaze, but not
+  the viewer’s own bias.
 - `null = "subject"` uses the same participant’s other trials. This
   keeps the viewer’s spatial bias, but not the image content.
 
@@ -510,24 +528,15 @@ would include the same image from the other phase in the reference.
 `excess_revisits` is the observed count minus the expected count, and
 `excess_rate` is the same difference per opportunity. Trials with no
 opportunities get `NA`, as do trials whose image no other participant
-saw. The simulated fixations are uniformly random, so there should be no
-excess:
+saw. An episode’s expectation also remains `NA` if even one opportunity
+has no reference location satisfying the incoming-step condition.
 
-``` r
-
-t.test(revisits$excess_rate)
-#> 
-#>  One Sample t-test
-#> 
-#> data:  revisits$excess_rate
-#> t = -0.33009, df = 57, p-value = 0.7425
-#> alternative hypothesis: true mean is not equal to 0
-#> 95 percent confidence interval:
-#>  -0.05511822  0.03951818
-#> sample estimates:
-#>    mean of x 
-#> -0.007800023
-```
+These differences are descriptive corrections under the selected
+reference distribution. They are not significance tests or a complete
+generative model of scanpaths. Inference would need to account for
+repeated observations and dependence introduced by shared reference
+pools; a one-sample test treating all trial corrections as independent
+does not do that.
 
 ![Observed against expected revisits for each encoding trial. Points
 scatter around the identity line because the simulated fixations are
@@ -539,7 +548,11 @@ random.
 
 Set `keep_fixations = TRUE` to keep each trial’s fixation-level table in
 a `revisit_fixations` column. Use `max_lag` to limit how far back a
-return can reach. See
+return can reach. The `revisit_spec` attribute retains the radius, lag
+bounds, distance metric, incoming-step rule, null choice and column
+names even when only summaries are kept. Reference coverage is updated
+as fixations enter and leave the lag window, without storing full
+pairwise distance matrices. See
 [`?fixation_revisits`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
 for the full definition and references.
 

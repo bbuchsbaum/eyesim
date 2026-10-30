@@ -421,34 +421,43 @@ memory-guided attention.</p>
 inside a single viewing: how often does gaze return to a location it has
 already fixated? Revisits during study have been linked to the
 hippocampus and to later memory (Voss et al., 2011; Kragel et al.,
-2021). <code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores them fixation by
-fixation.</p>
+2021). <code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores spatial returns, a
+measure related to Kragel et al. (2021). It does not implement Voss et
+al.’s backtracking-sequence classification: that study counted sequences
+such as A-B-C-B-A but classified A-B-C-A as “other.”</p>
 <p>A fixation is a revisit when it lands within <code>radius</code> of
 an earlier fixation at least <code>min_lag</code> fixations back. The
 default <code>min_lag = 2</code> means a fixation never revisits the one
-just before it. By default gaze must also have left first: the previous
-fixation must be at least <code>radius</code> away, so a run of small
-refixations on one spot is not a return. Here gaze visits A, B and C,
-then returns to A:</p>
+just before it. By default, the incoming step must be at least
+<code>radius</code>: the previous fixation must be that far from the
+current one. This does not establish that gaze left a region around the
+original location. With radius 10, positions 0, -9, 9 on one axis count
+as a return although both later positions remain within 10 of the
+original position. Here gaze visits A, B and C, then returns to A:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fg_abca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">40</span>, <span class="fl">40</span>, <span class="fl">11</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">10</span>, <span class="fl">40</span>, <span class="fl">9</span><span class="op">)</span>,</span>
 <span>                          onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">250</span>, <span class="fl">500</span>, <span class="fl">750</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">rv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fixation_revisits.html">fixation_revisits</a></span><span class="op">(</span><span class="va">fg_abca</span>, radius <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="va">rv</span></span>
 <span><span class="co">#&gt; Revisits: 1 of 2 opportunities (4 fixations; radius 5, lag 2-Inf, departure required)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 4 × 8</span></span></span>
-<span><span class="co">#&gt;   index onset opportunity revisit   lag match_index distance expected</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     1     0 FALSE       FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>     2   250 FALSE       FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>     3   500 TRUE        FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    42.4        <span style="color: #BB0000;">NA</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>     4   750 TRUE        TRUE        3           1     1.41       <span style="color: #BB0000;">NA</span></span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 4 × 10</span></span></span>
+<span><span class="co">#&gt;   index onset opportunity revisit   lag match_index distance nearest_distance</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>            <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     1     0 FALSE       FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    <span style="color: #BB0000;">NA</span>               <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>     2   250 FALSE       FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    <span style="color: #BB0000;">NA</span>               <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>     3   500 TRUE        FALSE      <span style="color: #BB0000;">NA</span>          <span style="color: #BB0000;">NA</span>    42.4             42.4 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>     4   750 TRUE        TRUE        3           1     1.41             1.41</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 2 more variables: match_distance &lt;dbl&gt;, expected &lt;dbl&gt;</span></span></span></code></pre></div>
 <p>Fixations 3 and 4 are <em>opportunities</em>: each has an earlier
 fixation far enough back, and each arrives from at least
 <code>radius</code> away. Only fixation 4 is a revisit. It returns to
 fixation 1 (<code>match_index</code>), three fixations back
-(<code>lag</code>). <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> reduces the table to
-one row per viewing:</p>
+(<code>lag</code>). <code>match_distance</code> measures distance to
+this most recent match; <code>nearest_distance</code> measures distance
+to the nearest eligible fixation, which can be a different fixation. The
+original <code>distance</code> column is retained as an alias for
+<code>nearest_distance</code>. <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> reduces
+the table to one row per viewing:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/revisit_summary.html">revisit_summary</a></span><span class="op">(</span><span class="va">rv</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 8</span></span></span>
@@ -456,6 +465,11 @@ one row per viewing:</p>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     4             2        1          0.5                <span style="color: #BB0000;">NA</span>            <span style="color: #BB0000;">NA</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 2 more variables: excess_revisits &lt;dbl&gt;, excess_rate &lt;dbl&gt;</span></span></span></code></pre></div>
+<p>Coordinates and onsets must be finite numeric values. Scoring rejects
+invalid values instead of dropping fixations, because dropping a row
+changes adjacency, fixation lags and denominators. Fixations are ordered
+by onset, preserving input order among ties. Reference coordinates must
+also be finite.</p>
 <p><code>radius</code> is in the units of your coordinates. To set it in
 degrees of visual angle, convert with <code><a href="../reference/visual_angle_to_px.html">visual_angle_to_px()</a></code>
 for your display:</p>
@@ -471,16 +485,17 @@ and how tightly they clustered. More fixations in a smaller area produce
 more returns by chance. A spatial null estimates how many revisits to
 expect from where people look. For each opportunity, it asks what
 fraction of a set of reference locations would also have counted as a
-revisit.</p>
+revisit. With <code>require_departure = TRUE</code>, both the numerator
+and denominator use only reference locations at least
+<code>radius</code> from the preceding fixation.</p>
 <p>The <code>eye_table</code> method scores every trial and builds the
 reference for you. There are two choices:</p>
 <ul>
 <li>
-<code>null = "item"</code> uses fixations from other participants
-viewing the same image (<code>item_var</code>). With
-<code>subject_var</code> given, all of the viewer’s own trials are left
-out. This keeps where the image draws gaze, but not the viewer’s own
-bias.</li>
+<code>null = "item"</code> uses fixations from other trials showing
+the same image (<code>item_var</code>). With <code>subject_var</code>
+given, all of the viewer’s own trials are left out. This keeps where the
+image draws gaze, but not the viewer’s own bias.</li>
 <li>
 <code>null = "subject"</code> uses the same participant’s other
 trials. This keeps the viewer’s spatial bias, but not the image
@@ -514,21 +529,15 @@ would include the same image from the other phase in the reference.</p>
 <p><code>excess_revisits</code> is the observed count minus the expected
 count, and <code>excess_rate</code> is the same difference per
 opportunity. Trials with no opportunities get <code>NA</code>, as do
-trials whose image no other participant saw. The simulated fixations are
-uniformly random, so there should be no excess:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/t.test.html" class="external-link">t.test</a></span><span class="op">(</span><span class="va">revisits</span><span class="op">$</span><span class="va">excess_rate</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  One Sample t-test</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; data:  revisits$excess_rate</span></span>
-<span><span class="co">#&gt; t = -0.33009, df = 57, p-value = 0.7425</span></span>
-<span><span class="co">#&gt; alternative hypothesis: true mean is not equal to 0</span></span>
-<span><span class="co">#&gt; 95 percent confidence interval:</span></span>
-<span><span class="co">#&gt;  -0.05511822  0.03951818</span></span>
-<span><span class="co">#&gt; sample estimates:</span></span>
-<span><span class="co">#&gt;    mean of x </span></span>
-<span><span class="co">#&gt; -0.007800023</span></span></code></pre></div>
+trials whose image no other participant saw. An episode’s expectation
+also remains <code>NA</code> if even one opportunity has no reference
+location satisfying the incoming-step condition.</p>
+<p>These differences are descriptive corrections under the selected
+reference distribution. They are not significance tests or a complete
+generative model of scanpaths. Inference would need to account for
+repeated observations and dependence introduced by shared reference
+pools; a one-sample test treating all trial corrections as independent
+does not do that.</p>
 <div class="figure">
 <img src="eyesim_files/figure-html/plot-revisits-1.png" class="r-plt" alt="Observed against expected revisits for each encoding trial. Points scatter around the identity line because the simulated fixations are random." width="480"><p class="caption">
 Observed against expected revisits for each encoding trial. Points
@@ -538,9 +547,13 @@ random.
 </div>
 <p>Set <code>keep_fixations = TRUE</code> to keep each trial’s
 fixation-level table in a <code>revisit_fixations</code> column. Use
-<code>max_lag</code> to limit how far back a return can reach. See
-<code><a href="../reference/fixation_revisits.html">?fixation_revisits</a></code> for the full definition and
-references.</p>
+<code>max_lag</code> to limit how far back a return can reach. The
+<code>revisit_spec</code> attribute retains the radius, lag bounds,
+distance metric, incoming-step rule, null choice and column names even
+when only summaries are kept. Reference coverage is updated as fixations
+enter and leave the lag window, without storing full pairwise distance
+matrices. See <code><a href="../reference/fixation_revisits.html">?fixation_revisits</a></code> for the full definition
+and references.</p>
 </div>
 </div>
 <div class="section level2">

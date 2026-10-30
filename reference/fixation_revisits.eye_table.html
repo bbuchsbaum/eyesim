@@ -127,7 +127,11 @@ eye_table and appends per-episode summary columns."><link href="../albers.css" r
     <p><code>x</code> with columns from <code><a href="revisit_summary.html">revisit_summary</a></code>
   (<code>n_fix</code>, <code>opportunities</code>, <code>revisits</code>, <code>revisit_rate</code>,
   <code>expected_revisits</code>, <code>expected_rate</code>, <code>excess_revisits</code>,
-  <code>excess_rate</code>).</p>
+  <code>excess_rate</code>). The <code>revisit_spec</code> attribute retains
+  <code>radius</code>, <code>min_lag</code>, <code>max_lag</code>, <code>require_departure</code>,
+  <code>dist_method</code>, <code>null</code>, <code>subject_var</code>, <code>item_var</code> and
+  <code>var</code>, including when <code>keep_fixations = FALSE</code> or the table has
+  zero rows. Re-scoring replaces this specification with the new arguments.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

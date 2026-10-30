@@ -87,6 +87,10 @@ fixation_revisits(
 [`revisit_summary`](https://bbuchsbaum.github.io/eyesim/reference/revisit_summary.md)
 (`n_fix`, `opportunities`, `revisits`, `revisit_rate`,
 `expected_revisits`, `expected_rate`, `excess_revisits`, `excess_rate`).
+The `revisit_spec` attribute retains `radius`, `min_lag`, `max_lag`,
+`require_departure`, `dist_method`, `null`, `subject_var`, `item_var`
+and `var`, including when `keep_fixations = FALSE` or the table has zero
+rows. Re-scoring replaces this specification with the new arguments.
 
 ## Details
 

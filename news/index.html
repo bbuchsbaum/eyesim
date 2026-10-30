@@ -45,13 +45,21 @@
 <div class="section level3">
 <h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
 <ul><li>
-<code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores revisitation, meaning returns to locations already fixated in the same episode (Voss et al., 2011; Kragel et al., 2021). It returns one row per fixation with the opportunity, revisit, lag and matched fixation. <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> gives counts and rates per episode.</li>
-<li>A revisit must reach at least <code>min_lag</code> fixations back (default 2) and, by default, the gaze must first have left the location.</li>
+<code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores spatial returns to locations already fixated in the same episode, related to Kragel et al. (2021). It does not implement the backtracking-sequence classification of Voss et al. (2011). It returns one row per fixation with the opportunity, revisit, lag and matched fixation. <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> gives counts and rates per episode.</li>
+<li>A revisit must reach at least <code>min_lag</code> fixations back (default 2) and, by default, arrive from a preceding fixation at least <code>radius</code> away. This incoming-step rule does not establish departure from the original region.</li>
 <li>An optional spatial null, <code>reference</code>, gives the expected revisit rate and the excess over it. Without it, revisit counts largely restate fixation number and dispersion.</li>
 <li>The <code>eye_table</code> method summarises every episode. With <code>null = "subject"</code> it builds the null from the same subject’s other episodes (leave-episode-out). With <code>null = "item"</code> it uses other viewers of the same image (<code>item_var</code>). When <code>subject_var</code> is also given, all of the same subject’s episodes are excluded.</li>
 <li>Re-scoring an <code>eye_table</code> that <code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> already scored replaces only the columns the earlier call wrote. A column of the same name added by the caller (for example the tracker’s own <code>n_fix</code>) is an error and is never silently overwritten.</li>
 <li>
 <code><a href="../reference/visual_angle_to_px.html">visual_angle_to_px()</a></code> and <code><a href="../reference/visual_angle_to_px.html">px_to_visual_angle()</a></code> convert between degrees of visual angle and screen pixels, so a revisit <code>radius</code> can be given in degrees.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="revisitation-fixes-development-version">Revisitation fixes<a class="anchor" aria-label="anchor" href="#revisitation-fixes-development-version"></a></h3>
+<ul><li>Invalid fixation coordinates, onsets and reference coordinates now cause an error instead of silently changing the scored sequence or reference pool. Fractional lag bounds are rejected; large whole-number bounds work without integer overflow. Empty <code>eye_table</code> inputs return typed summary columns.</li>
+<li>Euclidean distances use scaling to avoid overflow or underflow from squaring coordinate differences. <code>nearest_distance</code> and <code>match_distance</code> distinguish the nearest eligible fixation from the most recent match; <code>distance</code> remains an alias for <code>nearest_distance</code>.</li>
+<li>Fixation results retain <code>dist_method</code>; summary-only <code>eye_table</code> results retain all scoring and null-selection arguments in the <code>revisit_spec</code> attribute.</li>
+<li>Incremental reference coverage preserves the union of eligible neighbourhoods while removing full distance matrices and repeated reference-history scans. Missing expectations, including partial reference support, remain <code>NA</code>.</li>
+<li>Documentation distinguishes spatial returns from backtracking, and describes observed-minus-expected as a descriptive correction. The vignette no longer applies an independent-trial t-test to corrections from shared reference pools.</li>
 </ul></div>
 </div>
     <div class="section level2">

@@ -5,14 +5,17 @@
 ### New features
 
 - [`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
-  scores revisitation, meaning returns to locations already fixated in
-  the same episode (Voss et al., 2011; Kragel et al., 2021). It returns
+  scores spatial returns to locations already fixated in the same
+  episode, related to Kragel et al. (2021). It does not implement the
+  backtracking-sequence classification of Voss et al. (2011). It returns
   one row per fixation with the opportunity, revisit, lag and matched
   fixation.
   [`revisit_summary()`](https://bbuchsbaum.github.io/eyesim/reference/revisit_summary.md)
   gives counts and rates per episode.
 - A revisit must reach at least `min_lag` fixations back (default 2)
-  and, by default, the gaze must first have left the location.
+  and, by default, arrive from a preceding fixation at least `radius`
+  away. This incoming-step rule does not establish departure from the
+  original region.
 - An optional spatial null, `reference`, gives the expected revisit rate
   and the excess over it. Without it, revisit counts largely restate
   fixation number and dispersion.
@@ -31,6 +34,29 @@
   [`px_to_visual_angle()`](https://bbuchsbaum.github.io/eyesim/reference/visual_angle_to_px.md)
   convert between degrees of visual angle and screen pixels, so a
   revisit `radius` can be given in degrees.
+
+### Revisitation fixes
+
+- Invalid fixation coordinates, onsets and reference coordinates now
+  cause an error instead of silently changing the scored sequence or
+  reference pool. Fractional lag bounds are rejected; large whole-number
+  bounds work without integer overflow. Empty `eye_table` inputs return
+  typed summary columns.
+- Euclidean distances use scaling to avoid overflow or underflow from
+  squaring coordinate differences. `nearest_distance` and
+  `match_distance` distinguish the nearest eligible fixation from the
+  most recent match; `distance` remains an alias for `nearest_distance`.
+- Fixation results retain `dist_method`; summary-only `eye_table`
+  results retain all scoring and null-selection arguments in the
+  `revisit_spec` attribute.
+- Incremental reference coverage preserves the union of eligible
+  neighbourhoods while removing full distance matrices and repeated
+  reference-history scans. Missing expectations, including partial
+  reference support, remain `NA`.
+- Documentation distinguishes spatial returns from backtracking, and
+  describes observed-minus-expected as a descriptive correction. The
+  vignette no longer applies an independent-trial t-test to corrections
+  from shared reference pools.
 
 ## eyesim 0.3.0
 
