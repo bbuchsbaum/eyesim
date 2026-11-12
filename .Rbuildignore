@@ -19,6 +19,7 @@ test_data
 ^\.planning$
 ^\.omc$
 ^\.mote$
+^\.dashboard$
 ^Rplots\.pdf$
 ^\.rcmdcheck_result\.rds$
 vignettes/Overview\.html$

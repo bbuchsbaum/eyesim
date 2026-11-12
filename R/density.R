@@ -11,6 +11,7 @@
 #' @param outdim A numeric vector of length 2 specifying the dimensions of the output density matrix (default is c(100, 100)).
 #' @param duration_weighted A logical value indicating whether the density should be weighted by fixation duration (default is TRUE).
 #' @param window A numeric vector of length 2 specifying the time window for selecting fixations (default is NULL).
+#' @inheritParams eye_density.fixation_group
 #' @param min_fixations Minimum number of fixations required for computing a density map.
 #'   Rows with fewer fixations after optional filtering will receive `NULL` in the
 #'   result column. Default is 2.
@@ -41,7 +42,9 @@
 #' @importFrom tibble as_tibble
 density_by <- function(x, groups=NULL, sigma=50, xbounds=c(0, 1000), ybounds=c(0, 1000), outdim=c(100,100),
                        duration_weighted=TRUE, window=NULL, min_fixations=2,
-                       keep_vars=NULL, fixvar="fixgroup", result_name="density", ...) {
+                       keep_vars=NULL, fixvar="fixgroup", result_name="density", ...,
+                       window_weight = c("onset", "overlap")) {
+  window_weight <- match.arg(window_weight)
 
   ## Window filtering that leaves fewer than min_fixations fixations is handled
 
@@ -60,7 +63,7 @@ density_by <- function(x, groups=NULL, sigma=50, xbounds=c(0, 1000), ybounds=c(0
         d <- eye_density(g, sigma,
                          xbounds = xbounds, ybounds = ybounds, outdim = outdim,
                          duration_weighted = duration_weighted, window = window,
-                         min_fixations = min_fixations,
+                         min_fixations = min_fixations, window_weight = window_weight,
                          origin = attr(x, "origin"), ...)
         tibble::as_tibble(df[1, vars]) %>%
           dplyr::mutate(!!fixvar := list(g), !!rname := list(d))
@@ -70,7 +73,7 @@ density_by <- function(x, groups=NULL, sigma=50, xbounds=c(0, 1000), ybounds=c(0
     fx <- do.call(rbind, x[[fixvar]])
     d <- eye_density(fx, sigma, xbounds=xbounds, ybounds=ybounds, outdim=outdim,
                      duration_weighted=duration_weighted, window=window,
-                     min_fixations=min_fixations,
+                     min_fixations=min_fixations, window_weight=window_weight,
                      origin=attr(x, "origin"), ...)
     ret <- tibble(!!fixvar := list(fx), !!rname := list(d))
 
@@ -86,6 +89,30 @@ density_by <- function(x, groups=NULL, sigma=50, xbounds=c(0, 1000), ybounds=c(0
 
   ret
 
+}
+
+# Window selection is shared by single-map and grouped density estimation.
+density_window <- function(x, window, weights, mode) {
+  if (is.null(window)) return(list(x = x, weights = weights))
+  if (length(window) != 2L || !is.numeric(window) || anyNA(window) ||
+      window[2] <= window[1]) stop("Window must contain two increasing numeric values.")
+  if (!"onset" %in% names(x)) stop("The data frame must contain an 'onset' column.")
+  if (mode == "onset") {
+    keep <- which(x$onset >= window[1] & x$onset < window[2])
+    # Retain dplyr's row/class reconstruction and unbounded windows for legacy calls.
+    return(list(x = dplyr::filter(x, onset >= window[1] & onset < window[2]),
+                weights = if (is.null(weights)) NULL else weights[keep]))
+  } else {
+    if (any(!is.finite(window))) stop("Overlap windows require finite window bounds.")
+    if (!is.numeric(x$duration) || length(x$duration) != nrow(x) ||
+        any(!is.finite(x$duration)) || any(x$duration < 0) ||
+        any(!is.finite(x$onset))) stop("Overlap windows require finite onsets and non-negative durations.")
+    overlap <- pmax(0, pmin(x$onset + x$duration, window[2]) - pmax(x$onset, window[1]))
+    keep <- which(overlap > 0)
+    if (!is.null(weights)) weights[keep] <- weights[keep] * overlap[keep] / x$duration[keep]
+    x$duration <- overlap
+  }
+  list(x = x[keep, , drop = FALSE], weights = if (is.null(weights)) NULL else weights[keep])
 }
 
 

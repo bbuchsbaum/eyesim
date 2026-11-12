@@ -1,0 +1,1 @@
+{"actor":"codex-reference-scoring","entity":"bd-01M78QHX0G7MRC87NS1X4G25E3","kind":"reserve_open","mode":"exclusive","op":"20261112T204652.474242Z-p28363-c0000-rdefc-h9a3b51","paths":["R/template_sampling.R","tests/testthat/helper-reference-scoring.R"],"reservation_id":"rv-01M78R6T1SCBNHK356QW4JB2M1","ts":"2026-11-12T20:46:52.474242Z","ttl_s":3600,"v":2}

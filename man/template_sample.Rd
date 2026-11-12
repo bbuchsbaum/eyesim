@@ -9,7 +9,8 @@ template_sample(
   template,
   fixgroup = "fixgroup",
   time = NULL,
-  outcol = "sample_out"
+  outcol = "sample_out",
+  ...
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ template_sample(
 \item{time}{the time points used to extract coordinates from the `fixation_group`}
 
 \item{outcol}{the name of the output variable}
+
+\item{...}{Additional arguments passed to `sample_density()`.}
 }
 \value{
 \code{source_tab} with a list column \code{outcol} of sampled values.

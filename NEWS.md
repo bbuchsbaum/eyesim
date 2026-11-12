@@ -1,5 +1,28 @@
 # eyesim (development version)
 
+## Fixation-level reference scoring
+
+* Added `reference_maps()` with subject-balanced leave-out references, explicit
+  density/log domains, contributor counts, and on-demand `reference_map()`
+  inspection. Source maps and grouped sums are shared across references.
+* Added replayable `sample_controls()` and `mismatch_assignments()` tables,
+  deterministic `score_strata()`, fitted score scaling, case-control contrasts,
+  and `mismatch_draws()`. Sampling retains donor/replacement identities and
+  seeded constructors restore the caller's RNG state.
+* Map controls sample independently with replacement. Mismatch draws exclude
+  replacement-item donors by default and return paired matched contrasts on
+  identical controls and scaling; `control_policy = "fixed"` retains the
+  original item-discrimination baseline.
+* Existing sampling and template baselines now share map preparation, matching,
+  and candidate selection. Their default output and RNG behavior are retained.
+  `sample_density()` accepts named map lists/tables and an explicit log offset;
+  `template_sample()` and `sample_density_time()` forward these scoring options.
+* Density estimation supports overlap windows, defaulting to clipped duration
+  weights, or proportional clipping of explicit weights. Explicit unweighted
+  overlap selection warns. Onset selection remains the default.
+* A synthetic vignette demonstrates references, controls, scaling and mismatch
+  draws, including the limits of interpreting replacement draws as a null test.
+
 ## CRAN preparation
 
 * The participant-level `wynn_study` and `wynn_test` datasets are no longer

@@ -118,7 +118,7 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
   }
 
   # Match indices between source and reference tables
-  matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
+  matchind <- match_map_rows(source_tab, ref_tab, match_on)
 
   # Add the matched indices to the source table
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
@@ -202,12 +202,10 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
       # Remove every copy of the true match first (several source rows can
       # share a key), keep each other template once, then sample from the
       # distinct non-matching candidates only.
-      mind <- unique(mind[mind != .$matchind])
+      mind <- reference_candidates(mind, .$matchind)
       # A NULL or otherwise invalid template can never serve as a control.
       mind <- mind[vapply(ref_tab[[refvar]][mind], is_valid_similarity_obj, logical(1))]
-      if (permutations < length(mind)) {
-        mind <- sample(mind, permutations)
-      }
+      mind <- draw_candidates(mind, permutations)
 
       if (length(mind) == 0) {
         warning("no matching candidate indices for permutation test. Skipping.")
@@ -302,10 +300,8 @@ maybe_run_fast_cosine_similarity <- function(ref_tab, source_tab, matchind, perm
 
     # Remove every copy of the true match first, keep each other template
     # once, then sample from the distinct candidates.
-    candidates <- unique(candidates[candidates != matchind[[i]]])
-    if (permutations < length(candidates)) {
-      candidates <- sample(candidates, permutations)
-    }
+    candidates <- reference_candidates(candidates, matchind[[i]])
+    candidates <- draw_candidates(candidates, permutations)
 
     if (length(candidates) == 0L) {
       return(c(NA_real_, 0))
@@ -788,460 +784,6 @@ transform_name <- function(similarity_transform) {
 }
 
 
-#' Sample a smooth fixation density map with a set of discrete fixations.
-#'
-#' This function samples a smooth fixation density map represented by the object \code{x} with a set of discrete fixations provided in \code{fix}.
-#'
-#' @param x An object of class "density" representing the smooth fixation density map.
-#' @param fix A data frame or tibble containing discrete fixations with columns "x", "y", and "onset".
-#' @param times A vector of numeric values representing the time points at which the density map should be sampled (default is NULL).
-#' 
-#' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
-#'
-#' Each point is looked up at the nearest lattice point, separately in x and y;
-#' there is no interpolation. The nearest index is found with \code{round()}, so a
-#' coordinate exactly midway between two grid points is resolved half to even on
-#' the index scale (on the grid 0, 25, 50, 75, 100, the value 12.5 maps to 25 and
-#' 37.5 also maps to 25). Coordinates outside the lattice are clamped to the
-#' nearest edge point, so an off-grid fixation takes the edge value rather than
-#' \code{NA}.
-#'
-#' @param normalize A character string specifying how to normalize the density
-#'   map before sampling. One of:
-#'   \describe{
-#'     \item{\code{"none"}}{No normalization (default). Returns raw density values.}
-#'     \item{\code{"max"}}{Divide by the maximum density value, yielding values in [0, 1].}
-#'     \item{\code{"sum"}}{Divide by the sum of all density values, yielding a
-#'       probability distribution.}
-#'     \item{\code{"zscore"}}{Z-score the density map (subtract mean, divide by SD).
-#'       Useful for comparing across maps with different scales.}
-#'   }
-#' @return A data frame with columns "z" and "time", where "z" contains the sampled density values and "time" contains the corresponding time points.
-#' @rdname sample_density
-#' @importFrom stats approx
-#' @export
-sample_density.density <- function(x, fix, times = NULL, normalize = c("none", "max", "sum", "zscore"), ...) {
-  normalize <- match.arg(normalize)
-
-  zmat <- normalize_density_values(x$z, normalize)
-
-  if (is.null(times)) {
-    idx <- density_grid_index(fix, x$x, x$y)
-    data.frame(z = zmat[idx], time = fix$onset)
-  } else {
-    fg <- sample_fixations(fix, times)
-    idx <- density_grid_index(fg, x$x, x$y)
-    data.frame(z = zmat[idx], time = times)
-  }
-}
-
-# Normalize a density matrix as described in sample_density.density().
-normalize_density_values <- function(zmat, normalize) {
-  if (normalize == "max") {
-    mx <- max(zmat, na.rm = TRUE)
-    if (mx > 0) zmat <- zmat / mx
-  } else if (normalize == "sum") {
-    s <- sum(zmat, na.rm = TRUE)
-    if (s > 0) zmat <- zmat / s
-  } else if (normalize == "zscore") {
-    mu <- mean(zmat, na.rm = TRUE)
-    sd_val <- stats::sd(as.vector(zmat), na.rm = TRUE)
-    if (sd_val > 0) zmat <- (zmat - mu) / sd_val
-  }
-  zmat
-}
-
-# Two-column (ix, iy) matrix index of the grid cells nearest to the x/y
-# coordinates of `fix`, clamped to the grid.
-density_grid_index <- function(fix, grid_x, grid_y) {
-  nearest_index <- function(coord, grid) {
-    ind <- round(approx(grid, seq_along(grid), coord, rule = 2)$y)
-    ind[ind < 1L] <- 1L
-    ind[ind > length(grid)] <- length(grid)
-    ind
-  }
-
-  cds <- cbind(fix$x, fix$y)
-  ix <- nearest_index(cds[, 1], grid_x)
-  iy <- nearest_index(cds[, 2], grid_y)
-  cbind(ix, iy)
-}
-
-# Pre-normalized maps for the templates in `dens_list` (restricted to `which`)
-# that sample_density() would send to sample_density.density() and that lie on
-# the lattice of the first such template. Returns list(x, y, z): the shared
-# grid vectors and a list with the normalized matrix for each eligible
-# template, NULL elsewhere. x and y are NULL when no template is eligible.
-density_lookup_maps <- function(dens_list, normalize, which = seq_along(dens_list), enabled = TRUE) {
-  ret <- list(x = NULL, y = NULL, z = vector("list", length(dens_list)))
-  if (!enabled) {
-    return(ret)
-  }
-
-  uses_density_method <- function(obj) {
-    for (cl in class(obj)) {
-      if (!is.null(utils::getS3method("sample_density", cl, optional = TRUE))) {
-        return(identical(cl, "density"))
-      }
-    }
-    FALSE
-  }
-
-  for (j in unique(which)) {
-    obj <- dens_list[[j]]
-    if (!is.list(obj) || !uses_density_method(obj) ||
-        !is.numeric(obj$x) || !is.numeric(obj$y) || !is.matrix(obj$z) ||
-        !identical(dim(obj$z), c(length(obj$x), length(obj$y)))) {
-      next
-    }
-    if (is.null(ret$x)) {
-      ret$x <- obj$x
-      ret$y <- obj$y
-    } else if (!identical(obj$x, ret$x) || !identical(obj$y, ret$y)) {
-      next
-    }
-    # Maps whose normalization warns or fails keep the per-call path, which
-    # reports the condition as before.
-    ret$z[j] <- list(tryCatch(normalize_density_values(obj$z, normalize),
-                              warning = function(w) NULL,
-                              error = function(e) NULL))
-  }
-  ret
-}
-
-
-#' Sample density maps at fixation locations over time
-#'
-#' This function samples template density maps at source fixation locations across
-#' specified time points. It is useful for analyzing how fixation patterns relate
-#' to a reference density map over the course of a trial (e.g., "reinstatement
-#' across time" analysis).
-#'
-#' @param template_tab A data frame or tibble containing template density maps
-#'   (e.g., from an encoding phase).
-#' @param source_tab A data frame or tibble containing fixation groups
-#'   (e.g., from a retrieval phase).
-#' @param match_on A character string specifying the column name used to match
-#'   template density maps to source fixation groups.
-#' @param times A numeric vector of time points (in ms) at which to sample the
-#'   density. Default is \code{seq(0, 3000, by = 50)}.
-#' @param time_bins An optional numeric vector specifying bin boundaries for
-#'   aggregating samples. For example, \code{c(0, 1000, 2000, 3000)} creates
-#'   3 bins: [0-1000), [1000-2000), [2000-3000). Every bin is half-open,
-#'   including the last, so a time point equal to the final break (3000 here)
-#'   is not assigned to any bin. Default is NULL (no binning).
-#' @param template_var A character string specifying the name of the density
-#'   column in \code{template_tab}. Default is "density".
-#' @param source_var A character string specifying the name of the fixation
-#'   group column in \code{source_tab}. Default is "fixgroup".
-#' @param permutations An integer specifying the number of permutation samples
-#'   for computing a baseline. Default is 0 (no permutations).
-#' @param permute_on An optional character string specifying the column used to
-#'   stratify permutations (e.g., "subject" to permute within subjects).
-#' @param aggregate_fun A function used to aggregate density values within time
-#'   bins. Default is \code{mean}.
-#' @param normalize A character string specifying how to normalize each density
-#'   map before sampling. One of \code{"none"} (default), \code{"max"},
-#'   \code{"sum"}, or \code{"zscore"}. See \code{\link{sample_density}} for details.
-#'   Using \code{"zscore"} is recommended when comparing across conditions or
-#'   groups that may differ in fixation count or density bandwidth.
-#'
-#' @details
-#' The function matches each row in \code{source_tab} to a corresponding density
-
-#' map in \code{template_tab} based on the \code{match_on} column. For each matched
-#' pair, it samples the template density at the fixation coordinates interpolated
-#' at each time point in \code{times}.
-#'
-#' This approach avoids the problem of having too few fixations to compute density
-#' maps within short time windows. Instead, a single density map is created from
-#' all fixations (e.g., during encoding), and the sampling is done over time
-#' (e.g., during retrieval).
-#'
-#' If \code{time_bins} is provided, the sampled values are aggregated within each
-#' bin using \code{aggregate_fun}. The result includes columns named \code{bin_1},
-#' \code{bin_2}, etc.
-#'
-#' If \code{permutations > 0}, a baseline is computed by sampling from non-matching
-#' density maps. As in \code{\link{template_similarity}}, the candidates are the
-#' distinct templates matched by other source rows (within the \code{permute_on}
-#' stratum, if given); every copy of the true match is excluded, each other
-#' template counts once, and up to \code{permutations} of them are drawn without
-#' replacement. The result includes \code{perm_sampled} (mean permuted trajectory)
-#' and bin-specific permutation columns if binning is used.
-#'
-#' @return A tibble containing:
-#' \itemize{
-#'   \item All columns from \code{source_tab}
-#'   \item \code{sampled}: A list column with data frames containing \code{z}
-#'     (density values) and \code{time} columns for each row
-#'   \item If \code{time_bins} is provided: columns \code{bin_1}, \code{bin_2}, etc.
-#'     with aggregated values for each bin
-#'   \item If \code{permutations > 0}: \code{perm_sampled} (list column with mean
-#'     permuted trajectory) and \code{perm_bin_1}, \code{perm_bin_2}, etc.
-#' }
-#'
-#' @examples
-#' set.seed(1)
-#' # Encoding fixations for three images, and one recall per image that
-#' # revisits the encoded locations with some noise.
-#' centres <- list(c(150, 150), c(400, 300), c(650, 150))
-#' fixations <- function(centre, jitter) {
-#'   fixation_group(x = centre[1] + rnorm(6, 0, jitter),
-#'                  y = centre[2] + rnorm(6, 0, jitter),
-#'                  onset = seq(0, 1000, by = 200), duration = rep(200, 6))
-#' }
-#' encoding <- tibble::tibble(image = 1:3,
-#'                            fixgroup = lapply(centres, fixations, jitter = 40))
-#' recall <- tibble::tibble(image = 1:3,
-#'                          fixgroup = lapply(centres, fixations, jitter = 60))
-#' templates <- density_by(encoding, groups = "image", sigma = 60,
-#'                         xbounds = c(0, 800), ybounds = c(0, 450),
-#'                         outdim = c(80, 45))
-#' res <- sample_density_time(templates, recall, match_on = "image",
-#'                            times = seq(0, 1000, by = 100),
-#'                            time_bins = c(0, 500, 1000), permutations = 2)
-#' res[, c("image", "bin_1", "bin_2", "perm_bin_1", "perm_bin_2")]
-#'
-#' @export
-#' @importFrom dplyr bind_cols mutate filter select
-#' @importFrom purrr map map_dbl
-#' @importFrom tibble tibble
-#' @importFrom rlang sym
-sample_density_time <- function(template_tab,
-                                source_tab,
-                                match_on,
-                                times = seq(0, 3000, by = 50),
-                                time_bins = NULL,
-                                template_var = "density",
-                                source_var = "fixgroup",
-                                permutations = 0,
-                                permute_on = NULL,
-                                aggregate_fun = mean,
-                                normalize = c("none", "max", "sum", "zscore")) {
-
-  normalize <- match.arg(normalize)
-
-
-  # Validate inputs
-
-  assertthat::assert_that(match_on %in% names(template_tab),
-                          msg = paste("match_on column", match_on, "not found in template_tab"))
-  assertthat::assert_that(match_on %in% names(source_tab),
-                          msg = paste("match_on column", match_on, "not found in source_tab"))
-  assertthat::assert_that(template_var %in% names(template_tab),
-                          msg = paste("template_var column", template_var, "not found in template_tab"))
-  assertthat::assert_that(source_var %in% names(source_tab),
-                          msg = paste("source_var column", source_var, "not found in source_tab"))
-
-  if (!is.null(time_bins)) {
-    assertthat::assert_that(length(time_bins) >= 2,
-                            msg = "time_bins must have at least 2 values to define bin boundaries")
-    assertthat::assert_that(all(diff(time_bins) > 0),
-                            msg = "time_bins must be monotonically increasing")
-  }
-
-  # Ungroup source_tab to avoid issues with grouped operations
-
-  source_tab <- dplyr::ungroup(source_tab)
-
-  # Match source to template
-  matchind <- match(source_tab[[match_on]], template_tab[[match_on]])
-
-  # Handle unmatched rows
-  if (any(is.na(matchind))) {
-    n_missing <- sum(is.na(matchind))
-    warning("Did not find matching template for ", n_missing, " source rows. Removing non-matching elements.")
-    keep_rows <- !is.na(matchind)
-    source_tab <- source_tab[keep_rows, , drop = FALSE]
-    matchind <- matchind[keep_rows]
-  }
-
-  # If permutations requested, set up match index splits
-  match_split <- NULL
-  if (permutations > 0 && !is.null(permute_on)) {
-    assertthat::assert_that(permute_on %in% names(source_tab),
-                            msg = paste("permute_on column", permute_on, "not found in source_tab"))
-    assertthat::assert_that(permute_on %in% names(template_tab),
-                            msg = paste("permute_on column", permute_on, "not found in template_tab"))
-    match_split <- split(matchind, source_tab[[permute_on]])
-  }
-
-  # Helper function to aggregate samples into bins
-  aggregate_bins <- function(sampled_df, time_bins, aggregate_fun) {
-    if (is.null(sampled_df) || nrow(sampled_df) == 0) {
-      return(rep(NA_real_, length(time_bins) - 1))
-    }
-    # Every bin is half-open, [lower, upper), including the last one, so a time
-    # equal to the final break falls outside all bins (label NA).
-    bin_labels <- cut(sampled_df$time, breaks = time_bins, right = FALSE,
-                      labels = FALSE)
-    vapply(seq_len(length(time_bins) - 1), function(b) {
-      vals <- sampled_df$z[which(bin_labels == b)]
-      if (length(vals) == 0 || all(is.na(vals))) NA_real_ else aggregate_fun(vals, na.rm = TRUE)
-    }, numeric(1))
-  }
-
-  # Process each row
-  template_data <- template_tab[[template_var]]
-  source_data <- source_tab[[source_var]]
-
-  # Fast path: templates handled by sample_density.density() that share one
-  # lattice are normalized once here, and each source row's sampled grid
-  # indices are computed once, so the observed value and every permutation are
-  # plain lookups. Any other template (or a row whose indices cannot be
-  # computed cleanly) goes through sample_density() exactly as before.
-  lookup <- density_lookup_maps(template_data, normalize, which = matchind,
-                                enabled = !is.null(times))
-
-  results <- lapply(seq_along(matchind), function(i) {
-    template_dens <- template_data[[matchind[i]]]
-    source_fix <- source_data[[i]]
-
-    idx <- NULL
-    if (!is.null(lookup$x) && !is.null(source_fix)) {
-      # Warnings and errors are left to the per-call path to report as before.
-      idx <- tryCatch(
-        density_grid_index(sample_fixations(source_fix, times), lookup$x, lookup$y),
-        warning = function(w) NULL,
-        error = function(e) NULL
-      )
-    }
-
-    # Check for valid inputs
-    if (is.null(template_dens) || is.null(source_fix)) {
-      sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
-    } else if (!is.null(lookup$z[[matchind[i]]]) && !is.null(idx)) {
-      sampled <- data.frame(z = lookup$z[[matchind[i]]][idx], time = times)
-    } else {
-      sampled <- tryCatch({
-        sample_density(template_dens, source_fix, times = times, normalize = normalize)
-      }, error = function(e) {
-        warning("Error sampling density for row ", i, ": ", e$message)
-        data.frame(z = rep(NA_real_, length(times)), time = times)
-      })
-    }
-
-    result <- list(sampled = sampled)
-
-    # Compute bin aggregates if requested
-    if (!is.null(time_bins)) {
-      bin_vals <- aggregate_bins(sampled, time_bins, aggregate_fun)
-      for (b in seq_along(bin_vals)) {
-        result[[paste0("bin_", b)]] <- bin_vals[b]
-      }
-    }
-
-    # Compute permutation baseline if requested
-    if (permutations > 0) {
-      # Get candidate indices for permutation
-      if (!is.null(permute_on)) {
-        perm_key <- as.character(source_tab[[permute_on]][i])
-        mind <- match_split[[perm_key]]
-      } else {
-        mind <- matchind
-      }
-
-      # Remove every copy of the current match and keep each other template
-      # once, as in template_similarity()
-      current_match <- matchind[i]
-      mind <- unique(mind[mind != current_match])
-
-      if (length(mind) == 0) {
-        # No candidates for permutation
-        perm_sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
-        if (!is.null(time_bins)) {
-          for (b in seq_len(length(time_bins) - 1)) {
-            result[[paste0("perm_bin_", b)]] <- NA_real_
-          }
-        }
-      } else {
-        # Sample permutation candidates
-        if (permutations < length(mind)) {
-          mind <- sample(mind, permutations)
-        }
-
-        # Compute permuted samples
-        perm_samples <- lapply(mind, function(j) {
-          zmat <- lookup$z[[j]]
-          if (!is.null(zmat) && !is.null(idx)) {
-            return(zmat[idx])
-          }
-          perm_dens <- template_data[[j]]
-          if (is.null(perm_dens) || is.null(source_fix)) {
-            return(rep(NA_real_, length(times)))
-          }
-          tryCatch({
-            sample_density(perm_dens, source_fix, times = times, normalize = normalize)$z
-          }, error = function(e) {
-            rep(NA_real_, length(times))
-          })
-        })
-
-        # Average across permutations
-        perm_matrix <- do.call(rbind, perm_samples)
-        perm_mean <- colMeans(perm_matrix, na.rm = TRUE)
-        perm_sampled <- data.frame(z = perm_mean, time = times)
-
-        result$perm_sampled <- perm_sampled
-
-        # Compute permuted bin aggregates
-        if (!is.null(time_bins)) {
-          perm_bin_vals <- aggregate_bins(perm_sampled, time_bins, aggregate_fun)
-          for (b in seq_along(perm_bin_vals)) {
-            result[[paste0("perm_bin_", b)]] <- perm_bin_vals[b]
-          }
-        }
-      }
-
-      if (is.null(result$perm_sampled)) {
-        result$perm_sampled <- data.frame(z = rep(NA_real_, length(times)), time = times)
-      }
-    }
-
-    result
-  })
-
-  # Assemble output tibble
-  out <- source_tab
-
-  # Add sampled column (list column)
-  out$sampled <- lapply(results, `[[`, "sampled")
-
-  # Add bin columns if present
-  if (!is.null(time_bins)) {
-    n_bins <- length(time_bins) - 1
-    for (b in seq_len(n_bins)) {
-      col_name <- paste0("bin_", b)
-      out[[col_name]] <- vapply(results, function(r) r[[col_name]] %||% NA_real_, numeric(1))
-    }
-  }
-
-  # Add permutation columns if present
-  if (permutations > 0) {
-    out$perm_sampled <- lapply(results, `[[`, "perm_sampled")
-
-    if (!is.null(time_bins)) {
-      n_bins <- length(time_bins) - 1
-      for (b in seq_len(n_bins)) {
-        col_name <- paste0("perm_bin_", b)
-        out[[col_name]] <- vapply(results, function(r) r[[col_name]] %||% NA_real_, numeric(1))
-      }
-
-      # Add difference columns (observed - permuted)
-      for (b in seq_len(n_bins)) {
-        obs_col <- paste0("bin_", b)
-        perm_col <- paste0("perm_bin_", b)
-        diff_col <- paste0("diff_bin_", b)
-        out[[diff_col]] <- out[[obs_col]] - out[[perm_col]]
-      }
-    }
-  }
-
-  tibble::as_tibble(out)
-}
-
-
 #' This function creates a density object from the provided x, y, and z matrices. The density object is a list containing the x, y, and z values with a class attribute set to "density" and "list".
 #'
 #' @param x A numeric vector representing the x-axis values of the density map.
@@ -1335,7 +877,8 @@ summary.eye_density <- function(object, ...) {
 #'   over \code{duration_weighted}. If NULL and duration_weighted is TRUE, uses fixation
 #'   durations as weights. Default is NULL.
 #' @param normalize Whether to normalize the output map. Default is TRUE.
-#' @param duration_weighted Whether to weight the fixations by their duration. Default is FALSE.
+#' @param duration_weighted Whether to weight the fixations by their duration.
+#'   Defaults to FALSE for onset selection and TRUE for an overlap window.
 #' @param window The temporal window over which to compute the density map. Default is NULL.
 #' @param min_fixations Minimum number of fixations required to compute a density map.
 #'   If fewer fixations are present after optional filtering, the function returns NULL.
@@ -1357,6 +900,11 @@ summary.eye_density <- function(object, ...) {
 #' to 7 significant digits relative to the map maximum, so values below roughly
 #' \code{max(z) * 5e-8} become zero.
 #'
+#' @param window_weight Select by onset (default) or positive interval overlap.
+#'   Overlap clips durations to the window. Explicit weights are multiplied by
+#'   the overlap fraction of each fixation; otherwise duration weighting uses
+#'   clipped durations by default. Explicit `duration_weighted = FALSE` gives
+#'   survivors unit weight and warns when no explicit weights are supplied.
 #' @return An object of class `eye_density` (inheriting from `density` and `list`) if
 #'   `sigma` is a single value, or an object of class `eye_density_multiscale` (a
 #'   list of `eye_density` objects) if `sigma` is a vector. Returns `NULL` if
@@ -1375,7 +923,14 @@ eye_density.fixation_group <- function(x, sigma = 50,
                                        window = NULL, min_fixations = 2,
                                        origin = c(0, 0),
                                        kde_pkg = "ks",
-                                       ...) {
+                                       ..., window_weight = c("onset", "overlap")) {
+  window_weight <- match.arg(window_weight)
+  if (window_weight == "overlap" && !is.null(window)) {
+    if (missing(duration_weighted)) duration_weighted <- TRUE
+    if (is.null(weights) && identical(duration_weighted, FALSE)) {
+      warning("Overlap window with duration_weighted = FALSE gives each retained fixation unit weight; use TRUE for clipped-duration weights.")
+    }
+  }
 
   # NA-safe: an NA sigma (e.g. suggest_sigma() on a single fixation) gets this
   # message rather than assert_that()'s "missing values present in assertion".
@@ -1396,26 +951,12 @@ eye_density.fixation_group <- function(x, sigma = 50,
     assert_that(any(weights > 0), msg = "weights must not all be zero.")
   }
 
-  # Filter by window if specified
-  x_filtered <- x # Use a new variable for the potentially filtered data
-  if (!is.null(window)) {
-    assert_that(length(window) == 2,
-                msg = "Window must be a numeric vector of length 2.")
-    assert_that(window[2] > window[1],
-                msg = "The second element of window must be greater than the first.")
-    assert_that("onset" %in% colnames(x_filtered),
-                msg = "The data frame must contain an 'onset' column.")
-
-    if (!is.null(weights)) {
-      weights <- weights[which(x_filtered$onset >= window[1] & x_filtered$onset < window[2])]
-    }
-    x_filtered <- dplyr::filter(x_filtered, onset >= window[1] & onset < window[2])
-    if (nrow(x_filtered) == 0) {
-         warning("No fixations remain after applying the window filter. Returning NULL.")
-         return(NULL) # Return NULL if no data left
-    }
-    # assert_that(nrow(x_filtered) > 0, # Check done above
-    #            msg = "No fixations remain after applying the window filter.")
+  filtered <- density_window(x, window, weights, window_weight)
+  x_filtered <- filtered$x
+  weights <- filtered$weights
+  if (!is.null(window) && nrow(x_filtered) == 0L) {
+    warning("No fixations remain after applying the window filter. Returning NULL.")
+    return(NULL)
   }
 
   # Basic check for enough data points for KDE
@@ -1814,34 +1355,6 @@ similarity.density <- function(x, y,
     }
     compute_similarity(x$z, as.vector(y), method)
   }
-}
-
-# Two density maps are comparable cell by cell only when they share a lattice.
-density_lattices_equal <- function(x, y) {
-  gx <- as.numeric(x$x)
-  gy <- as.numeric(x$y)
-  hx <- as.numeric(y$x)
-  hy <- as.numeric(y$y)
-  length(gx) == length(hx) && length(gy) == length(hy) &&
-    isTRUE(all.equal(gx, hx)) && isTRUE(all.equal(gy, hy)) &&
-    identical(dim(x$z), dim(y$z))
-}
-
-check_same_density_lattice <- function(x, y) {
-  if (!density_lattices_equal(x, y)) {
-    # Classed so callers that turn per-pair errors into NA can let it through.
-    stop(structure(
-      class = c("eyesim_lattice_mismatch", "error", "condition"),
-      list(
-        message = paste0(
-          "similarity(): density maps are on different lattices. Both maps must ",
-          "have the same x and y grid coordinates (same bounds and outdim)."
-        ),
-        call = NULL
-      )
-    ))
-  }
-  invisible(TRUE)
 }
 
 #' @export

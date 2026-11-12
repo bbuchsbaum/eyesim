@@ -17,7 +17,8 @@ density_by(
   keep_vars = NULL,
   fixvar = "fixgroup",
   result_name = "density",
-  ...
+  ...,
+  window_weight = c("onset", "overlap")
 )
 }
 \arguments{
@@ -49,6 +50,12 @@ result column. Default is 2.}
 \item{result_name}{A character string specifying the name for the density result variable (default is "density").}
 
 \item{...}{Additional arguments passed to the `eye_density.fixation_group` function.}
+
+\item{window_weight}{Select by onset (default) or positive interval overlap.
+Overlap clips durations to the window. Explicit weights are multiplied by
+the overlap fraction of each fixation; otherwise duration weighting uses
+clipped durations by default. Explicit `duration_weighted = FALSE` gives
+survivors unit weight and warns when no explicit weights are supplied.}
 }
 \value{
 A data frame containing the original grouping variables, the fixations, and the density result. If `sigma` is a vector, the column specified by `result_name` will contain `eye_density_multiscale` objects.

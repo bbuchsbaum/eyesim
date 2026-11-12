@@ -12,6 +12,17 @@ reference:
   - eye_density.fixation_group
   - gen_density
   - as.data.frame.eye_density
+- title: Fixation reference scoring
+  desc: Leave-out maps, replayable assignments, scoring, and explicit scaling.
+  contents:
+  - reference_maps
+  - reference_map
+  - sample_controls
+  - score_strata
+  - fit_score_scaling
+  - case_control_contrast
+  - mismatch_assignments
+  - mismatch_draws
 - title: Spatial operations
   desc: Functions for manipulating spatial coordinates and transformations.
   contents:

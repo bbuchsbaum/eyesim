@@ -51,13 +51,20 @@ get_density <- function(x,...) {
 #' This function samples a given smooth fixation density map with a set of discrete fixations
 #' to estimate the density at the locations of those fixations.
 #'
-#' @param x An object representing the smooth fixation density map to be sampled.
-#' @param fix A data frame containing the discrete fixations used for sampling the density map.
+#' @param x A density map, a named list or table of maps, or a reference set.
+#' @param fix A table of locations with x/y coordinates. Single maps and map lists
+#'   also use onset (unless times are supplied); reference sets require their
+#'   subject/item key columns.
 #' @param ... Additional arguments passed on to the method, including
 #'   \code{normalize} (one of \code{"none"}, \code{"max"}, \code{"sum"}, or
 #'   \code{"zscore"}) to control density map normalization before sampling.
 #'
-#' @return A data frame with columns 'z' (density estimates at fixation locations) and 'time' (onset time of fixations).
+#' @return Single-map sampling returns z and time columns. Named lists and map
+#'   tables return fixation/reference/z/time rows, or fixation/time and one
+#'   column per map with format = "wide". Reference sets return one column per
+#'   reference, aligned with the input locations, or fixation/reference/z rows
+#'   with format = "long". Reference values are already prepared and do not
+#'   accept further normalization or transformation during lookup.
 #' @seealso \code{\link{sample_density.density}} for an example of a specific method implementation for this generic.
 #' @export
 sample_density <- function(x,fix,...) {

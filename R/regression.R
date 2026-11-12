@@ -102,7 +102,7 @@ template_regression <- function(ref_tab, source_tab, match_on,
                                 method=c("lm", "rlm", "rank"),
                                 density_var="density") {
   method <- match.arg(method)
-  matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
+  matchind <- match_map_rows(source_tab, ref_tab, match_on)
   source_tab <- source_tab %>% ungroup() %>% mutate(matchind=matchind)
 
   if (any(is.na(matchind))) {
@@ -170,6 +170,7 @@ template_regression <- function(ref_tab, source_tab, match_on,
 #' @param template the name of the template density variable
 #' @param fixgroup the name of the fixation group supplying the spatiotemporal coordinates used to sample the template
 #' @param time the time points used to extract coordinates from the `fixation_group`
+#' @param ... Additional arguments passed to `sample_density()`.
 #' @param outcol the name of the output variable
 #' @return \code{source_tab} with a list column \code{outcol} of sampled values.
 #'   Rows whose template or fixation group is \code{NULL} cannot be sampled and are
@@ -178,7 +179,7 @@ template_regression <- function(ref_tab, source_tab, match_on,
 #' @importFrom purrr pmap
 #' @importFrom tibble add_column
 #' @importFrom rlang sym
-template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL, outcol="sample_out") {
+template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL, outcol="sample_out", ...) {
   x1 <- rlang::sym(template)
   x2 <- rlang::sym(fixgroup)
 
@@ -192,7 +193,7 @@ template_sample <- function(source_tab, template, fixgroup="fixgroup", time=NULL
   }
 
   ret <- source_tab %>% select(a=!!x1, b=!!x2) %>% pmap(function(a,b) {
-    sample_density(a,b, time)
+    sample_density(a,b, time, ...)
   })
 
 

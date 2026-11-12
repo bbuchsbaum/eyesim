@@ -17,7 +17,8 @@
   min_fixations = 2,
   origin = c(0, 0),
   kde_pkg = "ks",
-  ...
+  ...,
+  window_weight = c("onset", "overlap")
 )
 }
 \arguments{
@@ -43,7 +44,8 @@ durations as weights. Default is NULL.}
 
 \item{normalize}{Whether to normalize the output map. Default is TRUE.}
 
-\item{duration_weighted}{Whether to weight the fixations by their duration. Default is FALSE.}
+\item{duration_weighted}{Whether to weight the fixations by their duration.
+Defaults to FALSE for onset selection and TRUE for an overlap window.}
 
 \item{window}{The temporal window over which to compute the density map. Default is NULL.}
 
@@ -60,6 +62,12 @@ Default is 2.}
 \code{xmin}, \code{xmax}, \code{w}, and the evaluation grid (\code{eval.points})
 itself, so these cannot be supplied. Extra
 arguments are an error when \code{kde_pkg = "MASS"}.}
+
+\item{window_weight}{Select by onset (default) or positive interval overlap.
+Overlap clips durations to the window. Explicit weights are multiplied by
+the overlap fraction of each fixation; otherwise duration weighting uses
+clipped durations by default. Explicit `duration_weighted = FALSE` gives
+survivors unit weight and warns when no explicit weights are supplied.}
 }
 \value{
 An object of class `eye_density` (inheriting from `density` and `list`) if

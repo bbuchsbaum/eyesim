@@ -12,6 +12,7 @@ docs
 .omc/
 # Mote's durable op log is versioned; per-session actor state is not.
 .mote/local/
+.mote/authority/
 # Restricted Wynn probe-delay fixation exports: keep local, never publish.
 test_data/wynn_probe_delay/study_fix_input_new.csv
 test_data/wynn_probe_delay/testdelay_fix_input_matched.csv
