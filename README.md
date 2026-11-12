@@ -12,137 +12,139 @@ coverage](https://codecov.io/gh/bbuchsbaum/eyesim/branch/master/graph/badge.svg)
 
 **Do people look at a picture the same way the second time they see
 it?** eyesim is an R package that measures how similar two sets of eye
-fixations are, and whether that similarity belongs to the picture or is
-just a habit of the viewer.
+fixations are, and how much of that similarity belongs to the picture
+rather than to the viewer’s habits. It is written for researchers
+studying memory, attention and scene viewing, and works with fixations
+from any eye tracker.
 
-<img src="man/figures/README-hero-1.png" alt="Eight small panels. Each shows one participant's study-phase fixation density for an image as grey shading, with their test-phase fixations on that image as dots. The top row shows studied images; the bottom row shows lures. Studied images have test fixations that fall on the dense regions more often."  />
-
-<sub>One participant, eight test trials drawn at random. Grey: where
-they looked while studying the image. Red: where they looked at test.
-Top row: the same image again. Bottom row: a lure, the other version of
-a studied image. The number is the corrected similarity eyesim computes
-below.</sub>
+<img src="man/figures/README-hero-1.png" alt="Dot plot with one dot per participant, sorted. Each dot is that participant's mean corrected similarity for studied images minus that for lures. 79 of 103 dots fall to the right of zero; the mean difference is 0.06."  />
 
 ## Installation
+
+eyesim is under development and not yet on CRAN. Install it from GitHub:
 
 ``` r
 # install.packages("remotes")
 remotes::install_github("bbuchsbaum/eyesim")
 ```
 
-## Example: does gaze at test revisit gaze at study?
+## Example: does gaze at test re-trace gaze at study?
 
-The package ships with fixations from a recognition-memory experiment
-(`wynn_study`, `wynn_test`): 103 participants studied 120 photographs,
-then saw each again or saw a lure. Three steps answer the question.
+eyesim includes fixations from a recognition-memory experiment. In it,
+103 participants studied 120 photographs, four times each
+(`wynn_study`). At test they saw each photograph once more
+(`wynn_test`): either the studied version (`probe_type == "old"`) or a
+different version of the same scene (`"lure"`).
+
+We call a participant’s study-phase density map for an image its
+**template**. The question is whether test gaze falls where template
+gaze fell, more than it would for an arbitrary image. Three steps answer
+it:
 
 ``` r
 library(eyesim)
 library(dplyr)
 
-# The first 20 of the 103 participants keep this example to about a minute.
-subjects <- head(sort(unique(wynn_study$Subject)), 20)
-study <- wynn_study |> ungroup() |> filter(Subject %in% subjects)
-test  <- wynn_test  |> ungroup() |> filter(Subject %in% subjects)
+# The datasets are grouped tibbles; ungroup before working across rows.
+study <- ungroup(wynn_study)
+test  <- ungroup(wynn_test)
 
-# One density map per participant and image: 800 x 600 pixel screen.
+# One density map per participant and image, on the 800 x 600 pixel image.
 maps <- function(fixations, ...) {
   density_by(fixations, groups = c("Subject", "ImageNumberS"),
              sigma = 50, xbounds = c(0, 800), ybounds = c(0, 600),
              outdim = c(80, 60), ...)
 }
-study_maps <- maps(study)
+templates  <- maps(study)
 test_maps  <- maps(test, keep_vars = "probe_type")
 
-# Compare each test map with the same participant's study map of that image,
-# and with 20 of their other study maps as a baseline.
+# Score each test map against its template, and against 20 of the same
+# participant's other templates as a baseline.
 set.seed(1)
-sim <- template_similarity(study_maps, test_maps,
+sim <- template_similarity(templates, test_maps,
                            match_on = "ImageNumberS",
                            permute_on = "Subject",
                            method = "fisherz",
                            permutations = 20)
 ```
 
-`template_similarity()` returns one row per test trial. `eye_sim` is the
-similarity to the matching study map. `perm_sim` is the mean similarity
-to the participant’s *other* study maps: what anyone’s habitual gaze
-would score. `eye_sim_diff` is the difference, the part specific to the
-image.
+This takes several minutes for all 12,240 test trials. To try it
+quickly, first keep a few participants,
+e.g. `filter(Subject %in% 5:14)`.
+
+`template_similarity()` returns one row per test trial:
+
+- `eye_sim` is the similarity between the test map and its template.
+- `perm_sim` is the mean similarity to the participant’s templates for
+  *other* images: their habitual way of viewing, such as a bias toward
+  the centre of the screen.
+- `eye_sim_diff`, the **corrected similarity**, is the difference, the
+  part specific to this image.
 
 ``` r
-sim |> select(Subject, ImageNumberS, probe_type, eye_sim, perm_sim, eye_sim_diff)
-#> # A tibble: 2,398 x 6
-#>    Subject ImageNumberS probe_type eye_sim perm_sim eye_sim_diff
-#>      <dbl> <chr>        <chr>        <dbl>    <dbl>        <dbl>
-#>  1       5 5_1          old          0.794    0.544       0.250 
-#>  2       5 5_10         old          1.25     0.417       0.836 
-#>  3       5 5_100        lure         0.542    0.835      -0.293 
-#>  4       5 5_101        lure         0.900    0.587       0.312 
-#>  5       5 5_102        lure         1.67     0.804       0.865 
-#>  6       5 5_103        lure         1.22     0.778       0.437 
-#>  7       5 5_104        lure         0.647    0.590       0.0565
-#>  8       5 5_105        lure         1.48     0.704       0.776 
-#>  9       5 5_106        lure         0.237    0.656      -0.419 
-#> 10       5 5_107        lure         0.300    0.267       0.0331
-#> # i 2,388 more rows
+sim %>%
+  select(Subject, ImageNumberS, probe_type, eye_sim, perm_sim, eye_sim_diff) %>%
+  head(5)
+#> # A tibble: 5 x 6
+#>   Subject ImageNumberS probe_type eye_sim perm_sim eye_sim_diff
+#>     <dbl> <chr>        <chr>        <dbl>    <dbl>        <dbl>
+#> 1       5 5_1          old          0.794    0.544        0.250
+#> 2       5 5_10         old          1.25     0.417        0.836
+#> 3       5 5_100        lure         0.542    0.835       -0.293
+#> 4       5 5_101        lure         0.900    0.587        0.312
+#> 5       5 5_102        lure         1.67     0.804        0.865
 ```
 
-Averaged within participants, studied images score higher than lures for
-16 of 20 people (mean 0.12 versus 0.06, Fisher *z*):
+Single trials are noisy. The panels below show one participant’s trials
+at the 10th, 50th and 90th percentile of corrected similarity. The grey
+shading is the template and the red dots are the test fixations.
 
-<img src="man/figures/README-slope-1.png" alt="Slopegraph. Each grey line connects one participant's mean corrected similarity for lure trials (left) to studied trials (right). Most lines rise. A thick black line shows the group mean rising from about 0.06 to about 0.12."  />
+<img src="man/figures/README-panels-1.png" alt="Six panels in two rows, studied images above and lures below. Each panel shows a participant's template as grey shading with their test fixations as red dots, at the 10th, 50th and 90th percentile of corrected similarity. Scores range from negative to strongly positive in both rows."  />
 
-<sub>One line per participant (first 20 of 103). Thick line: mean.</sub>
-
-Lures still score above zero: the two versions of each photograph share
-much of their layout. The *difference* between the conditions is the
-memory signal.
+Averaged within each participant, the pattern is clear. Studied images
+score higher than lures for 79 of 103 participants (mean 0.11 versus
+0.05, Fisher *z*), as the figure at the top shows. Lures still score
+above zero because the two versions of a scene share much of their
+layout. The *difference* between conditions is consistent with gaze
+reinstating what was studied.
 
 ## What eyesim does
 
-| Question                                             | Functions                                                               | Guide                                                                                           |
-|:-----------------------------------------------------|:------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------|
-| Where did people look?                               | `fixation_group()`, `eye_table()`, `eye_density()`, `density_by()`      | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
-| Is a viewing similar to its template, beyond chance? | `template_similarity()`, `similarity()`                                 | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
-| When during a viewing does it match?                 | `sample_density_time()`                                                 | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
-| How often does gaze return to a place?               | `fixation_revisits()`, `revisit_summary()`                              | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
-| Do two scanpaths share shape, order and timing?      | `scanpath()`, `multi_match()`                                           | [MultiMatch](https://bbuchsbaum.github.io/eyesim/articles/Multimatch.html)                      |
-| Is gaze consistent across repeats of a stimulus?     | `repetitive_similarity()`                                               | [Repetitive similarity](https://bbuchsbaum.github.io/eyesim/articles/RepetitiveSimilarity.html) |
-| What if recall gaze is shrunk or shifted?            | `contract_transform()`, `coral_transform()`, `template_similarity_cv()` | [Latent transforms](https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.html)        |
-| How much does a recall path identify its image?      | `gaze_weave_cv()`, `gaze_transport_cv()`                                | [GazeWeave](https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.html) *(experimental)*       |
+| Question                                                         | Functions                                                               | Guide                                                                                           |
+|:-----------------------------------------------------------------|:------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------|
+| Where did people look?                                           | `fixation_group()`, `eye_table()`, `density_by()`                       | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
+| Is a viewing similar to its template, beyond chance?             | `template_similarity()`, `similarity()`                                 | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
+| When during a viewing does it match?                             | `sample_density_time()`                                                 | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
+| How often does gaze return to a place?                           | `fixation_revisits()`, `revisit_summary()`                              | [Getting started](https://bbuchsbaum.github.io/eyesim/articles/eyesim.html)                     |
+| Do two scanpaths share shape, order and timing?                  | `scanpath()`, `multi_match()` (Dewhurst et al., 2012)                   | [MultiMatch](https://bbuchsbaum.github.io/eyesim/articles/Multimatch.html)                      |
+| Is gaze consistent across repeats of a stimulus?                 | `repetitive_similarity()`                                               | [Repetitive similarity](https://bbuchsbaum.github.io/eyesim/articles/RepetitiveSimilarity.html) |
+| What if recall gaze is shrunk or shifted?                        | `contract_transform()`, `coral_transform()`, `template_similarity_cv()` | [Latent transforms](https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.html)        |
+| How much does a recall path identify its image? *(experimental)* | `gaze_weave_cv()`, `gaze_transport_cv()`                                | [GazeWeave](https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.html)                        |
 
-Similarity can be measured as correlation (Pearson, Spearman, Fisher
-*z*), cosine, L1, Jaccard, distance covariance, or earth mover’s
-distance.
+`similarity()` and `template_similarity()` take a `method`: Pearson,
+Spearman or Fisher *z* correlation, cosine, L1, Jaccard, distance
+covariance, or earth mover’s distance.
 
-### GazeWeave (experimental)
-
-GazeWeave asks a sharper question than a similarity score: given a
-recall gaze path, how much does it raise the probability of picking out
-the image being recalled? The answer is reported in bits,
-`gaze_info_bits`; zero means gaze added nothing, and one bit means it
-doubled the correct image’s probability. All fitting is cross-validated,
-so a method that only fits noise scores zero on average. Two engines are
-available: *Replay*, for encoding-to-recall designs, and *Transport*, a
-symmetric alignment.
-
-GazeWeave is under active development, and its interface may change. In
-validation it has not yet outperformed simpler comparators at predicting
-recognition responses, so treat its scores as exploratory. The
+**GazeWeave** is experimental. It scores, in bits, how much a recall
+gaze path helps identify which image is being recalled. In validation it
+has not yet outperformed simpler measures, so read the
 [vignette](https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.html)
-documents the evidence and failure modes.
+before relying on it.
 
 ## Learn more
 
-The [documentation site](https://bbuchsbaum.github.io/eyesim/) has a
-[function
-reference](https://bbuchsbaum.github.io/eyesim/reference/index.html) and
-the guides linked above. `anim_scanpath()` animates a scanpath over its
-stimulus:
+The [documentation site](https://bbuchsbaum.github.io/eyesim/) has the
+guides above and a full [function
+reference](https://bbuchsbaum.github.io/eyesim/reference/index.html).
+Report bugs and ask questions on [GitHub
+issues](https://github.com/bbuchsbaum/eyesim/issues).
 
-<img src="man/figures/phelps.gif" width="320" alt="Animated fixations appearing one by one over a photograph of a swimmer." />
+## Citation
 
-Bug reports and questions: [GitHub
-issues](https://github.com/bbuchsbaum/eyesim/issues). eyesim is released
-under the MIT license.
+To cite eyesim, run `citation("eyesim")`. The example data come from the
+pattern-completion experiment of Wynn, Ryan and Buchsbaum (2020), *Eye
+movements support behavioral pattern completion*, PNAS 117(11),
+6246–6254,
+[doi:10.1073/pnas.1917586117](https://doi.org/10.1073/pnas.1917586117).
+
+eyesim is released under the MIT license.

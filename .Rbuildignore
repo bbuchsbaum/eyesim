@@ -24,3 +24,4 @@ test_data
 vignettes/Overview\.html$
 ^\.albersdown\.bak$
 ^inst/validation$
+^README_cache$
