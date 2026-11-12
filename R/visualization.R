@@ -466,3 +466,8 @@ cuberoot_trans <- scales::trans_new(name="curoot",
 squareroot_trans <- scales::trans_new(name="sqroot",
                                     transform=function(x) { x^(1/2) },
                                     inverse=function(x) x^2)
+
+#' @export
+plot.eye_contrast <- function(x, ...) {
+  plot.eye_density(x, ...)
+}

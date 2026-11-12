@@ -72,6 +72,10 @@ An object of class `eye_density` (inheriting from `density` and `list`) if
 This function computes a density map for a given fixation group using kernel density estimation.
 }
 \details{
+The selected estimator is required: a missing `ks` dependency is an error,
+rather than an automatic switch to MASS. Returned maps record `estimator`
+and `kernel_sd` (the actual Gaussian standard deviation).
+
 The function computes a density map for a given fixation group using kernel density estimation. If `sigma` is a single value, it computes a standard density map. If `sigma` is a vector, it computes a density map for each value in `sigma` and returns them packaged as an `eye_density_multiscale` object, which is a list of individual `eye_density` objects.
 
 After optional normalization, each map is passed through

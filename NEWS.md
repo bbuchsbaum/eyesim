@@ -1,3 +1,12 @@
+# Issue review
+
+* Warn when template keys are ambiguous; correct within-participant matching
+  and repetitive-similarity examples (#28, #31).
+* Record density estimators and kernel widths and refuse an implicit ks-to-MASS
+  fallback; explicit MASS bandwidth semantics are unchanged (#30).
+* Return signed differences and log ratios as contrast maps, preserving smoothing
+  metadata and refusing mismatched bandwidths. Addition remains a mean (#32).
+
 # eyesim (development version)
 
 ## New features
@@ -46,7 +55,7 @@
 
 # eyesim 0.3.0
 
-## Bug fixes (peyesim parity testing, #42-#50)
+## Bug fixes (peyesim parity testing, #42-#51)
 
 * `match_scale()` no longer always errors. The row columns from `pmap()` were
   passed to `estimate_scale()` as extra arguments (#42).
@@ -70,6 +79,8 @@
 * MultiMatch `mm_duration` is 1, not NA, when aligned durations are all zero.
   `mm_position_emd` weights fixations equally when a scanpath has no total
   duration, instead of reporting a perfect match (#50).
+* `similarity()` for scanpaths validates `method` and errors on anything other
+  than `"multimatch"`, instead of silently running MultiMatch (#51).
 
 ## Bug fixes (pre-CRAN review)
 
