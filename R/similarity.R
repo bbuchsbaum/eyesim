@@ -117,6 +117,11 @@ run_similarity_analysis <- function(ref_tab, source_tab, match_on, permutations,
     dplyr::bind_cols(sim_tbl, perm_tbl, diff_tbl, tibble::tibble(n_perm = n_perm))
   }
 
+  if (anyDuplicated(ref_tab[[match_on]])) {
+    warning("`", match_on, "` is not unique in ref_tab; using the first row per key. ",
+            "Use a compound participant/item key for within-participant matching.")
+  }
+
   # Match indices between source and reference tables
   matchind <- match(source_tab[[match_on]], ref_tab[[match_on]])
 
@@ -1341,6 +1346,11 @@ summary.eye_density <- function(object, ...) {
 #'   If fewer fixations are present after optional filtering, the function returns NULL.
 #'   Default is 2.
 #' @param origin The origin of the coordinate system. Default is c(0,0).
+#' @details
+#' The selected estimator is required: a missing `ks` dependency is an error,
+#' rather than an automatic switch to MASS. Returned maps record `estimator`
+#' and `kernel_sd` (the actual Gaussian standard deviation).
+#'
 #' @param kde_pkg A character string specifying which package to use for kernel density estimation. Options are "ks" (default) or "MASS"; any other value is an error. Both support weighted estimation; under "MASS" weights use an internal weighted version of \code{MASS::kde2d}. Note the different meaning of \code{sigma} under "MASS".
 #' @param ... Additional named arguments passed to \code{\link[ks]{kde}}, for example
 #'   \code{binned = FALSE}. \code{eye_density()} sets \code{x}, \code{H}, \code{gridsize},
@@ -1490,7 +1500,7 @@ eye_density.fixation_group <- function(x, sigma = 50,
 # Internal function, not exported
 .compute_single_eye_density <- function(x_data, sigma_val, xbounds, ybounds, outdim,
                                        normalize, weighted, weights, data_matrix,
-                                       kde_pkg = "ks", ...) { # Added kde_pkg, default to ks if available, else MASS
+                                       kde_pkg = "ks", ...) {
 
   current_sigma <- sigma_val # Use the specific sigma for this scale
   gridsize <- outdim
@@ -1506,7 +1516,10 @@ eye_density.fixation_group <- function(x, sigma = 50,
   }
 
   # Check if ks package should be used
-  use_ks <- requireNamespace("ks", quietly = TRUE) && kde_pkg == "ks"
+  if (kde_pkg == "ks" && !requireNamespace("ks", quietly = TRUE)) {
+    stop('kde_pkg = "ks" requires the ks package; no automatic bandwidth-changing fallback is used.')
+  }
+  use_ks <- kde_pkg == "ks"
 
   if (use_ks) {
     # --- Use ks::kde ---
@@ -1613,38 +1626,47 @@ eye_density.fixation_group <- function(x, sigma = 50,
                    y = eval_points_val[[2]],
                    z = density_matrix_val,
                    fixgroup = x_data,
-                   sigma = current_sigma)
+                   sigma = current_sigma,
+                   estimator = if (use_ks) "ks" else "MASS",
+                   kernel_sd = if (use_ks) current_sigma else current_sigma / 4)
   class(out_list) <- c("eye_density", "density", "list")
   return(out_list)
 }
 
 
+#' Arithmetic on eye density maps
+#'
+#' Addition returns the mean of two maps. Subtraction returns their signed
+#' difference; division returns their log ratio (zeros can yield infinite or
+#' undefined cells). Difference and log-ratio surfaces have class `eye_contrast`,
+#' not `density`, and cannot be passed to density-only methods such as entropy.
+#' Maps must share grid coordinates and smoothing bandwidth. Smoothing metadata
+#' is retained; the estimator of each operand is recorded in `source_estimators`.
+#' @param e1,e2 Eye density maps on the same grid and at the same bandwidth.
+#' @return A density for addition, or an `eye_contrast` for subtraction/division.
 #' @export
-Ops.eye_density <- function(e1,e2) {
-    stopifnot(all(e1$x == e2$x), all(e1$y == e2$y))
-    op = .Generic[[1]]
-    switch(op,
-           `-` = {
-             delta <- e1$z - e2$z
-             #delta <- (delta - min(delta))/(max(delta) - min(delta))
-             structure(list(x=e1$x, y=e1$y, z=delta, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
-                       class=c("eye_density_delta", "eye_density", "density", "list"))
-
-           },
-           `+` = {
-             add = (e1$z + e2$z)/2
-             structure(list(x=e1$x, y=e1$y, z=add, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
-                       class=c("eye_density_add", "eye_density", "density", "list"))
-
-           },
-           `/` = {
-             div = log(e1$z/e2$z)
-             structure(list(x=e1$x, y=e1$y, z=div, fixgroup=rbind(e1$fixgroup, e2$fixgroup)),
-                       class=c("eye_density_div", "eye_density", "density", "list"))
-
-           },
-           stop("undefined operation")
-    )
+Ops.eye_density <- function(e1, e2) {
+  if (!identical(e1$x, e2$x) || !identical(e1$y, e2$y)) {
+    stop("Density arithmetic requires the same grid coordinates.")
+  }
+  if (!identical(e1$sigma, e2$sigma) || !identical(e1$kernel_sd, e2$kernel_sd)) {
+    stop("Density arithmetic requires the same smoothing bandwidth.")
+  }
+  op <- .Generic[[1]]
+  z <- switch(op,
+              `-` = e1$z - e2$z,
+              `+` = (e1$z + e2$z) / 2,
+              `/` = log(e1$z / e2$z),
+              stop("undefined operation"))
+  out <- e1
+  out$z <- z
+  out$fixgroup <- rbind(e1$fixgroup, e2$fixgroup)
+  out$source_estimators <- list(e1$estimator, e2$estimator)
+  tag <- switch(op, `-` = "eye_density_delta", `+` = "eye_density_add",
+                `/` = "eye_density_div")
+  class(out) <- if (op == "+") c(tag, "eye_density", "density", "list") else
+    c(tag, "eye_contrast", "list")
+  out
 }
 
 

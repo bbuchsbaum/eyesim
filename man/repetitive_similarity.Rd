@@ -44,6 +44,13 @@ For each density map (trial), this function calculates its average similarity
 to all other maps within the same condition (`repsim`) and its average similarity
 to all maps from different conditions (`othersim`).
 }
+\details{
+Pair selection uses only equality of `condition_var`; participant and phase
+columns do not restrict comparisons. For within-participant results, split
+the table by participant before calling. With `condition_var = "image"`,
+the baseline includes different images from both the same and other phases.
+Use `template_similarity()` for an exclusively cross-phase baseline.
+}
 \examples{
 \donttest{
   # Generate a small synthetic dataset of density maps across two conditions.

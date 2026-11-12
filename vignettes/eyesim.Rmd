@@ -222,7 +222,8 @@ variables:
 eyedens <- density_by(eyetab,
                       groups = c("phase", "image", "participant"),
                       sigma = 100,
-                      xbounds = c(0, 100), ybounds = c(0, 100))
+                      xbounds = c(0, 100), ybounds = c(0, 100)) %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
 ```
 
 ```{r plot-densities, fig.width = 8, echo = FALSE, fig.cap = "Four density maps from the simulated experiment."}
@@ -241,7 +242,8 @@ eyedens
 
 `template_similarity()` compares each retrieval density map to its matched
 encoding density map. It estimates a baseline by permuting image labels and
-reports the corrected difference:
+reports the corrected difference. A participant-by-image key keeps each match
+within its participant; `permute_on` also restricts the baseline to that participant:
 
 ```{r template-similarity}
 set.seed(1234)
@@ -249,7 +251,8 @@ enc_dens <- eyedens %>% filter(phase == "encoding")
 ret_dens <- eyedens %>% filter(phase == "retrieval")
 
 simres <- template_similarity(enc_dens, ret_dens,
-                              match_on = "image",
+                              match_on = "match_key",
+                              permute_on = "participant",
                               method = "fisherz",
                               permutations = 50)
 ```
@@ -303,13 +306,15 @@ multiple scales by passing a vector of sigma values:
 eyedens_multi <- density_by(eyetab,
                             groups = c("phase", "image", "participant"),
                             sigma = c(25, 50, 100),
-                            xbounds = c(0, 100), ybounds = c(0, 100))
+                            xbounds = c(0, 100), ybounds = c(0, 100)) %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
 
 enc_multi <- eyedens_multi %>% filter(phase == "encoding")
 ret_multi <- eyedens_multi %>% filter(phase == "retrieval")
 
 simres_multi <- template_similarity(enc_multi, ret_multi,
-                                    match_on = "image",
+                                    match_on = "match_key",
+                                    permute_on = "participant",
                                     method = "fisherz",
                                     permutations = 50)
 

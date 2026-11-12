@@ -87,6 +87,7 @@ normalized density surface. For fixation groups, entropy can be computed from
 either a derived density map or a discrete occupancy grid.
 }
 \details{
+Contrast maps from subtraction or division are not densities and are refused.
 Entropy is defined only for non-negative mass. A map with any negative value,
 such as the difference of two densities, is an error. A map whose total mass
 is zero gives \code{NA}.

@@ -1,3 +1,12 @@
+# Issue review
+
+* Warn when template keys are ambiguous; correct within-participant matching
+  and repetitive-similarity examples (#28, #31).
+* Record density estimators and kernel widths and refuse an implicit ks-to-MASS
+  fallback; explicit MASS bandwidth semantics are unchanged (#30).
+* Return signed differences and log ratios as contrast maps, preserving smoothing
+  metadata and refusing mismatched bandwidths. Addition remains a mean (#32).
+
 # eyesim (development version)
 
 ## New features
