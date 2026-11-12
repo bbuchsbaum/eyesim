@@ -331,5 +331,3 @@ sample_density_time <- function(template_tab,
 
   tibble::as_tibble(out)
 }
-
-

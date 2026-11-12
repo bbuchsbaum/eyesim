@@ -3,7 +3,7 @@
 #' This function samples a smooth fixation density map represented by the object \code{x} with a set of discrete fixations provided in \code{fix}.
 #'
 #' @param times A vector of numeric values representing the time points at which the density map should be sampled (default is NULL).
-#' 
+#'
 #' @details The function first checks if the \code{times} parameter is NULL. If so, it directly samples the density map using the coordinates of the fixations in the \code{fix} argument. If the \code{times} parameter is provided, the function first calls the \code{sample_fixations} function to generate a new fixation sequence with the specified time points, and then samples the density map using the coordinates of the new fixation sequence. The result is a data frame containing the sampled density values and the corresponding time points.
 #'
 #' Each point is looked up at the nearest lattice point, separately in x and y;
@@ -228,4 +228,3 @@ check_same_density_lattice <- function(x, y) {
   }
   invisible(TRUE)
 }
-

@@ -97,12 +97,13 @@ eyedens <- density_by(eyetab,
 ## Computing repetitive similarity
 
 `repetitive_similarity()` takes the density table and a condition variable
-(here `phase`) that defines the repeated viewings:
+(here `image`) that defines which maps should be compared as repeats. We split
+by participant because the function does not infer participant boundaries:
 
 ```{r compute-repsim}
-rep_sim <- repetitive_similarity(eyedens,
-                                 condition_var = "phase",
-                                 method = "pearson")
+rep_sim <- bind_rows(lapply(split(ungroup(eyedens), eyedens$participant), function(tab) {
+  repetitive_similarity(tab, condition_var = "image", method = "pearson")
+}))
 rep_sim
 ```
 
@@ -111,7 +112,7 @@ The result contains two key columns:
 - **repsim** — within-stimulus similarity: how consistently participants
   looked at the same locations for the *same* image across conditions
 - **othersim** — cross-stimulus similarity: baseline similarity between
-  *different* images viewed under different conditions
+  *different* images from either the same or different phases, within participant
 
 ## Interpreting the results
 
@@ -123,19 +124,21 @@ ggplot(rep_sim, aes(x = image, y = repsim)) +
   theme_minimal()
 ```
 
-```{r plot-othersim, fig.cap = "Cross-stimulus similarity (othersim). This represents the baseline: how similar gaze patterns are when comparing different images across conditions."}
+```{r plot-othersim, fig.cap = "Cross-stimulus similarity (othersim). This represents the baseline: how similar gaze patterns are when comparing different images within participant, across both phases."}
 ggplot(rep_sim, aes(x = image, y = othersim)) +
   geom_col(fill = "coral", alpha = 0.7) +
   labs(x = "Stimulus", y = "Other Similarity",
-       title = "Different images across conditions") +
+       title = "Different images within participant") +
   theme_minimal()
 ```
 
 With random data, both values should be near zero. In a real experiment, you
 would expect `repsim` to be higher than `othersim` if participants show
 stimulus-specific eye-movement reinstatement. The difference
-(`repsim - othersim`) gives you a corrected measure of reinstatement that
-controls for general gaze tendencies.
+(`repsim - othersim`) contrasts same-image and different-image pairs. The
+baseline includes same-phase pairs, so this is not a correction restricted to
+encoding–retrieval comparisons. Use `template_similarity()` with a
+participant-by-image key and `permute_on = "participant"` for that design.
 
 ## What's next?
 

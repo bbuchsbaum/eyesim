@@ -5,6 +5,12 @@
 #' to all other maps within the same condition (`repsim`) and its average similarity
 #' to all maps from different conditions (`othersim`).
 #'
+#' Pair selection uses only equality of `condition_var`; participant and phase
+#' columns do not restrict comparisons. For within-participant results, split
+#' the table by participant before calling. With `condition_var = "image"`,
+#' the baseline includes different images from both the same and other phases.
+#' Use `template_similarity()` for an exclusively cross-phase baseline.
+#'
 #' @param tab A data frame or tibble containing the density maps and condition identifiers.
 #' @param density_var A character string specifying the name of the column containing the density maps (must be of class "density" or compatible). All maps must share one lattice (same bounds and \code{outdim}); otherwise the call is refused. Default is "density".
 #' @param condition_var A character string specifying the name of the column identifying the condition for each trial.

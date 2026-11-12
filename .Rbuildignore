@@ -5,6 +5,7 @@
 ^pkgdown$
 ^\.travis\.yml$
 ^README\.Rmd$
+^README\.html$
 ^codecov\.yml$
 data-raw
 ^man/figures/phelps\.gif$
@@ -28,3 +29,4 @@ vignettes/Overview\.html$
 ^\.private$
 ^data$
 ^cran-comments\.md$
+^README_cache$
