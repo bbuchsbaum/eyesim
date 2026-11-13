@@ -54,6 +54,8 @@ without storing four full maps for every subject/item pair.
 subject's other maps; \code{others_item} averages other subjects' maps of that
 item. \code{others_other_items} averages other items within each other subject,
 then averages those subject means equally, including in incomplete designs.
+Every other subject with a map of some other item contributes, whether or
+not that subject has a map of the target item.
 \code{min_n} counts maps for self references and subjects for other references.
 Insufficient references retain their keys but return missing scores.
 Normalization precedes log transformation, which precedes aggregation.
