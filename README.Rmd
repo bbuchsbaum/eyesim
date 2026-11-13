@@ -215,6 +215,37 @@ guides above and a full
 Report bugs and ask questions on
 [GitHub issues](https://github.com/bbuchsbaum/eyesim/issues).
 
+`anim_scanpath()` replays a viewing in real time. Here it replays the
+90th-percentile studied trial from the panels above, over its template:
+
+```{r anim, include = FALSE}
+# anim_scanpath() puts y = 0 at the bottom; these coordinates are measured
+# from the top of the image, so flip y for the fixations and the template.
+trial <- picked %>% filter(probe_type == "old", pct == "90th")
+fg <- trial$fixgroup[[1]]
+fg <- fixation_group(x = fg$x, y = 600 - fg$y,
+                     onset = fg$onset, duration = fg$duration)
+tmpl <- templates %>%
+  filter(Subject == trial$Subject, ImageNumberS == trial$ImageNumberS)
+tmpl <- as.data.frame(tmpl$density[[1]])
+
+p <- anim_scanpath(fg, xlim = c(0, 800), ylim = c(0, 600), anim_over = "onset")
+p$layers <- c(geom_raster(data = tmpl, aes(x, 600 - y, alpha = z),
+                          fill = "grey40", interpolate = TRUE, inherit.aes = FALSE),
+              p$layers)
+p <- p + scale_alpha(range = c(0, 0.85), guide = "none") +
+  labs(title = "{round(frame_time)} ms")
+
+gganimate::anim_save(
+  "man/figures/README-anim.gif",
+  gganimate::animate(p, nframes = 48, fps = 12, end_pause = 12,
+                     width = 480, height = 380, units = "px", res = 96,
+                     renderer = gganimate::gifski_renderer())
+)
+```
+
+<img src="man/figures/README-anim.gif" width="400" alt="Animation: a participant's eight test fixations appear one at a time over the grey density of where they looked while studying the same image. Most land on the dark centre of the template." />
+
 ## Citation
 
 To cite eyesim, run `citation("eyesim")`. The example data come from the
