@@ -25,3 +25,5 @@ vignettes/Overview\.html$
 ^\.albersdown\.bak$
 ^inst/validation$
 ^README_cache$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
