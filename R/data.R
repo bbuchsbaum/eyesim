@@ -26,8 +26,11 @@
 #'     matching \code{wynn_test$ImageNumberS}.}
 #' }
 #'
-#' @source Wynn et al. eye-tracking study; built from the raw fixation report
-#'   by \code{data-raw/process_dat.R} in the source repository.
+#' @source Wynn, J. S., Ryan, J. D. and Buchsbaum, B. R. (2020). Eye movements support
+#'   behavioral pattern completion. \emph{Proceedings of the National Academy of
+#'   Sciences}, 117(11), 6246--6254. \doi{10.1073/pnas.1917586117}. Built from
+#'   the raw fixation report by \code{data-raw/process_dat.R} in the source
+#'   repository.
 #' @seealso \code{\link{wynn_test}}
 #'
 #' @examples
@@ -62,8 +65,11 @@
 #'     \code{"lure"} otherwise.}
 #' }
 #'
-#' @source Wynn et al. eye-tracking study; built from the raw fixation report
-#'   by \code{data-raw/process_dat.R} in the source repository.
+#' @source Wynn, J. S., Ryan, J. D. and Buchsbaum, B. R. (2020). Eye movements support
+#'   behavioral pattern completion. \emph{Proceedings of the National Academy of
+#'   Sciences}, 117(11), 6246--6254. \doi{10.1073/pnas.1917586117}. Built from
+#'   the raw fixation report by \code{data-raw/process_dat.R} in the source
+#'   repository.
 #' @seealso \code{\link{wynn_study}}
 #'
 #' @examples
