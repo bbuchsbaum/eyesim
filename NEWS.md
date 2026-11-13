@@ -1,13 +1,6 @@
-# Issue review
+# eyesim 0.3.0
 
-* Warn when template keys are ambiguous; correct within-participant matching
-  and repetitive-similarity examples (#28, #31).
-* Record density estimators and kernel widths and refuse an implicit ks-to-MASS
-  fallback; explicit MASS bandwidth semantics are unchanged (#30).
-* Return signed differences and log ratios as contrast maps, preserving smoothing
-  metadata and refusing mismatched bandwidths. Addition remains a mean (#32).
-
-# eyesim (development version)
+* First CRAN release.
 
 ## New features
 
@@ -53,7 +46,14 @@
   observed-minus-expected as a descriptive correction. The vignette no longer
   applies an independent-trial t-test to corrections from shared reference pools.
 
-# eyesim 0.3.0
+## Template and density fixes
+
+* Warn when template keys are ambiguous; correct within-participant matching
+  and repetitive-similarity examples (#28, #31).
+* Record density estimators and kernel widths and refuse an implicit ks-to-MASS
+  fallback; explicit MASS bandwidth semantics are unchanged (#30).
+* Return signed differences and log ratios as contrast maps, preserving smoothing
+  metadata and refusing mismatched bandwidths. Addition remains a mean (#32).
 
 ## Bug fixes (peyesim parity testing, #42-#51)
 
