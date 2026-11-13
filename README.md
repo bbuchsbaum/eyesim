@@ -158,6 +158,11 @@ reference](https://bbuchsbaum.github.io/eyesim/reference/index.html).
 Report bugs and ask questions on [GitHub
 issues](https://github.com/bbuchsbaum/eyesim/issues).
 
+`anim_scanpath()` replays a viewing in real time. Here it replays the
+90th-percentile studied trial from the panels above, over its template:
+
+<img src="man/figures/README-anim.gif" width="400" alt="Animation: a participant's eight test fixations appear one at a time over the grey density of where they looked while studying the same image. Most land on the dark centre of the template." />
+
 ## Citation
 
 To cite eyesim, run `citation("eyesim")`. The example on this page is
