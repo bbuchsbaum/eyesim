@@ -23,7 +23,8 @@ with an independent set of trials."><link href="../albers.css" rel="stylesheet">
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -58,7 +59,8 @@ with an independent set of trials.</p>
 <span>  <span class="va">template</span>,</span>
 <span>  fixgroup <span class="op">=</span> <span class="st">"fixgroup"</span>,</span>
 <span>  time <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  outcol <span class="op">=</span> <span class="st">"sample_out"</span></span>
+<span>  outcol <span class="op">=</span> <span class="st">"sample_out"</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -84,6 +86,10 @@ with an independent set of trials.</p>
 
 <dt id="arg-outcol">outcol<a class="anchor" aria-label="anchor" href="#arg-outcol"></a></dt>
 <dd><p>the name of the output variable</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Additional arguments passed to `sample_density()`.</p></dd>
 
 </dl></div>
     <div class="section level2">

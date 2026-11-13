@@ -67,30 +67,31 @@ eyedens <- density_by(eyetab,
 ## Computing repetitive similarity
 
 [`repetitive_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/repetitive_similarity.md)
-takes the density table and a condition variable (here `phase`) that
-defines the repeated viewings:
+takes the density table and a condition variable (here `image`) that
+defines which maps should be compared as repeats. We split by
+participant because the function does not infer participant boundaries:
 
 ``` r
 
-rep_sim <- repetitive_similarity(eyedens,
-                                 condition_var = "phase",
-                                 method = "pearson")
+rep_sim <- bind_rows(lapply(split(ungroup(eyedens), eyedens$participant), function(tab) {
+  repetitive_similarity(tab, condition_var = "image", method = "pearson")
+}))
 rep_sim
 #> # A tibble: 12 × 7
 #>    phase     image participant fixgroup            density    repsim othersim
 #>    <chr>     <chr> <chr>       <list>              <list>      <dbl>    <dbl>
-#>  1 encoding  img1  s1          <fxtn_grp [3 × 6]>  <ey_dnsty> 0.304     0.367
-#>  2 encoding  img1  s2          <fxtn_grp [9 × 6]>  <ey_dnsty> 0.377     0.626
-#>  3 encoding  img2  s1          <fxtn_grp [6 × 6]>  <ey_dnsty> 0.423     0.506
-#>  4 encoding  img2  s2          <fxtn_grp [6 × 6]>  <ey_dnsty> 0.461     0.694
-#>  5 encoding  img3  s1          <fxtn_grp [10 × 6]> <ey_dnsty> 0.204     0.243
-#>  6 encoding  img3  s2          <fxtn_grp [3 × 6]>  <ey_dnsty> 0.0566    0.388
-#>  7 retrieval img1  s1          <fxtn_grp [9 × 6]>  <ey_dnsty> 0.688     0.582
-#>  8 retrieval img1  s2          <fxtn_grp [5 × 6]>  <ey_dnsty> 0.531     0.408
-#>  9 retrieval img2  s1          <fxtn_grp [5 × 6]>  <ey_dnsty> 0.534     0.565
-#> 10 retrieval img2  s2          <fxtn_grp [3 × 6]>  <ey_dnsty> 0.341     0.389
-#> 11 retrieval img3  s1          <fxtn_grp [7 × 6]>  <ey_dnsty> 0.538     0.587
-#> 12 retrieval img3  s2          <fxtn_grp [5 × 6]>  <ey_dnsty> 0.312     0.293
+#>  1 encoding  img1  s1          <fxtn_grp [3 × 6]>  <ey_dnsty>  0.393    0.746
+#>  2 encoding  img2  s1          <fxtn_grp [6 × 6]>  <ey_dnsty>  0.903    0.612
+#>  3 encoding  img3  s1          <fxtn_grp [10 × 6]> <ey_dnsty>  0.802    0.412
+#>  4 retrieval img1  s1          <fxtn_grp [9 × 6]>  <ey_dnsty>  0.393    0.553
+#>  5 retrieval img2  s1          <fxtn_grp [5 × 6]>  <ey_dnsty>  0.903    0.693
+#>  6 retrieval img3  s1          <fxtn_grp [7 × 6]>  <ey_dnsty>  0.802    0.671
+#>  7 encoding  img1  s2          <fxtn_grp [9 × 6]>  <ey_dnsty>  0.642    0.511
+#>  8 encoding  img2  s2          <fxtn_grp [6 × 6]>  <ey_dnsty>  0.317    0.788
+#>  9 encoding  img3  s2          <fxtn_grp [3 × 6]>  <ey_dnsty>  0.927    0.439
+#> 10 retrieval img1  s2          <fxtn_grp [5 × 6]>  <ey_dnsty>  0.642    0.706
+#> 11 retrieval img2  s2          <fxtn_grp [3 × 6]>  <ey_dnsty>  0.317    0.135
+#> 12 retrieval img3  s2          <fxtn_grp [5 × 6]>  <ey_dnsty>  0.927    0.371
 ```
 
 The result contains two key columns:
@@ -98,7 +99,8 @@ The result contains two key columns:
 - **repsim** — within-stimulus similarity: how consistently participants
   looked at the same locations for the *same* image across conditions
 - **othersim** — cross-stimulus similarity: baseline similarity between
-  *different* images viewed under different conditions
+  *different* images from either the same or different phases, within
+  participant
 
 ## Interpreting the results
 
@@ -125,23 +127,28 @@ across encoding and retrieval.
 ggplot(rep_sim, aes(x = image, y = othersim)) +
   geom_col(fill = "coral", alpha = 0.7) +
   labs(x = "Stimulus", y = "Other Similarity",
-       title = "Different images across conditions") +
+       title = "Different images within participant") +
   theme_minimal()
 ```
 
 ![Cross-stimulus similarity (othersim). This represents the baseline:
-how similar gaze patterns are when comparing different images across
-conditions.](RepetitiveSimilarity_files/figure-html/plot-othersim-1.png)
+how similar gaze patterns are when comparing different images within
+participant, across both
+phases.](RepetitiveSimilarity_files/figure-html/plot-othersim-1.png)
 
 Cross-stimulus similarity (othersim). This represents the baseline: how
-similar gaze patterns are when comparing different images across
-conditions.
+similar gaze patterns are when comparing different images within
+participant, across both phases.
 
 With random data, both values should be near zero. In a real experiment,
 you would expect `repsim` to be higher than `othersim` if participants
 show stimulus-specific eye-movement reinstatement. The difference
-(`repsim - othersim`) gives you a corrected measure of reinstatement
-that controls for general gaze tendencies.
+(`repsim - othersim`) contrasts same-image and different-image pairs.
+The baseline includes same-phase pairs, so this is not a correction
+restricted to encoding–retrieval comparisons. Use
+[`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
+with a participant-by-image key and `permute_on = "participant"` for
+that design.
 
 ## What’s next?
 

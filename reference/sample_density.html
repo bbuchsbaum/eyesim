@@ -21,7 +21,8 @@ This function samples a smooth fixation density map represented by the object x 
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -39,7 +40,7 @@ This function samples a smooth fixation density map represented by the object x 
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>sample_density</h1>
-      <small class="dont-index">Source: <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/all_generic.R" class="external-link"><code>R/all_generic.R</code></a>, <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/similarity.R" class="external-link"><code>R/similarity.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/all_generic.R" class="external-link"><code>R/all_generic.R</code></a>, <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/map_evaluation.R" class="external-link"><code>R/map_evaluation.R</code></a>, <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/reference_maps.R" class="external-link"><code>R/reference_maps.R</code></a></small>
       <div class="d-none name"><code>sample_density.Rd</code></div>
     </div>
 
@@ -58,8 +59,37 @@ This function samples a smooth fixation density map represented by the object x 
 <span>  <span class="va">fix</span>,</span>
 <span>  times <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  normalize <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"max"</span>, <span class="st">"sum"</span>, <span class="st">"zscore"</span><span class="op">)</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="va">...</span>,</span>
+<span>  transform <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"log"</span><span class="op">)</span>,</span>
+<span>  floor <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'list'</span></span>
+<span><span class="fu">sample_density</span><span class="op">(</span><span class="va">x</span>, <span class="va">fix</span>, times <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span>, format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"long"</span>, <span class="st">"wide"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'data.frame'</span></span>
+<span><span class="fu">sample_density</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  <span class="va">fix</span>,</span>
+<span>  times <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  map_var <span class="op">=</span> <span class="st">"density"</span>,</span>
+<span>  name_var <span class="op">=</span> <span class="st">"reference"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'eyesim_reference_map'</span></span>
+<span><span class="fu">sample_density</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  <span class="va">fix</span>,</span>
+<span>  times <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  normalize <span class="op">=</span> <span class="st">"none"</span>,</span>
+<span>  transform <span class="op">=</span> <span class="st">"none"</span>,</span>
+<span>  floor <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'eyesim_references'</span></span>
+<span><span class="fu">sample_density</span><span class="op">(</span><span class="va">x</span>, <span class="va">fix</span>, <span class="va">...</span>, format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"wide"</span>, <span class="st">"long"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -67,11 +97,13 @@ This function samples a smooth fixation density map represented by the object x 
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>An object of class "density" representing the smooth fixation density map.</p></dd>
+<dd><p>A density map, a named list or table of maps, or a reference set.</p></dd>
 
 
 <dt id="arg-fix">fix<a class="anchor" aria-label="anchor" href="#arg-fix"></a></dt>
-<dd><p>A data frame or tibble containing discrete fixations with columns "x", "y", and "onset".</p></dd>
+<dd><p>A table of locations with x/y coordinates. Single maps and map lists
+also use onset (unless times are supplied); reference sets require their
+subject/item key columns.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -89,25 +121,48 @@ This function samples a smooth fixation density map represented by the object x 
 map before sampling. One of:</p><dl><dt><code>"none"</code></dt>
 <dd><p>No normalization (default). Returns raw density values.</p></dd>
 
-  <dt><code>"max"</code></dt>
-<dd><p>Divide by the maximum density value, yielding values in [0, 1].</p></dd>
+<dt><code>"max"</code></dt>
+<dd><p>Divide by the maximum density value, yielding values between zero and one.</p></dd>
 
-  <dt><code>"sum"</code></dt>
+<dt><code>"sum"</code></dt>
 <dd><p>Divide by the sum of all density values, yielding a
-    probability distribution.</p></dd>
+probability distribution.</p></dd>
 
-  <dt><code>"zscore"</code></dt>
+<dt><code>"zscore"</code></dt>
 <dd><p>Z-score the density map (subtract mean, divide by SD).
-    Useful for comparing across maps with different scales.</p></dd>
+Useful for comparing across maps with different scales.</p></dd>
 
 
 </dl></dd>
 
+
+<dt id="arg-transform">transform<a class="anchor" aria-label="anchor" href="#arg-transform"></a></dt>
+<dd><p>Map value transformation, applied after normalization.
+<code>log</code> computes <code>log(z + floor)</code>; <code>none</code> leaves values unchanged.</p></dd>
+
+
+<dt id="arg-floor">floor<a class="anchor" aria-label="anchor" href="#arg-floor"></a></dt>
+<dd><p>Explicit positive additive offset required for <code>log</code>. For maps
+normalized to unit sum, <code>1 / (10 * length(x$z))</code> is a possible choice.
+This is an offset, not a hard lower bound.</p></dd>
+
+
+<dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>
+<dd><p>For a named list of maps, return long rows or one column per map.</p></dd>
+
+
+<dt id="arg-map-var-name-var">map_var, name_var<a class="anchor" aria-label="anchor" href="#arg-map-var-name-var"></a></dt>
+<dd><p>For a map table, columns containing maps and unique names.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame with columns 'z' (density estimates at fixation locations) and 'time' (onset time of fixations).</p>
-<p>A data frame with columns "z" and "time", where "z" contains the sampled density values and "time" contains the corresponding time points.</p>
+    <p>Single-map sampling returns z and time columns. Named lists and map
+  tables return fixation/reference/z/time rows, or fixation/time and one
+  column per map with format = "wide". Reference sets return one column per
+  reference, aligned with the input locations, or fixation/reference/z rows
+  with format = "long". Reference values are already prepared and do not
+  accept further normalization or transformation during lookup.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

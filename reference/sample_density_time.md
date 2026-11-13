@@ -19,7 +19,9 @@ sample_density_time(
   permutations = 0,
   permute_on = NULL,
   aggregate_fun = mean,
-  normalize = c("none", "max", "sum", "zscore")
+  normalize = c("none", "max", "sum", "zscore"),
+  transform = c("none", "log"),
+  floor = NULL
 )
 ```
 
@@ -87,6 +89,17 @@ sample_density_time(
   for details. Using `"zscore"` is recommended when comparing across
   conditions or groups that may differ in fixation count or density
   bandwidth.
+
+- transform:
+
+  Map value transformation, applied after normalization. `log` computes
+  `log(z + floor)`; `none` leaves values unchanged.
+
+- floor:
+
+  Explicit positive additive offset required for `log`. For maps
+  normalized to unit sum, `1 / (10 * length(x$z))` is a possible choice.
+  This is an offset, not a hard lower bound.
 
 ## Value
 

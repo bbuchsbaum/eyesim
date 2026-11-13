@@ -20,7 +20,8 @@ eye_density(
   min_fixations = 2,
   origin = c(0, 0),
   kde_pkg = "ks",
-  ...
+  ...,
+  window_weight = c("onset", "overlap")
 )
 ```
 
@@ -70,7 +71,8 @@ eye_density(
 
 - duration_weighted:
 
-  Whether to weight the fixations by their duration. Default is FALSE.
+  Whether to weight the fixations by their duration. Defaults to FALSE
+  for onset selection and TRUE for an overlap window.
 
 - window:
 
@@ -106,6 +108,15 @@ eye_density(
   grid (`eval.points`) itself, so these cannot be supplied. Extra
   arguments are an error when `kde_pkg = "MASS"`.
 
+- window_weight:
+
+  Select by onset (default) or positive interval overlap. Overlap clips
+  durations to the window. Explicit weights are multiplied by the
+  overlap fraction of each fixation; otherwise duration weighting uses
+  clipped durations by default. Explicit \`duration_weighted = FALSE\`
+  gives survivors unit weight and warns when no explicit weights are
+  supplied.
+
 ## Value
 
 An object of class \`eye_density\` (inheriting from \`density\` and
@@ -116,6 +127,11 @@ leaves fewer than \`min_fixations\` fixations, or if density computation
 fails (e.g., due to zero weights).
 
 ## Details
+
+The selected estimator is required: a missing \`ks\` dependency is an
+error, rather than an automatic switch to MASS. Returned maps record
+\`estimator\` and \`kernel_sd\` (the actual Gaussian standard
+deviation).
 
 The function computes a density map for a given fixation group using
 kernel density estimation. If \`sigma\` is a single value, it computes a

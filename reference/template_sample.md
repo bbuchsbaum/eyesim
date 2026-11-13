@@ -13,7 +13,8 @@ template_sample(
   template,
   fixgroup = "fixgroup",
   time = NULL,
-  outcol = "sample_out"
+  outcol = "sample_out",
+  ...
 )
 ```
 
@@ -40,6 +41,10 @@ template_sample(
 - outcol:
 
   the name of the output variable
+
+- ...:
+
+  Additional arguments passed to \`sample_density()\`.
 
 ## Value
 

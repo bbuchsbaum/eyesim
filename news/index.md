@@ -2,6 +2,68 @@
 
 ## eyesim (development version)
 
+### Fixation-level reference scoring
+
+- Added
+  [`reference_maps()`](https://bbuchsbaum.github.io/eyesim/reference/reference_maps.md)
+  with subject-balanced leave-out references, explicit density/log
+  domains, contributor counts, and on-demand
+  [`reference_map()`](https://bbuchsbaum.github.io/eyesim/reference/reference_map.md)
+  inspection. Source maps and grouped sums are shared across references.
+- Added replayable
+  [`sample_controls()`](https://bbuchsbaum.github.io/eyesim/reference/sample_controls.md)
+  and
+  [`mismatch_assignments()`](https://bbuchsbaum.github.io/eyesim/reference/mismatch_assignments.md)
+  tables, deterministic
+  [`score_strata()`](https://bbuchsbaum.github.io/eyesim/reference/score_strata.md),
+  fitted score scaling, case-control contrasts, and
+  [`mismatch_draws()`](https://bbuchsbaum.github.io/eyesim/reference/mismatch_draws.md).
+  Sampling retains donor/replacement identities and seeded constructors
+  restore the caller’s RNG state.
+- Map controls sample independently with replacement. Mismatch draws
+  exclude both own-item and replacement-item donors by default,
+  including repeated presentations, and return paired matched contrasts
+  on identical controls and scaling; `control_policy = "fixed"` retains
+  the supplied control pool. Observed controls exclude the case’s item
+  when an `item` column is available; pass another column name
+  explicitly, or use `item = NULL` for the original trial-only sampling
+  baseline.
+- [`mismatch_draws()`](https://bbuchsbaum.github.io/eyesim/reference/mismatch_draws.md)
+  reduces each null draw incrementally: matched differences are reduced
+  once, and each draw rescores only the replaced reference and removes
+  only its excluded donors. Results are unchanged to 1e-12; 100 draws
+  over 98,880 fixations take under a minute of CPU time.
+- Existing sampling and template baselines now share map preparation,
+  matching, and candidate selection. Their default output and RNG
+  behavior are retained.
+  [`sample_density()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.md)
+  accepts named map lists/tables and an explicit log offset;
+  [`template_sample()`](https://bbuchsbaum.github.io/eyesim/reference/template_sample.md)
+  and
+  [`sample_density_time()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density_time.md)
+  forward these scoring options.
+- Density estimation supports overlap windows, defaulting to clipped
+  duration weights, or proportional clipping of explicit weights.
+  Explicit unweighted overlap selection warns. Onset selection remains
+  the default.
+- A synthetic vignette demonstrates references, controls, scaling and
+  mismatch draws, including the limits of interpreting replacement draws
+  as a null test.
+
+### CRAN preparation
+
+- The participant-level `wynn_study` and `wynn_test` datasets are no
+  longer distributed with the package, pending redistribution clearance.
+  Examples and vignettes use synthetic data. The package build excludes
+  `data/` and local private copies as well as the existing research
+  input directories.
+- The minimum R version is now 4.1.0, matching the requirement of the
+  already-required ggplot2 4.0.0 or later.
+- The revisitation example fits within the PDF manual’s line width.
+- [`fixation_group()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_group.md)
+  accepts empty coordinates when `duration` is omitted, as it already
+  did when an empty `duration` was supplied explicitly.
+
 ### New features
 
 - [`fixation_revisits()`](https://bbuchsbaum.github.io/eyesim/reference/fixation_revisits.md)
@@ -60,7 +122,7 @@
 
 ## eyesim 0.3.0
 
-### Bug fixes (peyesim parity testing, [\#42](https://github.com/bbuchsbaum/eyesim/issues/42)-#50)
+### Bug fixes (peyesim parity testing, [\#42](https://github.com/bbuchsbaum/eyesim/issues/42)-#51)
 
 - [`match_scale()`](https://bbuchsbaum.github.io/eyesim/reference/match_scale.md)
   no longer always errors. The row columns from `pmap()` were passed to
@@ -101,6 +163,10 @@
   zero. `mm_position_emd` weights fixations equally when a scanpath has
   no total duration, instead of reporting a perfect match
   ([\#50](https://github.com/bbuchsbaum/eyesim/issues/50)).
+- [`similarity()`](https://bbuchsbaum.github.io/eyesim/reference/similarity.md)
+  for scanpaths validates `method` and errors on anything other than
+  `"multimatch"`, instead of silently running MultiMatch
+  ([\#51](https://github.com/bbuchsbaum/eyesim/issues/51)).
 
 ### Bug fixes (pre-CRAN review)
 

@@ -4,6 +4,8 @@
 
 - [Comparing Eye-Movement
   Patterns](https://bbuchsbaum.github.io/eyesim/articles/eyesim.md):
+- [Fixation-level scoring with leave-out
+  references](https://bbuchsbaum.github.io/eyesim/articles/fixation-reference-scoring.md):
 - [GazeWeave: Calibrated Item Information from Gaze
   Paths](https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.md):
 - [Latent Transforms for Template

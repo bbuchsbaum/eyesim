@@ -226,7 +226,8 @@ computes a density map for every combination of your grouping variables:
 eyedens <- density_by(eyetab,
                       groups = c("phase", "image", "participant"),
                       sigma = 100,
-                      xbounds = c(0, 100), ybounds = c(0, 100))
+                      xbounds = c(0, 100), ybounds = c(0, 100)) %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
 ```
 
 ![Four density maps from the simulated
@@ -237,19 +238,19 @@ Four density maps from the simulated experiment.
 ``` r
 
 eyedens
-#> # A tibble: 120 × 5
-#>    phase    image participant fixgroup            density       
-#>    <chr>    <chr> <chr>       <list>              <list>        
-#>  1 encoding img1  s1          <fxtn_grp [10 × 6]> <ey_dnsty [5]>
-#>  2 encoding img1  s2          <fxtn_grp [8 × 6]>  <ey_dnsty [5]>
-#>  3 encoding img1  s3          <fxtn_grp [8 × 6]>  <ey_dnsty [5]>
-#>  4 encoding img10 s1          <fxtn_grp [4 × 6]>  <ey_dnsty [5]>
-#>  5 encoding img10 s2          <fxtn_grp [4 × 6]>  <ey_dnsty [5]>
-#>  6 encoding img10 s3          <fxtn_grp [8 × 6]>  <ey_dnsty [5]>
-#>  7 encoding img11 s1          <fxtn_grp [3 × 6]>  <ey_dnsty [5]>
-#>  8 encoding img11 s2          <fxtn_grp [3 × 6]>  <ey_dnsty [5]>
-#>  9 encoding img11 s3          <fxtn_grp [9 × 6]>  <ey_dnsty [5]>
-#> 10 encoding img12 s1          <fxtn_grp [10 × 6]> <ey_dnsty [5]>
+#> # A tibble: 120 × 6
+#>    phase    image participant fixgroup            density        match_key
+#>    <chr>    <chr> <chr>       <list>              <list>         <chr>    
+#>  1 encoding img1  s1          <fxtn_grp [10 × 6]> <ey_dnsty [7]> s1_img1  
+#>  2 encoding img1  s2          <fxtn_grp [8 × 6]>  <ey_dnsty [7]> s2_img1  
+#>  3 encoding img1  s3          <fxtn_grp [8 × 6]>  <ey_dnsty [7]> s3_img1  
+#>  4 encoding img10 s1          <fxtn_grp [4 × 6]>  <ey_dnsty [7]> s1_img10 
+#>  5 encoding img10 s2          <fxtn_grp [4 × 6]>  <ey_dnsty [7]> s2_img10 
+#>  6 encoding img10 s3          <fxtn_grp [8 × 6]>  <ey_dnsty [7]> s3_img10 
+#>  7 encoding img11 s1          <fxtn_grp [3 × 6]>  <ey_dnsty [7]> s1_img11 
+#>  8 encoding img11 s2          <fxtn_grp [3 × 6]>  <ey_dnsty [7]> s2_img11 
+#>  9 encoding img11 s3          <fxtn_grp [9 × 6]>  <ey_dnsty [7]> s3_img11 
+#> 10 encoding img12 s1          <fxtn_grp [10 × 6]> <ey_dnsty [7]> s1_img12 
 #> # ℹ 110 more rows
 ```
 
@@ -258,7 +259,9 @@ eyedens
 [`template_similarity()`](https://bbuchsbaum.github.io/eyesim/reference/template_similarity.md)
 compares each retrieval density map to its matched encoding density map.
 It estimates a baseline by permuting image labels and reports the
-corrected difference:
+corrected difference. A participant-by-image key keeps each match within
+its participant; `permute_on` also restricts the baseline to that
+participant:
 
 ``` r
 
@@ -267,7 +270,8 @@ enc_dens <- eyedens %>% filter(phase == "encoding")
 ret_dens <- eyedens %>% filter(phase == "retrieval")
 
 simres <- template_similarity(enc_dens, ret_dens,
-                              match_on = "image",
+                              match_on = "match_key",
+                              permute_on = "participant",
                               method = "fisherz",
                               permutations = 50)
 ```
@@ -287,13 +291,13 @@ t.test(simres$eye_sim_diff)
 #>  One Sample t-test
 #> 
 #> data:  simres$eye_sim_diff
-#> t = 0.71493, df = 59, p-value = 0.4775
+#> t = 0.11184, df = 59, p-value = 0.9113
 #> alternative hypothesis: true mean is not equal to 0
 #> 95 percent confidence interval:
-#>  -0.1111827  0.2347954
+#>  -0.1613410  0.1804436
 #> sample estimates:
-#>  mean of x 
-#> 0.06180634
+#>   mean of x 
+#> 0.009551306
 ```
 
 ![Distribution of raw, permuted, and corrected similarity
@@ -322,20 +326,22 @@ density at multiple scales by passing a vector of sigma values:
 eyedens_multi <- density_by(eyetab,
                             groups = c("phase", "image", "participant"),
                             sigma = c(25, 50, 100),
-                            xbounds = c(0, 100), ybounds = c(0, 100))
+                            xbounds = c(0, 100), ybounds = c(0, 100)) %>%
+  mutate(match_key = paste(participant, image, sep = "_"))
 
 enc_multi <- eyedens_multi %>% filter(phase == "encoding")
 ret_multi <- eyedens_multi %>% filter(phase == "retrieval")
 
 simres_multi <- template_similarity(enc_multi, ret_multi,
-                                    match_on = "image",
+                                    match_on = "match_key",
+                                    permute_on = "participant",
                                     method = "fisherz",
                                     permutations = 50)
 
 cat("Single-scale mean:", round(mean(simres$eye_sim_diff), 4), "\n")
-#> Single-scale mean: 0.0618
+#> Single-scale mean: 0.0096
 cat("Multiscale mean:  ", round(mean(simres_multi$eye_sim_diff), 4), "\n")
-#> Multiscale mean:   0.0351
+#> Multiscale mean:   -0.0143
 ```
 
 Multiscale analysis provides a more robust similarity estimate by
@@ -564,5 +570,7 @@ for the full definition and references.
   — analyze repeated viewing of the same stimulus
 - [`vignette("latent-transforms")`](https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.md)
   — domain adaptation for cross-device or cross-participant comparisons
-- The package ships real data: `data(wynn_study)` and `data(wynn_test)`
-  from a recognition memory experiment
+- Use
+  [`simulate_eye_table()`](https://bbuchsbaum.github.io/eyesim/reference/simulate_eye_table.md)
+  to create synthetic fixation data, or import your own data with
+  [`eye_table()`](https://bbuchsbaum.github.io/eyesim/reference/eye_table.md).

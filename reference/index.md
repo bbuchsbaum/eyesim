@@ -18,6 +18,30 @@ Functions for computing density maps, sampling, and density matrix.
   values with a class attribute set to "density" and "list".
 - [`as.data.frame(`*`<eye_density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/as.data.frame.eye_density.md)
   : Convert an eye_density object to a data.frame.
+- [`Ops(`*`<eye_density>`*`)`](https://bbuchsbaum.github.io/eyesim/reference/Ops.eye_density.md)
+  : Arithmetic on eye density maps
+
+## Fixation reference scoring
+
+Leave-out maps, replayable assignments, scoring, and explicit scaling.
+
+- [`reference_maps()`](https://bbuchsbaum.github.io/eyesim/reference/reference_maps.md)
+  : Construct leave-out reference maps for two crossed factors
+- [`reference_map()`](https://bbuchsbaum.github.io/eyesim/reference/reference_map.md)
+  : Inspect one reference map
+- [`sample_controls()`](https://bbuchsbaum.github.io/eyesim/reference/sample_controls.md)
+  : Draw replayable case-control locations
+- [`score_strata()`](https://bbuchsbaum.github.io/eyesim/reference/score_strata.md)
+  : Score case-control assignments against reference maps
+- [`fit_score_scaling()`](https://bbuchsbaum.github.io/eyesim/reference/fit_score_scaling.md)
+  [`apply_score_scaling()`](https://bbuchsbaum.github.io/eyesim/reference/fit_score_scaling.md)
+  : Fit and apply group-specific score standardization
+- [`case_control_contrast()`](https://bbuchsbaum.github.io/eyesim/reference/case_control_contrast.md)
+  : Summarize case minus mean-control reference scores
+- [`mismatch_assignments()`](https://bbuchsbaum.github.io/eyesim/reference/mismatch_assignments.md)
+  : Draw replayable mismatched-template assignments
+- [`mismatch_draws()`](https://bbuchsbaum.github.io/eyesim/reference/mismatch_draws.md)
+  : Evaluate replayable mismatched-template draws
 
 ## Spatial operations
 
@@ -231,12 +255,3 @@ Functions for density operations by groups.
   : Suggest Kernel Bandwidth for Density Estimation
 - [`sample_density()`](https://bbuchsbaum.github.io/eyesim/reference/sample_density.md)
   : sample_density
-
-## Data
-
-Example datasets included with the package.
-
-- [`wynn_study`](https://bbuchsbaum.github.io/eyesim/reference/wynn_study.md)
-  : Study-phase fixations from Wynn et al.
-- [`wynn_test`](https://bbuchsbaum.github.io/eyesim/reference/wynn_test.md)
-  : Test-phase fixations from Wynn et al.

@@ -19,7 +19,8 @@
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -43,6 +44,25 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="eyesim-development-version">eyesim (development version)<a class="anchor" aria-label="anchor" href="#eyesim-development-version"></a></h2>
 <div class="section level3">
+<h3 id="fixation-level-reference-scoring-development-version">Fixation-level reference scoring<a class="anchor" aria-label="anchor" href="#fixation-level-reference-scoring-development-version"></a></h3>
+<ul><li>Added <code><a href="../reference/reference_maps.html">reference_maps()</a></code> with subject-balanced leave-out references, explicit density/log domains, contributor counts, and on-demand <code><a href="../reference/reference_map.html">reference_map()</a></code> inspection. Source maps and grouped sums are shared across references.</li>
+<li>Added replayable <code><a href="../reference/sample_controls.html">sample_controls()</a></code> and <code><a href="../reference/mismatch_assignments.html">mismatch_assignments()</a></code> tables, deterministic <code><a href="../reference/score_strata.html">score_strata()</a></code>, fitted score scaling, case-control contrasts, and <code><a href="../reference/mismatch_draws.html">mismatch_draws()</a></code>. Sampling retains donor/replacement identities and seeded constructors restore the caller’s RNG state.</li>
+<li>Map controls sample independently with replacement. Mismatch draws exclude both own-item and replacement-item donors by default, including repeated presentations, and return paired matched contrasts on identical controls and scaling; <code>control_policy = "fixed"</code> retains the supplied control pool. Observed controls exclude the case’s item when an <code>item</code> column is available; pass another column name explicitly, or use <code>item = NULL</code> for the original trial-only sampling baseline.</li>
+<li>
+<code><a href="../reference/mismatch_draws.html">mismatch_draws()</a></code> reduces each null draw incrementally: matched differences are reduced once, and each draw rescores only the replaced reference and removes only its excluded donors. Results are unchanged to 1e-12; 100 draws over 98,880 fixations take under a minute of CPU time.</li>
+<li>Existing sampling and template baselines now share map preparation, matching, and candidate selection. Their default output and RNG behavior are retained. <code><a href="../reference/sample_density.html">sample_density()</a></code> accepts named map lists/tables and an explicit log offset; <code><a href="../reference/template_sample.html">template_sample()</a></code> and <code><a href="../reference/sample_density_time.html">sample_density_time()</a></code> forward these scoring options.</li>
+<li>Density estimation supports overlap windows, defaulting to clipped duration weights, or proportional clipping of explicit weights. Explicit unweighted overlap selection warns. Onset selection remains the default.</li>
+<li>A synthetic vignette demonstrates references, controls, scaling and mismatch draws, including the limits of interpreting replacement draws as a null test.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="cran-preparation-development-version">CRAN preparation<a class="anchor" aria-label="anchor" href="#cran-preparation-development-version"></a></h3>
+<ul><li>The participant-level <code>wynn_study</code> and <code>wynn_test</code> datasets are no longer distributed with the package, pending redistribution clearance. Examples and vignettes use synthetic data. The package build excludes <code>data/</code> and local private copies as well as the existing research input directories.</li>
+<li>The minimum R version is now 4.1.0, matching the requirement of the already-required ggplot2 4.0.0 or later.</li>
+<li>The revisitation example fits within the PDF manual’s line width.</li>
+<li>
+<code><a href="../reference/fixation_group.html">fixation_group()</a></code> accepts empty coordinates when <code>duration</code> is omitted, as it already did when an empty <code>duration</code> was supplied explicitly.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
 <ul><li>
 <code><a href="../reference/fixation_revisits.html">fixation_revisits()</a></code> scores spatial returns to locations already fixated in the same episode, related to Kragel et al. (2021). It does not implement the backtracking-sequence classification of Voss et al. (2011). It returns one row per fixation with the opportunity, revisit, lag and matched fixation. <code><a href="../reference/revisit_summary.html">revisit_summary()</a></code> gives counts and rates per episode.</li>
@@ -65,7 +85,7 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0" id="eyesim-030">eyesim 0.3.0<a class="anchor" aria-label="anchor" href="#eyesim-030"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-peyesim-parity-testing-0-3-0">Bug fixes (peyesim parity testing, <a href="https://github.com/bbuchsbaum/eyesim/issues/42" class="external-link">#42</a>-#50)<a class="anchor" aria-label="anchor" href="#bug-fixes-peyesim-parity-testing-0-3-0"></a></h3>
+<h3 id="bug-fixes-peyesim-parity-testing-0-3-0">Bug fixes (peyesim parity testing, <a href="https://github.com/bbuchsbaum/eyesim/issues/42" class="external-link">#42</a>-#51)<a class="anchor" aria-label="anchor" href="#bug-fixes-peyesim-parity-testing-0-3-0"></a></h3>
 <ul><li>
 <code><a href="../reference/match_scale.html">match_scale()</a></code> no longer always errors. The row columns from <code>pmap()</code> were passed to <code><a href="../reference/estimate_scale.html">estimate_scale()</a></code> as extra arguments (<a href="https://github.com/bbuchsbaum/eyesim/issues/42" class="external-link">#42</a>).</li>
 <li>The internal <code>crqa()</code> wrapper returns a 1x1 recurrence plot when embedding leaves a single point, instead of the 2x2 plot that crqa’s embedding produced by dropping a dimension. It errors when no embedded point is left (<a href="https://github.com/bbuchsbaum/eyesim/issues/43" class="external-link">#43</a>).</li>
@@ -79,6 +99,8 @@
 <li>
 <code><a href="../reference/latent_pca_transform.html">cca_transform()</a></code> with an NA <code>fit_by</code> value leaves those rows unfitted with a warning, instead of erroring (<a href="https://github.com/bbuchsbaum/eyesim/issues/49" class="external-link">#49</a>).</li>
 <li>MultiMatch <code>mm_duration</code> is 1, not NA, when aligned durations are all zero. <code>mm_position_emd</code> weights fixations equally when a scanpath has no total duration, instead of reporting a perfect match (<a href="https://github.com/bbuchsbaum/eyesim/issues/50" class="external-link">#50</a>).</li>
+<li>
+<code><a href="../reference/similarity.html">similarity()</a></code> for scanpaths validates <code>method</code> and errors on anything other than <code>"multimatch"</code>, instead of silently running MultiMatch (<a href="https://github.com/bbuchsbaum/eyesim/issues/51" class="external-link">#51</a>).</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-pre-cran-review-0-3-0">Bug fixes (pre-CRAN review)<a class="anchor" aria-label="anchor" href="#bug-fixes-pre-cran-review-0-3-0"></a></h3>

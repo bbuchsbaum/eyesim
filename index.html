@@ -37,7 +37,8 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+<li><a class="dropdown-item" href="articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -62,27 +63,179 @@
 </h1></div>
 <!-- badges: start -->
 
+<p><strong>Do people look at a picture the same way the second time they see it?</strong> eyesim is an R package that measures how similar two sets of eye fixations are, and how much of that similarity belongs to the picture rather than to the viewer’s habits. It is written for researchers studying memory, attention and scene viewing, and works with fixations from any eye tracker. The example below uses synthetic data with a deliberately planted study-test similarity difference.</p>
+<p><img src="reference/figures/README-hero-1.png" alt="Dot plot of synthetic data with one dot per simulated participant, sorted. Each dot is that participant's mean corrected similarity for studied images minus that for lures. 12 of 12 dots fall to the right of zero; the mean difference is 1.55."></p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install development version from <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
-<pre><code><span><span class="co">#install.packages("remotes")</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"bbuchsbaum/eyesim"</span><span class="op">)</span></span></code></pre>
+<p>eyesim is under development and not yet on CRAN. Install it from GitHub:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"bbuchsbaum/eyesim"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
+<h2 id="example-does-gaze-at-test-re-trace-gaze-at-study">Example: does gaze at test re-trace gaze at study?<a class="anchor" aria-label="anchor" href="#example-does-gaze-at-test-re-trace-gaze-at-study"></a>
 </h2>
-<p>Are two eye-movement fixation patterns similar? The goal of the <code>eyesim</code> package is to provide methods for answering this question.</p>
-<p>For example, in studies of recognition memory, we might ask whether the eye-movement fixation pattern during the first presentation of an image (“encoding”) is similar to the eye-movement fixation pattern during the second presentation of the same image (“recognition”). Furthermore, we can ask whether fixation similarity varies as a function of conditions in the experimental design or the behavioral responses (e.g. correct recognition or miss).</p>
-<p>The experimental GazeWeave workflow asks whether a held-out gaze path identifies its correct template among permitted nonmatches. Directional Replay is designed for encoding-to-recall studies. Edge-normalized Transport is the symmetric explanatory alignment engine for local order and partial coverage; its dedicated <code><a href="reference/gaze_transport_cv.html">gaze_transport_cv()</a></code> interface accepts one or several separate study presentations. Every engine returns one primary endpoint, <code>gaze_info_bits = log2(p_true / prior_true)</code>, using candidate calibration and warp estimation learned only from outer-training trials. Posterior Replay coverage and Transport’s optimized correspondence, coverage, chronology, spatial residuals, and contraction remain explanatory diagnostics rather than additional outcomes.</p>
-<p>Transport passed its frozen invariant, simulation, runtime, and full-cohort repeated-viewing gates. In the sealed 0–3000 ms court it had the largest response-blind retrieval point estimate, but the interval included zero and it did not improve held-out old-item response prediction. The package therefore makes no retrieval-prediction or general-superiority claim; Replay, registered density, and MultiMatch remain visible comparators. Earlier Transport v1/v2/v3 labels were internal development names: the edge-normalized estimator is now the sole public <code>gaze_transport_*</code> method. Version labels survive only in internal and frozen validation provenance; they are not selectable methods. See the <a href="vignettes/GazeWeave.Rmd">GazeWeave vignette</a> for the executable Transport example, episode normalization, plot semantics, validation evidence, and failure modes.</p>
+<p>We simulate 12 participants viewing 12 images at study and test. For half the images (<code>probe_type == "old"</code>), test fixations return near the study locations. For the other half (<code>"lure"</code>), test locations are shifted. These are generated patterns, not observations from a recognition-memory experiment. The former Wynn datasets are not distributed pending redistribution clearance.</p>
+<p>We call a participant’s study-phase density map for an image its <strong>template</strong>. The question is whether test gaze falls where template gaze fell, more than it would for an arbitrary image. Three steps answer it:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://bbuchsbaum.github.io/eyesim/">eyesim</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># A reproducible synthetic experiment; no participant data are required.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">53</span><span class="op">)</span></span>
+<span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>Subject <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">12</span>, ImageNumberS <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">12</span><span class="op">)</span></span>
+<span><span class="va">centers</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span>, <span class="fl">150</span>, <span class="fl">650</span><span class="op">)</span>,</span>
+<span>                 <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span>, <span class="fl">120</span>, <span class="fl">480</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">make_fixations</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">center</span>, <span class="va">spread</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="reference/fixation_group.html">fixation_group</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">18</span>, <span class="va">center</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">spread</span><span class="op">)</span>,</span>
+<span>                 y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">18</span>, <span class="va">center</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">spread</span><span class="op">)</span>,</span>
+<span>                 onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">3400</span>, <span class="fl">200</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">180</span>, <span class="fl">18</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">make_fixations</span><span class="op">(</span><span class="va">centers</span><span class="op">[</span><span class="va">i</span>, <span class="op">]</span>, <span class="fl">30</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="va">test</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Subject"</span>, <span class="st">"ImageNumberS"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">test</span><span class="op">$</span><span class="va">probe_type</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">test</span><span class="op">$</span><span class="va">ImageNumberS</span> <span class="op"><a href="https://rdrr.io/r/base/Arithmetic.html" class="external-link">%%</a></span> <span class="fl">2</span> <span class="op">==</span> <span class="fl">0</span>, <span class="st">"old"</span>, <span class="st">"lure"</span><span class="op">)</span></span>
+<span><span class="va">test</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">test</span><span class="op">)</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">shift</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="va">test</span><span class="op">$</span><span class="va">probe_type</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="op">==</span> <span class="st">"old"</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">100</span>, <span class="op">-</span><span class="fl">70</span><span class="op">)</span></span>
+<span>  <span class="fu">make_fixations</span><span class="op">(</span><span class="va">centers</span><span class="op">[</span><span class="va">i</span>, <span class="op">]</span> <span class="op">+</span> <span class="va">shift</span>, <span class="fl">45</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># One density map per participant and image, on the 800 x 600 pixel image.</span></span>
+<span><span class="va">maps</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fixations</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="reference/density_by.html">density_by</a></span><span class="op">(</span><span class="va">fixations</span>, groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Subject"</span>, <span class="st">"ImageNumberS"</span><span class="op">)</span>,</span>
+<span>             sigma <span class="op">=</span> <span class="fl">50</span>, xbounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">800</span><span class="op">)</span>, ybounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">600</span><span class="op">)</span>,</span>
+<span>             outdim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">40</span>, <span class="fl">30</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>match_key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">Subject</span>, <span class="va">ImageNumberS</span>, sep <span class="op">=</span> <span class="st">"_"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">templates</span>  <span class="op">&lt;-</span> <span class="fu">maps</span><span class="op">(</span><span class="va">study</span><span class="op">)</span></span>
+<span><span class="va">test_maps</span>  <span class="op">&lt;-</span> <span class="fu">maps</span><span class="op">(</span><span class="va">test</span>, keep_vars <span class="op">=</span> <span class="st">"probe_type"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Score each test map against its template, and against up to 20 of the same</span></span>
+<span><span class="co"># participant's other templates as a baseline.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/template_similarity.html">template_similarity</a></span><span class="op">(</span><span class="va">templates</span>, <span class="va">test_maps</span>,</span>
+<span>                           match_on <span class="op">=</span> <span class="st">"match_key"</span>,</span>
+<span>                           permute_on <span class="op">=</span> <span class="st">"Subject"</span>,</span>
+<span>                           method <span class="op">=</span> <span class="st">"fisherz"</span>,</span>
+<span>                           permutations <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></code></pre></div>
+<p>This small example scores 144 test trials. The compound <code>match_key</code> ensures that each test map matches the same participant and image; matching only on image would select the first participant’s template.</p>
+<p><code><a href="reference/template_similarity.html">template_similarity()</a></code> returns one row per test trial:</p>
+<ul>
+<li>
+<code>eye_sim</code> is the similarity between the test map and its template.</li>
+<li>
+<code>perm_sim</code> is the mean similarity to the participant’s templates for <em>other</em> images, a baseline that retains recurring viewing patterns.</li>
+<li>
+<code>eye_sim_diff</code>, the <strong>corrected similarity</strong>, subtracts that baseline. It is a descriptive contrast, not an automatic decomposition of memory, image content and viewing habits.</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sim</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">Subject</span>, <span class="va">ImageNumberS</span>, <span class="va">probe_type</span>, <span class="va">eye_sim</span>, <span class="va">perm_sim</span>, <span class="va">eye_sim_diff</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">5</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   Subject ImageNumberS probe_type   eye_sim     perm_sim eye_sim_diff</span></span>
+<span><span class="co">#&gt; 1       1            1       lure 0.3715877  0.012313629    0.3592741</span></span>
+<span><span class="co">#&gt; 2       1            2        old 2.5100014  0.031805436    2.4781959</span></span>
+<span><span class="co">#&gt; 3       1            3       lure 0.3175950 -0.071179139    0.3887742</span></span>
+<span><span class="co">#&gt; 4       1            4        old 1.7638458  0.241910844    1.5219349</span></span>
+<span><span class="co">#&gt; 5       1            5       lure 0.3479633  0.004641308    0.3433219</span></span></code></pre></div>
+<p>Single trials are noisy. The panels below show one participant’s trials at the 10th, 50th and 90th percentile of corrected similarity. The grey shading is the template and the red dots are the test fixations.</p>
+<p><img src="reference/figures/README-panels-1.png" alt="Six panels in two rows, studied images above and lures below. Each panel shows a participant's template as grey shading with their test fixations as red dots, at the 10th, 50th and 90th percentile of corrected similarity. These are simulated fixation patterns with a planted difference between conditions."></p>
+<p>Averaged within each simulated participant, the old condition scores higher than the lure condition for 12 of 12 participants (mean 1.81 versus 0.26, Fisher <em>z</em>). This recovers the spatial similarity difference built into the simulation; it is not evidence about human memory. An empirical interpretation would require an appropriate study design and controls for shared image content and viewing habits.</p>
 </div>
 <div class="section level2">
-<h2 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a>
+<h2 id="what-eyesim-does">What eyesim does<a class="anchor" aria-label="anchor" href="#what-eyesim-does"></a>
 </h2>
-<p>See examples of use of <code>eyesim</code> in the <a href="https://bbuchsbaum.github.io/eyesim/articles/index.html">vignettes</a>.</p>
-<p>With some luck you might be able to make a cool image like the one below!</p>
-<p><img src="reference/figures/phelps.gif"></p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr>
+<th align="left">Question</th>
+<th align="left">Functions</th>
+<th align="left">Guide</th>
+</tr></thead>
+<tbody>
+<tr>
+<td align="left">Where did people look?</td>
+<td align="left">
+<code><a href="reference/fixation_group.html">fixation_group()</a></code>, <code><a href="reference/eye_table.html">eye_table()</a></code>, <code><a href="reference/density_by.html">density_by()</a></code>
+</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/eyesim.html">Getting started</a></td>
+</tr>
+<tr>
+<td align="left">Is a viewing similar to its template, beyond chance?</td>
+<td align="left">
+<code><a href="reference/template_similarity.html">template_similarity()</a></code>, <code><a href="reference/similarity.html">similarity()</a></code>
+</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/eyesim.html">Getting started</a></td>
+</tr>
+<tr>
+<td align="left">Do individual fixations favor study locations over controls?</td>
+<td align="left">
+<code><a href="reference/reference_maps.html">reference_maps()</a></code>, <code><a href="reference/sample_controls.html">sample_controls()</a></code>, <code><a href="reference/mismatch_draws.html">mismatch_draws()</a></code>
+</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/fixation-reference-scoring.html">Fixation scoring</a></td>
+</tr>
+<tr>
+<td align="left">When during a viewing does it match?</td>
+<td align="left"><code><a href="reference/sample_density_time.html">sample_density_time()</a></code></td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/eyesim.html">Getting started</a></td>
+</tr>
+<tr>
+<td align="left">How often does gaze return to a place?</td>
+<td align="left">
+<code><a href="reference/fixation_revisits.html">fixation_revisits()</a></code>, <code><a href="reference/revisit_summary.html">revisit_summary()</a></code>
+</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/eyesim.html">Getting started</a></td>
+</tr>
+<tr>
+<td align="left">Do two scanpaths share shape, order and timing?</td>
+<td align="left">
+<code><a href="reference/scanpath.html">scanpath()</a></code>, <code><a href="reference/multi_match.html">multi_match()</a></code> (Dewhurst et al., 2012)</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/Multimatch.html">MultiMatch</a></td>
+</tr>
+<tr>
+<td align="left">Is gaze consistent across repeats of a stimulus?</td>
+<td align="left"><code><a href="reference/repetitive_similarity.html">repetitive_similarity()</a></code></td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/RepetitiveSimilarity.html">Repetitive similarity</a></td>
+</tr>
+<tr>
+<td align="left">What if recall gaze is shrunk or shifted?</td>
+<td align="left">
+<code><a href="reference/latent_pca_transform.html">contract_transform()</a></code>, <code><a href="reference/latent_pca_transform.html">coral_transform()</a></code>, <code><a href="reference/template_similarity_cv.html">template_similarity_cv()</a></code>
+</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/latent-transforms.html">Latent transforms</a></td>
+</tr>
+<tr>
+<td align="left">How much does a recall path identify its image? <em>(experimental)</em>
+</td>
+<td align="left">
+<code><a href="reference/gaze_weave_cv.html">gaze_weave_cv()</a></code>, <code><a href="reference/gaze_transport_cv.html">gaze_transport_cv()</a></code>
+</td>
+<td align="left"><a href="https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.html">GazeWeave</a></td>
+</tr>
+</tbody>
+</table>
+<p><code><a href="reference/similarity.html">similarity()</a></code> and <code><a href="reference/template_similarity.html">template_similarity()</a></code> take a <code>method</code>: Pearson, Spearman or Fisher <em>z</em> correlation, cosine, L1, Jaccard, distance covariance, or earth mover’s distance.</p>
+<p><strong>GazeWeave</strong> is experimental. It scores, in bits, how much a recall gaze path helps identify which image is being recalled. In validation it has not yet outperformed simpler measures, so read the <a href="https://bbuchsbaum.github.io/eyesim/articles/GazeWeave.html">vignette</a> before relying on it.</p>
+</div>
+<div class="section level2">
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
+</h2>
+<p>The <a href="https://bbuchsbaum.github.io/eyesim/">documentation site</a> has the guides above and a full <a href="https://bbuchsbaum.github.io/eyesim/reference/index.html">function reference</a>. Report bugs and ask questions on <a href="https://github.com/bbuchsbaum/eyesim/issues" class="external-link">GitHub issues</a>.</p>
+<p><code><a href="reference/anim_scanpath.html">anim_scanpath()</a></code> replays a viewing in real time. Here it replays the 90th-percentile studied trial from the panels above, over its template:</p>
+<p><img src="reference/figures/README-anim.gif" width="400" alt="Animation: a participant's eight test fixations appear one at a time over the grey density of where they looked while studying the same image. Most land on the dark centre of the template."></p>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
+<p>To cite eyesim, run <code>citation("eyesim")</code>. The example on this page is synthetic.</p>
+<p>eyesim is released under the MIT license.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -120,6 +273,7 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
+<li><a href="https://github.com/bbuchsbaum/eyesim/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/bbuchsbaum/eyesim/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 <li><a href="https://app.codecov.io/gh/bbuchsbaum/eyesim?branch=master" class="external-link"><img src="https://codecov.io/gh/bbuchsbaum/eyesim/branch/master/graph/badge.svg" alt="Codecov test coverage"></a></li>
 </ul>
 </div>

@@ -112,6 +112,7 @@ mean entropy across scales or a named numeric vector, depending on
 
 ## Details
 
-Entropy is defined only for non-negative mass. A map with any negative
-value, such as the difference of two densities, is an error. A map whose
-total mass is zero gives `NA`.
+Contrast maps from subtraction or division are not densities and are
+refused. Entropy is defined only for non-negative mass. A map with any
+negative value, such as the difference of two densities, is an error. A
+map whose total mass is zero gives `NA`.

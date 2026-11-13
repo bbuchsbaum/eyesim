@@ -35,7 +35,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+<li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -126,28 +127,29 @@ combination:</p>
 <h2 id="computing-repetitive-similarity">Computing repetitive similarity<a class="anchor" aria-label="anchor" href="#computing-repetitive-similarity"></a>
 </h2>
 <p><code><a href="../reference/repetitive_similarity.html">repetitive_similarity()</a></code> takes the density table and a
-condition variable (here <code>phase</code>) that defines the repeated
-viewings:</p>
+condition variable (here <code>image</code>) that defines which maps
+should be compared as repeats. We split by participant because the
+function does not infer participant boundaries:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">rep_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/repetitive_similarity.html">repetitive_similarity</a></span><span class="op">(</span><span class="va">eyedens</span>,</span>
-<span>                                 condition_var <span class="op">=</span> <span class="st">"phase"</span>,</span>
-<span>                                 method <span class="op">=</span> <span class="st">"pearson"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">rep_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">ungroup</a></span><span class="op">(</span><span class="va">eyedens</span><span class="op">)</span>, <span class="va">eyedens</span><span class="op">$</span><span class="va">participant</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">tab</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="../reference/repetitive_similarity.html">repetitive_similarity</a></span><span class="op">(</span><span class="va">tab</span>, condition_var <span class="op">=</span> <span class="st">"image"</span>, method <span class="op">=</span> <span class="st">"pearson"</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">rep_sim</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 12 × 7</span></span></span>
 <span><span class="co">#&gt;    phase     image participant fixgroup            density    repsim othersim</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>              <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> encoding  img1  s1          <span style="color: #949494;">&lt;fxtn_grp [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.304     0.367</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> encoding  img1  s2          <span style="color: #949494;">&lt;fxtn_grp [9 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.377     0.626</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> encoding  img2  s1          <span style="color: #949494;">&lt;fxtn_grp [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.423     0.506</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> encoding  img2  s2          <span style="color: #949494;">&lt;fxtn_grp [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.461     0.694</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> encoding  img3  s1          <span style="color: #949494;">&lt;fxtn_grp [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.204     0.243</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> encoding  img3  s2          <span style="color: #949494;">&lt;fxtn_grp [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.056<span style="text-decoration: underline;">6</span>    0.388</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> retrieval img1  s1          <span style="color: #949494;">&lt;fxtn_grp [9 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.688     0.582</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> retrieval img1  s2          <span style="color: #949494;">&lt;fxtn_grp [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.531     0.408</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> retrieval img2  s1          <span style="color: #949494;">&lt;fxtn_grp [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.534     0.565</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> retrieval img2  s2          <span style="color: #949494;">&lt;fxtn_grp [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.341     0.389</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> retrieval img3  s1          <span style="color: #949494;">&lt;fxtn_grp [7 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.538     0.587</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> retrieval img3  s2          <span style="color: #949494;">&lt;fxtn_grp [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span> 0.312     0.293</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> encoding  img1  s1          <span style="color: #949494;">&lt;fxtn_grp [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.393    0.746</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> encoding  img2  s1          <span style="color: #949494;">&lt;fxtn_grp [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.903    0.612</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> encoding  img3  s1          <span style="color: #949494;">&lt;fxtn_grp [10 × 6]&gt;</span> <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.802    0.412</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> retrieval img1  s1          <span style="color: #949494;">&lt;fxtn_grp [9 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.393    0.553</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> retrieval img2  s1          <span style="color: #949494;">&lt;fxtn_grp [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.903    0.693</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> retrieval img3  s1          <span style="color: #949494;">&lt;fxtn_grp [7 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.802    0.671</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> encoding  img1  s2          <span style="color: #949494;">&lt;fxtn_grp [9 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.642    0.511</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> encoding  img2  s2          <span style="color: #949494;">&lt;fxtn_grp [6 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.317    0.788</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> encoding  img3  s2          <span style="color: #949494;">&lt;fxtn_grp [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.927    0.439</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> retrieval img1  s2          <span style="color: #949494;">&lt;fxtn_grp [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.642    0.706</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> retrieval img2  s2          <span style="color: #949494;">&lt;fxtn_grp [3 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.317    0.135</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> retrieval img3  s2          <span style="color: #949494;">&lt;fxtn_grp [5 × 6]&gt;</span>  <span style="color: #949494;">&lt;ey_dnsty&gt;</span>  0.927    0.371</span></span></code></pre></div>
 <p>The result contains two key columns:</p>
 <ul>
 <li>
@@ -156,8 +158,8 @@ consistently participants looked at the same locations for the
 <em>same</em> image across conditions</li>
 <li>
 <strong>othersim</strong> — cross-stimulus similarity: baseline
-similarity between <em>different</em> images viewed under different
-conditions</li>
+similarity between <em>different</em> images from either the same or
+different phases, within participant</li>
 </ul>
 </div>
 <div class="section level2">
@@ -180,21 +182,24 @@ across encoding and retrieval.
 <code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">rep_sim</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">image</span>, y <span class="op">=</span> <span class="va">othersim</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_bar.html" class="external-link">geom_col</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"coral"</span>, alpha <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Stimulus"</span>, y <span class="op">=</span> <span class="st">"Other Similarity"</span>,</span>
-<span>       title <span class="op">=</span> <span class="st">"Different images across conditions"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>       title <span class="op">=</span> <span class="st">"Different images within participant"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <div class="figure">
-<img src="RepetitiveSimilarity_files/figure-html/plot-othersim-1.png" class="r-plt" alt="Cross-stimulus similarity (othersim). This represents the baseline: how similar gaze patterns are when comparing different images across conditions." width="768"><p class="caption">
+<img src="RepetitiveSimilarity_files/figure-html/plot-othersim-1.png" class="r-plt" alt="Cross-stimulus similarity (othersim). This represents the baseline: how similar gaze patterns are when comparing different images within participant, across both phases." width="768"><p class="caption">
 Cross-stimulus similarity (othersim). This represents the baseline: how
-similar gaze patterns are when comparing different images across
-conditions.
+similar gaze patterns are when comparing different images within
+participant, across both phases.
 </p>
 </div>
 <p>With random data, both values should be near zero. In a real
 experiment, you would expect <code>repsim</code> to be higher than
 <code>othersim</code> if participants show stimulus-specific
 eye-movement reinstatement. The difference
-(<code>repsim - othersim</code>) gives you a corrected measure of
-reinstatement that controls for general gaze tendencies.</p>
+(<code>repsim - othersim</code>) contrasts same-image and
+different-image pairs. The baseline includes same-phase pairs, so this
+is not a correction restricted to encoding–retrieval comparisons. Use
+<code><a href="../reference/template_similarity.html">template_similarity()</a></code> with a participant-by-image key and
+<code>permute_on = "participant"</code> for that design.</p>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>

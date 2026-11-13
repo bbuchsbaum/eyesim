@@ -25,7 +25,8 @@ across time&quot; analysis)."><link href="../albers.css" rel="stylesheet"><scrip
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -43,7 +44,7 @@ across time&quot; analysis)."><link href="../albers.css" rel="stylesheet"><scrip
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Sample density maps at fixation locations over time</h1>
-      <small class="dont-index">Source: <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/similarity.R" class="external-link"><code>R/similarity.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/bbuchsbaum/eyesim/blob/master/R/template_sampling.R" class="external-link"><code>R/template_sampling.R</code></a></small>
       <div class="d-none name"><code>sample_density_time.Rd</code></div>
     </div>
 
@@ -67,7 +68,9 @@ across time" analysis).</p>
 <span>  permutations <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  permute_on <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  aggregate_fun <span class="op">=</span> <span class="va">mean</span>,</span>
-<span>  normalize <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"max"</span>, <span class="st">"sum"</span>, <span class="st">"zscore"</span><span class="op">)</span></span>
+<span>  normalize <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"max"</span>, <span class="st">"sum"</span>, <span class="st">"zscore"</span><span class="op">)</span>,</span>
+<span>  transform <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"log"</span><span class="op">)</span>,</span>
+<span>  floor <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -135,16 +138,27 @@ map before sampling. One of <code>"none"</code> (default), <code>"max"</code>,
 Using <code>"zscore"</code> is recommended when comparing across conditions or
 groups that may differ in fixation count or density bandwidth.</p></dd>
 
+
+<dt id="arg-transform">transform<a class="anchor" aria-label="anchor" href="#arg-transform"></a></dt>
+<dd><p>Map value transformation, applied after normalization.
+<code>log</code> computes <code>log(z + floor)</code>; <code>none</code> leaves values unchanged.</p></dd>
+
+
+<dt id="arg-floor">floor<a class="anchor" aria-label="anchor" href="#arg-floor"></a></dt>
+<dd><p>Explicit positive additive offset required for <code>log</code>. For maps
+normalized to unit sum, <code>1 / (10 * length(x$z))</code> is a possible choice.
+This is an offset, not a hard lower bound.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A tibble containing:</p><ul><li><p>All columns from <code>source_tab</code></p></li>
 <li><p><code>sampled</code>: A list column with data frames containing <code>z</code>
-    (density values) and <code>time</code> columns for each row</p></li>
+(density values) and <code>time</code> columns for each row</p></li>
 <li><p>If <code>time_bins</code> is provided: columns <code>bin_1</code>, <code>bin_2</code>, etc.
-    with aggregated values for each bin</p></li>
+with aggregated values for each bin</p></li>
 <li><p>If <code>permutations &gt; 0</code>: <code>perm_sampled</code> (list column with mean
-    permuted trajectory) and <code>perm_bin_1</code>, <code>perm_bin_2</code>, etc.</p></li>
+permuted trajectory) and <code>perm_bin_1</code>, <code>perm_bin_2</code>, etc.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

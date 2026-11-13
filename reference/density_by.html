@@ -19,7 +19,8 @@
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -60,7 +61,8 @@
 <span>  keep_vars <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  fixvar <span class="op">=</span> <span class="st">"fixgroup"</span>,</span>
 <span>  result_name <span class="op">=</span> <span class="st">"density"</span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  <span class="va">...</span>,</span>
+<span>  window_weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"onset"</span>, <span class="st">"overlap"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -121,6 +123,14 @@ result column. Default is 2.</p></dd>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments passed to the `eye_density.fixation_group` function.</p></dd>
+
+
+<dt id="arg-window-weight">window_weight<a class="anchor" aria-label="anchor" href="#arg-window-weight"></a></dt>
+<dd><p>Select by onset (default) or positive interval overlap.
+Overlap clips durations to the window. Explicit weights are multiplied by
+the overlap fraction of each fixation; otherwise duration weighting uses
+clipped durations by default. Explicit `duration_weighted = FALSE` gives
+survivors unit weight and warns when no explicit weights are supplied.</p></dd>
 
 </dl></div>
     <div class="section level2">

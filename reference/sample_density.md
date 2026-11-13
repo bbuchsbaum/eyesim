@@ -16,21 +16,50 @@ sample_density(
   fix,
   times = NULL,
   normalize = c("none", "max", "sum", "zscore"),
-  ...
+  ...,
+  transform = c("none", "log"),
+  floor = NULL
 )
+
+# S3 method for class 'list'
+sample_density(x, fix, times = NULL, ..., format = c("long", "wide"))
+
+# S3 method for class 'data.frame'
+sample_density(
+  x,
+  fix,
+  times = NULL,
+  ...,
+  map_var = "density",
+  name_var = "reference"
+)
+
+# S3 method for class 'eyesim_reference_map'
+sample_density(
+  x,
+  fix,
+  times = NULL,
+  ...,
+  normalize = "none",
+  transform = "none",
+  floor = NULL
+)
+
+# S3 method for class 'eyesim_references'
+sample_density(x, fix, ..., format = c("wide", "long"))
 ```
 
 ## Arguments
 
 - x:
 
-  An object of class "density" representing the smooth fixation density
-  map.
+  A density map, a named list or table of maps, or a reference set.
 
 - fix:
 
-  A data frame or tibble containing discrete fixations with columns "x",
-  "y", and "onset".
+  A table of locations with x/y coordinates. Single maps and map lists
+  also use onset (unless times are supplied); reference sets require
+  their subject/item key columns.
 
 - ...:
 
@@ -54,7 +83,8 @@ sample_density(
 
   `"max"`
 
-  :   Divide by the maximum density value, yielding values in \[0, 1\].
+  :   Divide by the maximum density value, yielding values between zero
+      and one.
 
   `"sum"`
 
@@ -66,13 +96,33 @@ sample_density(
   :   Z-score the density map (subtract mean, divide by SD). Useful for
       comparing across maps with different scales.
 
+- transform:
+
+  Map value transformation, applied after normalization. `log` computes
+  `log(z + floor)`; `none` leaves values unchanged.
+
+- floor:
+
+  Explicit positive additive offset required for `log`. For maps
+  normalized to unit sum, `1 / (10 * length(x$z))` is a possible choice.
+  This is an offset, not a hard lower bound.
+
+- format:
+
+  For a named list of maps, return long rows or one column per map.
+
+- map_var, name_var:
+
+  For a map table, columns containing maps and unique names.
+
 ## Value
 
-A data frame with columns 'z' (density estimates at fixation locations)
-and 'time' (onset time of fixations).
-
-A data frame with columns "z" and "time", where "z" contains the sampled
-density values and "time" contains the corresponding time points.
+Single-map sampling returns z and time columns. Named lists and map
+tables return fixation/reference/z/time rows, or fixation/time and one
+column per map with format = "wide". Reference sets return one column
+per reference, aligned with the input locations, or fixation/reference/z
+rows with format = "long". Reference values are already prepared and do
+not accept further normalization or transformation during lookup.
 
 ## Details
 

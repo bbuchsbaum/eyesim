@@ -19,7 +19,8 @@ density_by(
   keep_vars = NULL,
   fixvar = "fixgroup",
   result_name = "density",
-  ...
+  ...,
+  window_weight = c("onset", "overlap")
 )
 ```
 
@@ -91,6 +92,15 @@ density_by(
 
   Additional arguments passed to the \`eye_density.fixation_group\`
   function.
+
+- window_weight:
+
+  Select by onset (default) or positive interval overlap. Overlap clips
+  durations to the window. Explicit weights are multiplied by the
+  overlap fraction of each fixation; otherwise duration weighting uses
+  clipped durations by default. Explicit \`duration_weighted = FALSE\`
+  gives survivors unit weight and warns when no explicit weights are
+  supplied.
 
 ## Value
 

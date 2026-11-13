@@ -19,7 +19,8 @@
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fixation-reference-scoring.html">Fixation-level scoring with leave-out references</a></li>
+    <li><a class="dropdown-item" href="../articles/GazeWeave.html">GazeWeave: Calibrated Item Information from Gaze Paths</a></li>
     <li><a class="dropdown-item" href="../articles/latent-transforms.html">Latent Transforms for Template Similarity</a></li>
     <li><a class="dropdown-item" href="../articles/Multimatch.html">Comparing Scanpaths with MultiMatch</a></li>
     <li><a class="dropdown-item" href="../articles/RepetitiveSimilarity.html">Measuring Similarity Across Repeated Viewings</a></li>
@@ -90,6 +91,78 @@
 
         </dt>
         <dd>Convert an eye_density object to a data.frame.</dd>
+
+        <dt>
+
+          <code><a href="Ops.eye_density.html">Ops(<i>&lt;eye_density&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Arithmetic on eye density maps</dd>
+      </dl></div><div class="section level2">
+      <h2 id="fixation-reference-scoring">Fixation reference scoring<a class="anchor" aria-label="anchor" href="#fixation-reference-scoring"></a></h2>
+
+      <div class="section-desc"><p>Leave-out maps, replayable assignments, scoring, and explicit scaling.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="reference_maps.html">reference_maps()</a></code>
+
+        </dt>
+        <dd>Construct leave-out reference maps for two crossed factors</dd>
+
+        <dt>
+
+          <code><a href="reference_map.html">reference_map()</a></code>
+
+        </dt>
+        <dd>Inspect one reference map</dd>
+
+        <dt>
+
+          <code><a href="sample_controls.html">sample_controls()</a></code>
+
+        </dt>
+        <dd>Draw replayable case-control locations</dd>
+
+        <dt>
+
+          <code><a href="score_strata.html">score_strata()</a></code>
+
+        </dt>
+        <dd>Score case-control assignments against reference maps</dd>
+
+        <dt>
+
+          <code><a href="fit_score_scaling.html">fit_score_scaling()</a></code> <code><a href="fit_score_scaling.html">apply_score_scaling()</a></code>
+
+        </dt>
+        <dd>Fit and apply group-specific score standardization</dd>
+
+        <dt>
+
+          <code><a href="case_control_contrast.html">case_control_contrast()</a></code>
+
+        </dt>
+        <dd>Summarize case minus mean-control reference scores</dd>
+
+        <dt>
+
+          <code><a href="mismatch_assignments.html">mismatch_assignments()</a></code>
+
+        </dt>
+        <dd>Draw replayable mismatched-template assignments</dd>
+
+        <dt>
+
+          <code><a href="mismatch_draws.html">mismatch_draws()</a></code>
+
+        </dt>
+        <dd>Evaluate replayable mismatched-template draws</dd>
       </dl></div><div class="section level2">
       <h2 id="spatial-operations">Spatial operations<a class="anchor" aria-label="anchor" href="#spatial-operations"></a></h2>
 
@@ -712,29 +785,6 @@
 
         </dt>
         <dd>sample_density</dd>
-      </dl></div><div class="section level2">
-      <h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a></h2>
-
-      <div class="section-desc"><p>Example datasets included with the package.</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="wynn_study.html">wynn_study</a></code>
-
-        </dt>
-        <dd>Study-phase fixations from Wynn et al.</dd>
-
-        <dt>
-
-          <code><a href="wynn_test.html">wynn_test</a></code>
-
-        </dt>
-        <dd>Test-phase fixations from Wynn et al.</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

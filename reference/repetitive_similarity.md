@@ -73,6 +73,15 @@ of the trial's density map to maps from all other conditions. -
 containing vectors of similarity scores between the trial and each other
 trial within the same condition.
 
+## Details
+
+Pair selection uses only equality of \`condition_var\`; participant and
+phase columns do not restrict comparisons. For within-participant
+results, split the table by participant before calling. With
+\`condition_var = "image"\`, the baseline includes different images from
+both the same and other phases. Use \`template_similarity()\` for an
+exclusively cross-phase baseline.
+
 ## Examples
 
 ``` r

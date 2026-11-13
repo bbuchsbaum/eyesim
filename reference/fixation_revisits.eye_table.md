@@ -119,7 +119,8 @@ tibble::as_tibble(res)[, c("subject", "n_fix", "revisits", "expected_revisits", 
 #> 5 s2         20        6              4.78           1.22 
 #> 6 s2         20        2              6.06          -4.06 
 # same-image null from the other subject's viewing
-res_item <- fixation_revisits(et, radius = 150, null = "item", item_var = "image", subject_var = "subject")
+res_item <- fixation_revisits(et, radius = 150, null = "item",
+                             item_var = "image", subject_var = "subject")
 tibble::as_tibble(res_item)[, c("subject", "image", "revisits", "expected_revisits")]
 #> # A tibble: 6 × 4
 #>   subject image revisits expected_revisits
