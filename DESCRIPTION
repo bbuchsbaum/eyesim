@@ -50,6 +50,7 @@ LazyDataCompression: xz
 Depends: 
     R (>= 3.5.0)
 Suggests:
+    albersdown,
     covr,
     crqa,
     emdist,
