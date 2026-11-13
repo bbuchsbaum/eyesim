@@ -19,9 +19,16 @@
   and `mismatch_draws()`. Sampling retains donor/replacement identities and
   seeded constructors restore the caller's RNG state.
 * Map controls sample independently with replacement. Mismatch draws exclude
-  replacement-item donors by default and return paired matched contrasts on
+  both own-item and replacement-item donors by default, including repeated
+  presentations, and return paired matched contrasts on
   identical controls and scaling; `control_policy = "fixed"` retains the
-  original item-discrimination baseline.
+  supplied control pool. Observed controls exclude the case's item when an
+  `item` column is available; pass another column name explicitly, or use
+  `item = NULL` for the original trial-only sampling baseline.
+* `mismatch_draws()` reduces each null draw incrementally: matched differences
+  are reduced once, and each draw rescores only the replaced reference and
+  removes only its excluded donors. Results are unchanged to 1e-12; 100 draws
+  over 98,880 fixations take under a minute of CPU time.
 * Existing sampling and template baselines now share map preparation, matching,
   and candidate selection. Their default output and RNG behavior are retained.
   `sample_density()` accepts named map lists/tables and an explicit log offset;

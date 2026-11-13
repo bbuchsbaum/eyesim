@@ -113,7 +113,12 @@ head(strata[c("subject", "item", "case_id", "control_id", "draw",
 
 For observed controls, `control_id` identifies the donor row of `test`. Other
 metadata belongs to the case, including its item and trial. Donors come from
-the same subject and epoch, excluding the case's entire trial. With
+the same subject and epoch, excluding the case's entire trial and every trial
+of the case's item. Item exclusion matters for repeated presentations: own-item
+donors can land on the matched template's hotspots and attenuate its contrast.
+The `item` column is detected by default; pass `item = "stimulus"` for a custom
+column or `item = NULL` for trial-only exclusion. Without an item column,
+the default also uses trial-only exclusion. With
 `replace = "auto"`, sampling uses replacement only when the pool is too small.
 Empty pools produce an error. Seeded constructors restore the caller's RNG
 state; scoring uses no random numbers. Save the assignment table along with
@@ -164,20 +169,28 @@ and control draws. `replace_ref = "self_item"` changes only the own-item
 reference; `replace_ref = "all"` replaces the full reference tuple coherently.
 The original case metadata remains attached to the returned contrasts.
 
-By default, each draw excludes controls whose donor item is the replacement
-item, including donors from repeated trials of that item. Otherwise those
-donors can land on the replacement template's hotspots and push its contrast
-below zero when a real matched effect exists. `control_id` and the saved
+By default, each draw excludes controls whose donor item is either the case's
+item or the replacement item, including donors from repeated trials of either
+item. This also corrects older saved assignments drawn with trial-only
+exclusion. Own-item donors would attenuate the matched contrast; replacement-item
+donors would push the mismatched contrast below zero under a real matched
+effect. `control_id` and the saved
 `control_sources` attribute identify donors even after selecting a subset of
 cases. No controls are redrawn; a stratum left without controls produces an
-error. Increase the initial control count when the design permits it.
+error. Increasing the initial control count can help only if eligible donors
+exist. A subject with only two test items cannot support a comparison between
+those items using observed controls, even with repeated trials. In particular,
+two test trials containing those items always leave an empty pool.
 Use `saveRDS()` to preserve donor metadata when saving a subset of cases.
 
 `paired_observed` rescores the matched template using exactly the same retained
 controls and scaling as each mismatched contrast. The plot compares these
 paired results. `observed` retains the original contrast on all controls for
-context. `control_policy = "fixed"` reproduces the original item-discrimination
-baseline, retaining replacement-item donors. Its negative value under a real
+context; if those controls came from trial-only sampling, repeated own-item
+donors can still attenuate `observed`. `control_policy = "fixed"` retains all
+supplied controls, including replacement-item donors. Combine it with
+`sample_controls(..., item = NULL)` to reproduce the original item-discrimination
+baseline. Its negative value under a real
 effect should not be interpreted as an absence-of-reinstatement baseline.
 
 ```{r compare-assignments, echo=FALSE}

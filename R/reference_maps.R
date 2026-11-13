@@ -121,18 +121,23 @@ reference_maps <- function(dens_tab, subject = "subject", item = "item",
 # Evaluate sufficient statistics only at requested cells. No full reference
 # maps or fixation-by-candidate Cartesian products are materialized.
 reference_values <- function(refs, target, cell, reference) {
-  si <- refs$si[target]
-  ii <- refs$ii[target]
+  # Only the quantities the requested reference needs are computed; self_item
+  # is a plain lookup, which matters when null draws rescore it repeatedly.
   own <- refs$values[cbind(cell, target)]
-  own_n <- refs$ns[si] - refs$valid[target]
-  own_other <- (refs$subject_sums[cbind(cell, si)] - own) / pmax(own_n, 1)
+  own_n <- function() refs$ns[refs$si[target]] - refs$valid[target]
+  own_other <- function(n) (refs$subject_sums[cbind(cell, refs$si[target])] - own) / pmax(n, 1)
   value <- switch(reference,
     self_item = own,
-    self_other_items = own_other,
-    others_item = (refs$item_sums[cbind(cell, ii)] - own) /
-      pmax(refs$ni[ii] - refs$valid[target], 1),
-    others_other_items = (refs$cross_sums[cbind(cell, ii)] - own_other) /
-      pmax(refs$cross_n[ii] - (own_n > 0), 1))
+    self_other_items = own_other(own_n()),
+    others_item = {
+      ii <- refs$ii[target]
+      (refs$item_sums[cbind(cell, ii)] - own) / pmax(refs$ni[ii] - refs$valid[target], 1)
+    },
+    others_other_items = {
+      ii <- refs$ii[target]
+      n <- own_n()
+      (refs$cross_sums[cbind(cell, ii)] - own_other(n)) / pmax(refs$cross_n[ii] - (n > 0), 1)
+    })
   count <- refs$counts[[reference]][target]
   value[is.na(count) | count < refs$spec$min_n] <- NA_real_
   # Density sums can lose a few ulps when excluded maps exhaust a group.
