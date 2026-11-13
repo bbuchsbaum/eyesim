@@ -224,7 +224,8 @@ fixation_revisits.fixation_group <- function(x, radius, min_lag = 2, max_lag = I
 #' res <- fixation_revisits(et, radius = 150, null = "subject", subject_var = "subject")
 #' tibble::as_tibble(res)[, c("subject", "n_fix", "revisits", "expected_revisits", "excess_revisits")]
 #' # same-image null from the other subject's viewing
-#' res_item <- fixation_revisits(et, radius = 150, null = "item", item_var = "image", subject_var = "subject")
+#' res_item <- fixation_revisits(et, radius = 150, null = "item",
+#'                               item_var = "image", subject_var = "subject")
 #' tibble::as_tibble(res_item)[, c("subject", "image", "revisits", "expected_revisits")]
 #' @export
 fixation_revisits.eye_table <- function(x, radius, min_lag = 2, max_lag = Inf,
