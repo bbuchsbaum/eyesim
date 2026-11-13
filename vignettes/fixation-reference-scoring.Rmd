@@ -215,7 +215,8 @@ finite. For unit-sum maps, `1 / (10 * ncells)` is a reasonable starting point,
 but it changes the scores, so the package never chooses it silently. For
 `others_other_items`, each other person's items are averaged first and those
 person means are then averaged with equal weight. A person with more items
-therefore does not count more. Use `space = "density"` to average densities
+therefore does not count more. Every other person with at least one map of
+another item contributes, whether or not they also studied the target item. Use `space = "density"` to average densities
 instead of log values, and add `transform = "log"` to take the log after
 averaging.
 
@@ -233,12 +234,12 @@ A high score for a test fixation means little unless locations the person did
 fixations from other trials, so they share that person's general viewing habits.
 
 ```{r controls}
-strata <- sample_controls(test, n = 10, draws = 3, stratify_by = "epoch", seed = 7)
+strata <- sample_controls(test, n = 10, draws = 20, stratify_by = "epoch", seed = 7)
 print(head(strata[c("subject", "item", "case_id", "control_id", "draw",
                     "is_case", "x", "y")], 4), row.names = FALSE)
 ```
 
-Each case forms a *stratum* with its 10 controls. This is repeated for three
+Each case forms a *stratum* with its 10 controls. This is repeated for 20
 independent control draws. `x` and `y` are each row's own location, and
 `control_id` is the row of `test` it was taken from (its *donor*; a case row
 points to itself). The remaining columns describe the case. Controls come from the same
@@ -271,29 +272,36 @@ moving only the controls can create an apparent preference where none exists.
 
 `score_strata()` looks up every case and control location in all four
 references. `case_control_contrast()` then subtracts the mean control score from
-the case score in each stratum and averages these differences within each trial:
+the case score in each stratum and averages these differences within each trial.
+It returns one row per trial and control draw. A single draw of 10 controls
+leaves the score partly dependent on which controls happened to be sampled, so
+we average each trial's contrasts over the 20 draws:
 
 ```{r scoring}
 scored <- score_strata(strata, refs)
 contrasts <- case_control_contrast(scored, by = "trial")
-head(contrasts, 3)
+trial_scores <- aggregate(contrasts[refs$refs], contrasts[c("subject", "trial")], mean)
+head(trial_scores, 3)
 ```
 
 A positive contrast means the person's test fixations score higher than their
 controls under that reference. Before the comparison, scores are standardized
 within each subject and control draw (see
 [Reusing the scaling](#reusing-the-scaling)), so contrasts are in z units.
+The package keeps draws separate so that this averaging is a visible step.
+Averaging over 10–20 draws is a sensible default; a single draw adds
+control-sampling noise to every trial score.
 
-```{r plot-contrasts, echo = FALSE, fig.height = 3.4, fig.cap = "Trial contrasts for each reference (one point per person, item and control draw), with their means. Only the own-item reference separates test fixations from controls in the expected direction."}
+```{r plot-contrasts, echo = FALSE, fig.height = 3.4, fig.cap = "Trial contrasts for each reference, averaged over control draws (one point per person and item), with their means. Only the own-item reference separates test fixations from controls in the expected direction."}
 contrast_long <- data.frame(
-  reference = factor(rep(refs$refs, each = nrow(contrasts)), levels = rev(refs$refs)),
-  contrast = unlist(contrasts[refs$refs], use.names = FALSE)
+  reference = factor(rep(refs$refs, each = nrow(trial_scores)), levels = rev(refs$refs)),
+  contrast = unlist(trial_scores[refs$refs], use.names = FALSE)
 )
 contrast_means <- aggregate(contrast ~ reference, contrast_long, mean)
 
 ggplot(contrast_long, aes(contrast, reference)) +
   geom_vline(xintercept = 0, colour = "grey60") +
-  geom_jitter(height = 0.15, width = 0, alpha = 0.35, size = 1, colour = "#2166ac") +
+  geom_jitter(height = 0.15, width = 0, alpha = 0.6, size = 1.4, colour = "#2166ac") +
   geom_point(data = contrast_means, shape = 124, size = 7, colour = "#b2182b") +
   labs(x = "Case minus control score (z units)", y = NULL)
 ```
@@ -313,13 +321,6 @@ study maps of those items, which are exactly the maps averaged into
 same-person observed controls, this reference cannot reveal a viewing habit,
 because the controls share it by construction. `method = "uniform"` controls
 are needed if that is the question.
-
-Control draws are kept separate in the output. Averaging over them is an
-explicit analysis choice:
-
-```{r draw-means}
-aggregate(contrasts[refs$refs], list(control_draw = contrasts$draw), mean)
-```
 
 ## A mismatched-item baseline
 
