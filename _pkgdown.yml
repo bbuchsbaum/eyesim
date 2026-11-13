@@ -12,6 +12,7 @@ reference:
   - eye_density.fixation_group
   - gen_density
   - as.data.frame.eye_density
+  - Ops.eye_density
 - title: Fixation reference scoring
   desc: Leave-out maps, replayable assignments, scoring, and explicit scaling.
   contents:
