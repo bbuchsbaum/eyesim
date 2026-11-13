@@ -45,8 +45,9 @@ requires an appropriate exchangeability assumption.}
 \item{by}{Contrast resolution, as in \code{\link[=case_control_contrast]{case_control_contrast()}}.}
 
 \item{control_policy}{By default, \code{"exclude_replacement"} removes observed
-controls donated by any trial of the replacement item, using the saved
-donor metadata. Cases are always retained. \code{"fixed"} retains all controls:
+controls donated by any trial of either the case's item or the replacement
+item, using the saved donor metadata. Cases are always retained.
+\code{"fixed"} retains all controls:
 this item-discrimination baseline can be negative under a genuine matched
 effect because it includes the replacement item's own test fixations.}
 }
@@ -62,9 +63,12 @@ same controls and units. Evaluation proceeds one draw at a time.
 Evaluate replayable mismatched-template draws
 }
 \details{
-Exclusion uses donor items, including repeated trials of that item,
+Exclusion uses donor items, including repeated trials of either item,
 rather than assuming trial labels equal item labels. It does not redraw
-controls. A stratum with no remaining controls is an error. Generated
+controls. A stratum with no remaining controls is an error: a donor pool
+containing only the case and replacement items cannot support the paired
+comparison, regardless of the number of controls drawn. In particular,
+two test trials fail when they contain those two items. Generated
 uniform/map controls have no donor item and are retained. For older saved
 strata without donor metadata, complete case rows can supply the donor
 keys; otherwise resample and save the strata or choose the fixed policy.

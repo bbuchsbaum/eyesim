@@ -16,7 +16,8 @@ sample_controls(
   method = c("observed", "uniform", "map"),
   xbounds = NULL,
   ybounds = NULL,
-  control_map = NULL
+  control_map = NULL,
+  item = if ("item" \%in\% names(fix_tab)) "item" else NULL
 )
 }
 \arguments{
@@ -44,12 +45,18 @@ sampled with probability proportional to a supplied map's nonnegative mass.}
 \item{xbounds, ybounds}{Explicit coordinate bounds for uniform controls.}
 
 \item{control_map}{A density map for \code{method = "map"}.}
+
+\item{item}{Item column for observed donor exclusion. Defaults to \code{"item"}
+when that column exists, otherwise NULL. Pass another column name for
+custom item keys. NULL explicitly retains trial-only exclusion. Ignored
+for uniform/map controls.}
 }
 \value{
 An \code{eyesim_strata} data frame. Metadata belongs to the case; x/y are
 the case or control coordinates. \code{case_id} and \code{control_id} index input rows
 (control_id is NA for generated locations); \code{draw}, \code{stratum}, and \code{is_case}
-identify assignments. Observed controls always exclude the case's trial.
+identify assignments. Observed controls always exclude the case's trial
+and, when \code{item} is supplied, all trials of the case's item.
 The \code{control_sources} attribute retains input atomic metadata, indexed by
 \code{control_id}, so donor items remain identifiable after subsetting cases.
 }
@@ -60,4 +67,7 @@ Creates explicit assignments. Scoring this table never samples again.
 There is no control-only jitter: perturbing controls but not cases
 changes their sampling distribution and can induce spurious preference.
 Uniform/map controls sample a different baseline from observed controls.
+Excluding the case's item avoids attenuating matched contrasts when items
+are presented repeatedly. Without item metadata only trial exclusion is
+possible. The resolved item column is recorded in the \code{sampling} attribute.
 }

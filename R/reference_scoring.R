@@ -57,30 +57,64 @@ fit_score_scaling <- function(scores, columns = attr(scores, "score_columns"), b
   fit_scaling_values(as.matrix(scores[columns]), scaling_layout(scores, by))
 }
 
+# Groups are kept in order of first appearance, as unique() would return them.
 scaling_layout <- function(scores, by) {
-  groups <- if (length(by)) unique(as.data.frame(scores[by])) else data.frame(.group = 1L)
-  ids <- if (length(by)) match_map_rows(scores, groups, by) else rep(1L, nrow(scores))
-  list(groups = groups, ids = ids, rows = split(seq_len(nrow(scores)), ids), by = by)
+  if (!length(by)) return(list(groups = data.frame(.group = 1L), ids = rep(1L, nrow(scores)), by = by))
+  key <- key_group_ids(scores, by)
+  first <- which(!duplicated(key))
+  list(groups = as.data.frame(scores[by])[first, , drop = FALSE],
+       ids = match(key, key[first]), by = by)
+}
+
+# Group counts, sums and sums of squares of values shifted by `shift` (one row
+# per group). Shifting by a value near the group mean keeps the one-pass
+# variance accurate, and the sums can be updated by removing rows.
+shifted_moments <- function(x, ids, n, shift) {
+  d <- x - shift[ids, , drop = FALSE]
+  ok <- !is.na(d)
+  d[!ok] <- 0
+  group_sums(cbind(ok + 0, d, d^2), ids, n)
+}
+
+# The scaling estimate of fit_scaling_values() from shifted moments.
+moment_scale <- function(moments, columns) {
+  k <- length(columns)
+  counts <- moments[, seq_len(k), drop = FALSE]
+  s1 <- moments[, k + seq_len(k), drop = FALSE]
+  s2 <- moments[, 2L * k + seq_len(k), drop = FALSE]
+  sd <- sqrt(pmax(s2 - s1^2 / counts, 0) / (counts - 1))
+  scale <- sd
+  scale[!(counts > 1 & is.finite(sd) & sd > 0)] <- 1
+  scale[counts == 0] <- NA_real_
+  dimnames(scale) <- list(NULL, columns)
+  scale
 }
 
 # Reuse group membership for replay draws instead of reconstructing key tables.
+# Vectorized over groups and columns: two-pass mean (with one correction pass,
+# as mean() does) and sample SD of the non-missing values in each group.
 fit_scaling_values <- function(values, layout, keep = NULL) {
-  columns <- colnames(values)
-  center <- scale <- counts <- matrix(NA_real_, nrow(layout$groups), length(columns), dimnames = list(NULL, columns))
-  rows <- layout$rows
-  if (!is.null(keep)) rows <- lapply(rows, function(r) r[keep[r]])
-  for (g in seq_len(nrow(layout$groups))) for (j in seq_along(columns)) {
-    vals <- values[rows[[as.character(g)]], j]
-    vals <- vals[!is.na(vals)]
-    counts[g, j] <- length(vals)
-    if (length(vals)) {
-      center[g, j] <- mean(vals)
-      sd <- if (length(vals) > 1L) stats::sd(vals) else 0
-      scale[g, j] <- if (sd > 0) sd else 1
-    }
+  ng <- nrow(layout$groups)
+  rows <- if (is.null(keep)) seq_len(nrow(values)) else which(keep)
+  ids <- layout$ids[rows]
+  x <- values[rows, , drop = FALSE]
+  ok <- !is.na(x)
+  x[!ok] <- 0
+  counts <- group_sums(ok + 0, ids, ng)
+  center <- group_sums(x, ids, ng) / counts
+  deviation <- function() {
+    d <- x - center[ids, , drop = FALSE]
+    d[!ok] <- 0
+    d
   }
-  structure(list(groups = layout$groups, by = layout$by, columns = columns, center = center,
-                 scale = scale, n = counts), class = "eyesim_score_scaling")
+  center <- center + group_sums(deviation(), ids, ng) / counts
+  sd <- sqrt(group_sums(deviation()^2, ids, ng) / (counts - 1))
+  scale <- sd
+  scale[!(counts > 1 & is.finite(sd) & sd > 0)] <- 1
+  center[counts == 0] <- NA_real_
+  scale[counts == 0] <- NA_real_
+  structure(list(groups = layout$groups, by = layout$by, columns = colnames(values),
+                 center = center, scale = scale, n = counts), class = "eyesim_score_scaling")
 }
 
 #' @rdname fit_score_scaling
@@ -154,26 +188,45 @@ contrast_layout <- function(scored, groups, by, subject, trial) {
 contrast_values <- function(values, layout, keep = NULL, scaling = NULL, scaling_ids = NULL) {
   controls <- layout$controls
   if (!is.null(keep)) controls <- controls[keep[controls]]
-  counts <- tabulate(layout$ids[controls], length(layout$case_rows))
-  if (any(counts == 0L)) {
-    stop("Replacement-item exclusion leaves a stratum without controls. Increase n in sample_controls() or explicitly choose control_policy = 'fixed' for a different baseline.")
-  }
+  ids <- layout$ids[controls]
+  n <- length(layout$case_rows)
   # Subtract before summing: a large common offset must not erase a tiny
   # contrast that becomes appreciable after dividing by a small score SD.
-  differences <- values[layout$case_rows[layout$ids[controls]], , drop = FALSE] -
-    values[controls, , drop = FALSE]
-  result <- rowsum(differences, layout$ids[controls], reorder = TRUE) / counts
+  differences <- values[layout$case_rows[ids], , drop = FALSE] - values[controls, , drop = FALSE]
+  finish_contrast(group_sums(differences, ids, n), tabulate(ids, n), layout, scaling, scaling_ids)
+}
+
+check_control_counts <- function(counts) {
+  if (any(counts == 0L)) {
+    stop("Item exclusion leaves a stratum without controls. Donors must include items other than both the case and replacement items. Increase n only if such donors exist, or explicitly choose control_policy = 'fixed' for a different baseline.")
+  }
+}
+
+# Column sums by group, with a zero row for every group absent from `ids`.
+group_sums <- function(x, ids, n) {
+  out <- matrix(0, n, ncol(x), dimnames = list(NULL, colnames(x)))
+  if (length(ids)) {
+    s <- rowsum(x, ids, reorder = TRUE)
+    out[as.integer(rownames(s)), ] <- s
+  }
+  out
+}
+
+# Stratum sums of case-minus-control differences become (scaled) contrasts.
+finish_contrast <- function(sums, counts, layout, scaling = NULL, scaling_ids = NULL) {
+  check_control_counts(counts)
+  result <- sums / counts
   out <- layout$template
   if (!is.null(layout$trial_ids)) {
-    result <- rowsum(result, layout$trial_ids, reorder = TRUE) / layout$trial_counts
+    result <- group_sums(result, layout$trial_ids, length(layout$trial_counts)) / layout$trial_counts
   } else {
     out$n_controls <- counts
   }
   # Centering cancels in case-minus-control differences. Subject/draw scaling
   # is constant within a trial, so divide the reduced values once.
   if (!is.null(scaling)) result <- result / scaling$scale[scaling_ids, , drop = FALSE]
-  out[colnames(values)] <- as.data.frame(result)
-  attr(out, "score_columns") <- colnames(values)
+  out[colnames(sums)] <- as.data.frame(result)
+  attr(out, "score_columns") <- colnames(sums)
   out
 }
 
@@ -190,8 +243,9 @@ contrast_values <- function(values, layout, keep = NULL, scaling = NULL, scaling
 #' @param standardize Score standardization, as in [score_strata()].
 #' @param by Contrast resolution, as in [case_control_contrast()].
 #' @param control_policy By default, `"exclude_replacement"` removes observed
-#'   controls donated by any trial of the replacement item, using the saved
-#'   donor metadata. Cases are always retained. `"fixed"` retains all controls:
+#'   controls donated by any trial of either the case's item or the replacement
+#'   item, using the saved donor metadata. Cases are always retained.
+#'   `"fixed"` retains all controls:
 #'   this item-discrimination baseline can be negative under a genuine matched
 #'   effect because it includes the replacement item's own test fixations.
 #' @return A list with `observed` contrasts on the original controls,
@@ -200,9 +254,12 @@ contrast_values <- function(values, layout, keep = NULL, scaling = NULL, scaling
 #'   observed scaling, and settings. Both paired tables carry `null_draw` and
 #'   identical row keys. Compare `paired_observed` with `contrasts` to use the
 #'   same controls and units. Evaluation proceeds one draw at a time.
-#' @details Exclusion uses donor items, including repeated trials of that item,
+#' @details Exclusion uses donor items, including repeated trials of either item,
 #'   rather than assuming trial labels equal item labels. It does not redraw
-#'   controls. A stratum with no remaining controls is an error. Generated
+#'   controls. A stratum with no remaining controls is an error: a donor pool
+#'   containing only the case and replacement items cannot support the paired
+#'   comparison, regardless of the number of controls drawn. In particular,
+#'   two test trials fail when they contain those two items. Generated
 #'   uniform/map controls have no donor item and are retained. For older saved
 #'   strata without donor metadata, complete case rows can supply the donor
 #'   keys; otherwise resample and save the strata or choose the fixed policy.
@@ -225,6 +282,8 @@ mismatch_draws <- function(strata, refs, n = 100, trial = "trial", seed = 1,
   raw <- score_strata(strata, refs, standardize = "none")
   layout <- contrast_layout(raw, check_strata(strata), by, subject, trial)
   donor_item <- if (control_policy == "exclude_replacement") control_item_ids(strata, refs) else NULL
+  keep_own <- if (is.null(donor_item)) NULL else
+    strata$is_case | donor_item != match(strata[[item]], unique(refs$keys[[item]]))
   idx <- density_grid_index(strata, refs$x, refs$y)
   cell <- idx[, 1] + (idx[, 2] - 1L) * length(refs$x)
   values <- as.matrix(raw[refs$refs])
@@ -234,33 +293,109 @@ mismatch_draws <- function(strata, refs, n = 100, trial = "trial", seed = 1,
   observed <- contrast_values(values, layout, scaling = scaling, scaling_ids = scaling_ids)
   if (is.null(assignments)) assignments <- mismatch_assignments(strata, refs, n, trial, seed)
   keys <- unique(c(subject, trial))
-  trials <- unique(as.data.frame(strata[unique(c(keys, item))]))
+  # Every row carries its case's keys, so case rows list the trials in order.
+  trials <- unique(as.data.frame(strata[strata$is_case, unique(c(keys, item)), drop = FALSE]))
   trial_row <- match_map_rows(strata, trials, keys, strict = TRUE)
   check_key_columns(assignments, unique(c(keys, item, "null_draw", "replacement_item")))
   draw_ids <- unique(assignments$null_draw)
   if (!length(draw_ids)) stop("assignments must contain at least one null draw.")
-  out <- lapply(draw_ids, function(d) {
-    assn <- assignments[assignments$null_draw == d, , drop = FALSE]
-    ai <- match_map_rows(trials, assn, keys, strict = TRUE)
-    if (anyNA(ai) || length(unique(ai)) != nrow(assn)) stop("Assignments must cover exactly the scored trials.")
-    if (any(!equal_key_values(assn[[item]][ai], trials[[item]])) ||
-        any(equal_key_values(assn$replacement_item, assn[[item]]))) {
-      stop("Assignments must preserve original items and replace them with different items.")
+  # Validate and resolve every draw's replacement maps in one pass.
+  draw_of <- match(assignments$null_draw, draw_ids)
+  trial_of <- match_map_rows(assignments, trials, keys)
+  if (anyNA(trial_of) || anyDuplicated(data.frame(draw_of, trial_of)) ||
+      any(tabulate(draw_of, length(draw_ids)) != nrow(trials))) {
+    stop("Assignments must cover exactly the scored trials.")
+  }
+  if (any(!equal_key_values(assignments[[item]], trials[[item]][trial_of])) ||
+      any(equal_key_values(assignments$replacement_item, assignments[[item]]))) {
+    stop("Assignments must preserve original items and replace them with different items.")
+  }
+  replacement_keys <- trials[trial_of, names(refs$keys), drop = FALSE]
+  replacement_keys[[item]] <- assignments$replacement_item
+  replacement <- match_map_rows(replacement_keys, refs$keys, names(refs$keys), strict = TRUE)
+  if (anyNA(replacement) || any(!refs$valid[replacement])) stop("Replacement items must have valid maps for the same subject.")
+  draw_rows <- split(seq_len(nrow(assignments)), draw_of)
+  columns <- if (replace_ref == "all") refs$refs else "self_item"
+  # Matched differences do not change across draws; only the retained controls
+  # do. Reduce them once, then remove each draw's few excluded donors.
+  controls <- layout$controls
+  if (!is.null(keep_own)) controls <- controls[keep_own[controls]]
+  stratum <- layout$ids[controls]
+  n_strata <- length(layout$case_rows)
+  matched_diff <- values[layout$case_rows[stratum], , drop = FALSE] - values[controls, , drop = FALSE]
+  matched_total <- group_sums(matched_diff, stratum, n_strata)
+  count_total <- tabulate(stratum, n_strata)
+  refit <- !is.null(scaling) && restandardize
+  if (refit) {
+    # Unchanged columns: moments over cases and base controls, from which each
+    # draw removes its dropped donors. Replaced columns are refitted per draw.
+    fixed_columns <- setdiff(refs$refs, columns)
+    shift <- scaling$center
+    shift[is.na(shift)] <- 0
+    case_idx <- which(strata$is_case)
+    case_ids <- scale_layout$ids[case_idx]
+    stratum_group <- scale_layout$ids[layout$case_rows]
+    base_rows <- c(case_idx, controls)
+    fixed_moments <- shifted_moments(values[base_rows, fixed_columns, drop = FALSE],
+                                     scale_layout$ids[base_rows], nrow(shift),
+                                     shift[, fixed_columns, drop = FALSE])
+  }
+  out <- lapply(seq_along(draw_ids), function(k) {
+    rows <- draw_rows[[k]]
+    by_trial <- integer(nrow(trials))
+    by_trial[trial_of[rows]] <- replacement[rows]
+    target <- by_trial[trial_row]
+    dropped <- if (is.null(donor_item)) integer(0) else
+      which(donor_item[controls] == refs$ii[target[controls]])
+    counts <- count_total - tabulate(stratum[dropped], n_strata)
+    check_control_counts(counts)
+    matched_sums <- matched_total -
+      group_sums(matched_diff[dropped, , drop = FALSE], stratum[dropped], n_strata)
+    kept <- if (length(dropped)) controls[-dropped] else controls
+    kept_stratum <- if (length(dropped)) stratum[-dropped] else stratum
+    rescored <- matrix(vapply(columns, function(ref) reference_values(refs, target, cell, ref),
+                              numeric(length(cell))), ncol = length(columns),
+                       dimnames = list(NULL, columns))
+    kept_diff <- rescored[layout$case_rows[kept_stratum], , drop = FALSE] - rescored[kept, , drop = FALSE]
+    mismatch_sums <- matched_sums
+    fit <- scaling
+    if (!refit) {
+      mismatch_sums[, columns] <- group_sums(kept_diff, kept_stratum, n_strata)
+    } else {
+      scale <- matrix(NA_real_, nrow(shift), length(refs$refs), dimnames = list(NULL, refs$refs))
+      if (length(fixed_columns)) {
+        lost <- controls[dropped]
+        moments <- fixed_moments - shifted_moments(
+          values[lost, fixed_columns, drop = FALSE], scale_layout$ids[lost], nrow(shift),
+          shift[, fixed_columns, drop = FALSE])
+        scale[, fixed_columns] <- moment_scale(moments, fixed_columns)
+      }
+      # Shift replaced columns by each group's mean rescored case score, which
+      # lies near the group mean; the observed centre can be missing or far off,
+      # and the one-pass variance needs a shift close to the mean.
+      case_values <- rescored[case_idx, , drop = FALSE]
+      case_present <- !is.na(case_values)
+      case_values[!case_present] <- 0
+      replaced_shift <- group_sums(case_values, case_ids, nrow(shift)) /
+        group_sums(case_present + 0, case_ids, nrow(shift))
+      replaced_shift[!is.finite(replaced_shift)] <- 0
+      # One pass over the kept controls yields both the contrast sums and the
+      # replaced columns' moments by stratum; strata nest in scaling groups.
+      shifted <- rescored[kept, , drop = FALSE] - replaced_shift[scale_layout$ids[kept], , drop = FALSE]
+      present <- !is.na(shifted)
+      shifted[!present] <- 0
+      nc <- length(columns)
+      sums <- group_sums(cbind(kept_diff, present + 0, shifted, shifted^2), kept_stratum, n_strata)
+      mismatch_sums[, columns] <- sums[, seq_len(nc), drop = FALSE]
+      moments <- group_sums(sums[, -seq_len(nc), drop = FALSE], stratum_group, nrow(shift)) +
+        shifted_moments(rescored[case_idx, , drop = FALSE], case_ids, nrow(shift), replaced_shift)
+      scale[, columns] <- moment_scale(moments, columns)
+      fit <- list(scale = scale)
     }
-    replacement_keys <- trials[names(refs$keys)]
-    replacement_keys[[item]] <- assn$replacement_item[ai]
-    target <- match_map_rows(replacement_keys, refs$keys, names(refs$keys), strict = TRUE)
-    if (anyNA(target) || any(!refs$valid[target])) stop("Replacement items must have valid maps for the same subject.")
-    target <- target[trial_row]
-    keep <- if (is.null(donor_item)) NULL else strata$is_case | donor_item != refs$ii[target]
-    scored <- values
-    columns <- if (replace_ref == "all") refs$refs else "self_item"
-    scored[, columns] <- as.matrix(evaluate_references(refs, target, cell, columns))
-    fit <- if (!is.null(scaling) && restandardize) fit_scaling_values(scored, scale_layout, keep) else scaling
-    contrasts <- contrast_values(scored, layout, keep, fit, scaling_ids)
-    matched <- contrast_values(values, layout, keep, fit, scaling_ids)
-    contrasts$null_draw <- d
-    matched$null_draw <- d
+    contrasts <- finish_contrast(mismatch_sums, counts, layout, fit, scaling_ids)
+    matched <- finish_contrast(matched_sums, counts, layout, fit, scaling_ids)
+    contrasts$null_draw <- draw_ids[k]
+    matched$null_draw <- draw_ids[k]
     list(matched = matched, contrasts = contrasts)
   })
   list(observed = observed,

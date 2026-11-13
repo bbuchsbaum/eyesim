@@ -39,7 +39,11 @@ scores and a construction warning, preserving target rows. Duplicate keys and
 incompatible grids are errors. Contributor counts are retained.
 
 Observed controls are drawn within subject and optional strata, excluding the
-case's entire trial. Replacement is automatic only when the pool is too small;
+case's entire trial and, when item metadata is available, all trials of the
+case's item. The item argument defaults to the item column when present;
+custom column names are explicit, and item=NULL preserves trial-only sampling.
+Item-aware exclusion avoids attenuating matched scores in repeated-item designs.
+Replacement is automatic only when the pool is too small;
 empty pools are errors. Uniform controls use explicit bounds; map controls use
 nonnegative grid masses with replacement and return grid coordinates. Sampling
 without replacement distorts the intended map distribution and is rejected.
@@ -56,14 +60,18 @@ propagate. Trial contrasts equally weight fixation contrasts. Draws remain
 separate unless explicitly averaged by the caller.
 
 Mismatch self_item replacement changes only that score; all replacement changes
-the entire reference tuple. By default, controls from every trial of the
-replacement item are excluded without redrawing. The paired_observed and
+the entire reference tuple. By default, controls from every trial of either
+the case's item or the replacement item are excluded without redrawing,
+including when replaying older trial-only assignments. The paired_observed and
 contrasts tables use identical retained controls and the same scaling, fitted
 on retained mismatched scores per draw (or the original observed fit when
-restandardize=FALSE). Empty retained pools are errors. The fixed policy retains
+restandardize=FALSE). Empty retained pools are errors; pools containing only
+the two compared items cannot support the paired contrast, even with repeated
+trials or more sampled controls. The fixed policy retains
 all assignments for the original item-discrimination baseline; its null can be
 negative under a genuine effect. The original observed contrasts remain
-available for context. Generated controls have no donor item. Neither policy alone
+available for context and may be attenuated if supplied assignments include
+own-item donors. Generated controls have no donor item. Neither policy alone
 establishes exchangeability or inferential calibration. This API returns scores
 and assignments, not automatic significance claims.
 
@@ -94,5 +102,16 @@ controls 23.8 s, scoring 5.5 s, and corrected paired mismatch draws 222.9 s
 ran concurrently; this is a local measurement, not an isolated hardware
 benchmark. References occupied
 41.2 MB and assignments 282.5 MB (object sizes, not peak process memory).
-The roughly one-minute target is not met. The earlier 12,360-case measurement
-used one fixation per trial and did not establish realistic-scale performance.
+The earlier 12,360-case measurement used one fixation per trial and did not
+establish realistic-scale performance.
+
+A later revision (2026-11-13) reduces each null draw instead of rescoring it
+from scratch. Matched case-minus-control differences are reduced once; each
+draw removes only its excluded donors and rescores only the replaced
+reference. Restandardization uses group moments shifted by the observed
+centres, from which unchanged columns subtract the dropped donors. Outputs
+matched the previous implementation to 1e-12 on 32 configurations and on the
+full benchmark. With the same benchmark, again on a loaded machine (load
+average about 20), mismatch draws took 64.5 s (52.4 s user CPU), controls
+11.7 s, scoring 3.3 s and references 1.0 s. The CPU time meets the one-minute
+target; wall time on an idle machine was not measured.

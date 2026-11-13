@@ -65,6 +65,33 @@ test_that("stratification separates donor pools even with repeated trial labels"
   expect_true(all(input$subject[donor] == out$subject[!out$is_case]))
 })
 
+test_that("observed controls exclude repeated items with an explicit trial-only opt-out", {
+  fix <- reference_fixations()
+  fix <- rbind(fix, fix, fix)
+  fix$trial <- seq_len(nrow(fix))
+  # Exhaustive pools: six other-item donors versus eight other-trial donors.
+  strata <- sample_controls(fix, n = 6, replace = FALSE, draws = 2)
+  controls <- strata[!strata$is_case, ]
+  expect_true(all(fix$item[controls$control_id] != controls$item))
+  expect_true(all(fix$subject[controls$control_id] == controls$subject))
+  expect_equal(attr(strata, "sampling")$item, "item")
+  trial_only <- sample_controls(fix, n = 8, item = NULL, replace = FALSE)
+  donors <- trial_only$control_id[!trial_only$is_case]
+  expect_equal(mean(fix$item[donors] == trial_only$item[!trial_only$is_case]), 2 / 8)
+  expect_true(all(fix$trial[donors] != trial_only$trial[!trial_only$is_case]))
+
+  renamed <- fix
+  names(renamed)[names(renamed) == "item"] <- "stimulus"
+  custom <- sample_controls(renamed, n = 6, item = "stimulus", replace = FALSE, draws = 2)
+  expect_identical(custom$control_id, strata$control_id)
+  expect_identical(sample_controls(renamed, n = 8, replace = FALSE)$control_id,
+                   trial_only$control_id)
+  expect_error(sample_controls(renamed, item = "missing"), "columns")
+  expect_error(sample_controls(fix, item = character()), "item must")
+  expect_error(sample_controls(fix, item = c("item", "trial")), "item must")
+  expect_error(sample_controls(fix[fix$item == "a", ]), "No eligible.*item")
+})
+
 test_that("mismatch assignments are trial coherent, replayable and preserve RNG", {
   refs <- reference_maps(reference_fixture(), floor = .01)
   strata <- sample_controls(reference_fixations(), n = 2, draws = 2)

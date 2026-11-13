@@ -76,21 +76,30 @@ check_count <- function(x, name, zero = FALSE) {
 #'   sampled with probability proportional to a supplied map's nonnegative mass.
 #' @param xbounds,ybounds Explicit coordinate bounds for uniform controls.
 #' @param control_map A density map for `method = "map"`.
+#' @param item Item column for observed donor exclusion. Defaults to `"item"`
+#'   when that column exists, otherwise NULL. Pass another column name for
+#'   custom item keys. NULL explicitly retains trial-only exclusion. Ignored
+#'   for uniform/map controls.
 #' @return An `eyesim_strata` data frame. Metadata belongs to the case; x/y are
 #'   the case or control coordinates. `case_id` and `control_id` index input rows
 #'   (control_id is NA for generated locations); `draw`, `stratum`, and `is_case`
-#'   identify assignments. Observed controls always exclude the case's trial.
+#'   identify assignments. Observed controls always exclude the case's trial
+#'   and, when `item` is supplied, all trials of the case's item.
 #'   The `control_sources` attribute retains input atomic metadata, indexed by
 #'   `control_id`, so donor items remain identifiable after subsetting cases.
 #' @details There is no control-only jitter: perturbing controls but not cases
 #'   changes their sampling distribution and can induce spurious preference.
 #'   Uniform/map controls sample a different baseline from observed controls.
+#'   Excluding the case's item avoids attenuating matched contrasts when items
+#'   are presented repeatedly. Without item metadata only trial exclusion is
+#'   possible. The resolved item column is recorded in the `sampling` attribute.
 #' @md
 #' @export
 sample_controls <- function(fix_tab, n = 20, subject = "subject", trial = "trial",
                             stratify_by = NULL, replace = "auto", seed = 1, draws = 1,
                             method = c("observed", "uniform", "map"),
-                            xbounds = NULL, ybounds = NULL, control_map = NULL) {
+                            xbounds = NULL, ybounds = NULL, control_map = NULL,
+                            item = if ("item" %in% names(fix_tab)) "item" else NULL) {
   method <- match.arg(method)
   check_count(n, "n")
   check_count(draws, "draws")
@@ -104,16 +113,29 @@ sample_controls <- function(fix_tab, n = 20, subject = "subject", trial = "trial
   }
   pool_ids <- key_group_ids(fix_tab, unique(c(subject, stratify_by)))
   trial_ids <- key_group_ids(fix_tab, unique(c(subject, trial)))
+  if (method != "observed") item <- NULL
+  item_ids <- integer(nrow(fix_tab))
+  if (!is.null(item)) {
+    if (!is.character(item) || length(item) != 1L || is.na(item)) {
+      stop("item must name one column or be NULL for trial-only exclusion.")
+    }
+    check_key_columns(fix_tab, item)
+    item_ids <- key_group_ids(fix_tab, unique(c(subject, item)))
+  }
   pools <- split(seq_len(nrow(fix_tab)), pool_ids)
-  # Cache eligible donors per pool/trial, not once per fixation.
-  group <- key_group_ids(data.frame(pool = pool_ids, trial = trial_ids), c("pool", "trial"))
+  # Cache eligible donors per pool/trial/item, not once per fixation.
+  group <- key_group_ids(data.frame(pool = pool_ids, trial = trial_ids, item = item_ids),
+                         c("pool", "trial", "item"))
   examples <- match(seq_len(max(group)), group)
   candidates <- lapply(examples, function(i) {
     pool <- pools[[as.character(pool_ids[i])]]
-    reference_candidates(pool, which(trial_ids == trial_ids[i]))
+    exclude <- trial_ids[pool] == trial_ids[i] |
+      (item_ids[pool] != 0L & item_ids[pool] == item_ids[i])
+    reference_candidates(pool, pool[exclude])
   })
   if (method == "observed" && any(lengths(candidates) == 0L)) {
-    stop("No eligible controls outside the case's trial in one or more pools.")
+    stop("No eligible controls outside the case's trial",
+         if (!is.null(item)) " and item", " in one or more pools.")
   }
   if (method == "uniform") {
     valid_bounds <- function(b) is.numeric(b) && length(b) == 2L &&
@@ -166,7 +188,8 @@ sample_controls <- function(fix_tab, n = 20, subject = "subject", trial = "trial
     dplyr::bind_rows(assignments)
   })
   attr(out, "sampling") <- list(subject = subject, trial = trial, stratify_by = stratify_by,
-                                 method = method, replace = replace, seed = seed, n = n, draws = draws)
+                                 method = method, replace = replace, seed = seed, n = n, draws = draws,
+                                 item = item)
   if (method == "observed") {
     metadata <- setdiff(names(fix_tab)[vapply(fix_tab, is.atomic, logical(1))], c("x", "y"))
     attr(out, "control_sources") <- as.data.frame(fix_tab[metadata])

@@ -4,11 +4,11 @@ test_that("mismatch exclusions use donor items across repeated trials and case s
   fix <- rbind(fix, fix)
   fix$trial <- paste0("episode-", seq_len(nrow(fix)))
   # All five eligible donor fixations are retained in the assignment table.
-  strata <- sample_controls(fix, n = 5, draws = 2)
+  strata <- sample_controls(fix, n = 5, draws = 2, item = NULL)
   selected <- strata[strata$item == "a", ]
   assignments <- mismatch_assignments(selected, refs, n = 3)
   result <- mismatch_draws(selected, refs, assignments = assignments, standardize = "none")
-  expect_true(all(result$contrasts$n_controls == 3))
+  expect_true(all(result$contrasts$n_controls == 2))
   expect_equal(result$paired_observed$n_controls, result$contrasts$n_controls)
   for (d in 1:3) {
     a <- assignments[assignments$null_draw == d, ]
@@ -16,7 +16,8 @@ test_that("mismatch exclusions use donor items across repeated trials and case s
     replacement <- vapply(seq_len(nrow(selected)), function(i) {
       a$replacement_item[a$subject == selected$subject[i] & a$trial == selected$trial[i]]
     }, character(1))
-    keep <- selected$is_case | fix$item[selected$control_id] != replacement
+    donor_item <- fix$item[selected$control_id]
+    keep <- selected$is_case | (donor_item != replacement & donor_item != selected$item)
     alt <- selected[keep, ]; alt$item <- replacement[keep]
     expected <- case_control_contrast(score_strata(alt, refs, standardize = "none"))
     expect_equal(result$contrasts$self_item[result$contrasts$null_draw == d], expected$self_item)
@@ -36,7 +37,9 @@ test_that("mismatch exclusions use donor items across repeated trials and case s
 test_that("paired comparisons share retained rows and a single scaling fit", {
   refs <- reference_maps(reference_fixture(), floor = .01)
   fix <- reference_fixations()
-  strata <- sample_controls(fix, n = 2, draws = 2)
+  fix <- rbind(fix, fix)
+  fix$trial <- seq_len(nrow(fix))
+  strata <- sample_controls(fix, n = 5, draws = 2, item = NULL)
   assignments <- mismatch_assignments(strata, refs, n = 2)
   for (replace_ref in c("self_item", "all")) {
     result <- mismatch_draws(strata, refs, assignments = assignments, replace_ref = replace_ref)
@@ -45,7 +48,8 @@ test_that("paired comparisons share retained rows and a single scaling fit", {
       replacement <- vapply(seq_len(nrow(strata)), function(i) {
         a$replacement_item[a$subject == strata$subject[i] & a$trial == strata$trial[i]]
       }, character(1))
-      keep <- strata$is_case | fix$item[strata$control_id] != replacement
+      donor_item <- fix$item[strata$control_id]
+      keep <- strata$is_case | (donor_item != replacement & donor_item != strata$item)
       matched <- score_strata(strata[keep, ], refs, standardize = "none")
       alt <- strata[keep, ]; alt$item <- replacement[keep]
       mismatched <- score_strata(alt, refs, standardize = "none")
@@ -65,6 +69,43 @@ test_that("paired comparisons share retained rows and a single scaling fit", {
         }
       }
     }
+  }
+})
+
+test_that("repeated-item planted contrasts are symmetric on other-item donors", {
+  tab <- reference_fixture()
+  tab$density <- lapply(1:9, function(i) {
+    z <- matrix(.01, 3, 3); z[i] <- 1
+    gen_density(0:2, 0:2, z)
+  })
+  refs <- reference_maps(tab, floor = .001)
+  fix <- tab[rep(1:9, each = 3), c("subject", "item")]
+  fix$trial <- seq_len(nrow(fix))
+  fix$x <- rep(rep(0:2, 3), each = 3)
+  fix$y <- rep(rep(0:2, each = 3), each = 3)
+  # Each case is on its own peak; every other-item donor is on a low cell.
+  signal <- log(1 / 1.08 + .001) - log(.01 / 1.08 + .001)
+  old <- sample_controls(fix, n = 8, item = NULL, replace = FALSE)
+  result <- mismatch_draws(old, refs, n = 2, standardize = "none")
+  expect_equal(result$observed$self_item, rep(signal * 6 / 8, 27), tolerance = 1e-12)
+  expect_equal(result$paired_observed$self_item, rep(signal, 54), tolerance = 1e-12)
+  expect_equal(result$contrasts$self_item, rep(0, 54), tolerance = 1e-12)
+  expect_equal(result$paired_observed$n_controls, rep(3L, 54))
+  expect_equal(result$paired_observed$n_controls, result$contrasts$n_controls)
+  current <- sample_controls(fix, n = 6, replace = FALSE)
+  clean <- mismatch_draws(current, refs, assignments = result$assignments, standardize = "none")
+  expect_equal(clean$observed$self_item, rep(signal, 27), tolerance = 1e-12)
+  expect_equal(clean$paired_observed$self_item, result$paired_observed$self_item, tolerance = 1e-12)
+  expect_equal(clean$contrasts$self_item, result$contrasts$self_item, tolerance = 1e-12)
+
+  # No planted preference: every repeated trial visits all cells equally.
+  null <- fix[rep(seq_len(nrow(fix)), each = 9), ]
+  null$x <- rep(rep(0:2, 3), nrow(fix))
+  null$y <- rep(rep(0:2, each = 3), nrow(fix))
+  balanced <- mismatch_draws(sample_controls(null, n = 54, replace = FALSE),
+                             refs, n = 2, standardize = "none", by = "trial")
+  for (part in c("observed", "paired_observed", "contrasts")) {
+    expect_equal(balanced[[part]]$self_item, rep(0, nrow(balanced[[part]])), tolerance = 1e-12)
   }
 })
 
@@ -125,8 +166,18 @@ test_that("reduction preserves standardized contrasts of nearly constant maps", 
     }, character(1))
     keep <- policy == "fixed" | strata$is_case | fix$item[strata$control_id] != replacement
     alt <- strata[keep, ]; alt$item <- replacement[keep]
-    # Row-level centering/scaling before reduction is the independent order.
-    expected <- case_control_contrast(score_strata(alt, refs))
+    # Exact oracle: scores differ by ~1e-14 around -1.7, where stats::sd() is
+    # only accurate to ~1e-5 because its mean cannot be represented exactly.
+    # Shifting by one score per group is exact here (Sterbenz: all scores lie
+    # within a factor of two), and the SD is shift invariant, so row-level
+    # scaling of the exact differences gives contrasts to full precision.
+    raw <- score_strata(alt, refs, standardize = "none")
+    group <- interaction(raw$subject, raw$draw, drop = TRUE)
+    first <- raw$self_item[match(group, group)]
+    expect_true(all(raw$self_item / first >= 0.5 & raw$self_item / first <= 2))
+    shifted <- raw$self_item - first
+    raw$self_item <- shifted / stats::ave(shifted, group, FUN = stats::sd)
+    expected <- case_control_contrast(raw)
     expect_equal(result$contrasts$self_item, expected$self_item, tolerance = 1e-12)
     expect_equal(result$observed$self_item,
                  case_control_contrast(score_strata(strata, refs))$self_item, tolerance = 1e-12)
@@ -144,4 +195,33 @@ test_that("paired mismatch scoring preserves unavailable references", {
     expect_true(all(is.na(result[[part]]$others_item)))
     expect_true(all(is.na(result[[part]]$others_other_items)))
   }
+})
+
+test_that("refitted scale is accurate when a group has no observed scores", {
+  # Large offset, tiny spread: the per-draw variance needs a shift near the
+  # group mean. s1's own maps are missing, so its observed centre is NA.
+  set.seed(3)
+  tab <- expand.grid(subject = c("s1", "s2"), item = paste0("i", 1:4), stringsAsFactors = FALSE)
+  tab$density <- lapply(seq_len(nrow(tab)), function(i) {
+    gen_density(0:3, 0:2, matrix(1e4 + stats::runif(12) * 1e-4, 4))
+  })
+  tab$density[tab$subject == "s1" & tab$item %in% c("i1", "i2")] <- list(NULL)
+  cases <- tab[tab$item %in% c("i1", "i2"), c("subject", "item")]
+  fix <- cases[rep(seq_len(nrow(cases)), each = 6), ]
+  fix$trial <- paste(fix$subject, fix$item, rep(1:2, each = 3))
+  fix$x <- sample(0:3, nrow(fix), TRUE)
+  fix$y <- sample(0:2, nrow(fix), TRUE)
+  refs <- expect_warning(reference_maps(tab, refs = "self_item", space = "density",
+                                        normalize = "none"), "min_n")
+  strata <- sample_controls(fix, n = 6, seed = 3)
+  a <- mismatch_assignments(strata, refs, n = 1)
+  result <- mismatch_draws(strata, refs, assignments = a, control_policy = "fixed")
+  alt <- strata
+  alt$item <- a$replacement_item[match(paste(strata$subject, strata$trial),
+                                       paste(a$subject, a$trial))]
+  raw <- score_strata(alt, refs, standardize = "none")
+  expected <- case_control_contrast(apply_score_scaling(raw, fit_score_scaling(raw)))
+  s1 <- expected$subject == "s1"
+  expect_true(all(is.finite(expected$self_item[s1])))
+  expect_equal(result$contrasts$self_item, expected$self_item, tolerance = 1e-10)
 })
