@@ -225,3 +225,60 @@ test_that("refitted scale is accurate when a group has no observed scores", {
   expect_true(all(is.finite(expected$self_item[s1])))
   expect_equal(result$contrasts$self_item, expected$self_item, tolerance = 1e-10)
 })
+
+
+test_that("retained near-constant references are refitted without cancellation", {
+  # Dropping the score 100 leaves two almost identical scores. The original
+  # centre is far from both, so subtracting shifted moments loses their variance.
+  tab <- expand.grid(subject = c("tiny", "small", "constant"), item = c("a", "b", "c"),
+                     stringsAsFactors = FALSE)
+  gaps <- c(tiny = 1e-8, small = 1e-4, constant = 0)
+  tab$density <- lapply(tab$subject, function(s) {
+    gen_density(0:2, 0:1, matrix(rep(c(1, 100, 1 + gaps[[s]]), 2), 3))
+  })
+  refs <- reference_maps(tab, refs = c("self_item", "self_other_items"),
+                         space = "density", normalize = "none")
+  fix <- tab[c("subject", "item")]
+  fix$trial <- match(fix$item, c("a", "b", "c"))
+  fix$x <- fix$trial - 1
+  fix$y <- 0
+  strata <- sample_controls(fix, n = 2, draws = 2, replace = FALSE)
+  strata <- strata[strata$item == "a", ]
+  assignments <- data.frame(subject = names(gaps), item = "a", trial = 1L,
+                            replacement_item = "b", null_draw = 1L)
+  for (resolution in c("fixation", "trial")) {
+    result <- mismatch_draws(strata, refs, assignments = assignments, by = resolution)
+    for (part in c("paired_observed", "contrasts")) {
+      expected <- ifelse(result[[part]]$subject == "constant", 0, -sqrt(2))
+      for (ref in refs$refs) {
+        expect_equal(result[[part]][[ref]], expected, tolerance = 1e-12)
+      }
+    }
+  }
+  # The matched numerator must also be stable without refitting or scaling.
+  raw <- score_strata(strata, refs, standardize = "none")
+  result <- mismatch_draws(strata, refs, assignments = assignments, standardize = "none")
+  for (ref in refs$refs) {
+    cases <- raw[raw$is_case, ]
+    retained <- raw[!raw$is_case & raw$x == 2, ]
+    expected <- cases[[ref]] - retained[[ref]]
+    expect_equal(result$paired_observed[[ref]], expected, tolerance = 1e-12)
+  }
+})
+
+test_that("stable moment fallback preserves missing and singleton groups", {
+  values <- cbind(a = c(1, 1 + 1e-8, NA, 5), b = c(2, 2, NA, NA))
+  ids <- c(1L, 1L, 2L, 3L)
+  shift <- matrix(34, 3, 2)
+  moments <- shifted_moments(values, ids, 3, shift)
+  scale <- refit_moment_scale(moments, c("a", "b"), values, ids)$scale
+  expect_equal(scale[1, "a"], (values[2, "a"] - values[1, "a"]) / sqrt(2),
+               tolerance = 1e-15)
+  expect_equal(unname(scale[1, "b"]), 1)
+  expect_true(all(is.na(scale[2, ])))
+  expect_equal(unname(scale[3, "a"]), 1)
+  expect_true(is.na(scale[3, "b"]))
+  well_conditioned <- matrix(c(3, 0, 2), 1)
+  expect_equal(refit_moment_scale(well_conditioned, "a", stop("eager values"),
+                                  stop("eager ids"))$scale, matrix(1, 1, dimnames = list(NULL, "a")))
+})
