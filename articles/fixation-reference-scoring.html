@@ -71,248 +71,393 @@
 
     
     
-<p>Does a test fixation land where the person’s study gaze predicts,
-beyond where that person usually looks? This workflow constructs study
-references, draws control locations, and scores both. It keeps the
-control and template assignments so the analysis can be replayed or
-compared with a different scoring choice. The example uses synthetic
-data with a planted preference for each person’s study locations.</p>
+<p>In a memory reinstatement study, people first study a set of images
+and later see them again. A natural question is whether a test fixation
+lands where <em>this person</em> looked when studying <em>this
+image</em>, beyond where they look in general. This vignette answers
+that question at the level of single fixations:</p>
+<ol style="list-style-type: decimal">
+<li>Build study density maps, one per person and item.</li>
+<li>Combine them into four <strong>leave-out reference maps</strong> for
+each person/item.</li>
+<li>Pair every test fixation (the <em>case</em>) with
+<strong>control</strong> locations.</li>
+<li>Score cases and controls against each reference and compare
+them.</li>
+<li>Repeat the comparison with a <strong>mismatched</strong> study map
+as a baseline.</li>
+</ol>
+<p>Steps 3 and 5 involve random draws. The package returns them as
+explicit tables, so an analysis can be saved, replayed, or rescored
+under a different choice without new randomness.</p>
 <div class="section level2">
-<h2 id="prepare-study-maps-and-test-fixations">Prepare study maps and test fixations<a class="anchor" aria-label="anchor" href="#prepare-study-maps-and-test-fixations"></a>
+<h2 id="the-example-data">The example data<a class="anchor" aria-label="anchor" href="#the-example-data"></a>
 </h2>
-<p>We simulate eight people viewing six items. Every person/item pair
-has its own preferred location. Test fixations return near that
-location. Coordinates run from 0 to 100; onsets and durations are in
-milliseconds.</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<p>We simulate eight people (<code>s1</code>–<code>s8</code>) studying
+six items (<code>i1</code>–<code>i6</code>). Each person/item pair has
+its own preferred location, drawn at random. Study fixations cluster
+tightly around it, and the six test fixations for that pair return to it
+more loosely. Nothing else links people or items, so only a person’s own
+study map of an item should predict where they look at test.</p>
+<details><summary>
+Show the simulation code
+</summary><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">53</span><span class="op">)</span></span>
 <span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>subject <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"s"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span>, item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"i"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span>,</span>
 <span>                     stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">centers</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span>, <span class="fl">20</span>, <span class="fl">80</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span>, <span class="fl">20</span>, <span class="fl">80</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># One fixation_group of 12 study fixations per person/item pair.</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="va">fixgroup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="../reference/fixation_group.html">fixation_group</a></span><span class="op">(</span></span>
 <span>    x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">12</span>, <span class="va">centers</span><span class="op">[</span><span class="va">i</span>, <span class="fl">1</span><span class="op">]</span>, <span class="fl">5</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">12</span>, <span class="va">centers</span><span class="op">[</span><span class="va">i</span>, <span class="fl">2</span><span class="op">]</span>, <span class="fl">5</span><span class="op">)</span>,</span>
 <span>    onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1100</span>, <span class="fl">100</span><span class="op">)</span>, duration <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">100</span>, <span class="fl">12</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Six test fixations per pair, one trial per item.</span></span>
 <span><span class="va">test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>subject <span class="op">=</span> <span class="va">study</span><span class="op">$</span><span class="va">subject</span><span class="op">[</span><span class="va">i</span><span class="op">]</span>, item <span class="op">=</span> <span class="va">study</span><span class="op">$</span><span class="va">item</span><span class="op">[</span><span class="va">i</span><span class="op">]</span>,</span>
 <span>             trial <span class="op">=</span> <span class="va">study</span><span class="op">$</span><span class="va">item</span><span class="op">[</span><span class="va">i</span><span class="op">]</span>, epoch <span class="op">=</span> <span class="st">"test"</span>,</span>
 <span>             x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">6</span>, <span class="va">centers</span><span class="op">[</span><span class="va">i</span>, <span class="fl">1</span><span class="op">]</span>, <span class="fl">7</span><span class="op">)</span>,</span>
 <span>             y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">6</span>, <span class="va">centers</span><span class="op">[</span><span class="va">i</span>, <span class="fl">2</span><span class="op">]</span>, <span class="fl">7</span><span class="op">)</span>, onset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">500</span>, <span class="fl">100</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">maps</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/density_by.html">density_by</a></span><span class="op">(</span></span>
+<span><span class="op">}</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</details><p>The study data hold one <code>fixation_group</code> per person/item
+pair. The test data are an ordinary table with one row per fixation:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">test</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject item trial epoch        x        y onset</span></span>
+<span><span class="co">#&gt; 1      s1   i1    i1  test 54.51360 66.24832     0</span></span>
+<span><span class="co">#&gt; 2      s1   i1    i1  test 51.27608 68.86121   100</span></span>
+<span><span class="co">#&gt; 3      s1   i1    i1  test 54.00783 67.26911   200</span></span></code></pre></div>
+<div class="figure">
+<img src="fixation-reference-scoring_files/figure-html/plot-fixations-1.png" class="r-plt" alt="Study fixations (dots) and test fixations (crosses) for two people and three items. Each person returns to their own study location; the two people prefer different locations for the same item." width="556.8"><p class="caption">
+Study fixations (dots) and test fixations (crosses) for two people and
+three items. Each person returns to their own study location; the two
+people prefer different locations for the same item.
+</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="study-density-maps">Study density maps<a class="anchor" aria-label="anchor" href="#study-density-maps"></a>
+</h2>
+<p><code><a href="../reference/density_by.html">density_by()</a></code> smooths each person’s study fixations for
+each item into a density map on a shared 20 × 20 grid. With bounds of
+2.5 and 97.5, the grid points are the centres of 5-unit cells tiling the
+0–100 range. Here only fixation time between 50 and 950 ms counts, and a
+fixation that straddles a window edge contributes just its overlapping
+duration.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">maps</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/density_by.html">density_by</a></span><span class="op">(</span></span>
 <span>  <span class="va">study</span>, groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"subject"</span>, <span class="st">"item"</span><span class="op">)</span>, sigma <span class="op">=</span> <span class="fl">8</span>,</span>
 <span>  xbounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.5</span>, <span class="fl">97.5</span><span class="op">)</span>, ybounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.5</span>, <span class="fl">97.5</span><span class="op">)</span>, outdim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">20</span><span class="op">)</span>,</span>
 <span>  window <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">50</span>, <span class="fl">950</span><span class="op">)</span>, window_weight <span class="op">=</span> <span class="st">"overlap"</span>, duration_weighted <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>These bounds put the grid at the centers of 5-unit cells. Lookup uses
-the nearest grid point, with half-to-even rounding at ties and clamping
-at the edges. It does not interpolate between cells. The overlap window
-clips the first and last retained fixations to 50 milliseconds. The
-default onset window would instead select fixations by their onset and
-retain their full durations.</p>
+<div class="figure">
+<img src="fixation-reference-scoring_files/figure-html/plot-maps-1.png" class="r-plt" alt="Study density maps for the same panels, with the test fixations overlaid. Test fixations fall on the bright region of the matching map." width="614.4"><p class="caption">
+Study density maps for the same panels, with the test fixations
+overlaid. Test fixations fall on the bright region of the matching map.
+</p>
+</div>
+<p>A fixation is scored by looking up the grid point nearest to it.
+There is no interpolation between grid points; locations beyond the grid
+take the edge value.</p>
 </div>
 <div class="section level2">
-<h2 id="construct-references-assign-controls-and-score">Construct references, assign controls, and score<a class="anchor" aria-label="anchor" href="#construct-references-assign-controls-and-score"></a>
+<h2 id="leave-out-reference-maps">Leave-out reference maps<a class="anchor" aria-label="anchor" href="#leave-out-reference-maps"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">refs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reference_maps.html">reference_maps</a></span><span class="op">(</span><span class="va">maps</span>, floor <span class="op">=</span> <span class="fl">1</span> <span class="op">/</span> <span class="op">(</span><span class="fl">10</span> <span class="op">*</span> <span class="fl">20</span> <span class="op">*</span> <span class="fl">20</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">strata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sample_controls.html">sample_controls</a></span><span class="op">(</span><span class="va">test</span>, n <span class="op">=</span> <span class="fl">10</span>, draws <span class="op">=</span> <span class="fl">3</span>, stratify_by <span class="op">=</span> <span class="st">"epoch"</span>, seed <span class="op">=</span> <span class="fl">7</span><span class="op">)</span></span>
-<span><span class="va">scored</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/score_strata.html">score_strata</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span><span class="op">)</span></span>
-<span><span class="va">contrasts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/case_control_contrast.html">case_control_contrast</a></span><span class="op">(</span><span class="va">scored</span>, by <span class="op">=</span> <span class="st">"trial"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/aggregate.html" class="external-link">aggregate</a></span><span class="op">(</span><span class="va">contrasts</span><span class="op">[</span><span class="va">refs</span><span class="op">$</span><span class="va">refs</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>control_draw <span class="op">=</span> <span class="va">contrasts</span><span class="op">$</span><span class="va">draw</span><span class="op">)</span>, <span class="va">mean</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   control_draw self_item self_other_items others_item others_other_items</span></span>
-<span><span class="co">#&gt; 1            1  1.576836       -0.8474580 -0.07462405         0.01288271</span></span>
-<span><span class="co">#&gt; 2            2  1.585966       -0.8443119 -0.07317076         0.02254866</span></span>
-<span><span class="co">#&gt; 3            3  1.588978       -0.8338852 -0.10141726        -0.01824821</span></span></code></pre></div>
-<p>Each contrast is the case score minus the mean of its control scores.
-Trial contrasts average fixation contrasts equally. Positive values mean
-that cases score higher than controls under that reference. Control
-draws remain separate; averaging across draws is an explicit analysis
-choice.</p>
-<p>The four reference columns answer different questions:</p>
+<p>A person’s own study map is the obvious predictor of their test
+fixations. On its own, though, it cannot separate memory for this
+specific image from two other sources. One is a habit of looking at the
+same places in every image. The other is image content that draws
+everyone’s gaze. <code><a href="../reference/reference_maps.html">reference_maps()</a></code> therefore builds four
+maps for each person/item pair. Each one leaves out a different part of
+the data:</p>
 <table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
 <thead><tr class="header">
 <th>Reference</th>
-<th>Contributors</th>
+<th>Built from</th>
+<th>High where…</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td><code>self_item</code></td>
-<td>This person’s study map for this item</td>
+<td>this person’s study map of this item</td>
+<td>this person looked at this image</td>
 </tr>
 <tr class="even">
 <td><code>self_other_items</code></td>
-<td>This person’s study maps for other items</td>
+<td>this person’s maps of the <em>other</em> items</td>
+<td>this person tends to look in any image</td>
 </tr>
 <tr class="odd">
 <td><code>others_item</code></td>
-<td>Other people’s study maps for this item</td>
+<td>
+<em>other people’s</em> maps of this item</td>
+<td>this image draws everyone’s gaze</td>
 </tr>
 <tr class="even">
 <td><code>others_other_items</code></td>
-<td>Other people’s study maps for other items</td>
+<td>other people’s maps of other items</td>
+<td>people look in general (e.g. a centre bias)</td>
 </tr>
 </tbody>
 </table>
-<p>For the last reference, the package first averages other items within
-each person, then averages those person means equally. Thus a person
-with more available items does not receive greater weight. NULL maps are
-missing, not zero-valued maps. <code>refs$counts</code> records
-contributing maps for self references and contributing people for other
-references. <code>min_n</code> makes undersupported references return
-missing scores while preserving their keys.</p>
-<p>By default, each source map is normalized to unit sum, transformed
-with <code>log(value + floor)</code>, and then averaged. The floor is an
-explicit additive offset. <code>space = "density"</code> averages
-densities instead. These operations produce different references;
-scoring never logs a prepared reference again. Use
-<code>space = "density", transform = "log"</code> to take the log after
-averaging density values. The constructor records both the aggregation
-and output domains.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">refs</span><span class="op">$</span><span class="va">keys</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
-<span><span class="co">#&gt;   subject item</span></span>
-<span><span class="co">#&gt; 1      s1   i1</span></span>
-<span><span class="va">refs</span><span class="op">$</span><span class="va">counts</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
-<span><span class="co">#&gt;   self_item self_other_items others_item others_other_items</span></span>
-<span><span class="co">#&gt; 1         1                5           7                  7</span></span>
-<span><span class="va">own</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reference_map.html">reference_map</a></span><span class="op">(</span><span class="va">refs</span>, row <span class="op">=</span> <span class="fl">1</span>, ref <span class="op">=</span> <span class="st">"self_item"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/image.html" class="external-link">image</a></span><span class="op">(</span><span class="va">own</span><span class="op">$</span><span class="va">x</span>, <span class="va">own</span><span class="op">$</span><span class="va">y</span>, <span class="va">own</span><span class="op">$</span><span class="va">z</span>, xlab <span class="op">=</span> <span class="st">"x"</span>, ylab <span class="op">=</span> <span class="st">"y"</span>, asp <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>      main <span class="op">=</span> <span class="st">"Own-item log reference"</span>, col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/palettes.html" class="external-link">hcl.colors</a></span><span class="op">(</span><span class="fl">30</span>, <span class="st">"YlOrRd"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="fixation-reference-scoring_files/figure-html/inspect-reference-1.png" class="r-plt" alt="" width="480"></p>
-</div>
-<div class="section level2">
-<h2 id="inspect-and-reuse-assignments">Inspect and reuse assignments<a class="anchor" aria-label="anchor" href="#inspect-and-reuse-assignments"></a>
-</h2>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">strata</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"subject"</span>, <span class="st">"item"</span>, <span class="st">"case_id"</span>, <span class="st">"control_id"</span>, <span class="st">"draw"</span>,</span>
-<span>              <span class="st">"stratum"</span>, <span class="st">"is_case"</span>, <span class="st">"x"</span>, <span class="st">"y"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         subject item case_id control_id draw stratum is_case        x        y</span></span>
-<span><span class="co">#&gt; 1...1        s1   i1       1          1    1       1    TRUE 54.51360 66.24832</span></span>
-<span><span class="co">#&gt; 1.1...2      s1   i1       1        100    1       1   FALSE 74.94712 36.29390</span></span>
-<span><span class="co">#&gt; 1.2...3      s1   i1       1        193    1       1   FALSE 24.69938 33.92677</span></span>
-<span><span class="co">#&gt; 1.3...4      s1   i1       1        244    1       1   FALSE 31.29766 19.54338</span></span></code></pre></div>
-<p>For observed controls, <code>control_id</code> identifies the donor
-row of <code>test</code>. Other metadata belongs to the case, including
-its item and trial. Donors come from the same subject and epoch,
-excluding the case’s entire trial and every trial of the case’s item.
-Item exclusion matters for repeated presentations: own-item donors can
-land on the matched template’s hotspots and attenuate its contrast. The
-<code>item</code> column is detected by default; pass
-<code>item = "stimulus"</code> for a custom column or
-<code>item = NULL</code> for trial-only exclusion. Without an item
-column, the default also uses trial-only exclusion. With
-<code>replace = "auto"</code>, sampling uses replacement only when the
-pool is too small. Empty pools produce an error. Seeded constructors
-restore the caller’s RNG state; scoring uses no random numbers. Save the
-assignment table along with the reference set to replay an analysis.</p>
-<p>Uniform controls require explicit bounds. Map controls draw grid
-locations independently with replacement according to a supplied
-density; requesting <code>replace = FALSE</code> is an error for map
-controls. These methods define different comparison distributions. There
-is deliberately no control-only jitter: moving controls away from the
-center while leaving centered cases unchanged can manufacture a positive
-preference even when cases and unperturbed controls coincide.</p>
+<code class="sourceCode R"><span><span class="va">refs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reference_maps.html">reference_maps</a></span><span class="op">(</span><span class="va">maps</span>, floor <span class="op">=</span> <span class="fl">1</span> <span class="op">/</span> <span class="op">(</span><span class="fl">10</span> <span class="op">*</span> <span class="fl">20</span> <span class="op">*</span> <span class="fl">20</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">refs</span></span>
+<span><span class="co">#&gt; Reference set: 48 target keys; 20 x 20 grid</span></span>
+<span><span class="co">#&gt; Aggregation: log | output: log </span></span>
+<span><span class="co">#&gt;           reference supported_targets</span></span>
+<span><span class="co">#&gt;           self_item                48</span></span>
+<span><span class="co">#&gt;    self_other_items                48</span></span>
+<span><span class="co">#&gt;         others_item                48</span></span>
+<span><span class="co">#&gt;  others_other_items                48</span></span></code></pre></div>
+<div class="figure">
+<img src="fixation-reference-scoring_files/figure-html/plot-references-1.png" class="r-plt" alt="The four references for person s1 and item i1, with s1's test fixations on i1 overlaid. Only the own-item reference concentrates where those fixations land." width="672"><p class="caption">
+The four references for person s1 and item i1, with s1’s test fixations
+on i1 overlaid. Only the own-item reference concentrates where those
+fixations land.
+</p>
+</div>
+<p>The other three references are broad or multi-lobed here. Each
+averages several study maps whose preferred locations are unrelated,
+because this simulation gives people and items nothing in common. Their
+mass sits centrally only because every simulated location lies between
+20 and 80. In real data these references carry viewing habits, image
+content and centre bias. Comparing a fixation’s scores across all four
+is informative, but the scores are correlated. Separating their
+contributions requires a statistical model chosen by the researcher; the
+package does not decompose them automatically.</p>
+<p><strong>How the maps are combined.</strong> By default each study map
+is scaled to sum to 1, transformed to <code>log(density + floor)</code>,
+and only then averaged across contributors. The <code>floor</code> is a
+required small offset that keeps empty cells finite. For unit-sum maps,
+<code>1 / (10 * ncells)</code> is a reasonable starting point, but it
+changes the scores, so the package never chooses it silently. For
+<code>others_other_items</code>, each other person’s items are averaged
+first and those person means are then averaged with equal weight. A
+person with more items therefore does not count more. Every other person
+with at least one map of another item contributes, whether or not they
+also studied the target item. Use <code>space = "density"</code> to
+average densities instead of log values, and add
+<code>transform = "log"</code> to take the log after averaging.</p>
+<p><strong>Missing data.</strong> A <code>NULL</code> map counts as
+missing, not as an empty map. <code>refs$counts</code> records how many
+maps (self references) or people (other references) contributed to each
+reference. Any reference with fewer than <code>min_n</code> contributors
+yields <code>NA</code> scores, and its row is kept.
+<code><a href="../reference/reference_map.html">reference_map()</a></code> returns any single map for inspection, as
+in the figure above.</p>
 </div>
 <div class="section level2">
-<h2 id="separate-map-preparation-from-score-scaling">Separate map preparation from score scaling<a class="anchor" aria-label="anchor" href="#separate-map-preparation-from-score-scaling"></a>
+<h2 id="controls-where-else-could-the-person-have-looked">Controls: where else could the person have looked?<a class="anchor" aria-label="anchor" href="#controls-where-else-could-the-person-have-looked"></a>
 </h2>
-<p><code><a href="../reference/score_strata.html">score_strata()</a></code> standardizes each reference column within
-subject and control draw, using all case and control rows. This differs
-from z-scoring the cells of a density map. The separate fit/apply
-interface makes reuse explicit:</p>
+<p>A high score for a test fixation means little unless locations the
+person did <em>not</em> fixate score lower.
+<code><a href="../reference/sample_controls.html">sample_controls()</a></code> pairs each test fixation (the
+<em>case</em>) with control locations. By default the controls are the
+same person’s fixations from other trials, so they share that person’s
+general viewing habits.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">strata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sample_controls.html">sample_controls</a></span><span class="op">(</span><span class="va">test</span>, n <span class="op">=</span> <span class="fl">10</span>, draws <span class="op">=</span> <span class="fl">20</span>, stratify_by <span class="op">=</span> <span class="st">"epoch"</span>, seed <span class="op">=</span> <span class="fl">7</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">strata</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"subject"</span>, <span class="st">"item"</span>, <span class="st">"case_id"</span>, <span class="st">"control_id"</span>, <span class="st">"draw"</span>,</span>
+<span>                    <span class="st">"is_case"</span>, <span class="st">"x"</span>, <span class="st">"y"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  subject item case_id control_id draw is_case        x        y</span></span>
+<span><span class="co">#&gt;       s1   i1       1          1    1    TRUE 54.51360 66.24832</span></span>
+<span><span class="co">#&gt;       s1   i1       1        100    1   FALSE 74.94712 36.29390</span></span>
+<span><span class="co">#&gt;       s1   i1       1        193    1   FALSE 24.69938 33.92677</span></span>
+<span><span class="co">#&gt;       s1   i1       1        244    1   FALSE 31.29766 19.54338</span></span></code></pre></div>
+<p>Each case forms a <em>stratum</em> with its 10 controls. This is
+repeated for 20 independent control draws. <code>x</code> and
+<code>y</code> are each row’s own location, and <code>control_id</code>
+is the row of <code>test</code> it was taken from (its <em>donor</em>; a
+case row points to itself). The remaining columns describe the case.
+Controls come from the same subject and epoch. They exclude the case’s
+own trial and every trial showing the same item, so repeated
+presentations of an item cannot donate controls that sit on its own
+hotspots.</p>
+<div class="figure">
+<img src="fixation-reference-scoring_files/figure-html/plot-controls-1.png" class="r-plt" alt="One test fixation (cross) and its ten controls from the first draw (circles), over the case's own-item reference. The controls are s1's fixations on other items." width="422.4"><p class="caption">
+One test fixation (cross) and its ten controls from the first draw
+(circles), over the case’s own-item reference. The controls are s1’s
+fixations on other items.
+</p>
+</div>
+<p>Other designs call for other comparison locations.
+<code>method = "uniform"</code> draws controls uniformly within explicit
+bounds. <code>method = "map"</code> draws grid locations from a supplied
+density, always with replacement. These choices answer different
+questions. There is deliberately no option to jitter controls away from
+cases: moving only the controls can create an apparent preference where
+none exists.</p>
+</div>
+<div class="section level2">
+<h2 id="scores-and-casecontrol-contrasts">Scores and case–control contrasts<a class="anchor" aria-label="anchor" href="#scores-and-casecontrol-contrasts"></a>
+</h2>
+<p><code><a href="../reference/score_strata.html">score_strata()</a></code> looks up every case and control location
+in all four references. <code><a href="../reference/case_control_contrast.html">case_control_contrast()</a></code> then
+subtracts the mean control score from the case score in each stratum and
+averages these differences within each trial. It returns one row per
+trial and control draw. A single draw of 10 controls leaves the score
+partly dependent on which controls happened to be sampled, so we average
+each trial’s contrasts over the 20 draws:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">scored</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/score_strata.html">score_strata</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span><span class="op">)</span></span>
+<span><span class="va">contrasts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/case_control_contrast.html">case_control_contrast</a></span><span class="op">(</span><span class="va">scored</span>, by <span class="op">=</span> <span class="st">"trial"</span><span class="op">)</span></span>
+<span><span class="va">trial_scores</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/aggregate.html" class="external-link">aggregate</a></span><span class="op">(</span><span class="va">contrasts</span><span class="op">[</span><span class="va">refs</span><span class="op">$</span><span class="va">refs</span><span class="op">]</span>, <span class="va">contrasts</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"subject"</span>, <span class="st">"trial"</span><span class="op">)</span><span class="op">]</span>, <span class="va">mean</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">trial_scores</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject trial self_item self_other_items others_item others_other_items</span></span>
+<span><span class="co">#&gt; 1      s1    i1  2.194957        -2.493565   0.4124771         0.67478263</span></span>
+<span><span class="co">#&gt; 2      s2    i1  1.940707        -1.701798  -0.6013381         0.01451235</span></span>
+<span><span class="co">#&gt; 3      s3    i1  2.165340        -1.966741  -1.3192115        -1.20895867</span></span></code></pre></div>
+<p>A positive contrast means the person’s test fixations score higher
+than their controls under that reference. Before the comparison, scores
+are standardized within each subject and control draw (see <a href="#reusing-the-scaling">Reusing the scaling</a>), so contrasts are
+in z units. The package keeps draws separate so that this averaging is a
+visible step. Averaging over 10–20 draws is a sensible default; a single
+draw adds control-sampling noise to every trial score.</p>
+<div class="figure">
+<img src="fixation-reference-scoring_files/figure-html/plot-contrasts-1.png" class="r-plt" alt="Trial contrasts for each reference, averaged over control draws (one point per person and item), with their means. Only the own-item reference separates test fixations from controls in the expected direction." width="672"><p class="caption">
+Trial contrasts for each reference, averaged over control draws (one
+point per person and item), with their means. Only the own-item
+reference separates test fixations from controls in the expected
+direction.
+</p>
+</div>
+<p>The own-item contrast is large and positive, as planted. The two
+“other people” contrasts are near zero. <code>self_other_items</code> is
+<em>negative</em> even though this simulation contains no viewing habit.
+The controls are this person’s test fixations on the other items, and
+they land on the hotspots of that person’s study maps of those items,
+which are exactly the maps averaged into <code>self_other_items</code>.
+The controls therefore score higher than the case. With same-person
+observed controls, this reference cannot reveal a viewing habit, because
+the controls share it by construction. <code>method = "uniform"</code>
+controls are needed if that is the question.</p>
+</div>
+<div class="section level2">
+<h2 id="a-mismatched-item-baseline">A mismatched-item baseline<a class="anchor" aria-label="anchor" href="#a-mismatched-item-baseline"></a>
+</h2>
+<p>Even in the absence of item-specific memory, a person’s own study map
+of a <em>different</em> item can predict some test fixations, through
+habits or shared image structure. A useful baseline therefore rescores
+each test trial against a mismatched study map from the same person.
+<code><a href="../reference/mismatch_assignments.html">mismatch_assignments()</a></code> draws the replacement items, and
+<code><a href="../reference/mismatch_draws.html">mismatch_draws()</a></code> rescores with them:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">assignments</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mismatch_assignments.html">mismatch_assignments</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span>, n <span class="op">=</span> <span class="fl">20</span>, seed <span class="op">=</span> <span class="fl">31</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">assignments</span>, <span class="fl">3</span><span class="op">)</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  subject trial item null_draw replacement_item</span></span>
+<span><span class="co">#&gt;       s1    i1   i1         1               i6</span></span>
+<span><span class="co">#&gt;       s2    i1   i1         1               i2</span></span>
+<span><span class="co">#&gt;       s3    i1   i1         1               i4</span></span>
+<span></span>
+<span><span class="va">null</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mismatch_draws.html">mismatch_draws</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span>, assignments <span class="op">=</span> <span class="va">assignments</span>,</span>
+<span>                       replace_ref <span class="op">=</span> <span class="st">"self_item"</span>, by <span class="op">=</span> <span class="st">"trial"</span><span class="op">)</span></span></code></pre></div>
+<p>Each of the 20 null draws assigns every trial one replacement item,
+used for all of that trial’s fixations and control draws. With
+<code>replace_ref = "self_item"</code>, only the own-item reference is
+swapped; <code>replace_ref = "all"</code> swaps the whole set of four
+references.</p>
+<p>Mismatching changes which controls are fair. A control taken from the
+replacement item’s trial would sit on the replacement map’s hotspots and
+push the mismatched contrast below zero. <code><a href="../reference/mismatch_draws.html">mismatch_draws()</a></code>
+therefore drops, in each draw, the controls taken from either the case’s
+item or the replacement item. <code>null$contrasts</code> holds the
+mismatched contrasts. <code>null$paired_observed</code> rescores the
+<em>matched</em> map using exactly the same retained controls and
+scaling, so the two can be compared directly:</p>
+<div class="figure">
+<img src="fixation-reference-scoring_files/figure-html/plot-mismatch-1.png" class="r-plt" alt="Mean own-item contrast in each of the 20 null draws, for the matched study map and for a mismatched one, scored against the same retained controls. Lines join the two results from the same draw." width="537.6"><p class="caption">
+Mean own-item contrast in each of the 20 null draws, for the matched
+study map and for a mismatched one, scored against the same retained
+controls. Lines join the two results from the same draw.
+</p>
+</div>
+<p>The mismatched contrasts sit near zero, while the matched contrasts
+on the same controls remain well above it. That gap is the planted
+item-specific preference. The matched values (mean 1.76) are higher than
+the own-item mean in the previous section (1.58). Each draw scores fewer
+controls and rescales with the fit to its mismatched scores, so the two
+numbers are not directly comparable. <code>null$observed</code> keeps
+the original contrasts on all controls. If the strata were drawn with
+<code>item = NULL</code> and items repeat, those original contrasts can
+still be attenuated by own-item controls.</p>
+<p><code><a href="../reference/mismatch_draws.html">mismatch_draws()</a></code> returns these draws and their
+assignments, not p-values. Whether swapping items gives a valid null
+depends on the design: repeated items and condition differences can
+violate exchangeability. An own-item contrast can also contain
+image-content effects, so compare it with the other references before
+reading it as person-specific reinstatement.</p>
+</div>
+<div class="section level2">
+<h2 id="reusing-the-scaling">Reusing the scaling<a class="anchor" aria-label="anchor" href="#reusing-the-scaling"></a>
+</h2>
+<p><code><a href="../reference/score_strata.html">score_strata()</a></code> standardizes each reference within
+subject and control draw, using all case and control scores. This is not
+the same as z-scoring the cells of a map. The fitting step is also
+available separately, so the same scaling can be saved and applied
+again:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/score_strata.html">score_strata</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span>, standardize <span class="op">=</span> <span class="st">"none"</span><span class="op">)</span></span>
 <span><span class="va">scaling</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_score_scaling.html">fit_score_scaling</a></span><span class="op">(</span><span class="va">raw</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"subject"</span>, <span class="st">"draw"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">replayed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_score_scaling.html">apply_score_scaling</a></span><span class="op">(</span><span class="va">raw</span>, <span class="va">scaling</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">replayed</span>, <span class="va">scored</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>Fitting each control draw separately prevents adding draws from
-altering earlier draws’ scaling. Constant score columns map to zero.
-Missing scores stay missing and propagate into contrasts; they are not
-silently removed from a control pool. Applying a fit to an unseen group
-produces an error.</p>
+<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">replayed</span>, <span class="va">scored</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>Each control draw has its own fit, so adding draws later does not
+change the scaling of earlier ones. A reference whose scores are
+constant within a group maps to zero, missing scores stay missing (and
+make the contrast missing), and applying a fit to a group it has not
+seen is an error.</p>
 </div>
 <div class="section level2">
-<h2 id="compare-matched-and-mismatched-templates-on-shared-controls">Compare matched and mismatched templates on shared controls<a class="anchor" aria-label="anchor" href="#compare-matched-and-mismatched-templates-on-shared-controls"></a>
+<h2 id="details-and-options">Details and options<a class="anchor" aria-label="anchor" href="#details-and-options"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">assignments</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mismatch_assignments.html">mismatch_assignments</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span>, n <span class="op">=</span> <span class="fl">20</span>, seed <span class="op">=</span> <span class="fl">31</span><span class="op">)</span></span>
-<span><span class="va">null</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mismatch_draws.html">mismatch_draws</a></span><span class="op">(</span><span class="va">strata</span>, <span class="va">refs</span>, assignments <span class="op">=</span> <span class="va">assignments</span>,</span>
-<span>                        replace_ref <span class="op">=</span> <span class="st">"self_item"</span>, by <span class="op">=</span> <span class="st">"trial"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  assignment <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Matched item"</span>, <span class="st">"Other item"</span><span class="op">)</span>,</span>
-<span>  mean_contrast <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">null</span><span class="op">$</span><span class="va">paired_observed</span><span class="op">$</span><span class="va">self_item</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">null</span><span class="op">$</span><span class="va">contrasts</span><span class="op">$</span><span class="va">self_item</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">comparison</span></span>
-<span><span class="co">#&gt;     assignment mean_contrast</span></span>
-<span><span class="co">#&gt; 1 Matched item    1.75923390</span></span>
-<span><span class="co">#&gt; 2   Other item   -0.01346363</span></span></code></pre></div>
-<p>Each replacement is another valid study item from the same subject.
-One replacement applies to the entire trial, including all its
-fixations, controls, and control draws.
-<code>replace_ref = "self_item"</code> changes only the own-item
-reference; <code>replace_ref = "all"</code> replaces the full reference
-tuple coherently. The original case metadata remains attached to the
-returned contrasts.</p>
-<p>By default, each draw excludes controls whose donor item is either
-the case’s item or the replacement item, including donors from repeated
-trials of either item. This also corrects older saved assignments drawn
-with trial-only exclusion. Own-item donors would attenuate the matched
-contrast; replacement-item donors would push the mismatched contrast
-below zero under a real matched effect. <code>control_id</code> and the
-saved <code>control_sources</code> attribute identify donors even after
-selecting a subset of cases. No controls are redrawn; a stratum left
-without controls produces an error. Increasing the initial control count
-can help only if eligible donors exist. A subject with only two test
-items cannot support a comparison between those items using observed
-controls, even with repeated trials. In particular, two test trials
-containing those items always leave an empty pool. Use
-<code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> to preserve donor metadata when saving a subset
-of cases.</p>
-<p><code>paired_observed</code> rescores the matched template using
-exactly the same retained controls and scaling as each mismatched
-contrast. The plot compares these paired results. <code>observed</code>
-retains the original contrast on all controls for context; if those
-controls came from trial-only sampling, repeated own-item donors can
-still attenuate <code>observed</code>.
-<code>control_policy = "fixed"</code> retains all supplied controls,
-including replacement-item donors. Combine it with
-<code>sample_controls(..., item = NULL)</code> to reproduce the original
-item-discrimination baseline. Its negative value under a real effect
-should not be interpreted as an absence-of-reinstatement baseline.</p>
-<p><img src="fixation-reference-scoring_files/figure-html/compare-assignments-1.png" class="r-plt" alt="" width="672"></p>
-<p>Scaling is refitted on the retained mismatched scores in each draw by
-default, and that same fit is applied to both members of the pair. Set
-<code>restandardize = FALSE</code> to apply the original observed fit to
-both instead. Use <code>standardize = "none"</code> for comparisons in
-raw reference units. Neither option alone establishes an exact
-randomization test. Item replacement must be justified by the study
-design and the null hypothesis; repeated items and condition differences
-can violate exchangeability. The function therefore returns draws and
-assignments without automatic p-values.</p>
-<p>The reference scores are available as predictors for an analysis
-chosen by the researcher. An own-item contrast can contain generic
-image-content effects: compare it with the other references before
-interpreting it as person-specific reinstatement. Conditioning on
-correlated reference scores requires a model and an interpretation; it
-is not an automatic decomposition supplied by this API.</p>
-</div>
-<div class="section level2">
-<h2 id="existing-entry-points">Existing entry points<a class="anchor" aria-label="anchor" href="#existing-entry-points"></a>
-</h2>
-<p><code><a href="../reference/sample_density.html">sample_density()</a></code> still samples one density map with its
-previous defaults. It also accepts a named map list or map table, with
-long or wide results. <code><a href="../reference/template_sample.html">template_sample()</a></code> forwards sampling
-options, and <code><a href="../reference/sample_density_time.html">sample_density_time()</a></code> retains its time-series
-and averaged-baseline output. These interfaces share map preparation and
-lookup with the new workflow. Use explicit strata and mismatch
-assignments when the identities of controls and replacement draws must
-remain available.</p>
+<p><strong>Saving and replaying.</strong> Seeded functions restore the
+caller’s random-number state, and scoring uses no randomness. Saving
+<code>strata</code>, <code>assignments</code> and <code>refs</code> (for
+example with <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>) is enough to reproduce every number
+above. The donor metadata (the <code>control_sources</code> attribute)
+survives <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> and subsetting with <code>[</code>, so a
+saved subset of cases can still be traced to its controls.
+<code><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset()</a></code> and export to CSV drop it.</p>
+<p><strong>Item exclusion.</strong> <code><a href="../reference/sample_controls.html">sample_controls()</a></code>
+detects an <code>item</code> column automatically. Pass
+<code>item = "stimulus"</code> for another column name, or
+<code>item = NULL</code> to exclude only the case’s own trial. With the
+default <code>replace = "auto"</code>, controls are drawn with
+replacement only when too few are available, and an empty pool is an
+error.</p>
+<p><strong>Mismatch controls.</strong> <code><a href="../reference/mismatch_draws.html">mismatch_draws()</a></code>
+drops controls without redrawing them, so a stratum can run out, which
+is an error. The exclusion also applies to strata drawn with
+<code>item = NULL</code>, so own-item controls are always dropped and
+such strata can run out too. A subject who saw only two test items
+cannot support a comparison between those two items with observed
+controls, however many trials or controls there are. With
+<code>control_policy = "fixed"</code>, every supplied control is kept,
+including those from the replacement item. Combined with
+<code>sample_controls(..., item = NULL)</code>, this gives an
+item-discrimination baseline. Under a real effect that baseline is
+negative, so it should not be read as the level expected without
+reinstatement.</p>
+<p><strong>Scaling in the null.</strong> By default each null draw
+refits the scaling on its retained mismatched scores and applies it to
+both members of the pair. <code>restandardize = FALSE</code> applies the
+original fit to both instead, and <code>standardize = "none"</code>
+keeps raw reference units.</p>
+<p><strong>Related functions.</strong> <code><a href="../reference/sample_density.html">sample_density()</a></code>
+samples a single density map, and also accepts a named list or table of
+maps. <code><a href="../reference/template_sample.html">template_sample()</a></code> and
+<code><a href="../reference/sample_density_time.html">sample_density_time()</a></code> share the same map preparation and
+lookup. Use the strata and assignment tables above when the identities
+of controls and replacement draws need to be kept.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
