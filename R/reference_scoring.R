@@ -90,6 +90,35 @@ moment_scale <- function(moments, columns) {
   scale
 }
 
+# Moment subtraction can lose the entire retained variance when excluded
+# donors carry most of the spread. Recompute only ill-conditioned group/column
+# pairs from retained scores, shifted by an actual value before centering.
+# `values` and `ids` are lazy: the common well-conditioned path needs neither.
+refit_moment_scale <- function(moments, columns, values, ids, baseline = moments) {
+  scale <- moment_scale(moments, columns)
+  k <- length(columns)
+  counts <- moments[, seq_len(k), drop = FALSE]
+  s1 <- moments[, k + seq_len(k), drop = FALSE]
+  s2 <- moments[, 2L * k + seq_len(k), drop = FALSE]
+  correction <- s1^2 / counts
+  variance_sum <- s2 - correction
+  magnitude <- abs(baseline[, 2L * k + seq_len(k), drop = FALSE]) +
+    abs(s2) + abs(correction)
+  unstable <- counts > 1 & (!is.finite(variance_sum) |
+    (magnitude > 0 & variance_sum <= sqrt(.Machine$double.eps) * magnitude))
+  pairs <- which(unstable, arr.ind = TRUE)
+  if (nrow(pairs)) for (i in seq_len(nrow(pairs))) {
+    g <- pairs[i, 1]
+    j <- pairs[i, 2]
+    x <- values[ids == g, j]
+    x <- x[!is.na(x)]
+    x <- x - x[1]
+    sd <- sqrt(sum((x - mean(x))^2) / (length(x) - 1))
+    scale[g, j] <- if (is.finite(sd) && sd > 0) sd else 1
+  }
+  list(scale = scale, recomputed = nrow(pairs) > 0L)
+}
+
 # Reuse group membership for replay draws instead of reconstructing key tables.
 # Vectorized over groups and columns: two-pass mean (with one correction pass,
 # as mean() does) and sample SD of the non-missing values in each group.
@@ -349,8 +378,19 @@ mismatch_draws <- function(strata, refs, n = 100, trial = "trial", seed = 1,
       which(donor_item[controls] == refs$ii[target[controls]])
     counts <- count_total - tabulate(stratum[dropped], n_strata)
     check_control_counts(counts)
-    matched_sums <- matched_total -
-      group_sums(matched_diff[dropped, , drop = FALSE], stratum[dropped], n_strata)
+    removed_sums <- group_sums(matched_diff[dropped, , drop = FALSE],
+                               stratum[dropped], n_strata)
+    matched_sums <- matched_total - removed_sums
+    # A tiny retained contrast can also be lost when subtracting large donor
+    # contributions. Reduce retained differences directly in those cells.
+    magnitude <- abs(matched_total) + abs(removed_sums)
+    unstable_sums <- is.finite(matched_sums) & magnitude > 0 &
+      abs(matched_sums) <= sqrt(.Machine$double.eps) * magnitude
+    if (length(dropped) && any(unstable_sums)) {
+      direct <- group_sums(matched_diff[-dropped, , drop = FALSE],
+                           stratum[-dropped], n_strata)
+      matched_sums[unstable_sums] <- direct[unstable_sums]
+    }
     kept <- if (length(dropped)) controls[-dropped] else controls
     kept_stratum <- if (length(dropped)) stratum[-dropped] else stratum
     rescored <- matrix(vapply(columns, function(ref) reference_values(refs, target, cell, ref),
@@ -363,12 +403,18 @@ mismatch_draws <- function(strata, refs, n = 100, trial = "trial", seed = 1,
       mismatch_sums[, columns] <- group_sums(kept_diff, kept_stratum, n_strata)
     } else {
       scale <- matrix(NA_real_, nrow(shift), length(refs$refs), dimnames = list(NULL, refs$refs))
+      recomputed <- FALSE
       if (length(fixed_columns)) {
         lost <- controls[dropped]
         moments <- fixed_moments - shifted_moments(
           values[lost, fixed_columns, drop = FALSE], scale_layout$ids[lost], nrow(shift),
           shift[, fixed_columns, drop = FALSE])
-        scale[, fixed_columns] <- moment_scale(moments, fixed_columns)
+        retained <- c(case_idx, kept)
+        fixed_fit <- refit_moment_scale(
+          moments, fixed_columns, values[retained, fixed_columns, drop = FALSE],
+          scale_layout$ids[retained], baseline = fixed_moments)
+        scale[, fixed_columns] <- fixed_fit$scale
+        recomputed <- fixed_fit$recomputed
       }
       # Shift replaced columns by each group's mean rescored case score, which
       # lies near the group mean; the observed centre can be missing or far off,
@@ -389,7 +435,17 @@ mismatch_draws <- function(strata, refs, n = 100, trial = "trial", seed = 1,
       mismatch_sums[, columns] <- sums[, seq_len(nc), drop = FALSE]
       moments <- group_sums(sums[, -seq_len(nc), drop = FALSE], stratum_group, nrow(shift)) +
         shifted_moments(rescored[case_idx, , drop = FALSE], case_ids, nrow(shift), replaced_shift)
-      scale[, columns] <- moment_scale(moments, columns)
+      retained <- c(case_idx, kept)
+      replaced_fit <- refit_moment_scale(
+        moments, columns, rescored[retained, , drop = FALSE],
+        scale_layout$ids[retained])
+      scale[, columns] <- replaced_fit$scale
+      if (length(dropped) && (recomputed || replaced_fit$recomputed)) {
+        # Tiny refitted scales also amplify rounding in the matched numerator.
+        matched_sums <- group_sums(matched_diff[-dropped, , drop = FALSE],
+                                   stratum[-dropped], n_strata)
+        mismatch_sums[, fixed_columns] <- matched_sums[, fixed_columns, drop = FALSE]
+      }
       fit <- list(scale = scale)
     }
     contrasts <- finish_contrast(mismatch_sums, counts, layout, fit, scaling_ids)
